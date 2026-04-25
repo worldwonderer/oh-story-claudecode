@@ -1,6 +1,6 @@
-# oh-story-claudecode
+# oh-story
 
-网络小说创作工具箱。6 个 AI 编程助手 skill，覆盖长篇与短篇网文的扫榜、拆文、写作全流程。
+网络小说创作工具箱。6 个 Claude Code skill，覆盖长篇与短篇网文的扫榜、拆文、写作全流程。
 
 **当前版本：v2.0.0**
 
@@ -10,7 +10,7 @@
 npx skills add worldwonderer/oh-story-claudecode
 ```
 
-安装后 7 个 skill 会自动注册到 Claude Code、Cursor、OpenClaw、Copilot 等支持的工具。
+安装后 7 个 skill 会自动注册到 Claude Code、Cursor、Copilot 等支持的编辑器。
 
 ## 如何更新
 
@@ -20,9 +20,9 @@ npx skills add worldwonderer/oh-story-claudecode
 npx skills add worldwonderer/oh-story-claudecode
 ```
 
-## 使用方式
+## 在 Claude Code 会话中使用
 
-在 AI 编程助手的对话中直接输入斜杠命令触发对应 skill：
+在 Claude Code 对话中直接输入斜杠命令触发对应 skill：
 
 | 命令 | 用途 |
 |---|---|
