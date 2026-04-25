@@ -226,11 +226,16 @@ description: |
 
 | 文件 | 何时加载 |
 |------|----------|
-| [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | **核心参考**：17大题材写作公式（复仇打脸/宅斗/虐恋/系统逆袭/轻喜剧/玄幻仙侠/年代重生/宫闱宅斗/现代悬疑/架空历史/假千金心声/离婚逆袭/总裁豪门深度/黑岩男女频/隐忍腹黑/追夫火葬场/年代重生医术），逐篇精读提炼 |
+| [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | **核心参考**：21大题材写作公式 + 震惊场景九法 + 三翻四震技法 + 比赛场景写法 + 感情线四阶段推进 + 喜剧flag机制 + 核心梗提炼验证 + 短篇视角控制法则 + 女频读者心理与写作技法 + AI辅助写作技法 + 情绪操控高级技法 + 感情线写作法则 + 毒点排查核心 + 情绪锚点理论 + 反派嘲讽新思路 + 人设拆解法 + 以小搏大四要素 + 爽点本质 + 反馈式学习法 |
 | [references/zhihu-format.md](references/zhihu-format.md) | 写知乎盐言故事时，加载格式规范 |
-| [references/emotional-arc-templates.md](references/emotional-arc-templates.md) | 设计情绪曲线时，选择合适的弧形模板 |
-| [references/reversal-toolkit.md](references/reversal-toolkit.md) | 设计反转时，选择反转类型和时机 |
-| [references/quality-checklist.md](references/quality-checklist.md) | 精修检查时，五维质量评分 + 虐爽节奏 |
+| [../story-long-write/references/emotional-arc-design.md](../story-long-write/references/emotional-arc-design.md) | 设计情绪曲线时，弧形模板+期待感管理+题材赛道策略 |
+| [../story-long-write/references/reversal-toolkit.md](../story-long-write/references/reversal-toolkit.md) | 设计反转时，反转类型+时机+误导底层路径 |
+| [../story-long-write/references/quality-checklist.md](../story-long-write/references/quality-checklist.md) | 精修检查时，通用+短篇专项 |
+| [../story-long-write/references/anti-ai-writing.md](../story-long-write/references/anti-ai-writing.md) | 去AI味时 |
+| [../story-long-write/references/character-design.md](../story-long-write/references/character-design.md) | 设定人物时 |
+| [../story-long-write/references/dialogue-mastery.md](../story-long-write/references/dialogue-mastery.md) | 写对话时 |
+| [../story-long-write/references/hook-techniques.md](../story-long-write/references/hook-techniques.md) | 设计开头钩子时，段落级钩子部分 |
+| [../story-long-write/references/genre-frameworks-unified.md](../story-long-write/references/genre-frameworks-unified.md) | 参考题材框架时，短篇视角 |
 
 > 📚 深度参考：知识库/Skill知识包/short-write_短篇写作框架.md
 

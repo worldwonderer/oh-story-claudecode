@@ -1,8 +1,8 @@
 # oh-story
 
-网络小说创作工具箱。7 个 Claude Code skill，覆盖长篇与短篇网文的扫榜、拆文、写作全流程。
+网络小说创作工具箱。6 个 Claude Code skill，覆盖长篇与短篇网文的扫榜、拆文、写作全流程。
 
-**当前版本：v1.0.0**
+**当前版本：v2.0.0**
 
 ## 如何安装
 
@@ -45,10 +45,9 @@ npx skills add worldwonderer/oh-story-claudecode
 
 | Skill | 做什么 |
 |---|---|
-| `/story` | 主入口，自动路由到对的工具 |
 | `/story-long-scan` | 长篇扫榜。分析起点/番茄/晋江排行榜数据，提炼市场趋势 |
 | `/story-long-analyze` | 长篇拆文。深度拆解黄金三章、人设架构、爽点设计、节奏控制 |
-| `/story-long-write` | 长篇写作。从大纲到正文，辅助长篇网文创作全流程 |
+| `/story-long-write` | 长篇写作。从大纲到正文，辅助长篇网文创作全流程（也响应 `/story`、`/网文`） |
 
 ### 短篇工具
 
@@ -95,18 +94,22 @@ short-write（动笔写稿）
 
 ---
 
-## 知识库
+## 知识体系
 
-每个 skill 背后有对应的知识库文件提供方法论支撑：
+统一的分层知识架构：核心知识集中在 `story-long-write/references/`，其他 skill 通过跨 skill 引用共享。
 
-| 知识包 | 内容 |
-|---|---|
-| `long-scan_网文市场数据` | 各平台数据、题材趋势、分析方法论 |
-| `long-analyze_拆文方法论` | 黄金三章理论、爽点设计、节奏控制 |
-| `long-write_长篇写作框架` | 大纲体系、世界观构建、人物管理 |
-| `short-scan_短篇市场数据` | 短篇平台格局、情绪市场、风口识别 |
-| `short-analyze_短篇拆文方法论` | 反转设计、情绪曲线、结构模型 |
-| `short-write_短篇写作框架` | 写作流程、平台适配、精修技巧 |
+| 知识主题 | 文件 | 消费 skills |
+|---|---|---|
+| 人物设计与分析 | `character-design.md` | long-analyze, short-analyze, short-write |
+| 钩子技法大全 | `hook-techniques.md` | short-analyze, short-write |
+| 对话技法大全 | `dialogue-mastery.md` | short-write |
+| 去AI味完整指南 | `anti-ai-writing.md` | deslop, short-write |
+| 质量检查清单 | `quality-checklist.md` | long-analyze, short-analyze, short-write |
+| 情绪弧线设计 | `emotional-arc-design.md` | short-write |
+| 反转工具箱 | `reversal-toolkit.md` | short-write |
+| 题材框架（双视角） | `genre-frameworks-unified.md` | long-analyze, short-analyze |
+
+长篇专属知识（大纲排布、八节点结构、连续性管理、风格模块等）仅 `story-long-write` 使用。各 skill 保留自身专属文件（如短篇写作公式、拆文案例、禁用词表等）。
 
 ---
 
@@ -126,8 +129,7 @@ short-write（动笔写稿）
 
 ```
 用户：我想写一本长篇网文，但不知道写什么
-→ /story → 路由到 /story-long-scan
-→ 扫榜分析后推荐方向
+→ /story-long-scan 扫榜分析，推荐方向
 → /story-long-analyze 拆一本同类型爆款
 → /story-long-write 开始写大纲和正文
 ```
@@ -136,7 +138,7 @@ short-write（动笔写稿）
 
 ```
 用户：帮我写一篇知乎盐言风格的短篇
-→ /story → 路由到 /story-short-write
+→ /story-short-write
 → 确定情绪目标 → 设计反转 → 写初稿 → 精修
 ```
 

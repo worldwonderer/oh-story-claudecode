@@ -2,7 +2,7 @@
 name: story-long-write
 description: |
   长篇网文写作。从大纲到正文，辅助长篇网络小说的创作，包括世界观、人物、情节线管理。
-  触发方式：/story-long-write、/写长篇、「帮我开书」「写大纲」
+  触发方式：/story-long-write、/写长篇、/story、/网文、「帮我开书」「写大纲」
 ---
 
 # story-long-write：长篇网文写作
@@ -170,31 +170,7 @@ description: |
 
 ### Phase 5：质量检查
 
-对已写内容做检查：
-
-```
-## 质量检查清单
-
-### 黄金三章检查
-- [ ] 第一章前 500 字有钩子？
-- [ ] 主角第一章就出场？
-- [ ] 前三章有至少 2 个爽点？
-- [ ] 世界观没有大段说明文？
-- [ ] 每章结尾有悬念？
-
-### 节奏检查
-- [ ] 最近 5 章是否有明确进展？
-- [ ] 爽点间隔是否超过 5000 字？
-- [ ] 有没有连续 2 章以上没有冲突？
-
-### 人物检查
-- [ ] 主角行为符合人设？
-- [ ] 配角是否有存在感？
-- [ ] 反派逼格是否匹配当前阶段？
-
-### 一句话诊断
-{当前稿件最大的问题 + 修改建议}
-```
+对已写内容做检查，参考 [references/quality-checklist.md](references/quality-checklist.md) 中的通用检查和长篇专项清单。
 
 ---
 
@@ -215,19 +191,21 @@ description: |
 
 | 文件 | 何时加载 |
 |------|----------|
-| [references/genre-opening-database.md](references/genre-opening-database.md) | **核心参考**：8大题材开头模板+真实范例+决策树 |
-| [references/chapter-hooks-database.md](references/chapter-hooks-database.md) | **核心参考**：10种章节结尾钩子模式+真实范例+使用指南 |
-| [references/dialogue-patterns-database.md](references/dialogue-patterns-database.md) | **核心参考**：真实网文对话节奏/语气/标签/情绪写法 |
+| [references/genre-opening-database.md](references/genre-opening-database.md) | **核心参考**：8大题材开头模板+真实范例+决策树+书名起名法+都市高武模板 |
+| [references/hook-techniques.md](references/hook-techniques.md) | **核心参考**：钩子原理+章尾钩子13式+实战模板+短篇段落级钩子+分层策略 |
+| [references/dialogue-mastery.md](references/dialogue-mastery.md) | **核心参考**：对话节奏/潜台词/信息控制+对话模式数据库 |
 | [references/eight-node-structure.md](references/eight-node-structure.md) | 设计大纲、搭建卷级结构时 |
-| [references/character-design.md](references/character-design.md) | 设定主角、配角、反派层级时 |
-| [references/anti-ai-writing.md](references/anti-ai-writing.md) | 精修正文、去除 AI 痕迹时 |
-| [references/outline-arrangement.md](references/outline-arrangement.md) | 排布大纲、设计剧情线时 |
-| [references/hook-techniques.md](references/hook-techniques.md) | 设计章尾钩子、章首开局时 |
-| [references/consistency-tracking.md](references/consistency-tracking.md) | 管理长篇连续性、防止遗忘时 |
-| [references/style-modules.md](references/style-modules.md) | 针对特定题材风格写作时 |
-| [references/dialogue-mastery.md](references/dialogue-mastery.md) | 写对话、设计角色语气时 |
-| [references/camera-writing.md](references/camera-writing.md) | 学习镜头式写作手法时 |
+| [references/character-design.md](references/character-design.md) | **人物全流程**：设定主角/配角/反派+人物元素提取+关系映射+动机链+一致性检查 |
+| [references/anti-ai-writing.md](references/anti-ai-writing.md) | **去AI味全流程**：预防AI痕迹+三遍去AI法+改写范例库 |
+| [references/outline-arrangement.md](references/outline-arrangement.md) | **核心参考**：大纲排布+脑洞文全流程+金手指拆分与战力防崩+噱头分类与标准开篇+情绪拉扯理论+高潮逆推法+主线正确定义+误会制造拉扯法+对标书选择 |
+| [references/consistency-tracking.md](references/consistency-tracking.md) | 管理长篇连续性+设门槛拉长剧情+拆书方法+故事卡系统拆解法+同人写作经验+抄书训练法+对标书选择流程+融书方法论 |
+| [references/style-modules.md](references/style-modules.md) | **核心参考**：题材风格+写作四要点+爽点释放到位法则+微创新新瓶旧酒+装逼打脸框架分析+文学素养两字诀+卖点原理核心情绪+新人开窍心法 |
+| [references/camera-writing.md](references/camera-writing.md) | 镜头式写作+间接反应描写+震惊信息差分层释放 |
 | [references/micro-innovation.md](references/micro-innovation.md) | 题材微创新、差异化设计时 |
+| [references/emotional-arc-design.md](references/emotional-arc-design.md) | 设计情绪曲线时，弧形模板+期待感管理+题材赛道策略 |
+| [references/reversal-toolkit.md](references/reversal-toolkit.md) | 设计反转时，反转类型+时机+误导底层路径 |
+| [references/quality-checklist.md](references/quality-checklist.md) | 质量检查时，通用+长篇专项+短篇专项 |
+| [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | 拆解特定题材时，长篇+短篇双视角 |
 
 > 📚 深度参考：知识库/Skill知识包/long-write_长篇写作框架.md
 
