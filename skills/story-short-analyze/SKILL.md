@@ -68,13 +68,13 @@ description: |
 | [references/output-templates.md](references/output-templates.md) | 拆文时：输出模板+结构库+必填字段 |
 | [references/deconstruction-examples.md](references/deconstruction-examples.md) | 学习拆文方法时（3个完整案例） |
 | [references/zhihu-style.md](references/zhihu-style.md) | 分析知乎盐言故事时 |
-| [../story-long-write/references/genre-frameworks-unified.md](../story-long-write/references/genre-frameworks-unified.md) | 拆解特定题材时，加载对应题材的「短篇视角」章节 |
-| [../story-long-write/references/hook-techniques.md](../story-long-write/references/hook-techniques.md) | 深度分析钩子设计时 |
-| [../story-long-write/references/character-design.md](../story-long-write/references/character-design.md) | 深度分析人物设计时 |
-| [../story-long-write/references/quality-checklist.md](../story-long-write/references/quality-checklist.md) | 评估质量时 |
+| [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | 拆解特定题材时，加载对应题材的「短篇视角」章节 |
+| [references/hook-techniques.md](references/hook-techniques.md) | 深度分析钩子设计时 |
+| [references/character-design.md](references/character-design.md) | 深度分析人物设计时 |
+| [references/quality-checklist.md](references/quality-checklist.md) | 评估质量时 |
 
-> **题材写作公式**：`../story-short-write/references/genre-writing-formulas.md`（21大题材写作公式）
-> **市场数据**：`../story-short-scan/references/real-market-data.md`（跨平台写作差异对照表）
+> **题材写作公式**：`references/genre-writing-formulas.md`（21大题材写作公式）
+> **市场数据**：`references/real-market-data.md`（跨平台写作差异对照表）
 
 ---
 

@@ -1,0 +1,1 @@
+../../story-long-write/references/quality-checklist.md

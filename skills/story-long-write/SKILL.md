@@ -241,7 +241,7 @@ description: |
 | [references/style-modules.md](references/style-modules.md) | **风格全流程**：题材风格+对话+打斗/智斗+镜头式写作+爽点释放+装逼打脸+流派特征+写作基础+白描+视角 |
 | [references/anti-ai-writing.md](references/anti-ai-writing.md) | **去AI味全流程**：预防AI痕迹+三遍去AI法+改写范例库 |
 | [references/dialogue-mastery.md](references/dialogue-mastery.md) | 对话节奏/潜台词/信息控制+对话模式数据库+弹幕技巧 |
-| [references/genre-opening-database.md](references/genre-opening-database.md) | 8大题材开头模板+真实范例+决策树+书名起名法 |
+| [references/genre-opening-database.md](references/genre-opening-database.md) | 8大题材开头模板+真实范例+决策树 |
 | [references/emotional-arc-design.md](references/emotional-arc-design.md) | 情绪曲线设计+弧形模板+期待感管理+题材赛道策略 |
 | [references/reversal-toolkit.md](references/reversal-toolkit.md) | 反转类型+时机+误导底层路径 |
 | [references/micro-innovation.md](references/micro-innovation.md) | 题材微创新、差异化设计 |

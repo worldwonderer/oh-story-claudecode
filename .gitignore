@@ -1,6 +1,8 @@
 .DS_Store
-.omc/
+**/.omc/
 .claude/
+.agents/
+.codebuddy/
 AGENTS.md
 CLAUDE.md
 _archive/

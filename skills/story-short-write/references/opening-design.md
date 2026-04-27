@@ -1,0 +1,1 @@
+../../story-long-write/references/opening-design.md
