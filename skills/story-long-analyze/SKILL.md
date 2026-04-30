@@ -1,5 +1,6 @@
 ---
 name: story-long-analyze
+version: 1.0.0
 description: |
   长篇网文拆文。深度拆解爆款长篇小说的黄金三章、人设架构、爽点设计、节奏控制。
   支持两种模式：
@@ -7,6 +8,9 @@ description: |
   - 深度拆解：逐章拆解整本小说，输出结构化文件到指定目录
   触发方式：/story-long-analyze、/长篇拆文、「帮我拆这本书」「分析黄金三章」
   深度模式触发：「深度拆解」「完整拆解」「系统拆解」或提供小说文本文件路径
+metadata:
+  openclaw:
+    source: https://github.com/worldwonderer/oh-story-claudecode
 ---
 
 # story-long-analyze：长篇网文拆文

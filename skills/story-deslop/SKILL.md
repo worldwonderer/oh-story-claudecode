@@ -1,8 +1,12 @@
 ---
 name: story-deslop
+version: 1.0.0
 description: |
   网文去AI味。检测并清除文本中的AI写作痕迹，让文字回归自然、有人味。
   触发方式：/story-deslop、/去AI味、「去AI味」「去味」「deslop」「这篇太AI了」
+metadata:
+  openclaw:
+    source: https://github.com/worldwonderer/oh-story-claudecode
 ---
 
 # story-deslop：网文去AI味

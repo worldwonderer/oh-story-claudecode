@@ -1,8 +1,12 @@
 ---
 name: story-short-scan
+version: 1.0.0
 description: |
   短篇网文扫榜。分析知乎盐言、七猫、黑岩、点众等平台热门短篇数据，捕捉风口题材。
   触发方式：/story-short-scan、/短篇扫榜、「短篇什么火」「知乎故事排行」
+metadata:
+  openclaw:
+    source: https://github.com/worldwonderer/oh-story-claudecode
 ---
 
 # story-short-scan：短篇网文扫榜
