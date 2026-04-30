@@ -46,27 +46,59 @@ description: |
 
 **扫榜需要真实数据支撑。** 根据当前环境选择数据来源：
 
-| 模式 | 说明 | 何时用 |
-|------|------|--------|
-| **实时搜索** | 使用 WebSearch/WebFetch 工具抓取平台榜单数据 | 有网络工具时（优先） |
-| **用户提供** | 用户粘贴榜单截图/文字/链接 | 用户已有数据时 |
-| **内置知识** | 基于知识库中的趋势数据和方法论做分析 | 无法联网、用户无数据时 |
+| 优先级 | 模式 | 说明 | 何时用 |
+|--------|------|------|--------|
+| 1 | **browser-cdp 采集** | 直接抓取平台页面，产出结构化文件 | 有 Chrome 环境时（优先） |
+| 2 | **用户提供** | 用户粘贴榜单截图/文字/链接 | 用户已有数据时 |
+| 3 | **实时搜索** | 使用 WebSearch/WebFetch 获取 | 无 Chrome 但有网络时 |
+| 4 | **内置知识** | 基于知识库趋势数据做分析 | 无法联网、用户无数据时 |
+
+#### browser-cdp 采集模式
+
+使用 `/browser-cdp` 启动 Chrome，直接抓取平台榜单页面的结构化数据。
+
+**采集流程**：
+1. 启动 browser-cdp，打开目标榜单 URL
+2. 等待列表元素加载，逐条提取字段（排名、书名、作者、题材、字数、推荐/在读数等）
+3. 需要补充数据时（标签、简介、最新更新），进入详情页提取
+4. 按规范格式写入 Markdown 文件
+5. 多榜单/多题材时，逐组采集并保存
+
+**输出规范**：详见 [references/scan-output-format.md](references/scan-output-format.md)，包含各平台字段定义、输出模板、文件命名规范。
+
+**起点采集目标**：
+
+| 榜单 | URL | 核心字段 |
+|------|-----|----------|
+| 新人签约新书榜 | qidian.com/rank/newsign/ | 作者·题材·签约·免费/VIP·字数·总推荐·标签·简介 |
+| 三江推荐榜 | qidian.com/rank/sanjiang/ | 按周分组，VIP/免费区分 |
+| 月票榜 | qidian.com/rank/yuepiao/ | 付费认可度最高指标 |
+| 畅销榜 | qidian.com/rank/hotsales/ | 真金白银投票 |
+| 新书榜 | qidian.com/rank/newbook/ | 新风向信号 |
+
+**番茄采集目标**：
+
+| 榜单 | URL格式 | 核心字段 |
+|------|---------|----------|
+| 男/女频新书榜 | fanqienovel.com/rank/{ch}_{kind}_{cat} | 按题材逐页采集，在读数为核心指标 |
+| 男/女频畅销榜 | kind=2 | 流量变现能力 |
+
+番茄按题材分类逐个采集（西方奇幻、都市、玄幻等共约19个男频分类），每页上限约20本。
+
+**文件命名**：`{平台}{榜单名称}_{YYYYMMDD}.md`，例：`起点新人签约新书榜_20260425.md`
+
+#### 其他数据来源
+
+**用户提供操作指引：**
+- 用户提供已有的扫描结果文件路径 → 直接加载进入 Phase 2 分析
+- 用户提供链接 → 用 WebFetch 抓取
+- 用户粘贴/截图 → 手动解析进入分析
 
 **实时搜索操作指引：**
 - 起点：搜索「起点中文网 月票榜/新书榜/畅销榜 {当前年月}」
 - 番茄：搜索「番茄小说 畅销榜/完读率排行 {当前年月}」
 - 晋江：搜索「晋江文学城 金榜/季度榜 {当前年月}」
-- 七猫：搜索「七猫小说 排行榜 {当前年月}」
-
-**浏览器操控（高级模式）：**
-- 使用 `/browser-cdp` 启动 CDP Chrome 环境，直接抓取平台页面数据
-- 适用于需要登录才能看到的数据（起点个人中心、晋江收藏等）
-- 可复用用户已登录的 Chrome session，获取完整榜单数据
-
-**用户提供操作指引：**
-- 请用户截图或复制粘贴榜单内容
-- 如果用户提供链接，用 WebFetch 抓取页面内容
-- 如果用户只提供书名列表，直接进入分析
+- 数据量有限，无法产出完整结构化文件
 
 **内置知识操作指引：**
 - 加载 `references/genre-trends.md`
@@ -202,7 +234,8 @@ description: |
 |------|----------|
 | [references/reader-profiling.md](references/reader-profiling.md) | 需要分析目标读者画像时 |
 | [references/genre-trends.md](references/genre-trends.md) | 查看当前题材趋势和切入建议时 |
-| [references/publishing-guide.md](references/publishing-guide.md) | 投稿审核+推荐安排+平台福利+封面/书名/简介设计 |
+| [references/publishing-guide.md](references/publishing-guide.md) | 平台选择+推荐机制+数据指标+简介设计 |
+| [references/scan-output-format.md](references/scan-output-format.md) | browser-cdp采集字段定义+输出模板+文件命名规范 |
 
 ---
 
