@@ -55,13 +55,16 @@ metadata:
 
 ---
 
-## 下一步建议
+## 流程衔接
 
-| 触发条件 | 推荐 |
-|---|---|
-| 拆完想写自己的 | 「结构看懂了，开写。用 `/story-short-write`。」 |
-| 市场方向不明 | 「先看市场。用 `/story-short-scan`。」 |
-| 适合做长篇 | 「用 `/story-long-scan` 看市场，再 `/story-long-analyze` 拆解。」 |
+**流水线：** 短篇
+**位置：** 拆文（第 2/3 步）
+
+| 时机 | 跳转到 | 命令 |
+|---|---|---|
+| 准备开写 | story-short-write | `/story-short-write` |
+| 需要市场数据 | story-short-scan | `/story-short-scan` |
+| 更适合长篇 | story-long-scan → story-long-analyze | `/story-long-scan` |
 
 ---
 

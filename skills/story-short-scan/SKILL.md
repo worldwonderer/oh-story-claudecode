@@ -191,13 +191,16 @@ metadata:
 
 ---
 
-## 下一步建议
+## 流程衔接
 
-| 触发条件 | 推荐话术 |
-|---|---|
-| 用户找到了感兴趣的方向 | 「方向有了，拆一篇爆款学结构。用 `/story-short-analyze`。」 |
-| 用户想直接写 | 「行，直接开写。用 `/story-short-write`。」 |
-| 用户发现题材更适合长篇 | 「这个题材做长篇更有空间。用 `/story-long-scan`。」 |
+**流水线：** 短篇
+**位置：** 扫榜（第 1/3 步）
+
+| 时机 | 跳转到 | 命令 |
+|---|---|---|
+| 找到方向 | story-short-analyze | `/story-short-analyze` |
+| 直接开写 | story-short-write | `/story-short-write` |
+| 更适合长篇 | story-long-scan | `/story-long-scan` |
 
 ---
 

@@ -122,13 +122,16 @@ metadata:
 
 ---
 
-## 下一步建议
+## 流程衔接
 
-| 触发条件 | 推荐 |
-|---|---|
-| 拆完想写自己的 | 「用 `/story-long-write` 开书。」 |
-| 市场方向不明 | 「用 `/story-long-scan` 扫榜。」 |
-| 偏短篇模式 | 「用 `/story-short-scan` + `/story-short-analyze`。」 |
+**流水线：** 长篇
+**位置：** 拆文（第 2/3 步）
+
+| 时机 | 跳转到 | 命令 |
+|---|---|---|
+| 准备开写 | story-long-write | `/story-long-write` |
+| 需要市场数据 | story-long-scan | `/story-long-scan` |
+| 更适合短篇 | story-short-scan → story-short-analyze | `/story-short-scan` |
 
 ---
 

@@ -234,13 +234,16 @@ URL 参数：`/rank/{channel}_{type}_{cat_id}`，channel 0=女频/1=男频，typ
 
 ---
 
-## 下一步建议
+## 流程衔接
 
-| 触发条件 | 推荐话术 |
-|---|---|
-| 用户找到了感兴趣的题材 | 「方向有了，下一步拆一本这个题材的爆款。用 `/story-long-analyze`。」 |
-| 用户想直接开始写 | 「扫完榜直接开书也行。用 `/story-long-write`。」 |
-| 用户发现短篇更适合自己 | 「长篇可能不是你的菜，看看短篇市场。用 `/story-short-scan`。」 |
+**流水线：** 长篇
+**位置：** 扫榜（第 1/3 步）
+
+| 时机 | 跳转到 | 命令 |
+|---|---|---|
+| 找到方向 | story-long-analyze | `/story-long-analyze` |
+| 直接开写 | story-long-write | `/story-long-write` |
+| 更适合短篇 | story-short-scan | `/story-short-scan` |
 
 ## 参考资料
 

@@ -226,14 +226,17 @@ metadata:
 
 ---
 
-## 下一步建议
+## 流程衔接
 
-| 触发条件 | 推荐话术 |
-|---|---|
-| 写完了想拆解自己的作品 | 「拆自己的作品也很有价值。用 `/story-short-analyze`。」 |
-| 不确定写什么题材 | 「看看市场什么火。用 `/story-short-scan`。」 |
-| 短篇写着写着发现设定太大了 | 「这个设定做长篇更合适。用 `/story-long-write`。」 |
-| 写完了想润色去 AI 味 | 「写完了检查一下 AI 味。用 `/story-deslop`。」 |
+**流水线：** 短篇
+**位置：** 写作（第 3/3 步）
+
+| 时机 | 跳转到 | 命令 |
+|---|---|---|
+| 写完，去 AI 味 | story-deslop | `/story-deslop` |
+| 想自检 | story-short-analyze | `/story-short-analyze` |
+| 需要市场方向 | story-short-scan | `/story-short-scan` |
+| 设定太大，适合长篇 | story-long-write | `/story-long-write` |
 
 ---
 

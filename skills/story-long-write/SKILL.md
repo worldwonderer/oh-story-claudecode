@@ -265,15 +265,17 @@ metadata:
 
 ---
 
-## 下一步建议
+## 流程衔接
 
-| 触发条件 | 推荐话术 |
-|---|---|
-| 写了几章想对标检查 | 「写了一部分了，拆一本同类型爆款对照一下。用 `/story-long-analyze`。」 |
-| 想深度对标一本爆款 | 「把原文放到 `对标/{书名}/原文/`，然后用 `/story-long-analyze` 深度拆解，拆完后把 `拆文报告.md` 复制到 `对标/{书名}/` 下。」 |
-| 方向不确定想看市场 | 「写之前先扫个榜确认方向。用 `/story-long-scan`。」 |
-| 觉得长篇压力太大 | 「试试短篇入门。用 `/story-short-write`。」 |
-| 写完了想润色去 AI 味 | 「写完了检查一下 AI 味。用 `/story-deslop`。」 |
+**流水线：** 长篇
+**位置：** 写作（第 3/3 步）
+
+| 时机 | 跳转到 | 命令 |
+|---|---|---|
+| 写完，去 AI 味 | story-deslop | `/story-deslop` |
+| 想对比参考书 | story-long-analyze | `/story-long-analyze` |
+| 需要市场方向 | story-long-scan | `/story-long-scan` |
+| 太长，适合短篇 | story-short-write | `/story-short-write` |
 
 ---
 

@@ -219,12 +219,16 @@ AI写作的结尾特征：总想总结、升华、点题。
 
 ---
 
-## 下一步建议
+## 流程衔接
 
-| 触发条件 | 推荐话术 |
-|---|---|
-| 去完AI味想继续写 | 「润色完了，继续写下一章。用 `/story-long-write` 或 `/story-short-write`。」 |
-| 发现整体结构有问题 | 「AI味只是表层，结构问题需要拆文。用 `/story-long-analyze` 或 `/story-short-analyze`。」 |
+**流水线：** 通用
+**位置：** 润色（共享收尾）
+
+| 时机 | 跳转到 | 命令 |
+|---|---|---|
+| 继续写作 | story-long-write / story-short-write | `/story-long-write` 或 `/story-short-write` |
+| 发现结构问题 | story-long-analyze / story-short-analyze | `/story-long-analyze` 或 `/story-short-analyze` |
+| 准备做封面 | story-cover | `/story-cover` |
 
 ---
 
