@@ -56,6 +56,12 @@ metadata:
 | 2 | **用户提供** | 用户粘贴榜单截图/文字/链接 | 用户已有数据时 |
 | 3 | **内置知识** | 基于知识库趋势数据做分析 | 无法联网、用户无数据时 |
 
+**数据可信度标注**：
+- 使用 live 页面或脚本采集时，在报告开头标注 `[live 数据]`、采集日期、平台、榜单 URL 和条目数。
+- 使用用户提供内容时，标注 `[用户提供数据]`，说明原始材料形式（截图/文本/链接）和缺失字段。
+- 使用内置知识时，标注 `[历史趋势/内置知识]`，不能写成“最新榜单显示”。
+- 需要登录态、详情页或反爬绕过时，只说明缺失影响；不要输出 Cookie、token 或任何登录凭证。
+
 #### browser-cdp 采集模式
 
 使用 `/browser-cdp` 启动 Chrome，直接抓取平台榜单页面的结构化数据。
@@ -306,6 +312,12 @@ URL 参数：`/rank/{channel}_{type}_{cat_id}`，channel 0=女频/1=男频，typ
 | [scripts/qimao-rank-scraper.js](scripts/qimao-rank-scraper.js) | 七猫榜单采集（大热/新书/完结等），tab 切换+滚动加载 |
 | [scripts/jjwxc-rank-scraper.js](scripts/jjwxc-rank-scraper.js) | 晋江榜单采集（收入金榜/月榜等），按频道分组提取 |
 | [scripts/ciweimao-rank-scraper.js](scripts/ciweimao-rank-scraper.js) | 刺猬猫榜单采集（点击/收藏/月票等），单页 9 榜提取 |
+
+---
+
+## Darwin验证协议
+
+每次修改后运行本目录的 `test-prompts.json`。至少覆盖：live 榜单采集、无法联网降级、跨平台比较三类场景。验证结果记录到 `../darwin-results.tsv`，并检查报告是否清楚标注数据来源和日期。
 
 ---
 

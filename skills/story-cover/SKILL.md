@@ -33,6 +33,13 @@ SIZE=1024x1536
 FORMAT=b64_json
 ```
 
+## 降级与密钥处理
+
+- 如果 `GPT_IMAGE_API_KEY` 未设置，不调用 API；改为输出封面方向、构图方案和可复制的英文提示词。
+- 不在回复、日志或文件中展示完整 API key。
+- API 报错时先保留 `response.json` 的错误摘要，再给出一次参数降级重试建议，例如移除 `response_format`。
+- 用户只要方案时，不主动调用 API。
+
 ---
 
 ## 生成流程
@@ -195,6 +202,12 @@ jq -r '.data[0].b64_json' response.json | base64 --decode > "${BOOK_DIR}/封面/
 | 文件 | 何时加载 |
 |:-----|:---------|
 | [references/cover-styles.md](references/cover-styles.md) | 题材→视觉风格映射、平台风格详情、提示词模板 |
+
+---
+
+## Darwin验证协议
+
+每次修改后运行本目录的 `test-prompts.json`。至少覆盖：完整 API 生成、无 API key 降级、参考图图生图三类场景。验证结果记录到 `../darwin-results.tsv`，并说明是否真实调用了图像 API。
 
 ---
 

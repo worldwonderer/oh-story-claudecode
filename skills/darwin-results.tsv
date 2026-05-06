@@ -1,0 +1,19 @@
+timestamp	commit	skill	old_score	new_score	status	dimension	note	eval_mode
+2026-05-07T00:00	baseline	browser-cdp	-	72	baseline	safety/workflow	Useful CDP commands, but token extraction and destructive Chrome cleanup need clearer boundaries	dry_run
+2026-05-07T00:00	baseline	story-cover	-	78	baseline	failure handling	Strong prompt framework, but missing API-key fallback and regression prompts	dry_run
+2026-05-07T00:00	baseline	story-deslop	-	84	baseline	regression coverage	Clear editing workflow, but no reusable validation prompts	dry_run
+2026-05-07T00:00	baseline	story-long-analyze	-	82	baseline	regression coverage	Deep pipeline exists, but lacks quick/deep regression prompts	dry_run
+2026-05-07T00:00	baseline	story-long-scan	-	80	baseline	data provenance	Strong platform map, but live/historical data labels and auth fallback need tightening	dry_run
+2026-05-07T00:00	baseline	story-long-write	-	86	baseline	regression coverage	Robust writing workflow, but no fixed prompts for regression	dry_run
+2026-05-07T00:00	baseline	story-short-analyze	-	82	baseline	regression coverage	Good phase templates, but no validation prompts for routing and output completeness	dry_run
+2026-05-07T00:00	baseline	story-short-scan	-	80	baseline	data provenance	Useful scraper map, but login/token and source labels need stronger guardrails	dry_run
+2026-05-07T00:00	baseline	story-short-write	-	87	baseline	regression coverage	Very complete craft workflow, but no stable regression prompt set	dry_run
+2026-05-07T00:20	pending	browser-cdp	72	81	keep	safety/workflow	Added safety boundary, token handling rule, and regression prompts	dry_run
+2026-05-07T00:20	pending	story-cover	78	85	keep	failure handling	Added API-key fallback, secret handling, and cover prompt tests	dry_run
+2026-05-07T00:20	pending	story-deslop	84	88	keep	regression coverage	Added local test prompts and shared Darwin protocol	dry_run
+2026-05-07T00:20	pending	story-long-analyze	82	87	keep	regression coverage	Added quick/deep mode prompts and shared validation protocol	dry_run
+2026-05-07T00:20	pending	story-long-scan	80	86	keep	data provenance	Added source labeling, login fallback, and scan prompts	dry_run
+2026-05-07T00:20	pending	story-long-write	86	90	keep	regression coverage	Added outline/chapter regression prompts and validation record path	dry_run
+2026-05-07T00:20	pending	story-short-analyze	82	87	keep	regression coverage	Added routing/deconstruction prompts and validation record path	dry_run
+2026-05-07T00:20	pending	story-short-scan	80	86	keep	data provenance	Added source labeling, token boundary, and scan prompts	dry_run
+2026-05-07T00:20	pending	story-short-write	87	91	keep	regression coverage	Added short-story craft prompts and shared validation protocol	dry_run

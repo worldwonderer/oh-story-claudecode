@@ -1,0 +1,17 @@
+[
+  {
+    "id": "story-long-analyze-001",
+    "prompt": "帮我快速拆解这本长篇的黄金三章和整体结构，文本在 /tmp/demo-novel.md。",
+    "expected": "识别为快速模式，读取文本后输出黄金三章、主线冲突、爽点密度和可借鉴结构；不启动深度全书管道。"
+  },
+  {
+    "id": "story-long-analyze-002",
+    "prompt": "对 /tmp/demo-novel.md 做完整深度拆解，输出到 拆文库/示例书/。",
+    "expected": "识别为深度模式，建立目录结构、章节索引、_progress.md，并按 0-5 阶段管道推进。"
+  },
+  {
+    "id": "story-long-analyze-003",
+    "prompt": "我只有前 5 章，能不能先判断这本书值不值得继续拆？",
+    "expected": "说明样本限制，做黄金三章和早期结构判断，给出是否值得深拆的条件性结论。"
+  }
+]

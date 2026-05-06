@@ -56,6 +56,12 @@ metadata:
 | 2 | **用户提供** | 用户粘贴榜单截图/文字/链接 | 用户已有数据时 |
 | 3 | **内置知识** | 基于知识库中的趋势数据和方法论做分析 | 无法联网、用户无数据时 |
 
+**数据可信度标注**：
+- 使用 live 页面或脚本采集时，在报告开头标注 `[live 数据]`、采集日期、平台、榜单 URL 和条目数。
+- 使用用户提供内容时，标注 `[用户提供数据]`，说明原始材料形式（截图/文本/链接）和缺失字段。
+- 使用内置知识时，标注 `[历史趋势/内置知识]`，不能写成“最新榜单显示”。
+- 需要后台登录、Cookie 或 Bearer token 时，只说明采集依赖；不要在报告中输出完整凭证。
+
 #### browser-cdp 采集模式
 
 使用 `/browser-cdp` 启动 Chrome，直接抓取平台页面的结构化数据。
@@ -214,6 +220,12 @@ metadata:
 | [scripts/cdp-utils.js](scripts/cdp-utils.js) | CDP 公共工具函数（ab/sleep/evalJSON/safeStr/scrollLoad/getArg），各采集脚本共用 |
 | [scripts/dz-browse-scraper.js](scripts/dz-browse-scraper.js) | 点众短篇采集（男频/女频），文本解析+评分提取，配合 browser-cdp 使用 |
 | [scripts/heiyan-booklist-scraper.js](scripts/heiyan-booklist-scraper.js) | 黑岩书库列表采集，后端 API 模式（Bearer token），含字数/标签/价格/时间，支持 --detail 获取标签简介 |
+
+---
+
+## Darwin验证协议
+
+每次修改后运行本目录的 `test-prompts.json`。至少覆盖：知乎/盐言情绪趋势、黑岩登录后台、平台未定的模糊需求三类场景。验证结果记录到 `../darwin-results.tsv`，并检查是否正确标注数据来源。
 
 ---
 
