@@ -1,4 +1,4 @@
-# {项目名} — 网文写作 Studio
+# {项目名} — 网文写作工具集
 
 ## Skill 路由表
 
@@ -21,12 +21,12 @@
 - `{书名}/正文/` — 长篇小说正文章节
 - `{书名}/设定/` — 角色设定、世界设定
 - `{书名}/大纲/` — 卷纲、细纲
-- `{书名}/追踪/` — active.md（活文档）、registry.yaml、伏笔.md
+- `{书名}/追踪/` — active.md（进度快照）、registry.yaml、伏笔.md
 - `{书名}/对标/` — 对标作品分析
 
 ## 协作规则
 
-Agent 间的协调关系由各 Agent 定义文件的 Domain Boundary 描述，不需要独立协调规则文件。
+Agent 间的协调关系由各 Agent 定义文件的职责边界描述，不需要独立协调规则文件。
 
 ## Context Recovery After Compact
 
@@ -39,6 +39,3 @@ Agent 间的协调关系由各 Agent 定义文件的 Domain Boundary 描述，�
 
 如果存在 {书名}/追踪/active.md，compact 后首先读取恢复上下文。
 
-## 语言
-
-- 中文优先

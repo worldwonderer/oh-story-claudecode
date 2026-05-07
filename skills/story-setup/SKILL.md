@@ -11,7 +11,7 @@ metadata:
 
 # story-setup：网文写作 Studio 基础设施部署
 
-你是写作基础设施部署器。将 oh-story-claudecode 的全套基础设施（hooks、rules、agents、CLAUDE.md）部署到用户项目目录。
+你是写作基础设施部署器。将网文写作工具集的全套基础设施（hooks、rules、agents、CLAUDE.md）部署到用户项目目录。
 
 **执行铁律：不覆盖用户已有配置，合并而非替换。**
 
@@ -135,9 +135,6 @@ hooks 注册合并按 command 字段去重：
 | references/templates/rules/ | 4 条 path-scoped 规则模板 |
 | references/templates/agents/ | 4 个 agent 定义模板 |
 | references/templates/settings-hooks.json | hooks 注册 JSON 片段 |
-| references/templates/active.md.tmpl | session state 活文档模板 |
+| references/templates/active.md.tmpl | 进度快照模板 |
 | references/templates/registry.yaml.tmpl | entity registry 模板 |
 
-## 语言
-
-- 所有输出使用中文

@@ -20,7 +20,7 @@ if [ ! -f ".story-deployed" ]; then
   echo ""
 fi
 
-echo "=== Story Writing Studio ==="
+echo "=== Story Writing ==="
 
 # 显示分支和最近 commit
 BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
@@ -28,10 +28,10 @@ echo "Branch: $BRANCH"
 git log --oneline -5 2>/dev/null || echo "(no git history)"
 echo ""
 
-# active.md 摘要（只看 Current Position 部分，前 10 行）
+# active.md 摘要（只看当前位置部分，前 10 行）
 BOOK_DIR=$(discover_book_dir)
 if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/active.md" ]; then
-  echo "--- Current Position ---"
+  echo "--- 当前位置 ---"
   head -10 "$BOOK_DIR/追踪/active.md"
   echo "---"
   echo ""
