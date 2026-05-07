@@ -1,0 +1,35 @@
+# Entity Registry — {书名}
+# 用于一致性检查和伏笔追踪。由 story-long-analyze 生成，或手动维护。
+# consistency-checker agent 依赖此文件做 grep-first 扫描。
+
+# characters: 角色实体
+# 每个角色包含：name, aliases(别名列表), first_appear, role, voice_profile, attributes, last_updated
+characters:
+#  - name: 角色名
+#    aliases: [别名1, 别名2]
+#    first_appear: "第X章"
+#    role: 主角 / 男主 / 女主 / 重要配角 / 功能配角 / 反派
+#    voice_profile: "一句话描述语言风格特征"
+#    attributes:
+#      身份: xxx
+#      核心能力: xxx
+#      外貌关键词: xxx
+#    last_updated: "第X章"
+
+# settings: 世界设定实体
+# 每个设定包含：key, category, rules, chapters(引用章节列表)
+settings:
+#  - key: 设定名称
+#    category: 力量体系 / 势力 / 地理 / 社会 / 经济
+#    rules:
+#      - 规则1
+#      - 规则2
+#    chapters: [1, 5, 8]  # 引用此设定的章节列表
+
+# timeline: 关键事件时间线
+# 每个事件包含：event, chapter, day(故事内天数), characters(参与角色)
+timeline:
+#  - event: 事件描述
+#    chapter: "第X章"
+#    day: 45
+#    characters: [角色A, 角色B]

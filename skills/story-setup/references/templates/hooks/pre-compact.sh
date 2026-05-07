@@ -1,0 +1,56 @@
+#!/bin/bash
+# pre-compact.sh — compact 前记录写作状态摘要（不 dump 内容）
+set -euo pipefail
+
+discover_book_dir() {
+  if [ -f ".active-book" ]; then
+    cat ".active-book"
+    return
+  fi
+  local first=$(find . -maxdepth 2 -type d -name "追踪" -print -quit 2>/dev/null || true)
+  if [ -n "$first" ]; then
+    dirname "$first"
+  fi
+}
+
+echo "=== Pre-Compact Summary ==="
+
+BOOK_DIR=$(discover_book_dir)
+
+# active.md 状态摘要（路径 + 行数，不输出内容）
+if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/active.md" ]; then
+  LINE_COUNT=$(wc -l < "$BOOK_DIR/追踪/active.md" | tr -d ' ')
+  echo "Active state: $BOOK_DIR/追踪/active.md ($LINE_COUNT lines)"
+else
+  echo "Active state: not found"
+fi
+
+# Git 未提交变更计数
+CHANGED=$(git diff --name-only 2>/dev/null | wc -l | tr -d ' ') || CHANGED=0
+STAGED=$(git diff --name-only --cached 2>/dev/null | wc -l | tr -d ' ') || STAGED=0
+echo "Git: ${CHANGED} unstaged, ${STAGED} staged"
+
+# WIP 标记计数（阈值 > 3 才列出详情）
+if [ -n "$BOOK_DIR" ]; then
+  for dir in "$BOOK_DIR/正文" "$BOOK_DIR/设定"; do
+    if [ -d "$dir" ]; then
+      WIP_COUNT=$(grep -rE "TODO|WIP|PLACEHOLDER|TBD" "$dir/" 2>/dev/null | wc -l | tr -d ' ')
+      if [ "$WIP_COUNT" -gt 0 ]; then
+        if [ "$WIP_COUNT" -gt 3 ]; then
+          echo "WIP markers in $(basename "$dir")/: $WIP_COUNT (listing first 5)"
+          grep -rnE "TODO|WIP|PLACEHOLDER|TBD" "$dir/" 2>/dev/null | head -5
+        else
+          echo "WIP markers in $(basename "$dir")/: $WIP_COUNT"
+        fi
+      fi
+    fi
+  done
+fi
+
+# 记录 compaction 时间戳
+if [ -n "$BOOK_DIR" ]; then
+  mkdir -p "$BOOK_DIR/追踪"
+  echo "[$(date -Iseconds)] compact performed" >> "$BOOK_DIR/追踪/compaction-log.txt"
+fi
+
+echo "=== Pre-Compact Complete ==="
