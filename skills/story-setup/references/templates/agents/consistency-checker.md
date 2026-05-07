@@ -118,7 +118,7 @@ skill 通过 `Agent(subagent_type: "consistency-checker")` 调用你。
 
 你收到的 prompt 会包含：
 - 检查范围（文件路径或章节范围）
-- 已知角色列表（从 registry.yaml 或设定文件提取）
+- 已知角色列表（从设定文件提取）
 - 检查重点（可选：只检查某类冲突）
 
 输出格式（S1-S4 分级）：

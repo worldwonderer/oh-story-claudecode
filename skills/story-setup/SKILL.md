@@ -55,7 +55,6 @@ metadata:
 
 ### 2.5 部署 Session State 模板
 - 读取 `skills/story-setup/references/templates/active.md.tmpl`
-- 读取 `skills/story-setup/references/templates/registry.yaml.tmpl`
 - 如有书名目录，复制到 `{书名}/追踪/` 下
 
 ### 2.6 合并 Hooks 注册到 settings.local.json
@@ -136,5 +135,4 @@ hooks 注册合并按 command 字段去重：
 | references/templates/agents/ | 4 个 agent 定义模板 |
 | references/templates/settings-hooks.json | hooks 注册 JSON 片段 |
 | references/templates/active.md.tmpl | 进度快照模板 |
-| references/templates/registry.yaml.tmpl | entity registry 模板 |
 
