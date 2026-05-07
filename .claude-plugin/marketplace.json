@@ -97,6 +97,26 @@
       "category": "browser-automation",
       "keywords": ["browser", "cdp", "chrome", "agent-browser", "浏览器", "登录态", "automation"],
       "skills": ["./skills/browser-cdp"]
+    },
+    {
+      "name": "story-setup",
+      "description": "网文写作环境部署。一键部署 hooks、rules、agents、CLAUDE.md 到写作项目，提供会话恢复、一致性检查、提交验证等自动化基础设施。",
+      "source": "./",
+      "strict": false,
+      "version": "1.0.0",
+      "category": "novel-infra",
+      "keywords": ["setup", "deploy", "hooks", "agents", "初始化", "部署", "基础设施", "chinese"],
+      "skills": ["./skills/story-setup"]
+    },
+    {
+      "name": "story-cover",
+      "description": "网文封面生成。分析书名题材，生成专业封面图，支持 10 大题材视觉风格。",
+      "source": "./",
+      "strict": false,
+      "version": "1.0.0",
+      "category": "novel-cover",
+      "keywords": ["cover", "封面", "image", "GPT-Image", "chinese"],
+      "skills": ["./skills/story-cover"]
     }
   ]
 }

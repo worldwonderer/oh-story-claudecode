@@ -14,6 +14,10 @@ flowchart LR
     entry_s{{"短篇作者"}}:::entry
     entry_r{{"已有方向"}}:::entry
 
+    subgraph S0 ["  环境部署"]
+        setup["/story-setup"]:::phase
+    end
+
     subgraph S1 ["  扫榜选材"]
         direction TB
         scan_l["长篇扫榜"]:::phase
@@ -36,8 +40,10 @@ flowchart LR
         deslop["去 AI 味"]:::final
     end
 
-    entry_l --> scan_l
-    entry_s --> scan_s
+    entry_l --> setup
+    entry_s --> setup
+    setup --> scan_l
+    setup --> scan_s
     scan_l --> analyze_l
     scan_s --> analyze_s
     analyze_l --> write_l
@@ -68,6 +74,7 @@ npx skills add worldwonderer/oh-story-claudecode -y
 
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
+| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md 一键部署 |
 | `story-long-write` | `/story-long-write` `/story` `/网文` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |
 | `story-long-scan` | `/story-long-scan` | 长篇扫榜 · 起点/番茄/晋江市场趋势 |
@@ -79,6 +86,31 @@ npx skills add worldwonderer/oh-story-claudecode -y
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
 
 自然语言同样触发：「帮我开书」→ `story-long-write`，「这篇太 AI 了」→ `story-deslop`。
+
+## Agent 体系
+
+写作 skill 内部通过 4 个专业 Agent 协作，各司其职：
+
+| Agent | 模型 | 职责 |
+|:------|:-----|:-----|
+| **story-architect** | Opus | 故事架构 · 题材定位、大纲结构、钩子/反转设计、情绪弧线 |
+| **character-designer** | Sonnet | 角色设计 · 角色档案、语言风格、动机链、对话创作 |
+| **narrative-writer** | Sonnet | 叙事写手 · 正文写作、去AI味、格式合规 |
+| **consistency-checker** | Haiku | 一致性检查 · 事实冲突扫描、伏笔追踪、S1-S4 分级报告 |
+
+Agent 按需加载 `references/` 中的写作理论（角色设计、对话技法、反转工具箱等 110+ 种技法），不预占上下文。
+
+## 自动化 Hooks
+
+`/story-setup` 部署后自动生效的 5 个 hook：
+
+| Hook | 触发时机 | 功能 |
+|:-----|:---------|:-----|
+| session-start.sh | 会话开始 | 显示分支、进度快照、拆文状态 |
+| detect-story-gaps.sh | 会话开始 | 检测设定缺口、大纲缺失、伏笔断线 |
+| pre-compact.sh | 上下文压缩前 | 保存进度快照路径和行数摘要 |
+| post-compact.sh | 上下文压缩后 | 提示读取进度快照恢复上下文 |
+| validate-story-commit.sh | git commit 时 | 检查硬编码属性、设定必填字段（仅警告，不阻断） |
 
 <details>
 <summary>封面生成示例</summary>
@@ -116,6 +148,8 @@ npx skills add worldwonderer/oh-story-claudecode -y
 │       ├── 原文/            # 对标书原文章节
 │       └── 拆文报告.md      # analyze skill 输出的拆文报告
 ├── 追踪/                # 连续性管理
+│   ├── active.md        # 进度快照（compact 恢复用）
+│   ├── registry.yaml    # 角色和设定实体清单（一致性检查用）
 │   ├── 伏笔.md          # 伏笔埋设/回收状态表
 │   └── 时间线.md        # 故事内时间线
 └── 笔记.md
