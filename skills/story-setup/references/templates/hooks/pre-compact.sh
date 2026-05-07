@@ -34,7 +34,7 @@ echo "Git: ${CHANGED} unstaged, ${STAGED} staged"
 if [ -n "$BOOK_DIR" ]; then
   for dir in "$BOOK_DIR/正文" "$BOOK_DIR/设定"; do
     if [ -d "$dir" ]; then
-      WIP_COUNT=$(grep -rE "TODO|WIP|PLACEHOLDER|TBD" "$dir/" 2>/dev/null | wc -l | tr -d ' ')
+      WIP_COUNT=$( { grep -rE "TODO|WIP|PLACEHOLDER|TBD" "$dir/" 2>/dev/null || true; } | wc -l | tr -d ' ')
       if [ "$WIP_COUNT" -gt 0 ]; then
         if [ "$WIP_COUNT" -gt 3 ]; then
           echo "WIP markers in $(basename "$dir")/: $WIP_COUNT (listing first 5)"
