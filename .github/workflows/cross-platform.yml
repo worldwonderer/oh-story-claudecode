@@ -2,6 +2,13 @@ name: Cross-platform smoke test
 on: [push, pull_request]
 
 jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run skill static check
+        run: bash scripts/static-check.sh
+
   windows:
     runs-on: windows-latest
     steps:
