@@ -57,7 +57,7 @@ const PLATFORM_CONFIG = {
       }
     },
     killChrome: () => {
-      execSync("pkill -9 -x 'Google Chrome'", { stdio: "ignore" });
+      try { execSync("pkill -9 -x 'Google Chrome'", { stdio: "ignore" }); } catch {}
     },
   },
   win32: {
@@ -113,7 +113,7 @@ const PLATFORM_CONFIG = {
       }
     },
     killChrome: () => {
-      execSync("taskkill /F /IM chrome.exe", { stdio: "ignore" });
+      try { execSync("taskkill /F /IM chrome.exe", { stdio: "ignore" }); } catch {}
     },
   },
   linux: {
@@ -141,7 +141,7 @@ const PLATFORM_CONFIG = {
       }
     },
     killChrome: () => {
-      execSync("pkill -9 -x chrome", { stdio: "ignore" });
+      try { execSync("pkill -9 -x chrome", { stdio: "ignore" }); } catch {}
     },
   },
 };
