@@ -45,16 +45,5 @@ if [ -d "拆文库" ]; then
   fi
 fi
 
-# Draft markers（阈值 > 3 才列出详情）
-if [ -n "$BOOK_DIR" ] && [ -d "$BOOK_DIR/正文" ]; then
-  DRAFT_COUNT=$( { grep -rE "TODO|FIXME|WIP|PLACEHOLDER|TBD" "$BOOK_DIR/正文/" 2>/dev/null || true; } | wc -l | tr -d ' ')
-  if [ "$DRAFT_COUNT" -gt 3 ]; then
-    echo "[WARN] $DRAFT_COUNT draft markers in 正文/ (showing first 5):"
-    grep -rnE "TODO|FIXME|WIP|PLACEHOLDER|TBD" "$BOOK_DIR/正文/" 2>/dev/null | head -5
-  elif [ "$DRAFT_COUNT" -gt 0 ]; then
-    echo "[INFO] $DRAFT_COUNT draft markers in 正文/."
-  fi
-fi
-
 echo ""
 echo "=== Session Start Complete ==="
