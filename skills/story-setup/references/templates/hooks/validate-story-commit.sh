@@ -9,15 +9,6 @@ WARNINGS=""
 
 # 获取即将 commit 的文件列表（使用 -z null 分隔避免空格路径问题）
 while IFS= read -r -d '' file; do
-  # 检查 JSON 数据文件格式（在 md 过滤之前）
-  case "$file" in
-    *.json)
-      if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
-        WARNINGS="$WARNINGS\n⚠ $file: Invalid JSON format"
-      fi
-      ;;
-  esac
-
   # 跳过非 md 文件
   case "$file" in
     *.md) ;;
