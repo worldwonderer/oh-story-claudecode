@@ -14,9 +14,9 @@ jobs:
         with:
           chrome-version: stable
       - name: Verify cdp-utils loads
-        run: node -e "const u = require('./skills/shared/scripts/cdp-utils.js'); console.log('exports:', Object.keys(u));"
+        run: node -e "const u = require('./skills/story-short-scan/scripts/cdp-utils.js'); console.log('exports:', Object.keys(u));"
       - name: Verify sleep works
-        run: node -e "const { sleep } = require('./skills/shared/scripts/cdp-utils.js'); const t0 = Date.now(); sleep(100); console.log('slept', Date.now()-t0, 'ms');"
+        run: node -e "const { sleep } = require('./skills/story-short-scan/scripts/cdp-utils.js'); const t0 = Date.now(); sleep(100); console.log('slept', Date.now()-t0, 'ms');"
       - name: Verify setup script dry-run
         run: node skills/browser-cdp/scripts/setup-cdp-chrome.js 9222 --dry-run
 
@@ -32,8 +32,8 @@ jobs:
         with:
           chrome-version: stable
       - name: Verify cdp-utils loads
-        run: node -e "const u = require('./skills/shared/scripts/cdp-utils.js'); console.log('exports:', Object.keys(u));"
+        run: node -e "const u = require('./skills/story-short-scan/scripts/cdp-utils.js'); console.log('exports:', Object.keys(u));"
       - name: Verify sleep works
-        run: node -e "const { sleep } = require('./skills/shared/scripts/cdp-utils.js'); const t0 = Date.now(); sleep(100); console.log('slept', Date.now()-t0, 'ms');"
+        run: node -e "const { sleep } = require('./skills/story-short-scan/scripts/cdp-utils.js'); const t0 = Date.now(); sleep(100); console.log('slept', Date.now()-t0, 'ms');"
       - name: Verify setup script dry-run
         run: node skills/browser-cdp/scripts/setup-cdp-chrome.js 9222 --dry-run
