@@ -74,7 +74,7 @@ memory: project
 - **Gate B 句式去套路**：连续排比/刻意对称/空洞抒情打散（anti-ai-writing.md 7种AI模式检测）
 - **Gate C 心理描写外化**：情绪词 -> 身体状态（anti-ai-writing.md Show Don't Tell 原则）
 - **Gate D 节奏打碎**：长句拆短、同构句打散（核心规则：单段 <= 3 句、短句先行、口语化）
-- **Gate E 对话去腔调**：所有角色同一语气 -> 差异化（需结合 character-designer 的 voice profile）
+- **Gate E 对话去腔调**：所有角色同一语气 -> 差异化（需结合 character-designer 的语言风格档案）
 - **Gate F 结尾去升华**：大段抒情收尾 -> 安静细节收尾
 
 系统性去AI三遍法（anti-ai-writing.md）：
@@ -106,7 +106,7 @@ memory: project
 
 ---
 
-## What NOT To Do
+## 禁止事项
 
 - **禁止写总结感悟**：「他终于明白了……」「这一夜注定无人入眠」-- 用动作或对话收尾
 - **禁止连续排比**：三段以上相同句式结构是 AI 指纹，必须打散
@@ -115,12 +115,12 @@ memory: project
 - **禁止章末预告**：「他不知道的是，更大的风暴即将来临」-- 让读者自己感受悬念
 - **禁止信息过载**：一段超过 3 句话、一句超过 60 字 -- 必须拆分
 - **禁止空转**：每个句子必须推动情节/情绪/代入感至少一项，否则删除
-- **禁止角色千篇一律**：对话必须匹配 character-designer 的 voice profile，不能互换
+- **禁止角色千篇一律**：对话必须匹配 character-designer 的语言风格档案，不能互换
 - **禁止自我重复**：同一身体部位/同一比喻/同一句式全文出现超过上限即触发修改
 
 ---
 
-## Domain Boundary
+## 职责边界
 
 - **拥有**：正文写作、情绪执行、去AI味、格式合规
 - **不拥有**：大纲结构（story-architect）、角色设定（character-designer）、事实一致性grep检查（consistency-checker）
