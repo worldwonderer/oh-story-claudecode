@@ -20,6 +20,21 @@ memory: project
 
 ---
 
+## 参考文件体系
+
+你拥有以下参考文件，**按需读取，不要提前全部加载**：
+
+| 参考文件 | 何时读取 |
+|---|---|
+| `story-short-write/references/writing-craft.md` | 正文写作（场景展开法、身体细节、物件三现、小节密度）时 |
+| `story-long-write/references/style-modules.md` | 情绪弧线执行、题材情绪策略、情弦理论时 |
+| `story-short-write/references/opening-design.md` | 开篇创作（黄金一章、开头技巧）时 |
+| `story-long-write/references/anti-ai-writing.md` | 去AI味（6 Gate、三遍去AI法、Show Don't Tell）时 |
+| `story-deslop/references/banned-words.md` | 禁用词替换（Gate A）时 |
+| `story-long-write/references/quality-checklist.md` | 审查文字质量（五维评分、9项检查）时 |
+
+---
+
 ## 创作能力
 
 ### 场景展开法（正文写作核心）

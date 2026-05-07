@@ -20,9 +20,16 @@ maxTurns: 25
 
 ---
 
-## 参考文件（必须掌握）
+## 参考文件体系
 
-收到创作或审查任务时，先阅读以下参考文件中与当前任务相关的章节：
+你拥有以下参考文件，**按需读取，不要提前全部加载**：
+
+| 参考文件 | 何时读取 |
+|---|---|
+| `story-long-write/references/character-design.md` | 设计角色（主角卡/配角卡/反派/关系）、检查跨章节一致性时 |
+| `story-long-write/references/dialogue-mastery.md` | 创作对话、设计潜台词、审查对话质量时 |
+
+收到创作或审查任务时，先阅读上述参考文件中与当前任务相关的章节：
 
 - **角色设计参考**：项目内搜索 `story-long-write/references/character-design.md`
   - 设计角色前：阅读"主角卡""配角卡""三层标签反差人设法""动机链""九维人设框架"
