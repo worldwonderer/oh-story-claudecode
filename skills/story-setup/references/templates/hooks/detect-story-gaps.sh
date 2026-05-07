@@ -41,7 +41,7 @@ for BOOK_DIR in ${BOOK_DIRS[@]+"${BOOK_DIRS[@]}"}; do
     echo "[WARN] Incomplete analysis: $PROGRESS. Run /story-long-analyze to continue."
   fi
 
-  # 4. 伏笔断线（超过 50 章未回收）
+  # 4. 未关闭的伏笔线索
   if [ -f "$BOOK_DIR/追踪/伏笔.md" ]; then
     STALE_FORESHADOW=$(grep -E "第[0-9]+章.*未回收|状态.*进行中|status.*open" "$BOOK_DIR/追踪/伏笔.md" 2>/dev/null || true)
     if [ -n "$STALE_FORESHADOW" ]; then
