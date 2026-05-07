@@ -30,22 +30,6 @@ CHANGED=$(git diff --name-only 2>/dev/null | wc -l | tr -d ' ') || CHANGED=0
 STAGED=$(git diff --name-only --cached 2>/dev/null | wc -l | tr -d ' ') || STAGED=0
 echo "Git: ${CHANGED} unstaged, ${STAGED} staged"
 
-# WIP 标记计数（阈值 > 3 才列出详情）
-if [ -n "$BOOK_DIR" ]; then
-  for dir in "$BOOK_DIR/正文" "$BOOK_DIR/设定"; do
-    if [ -d "$dir" ]; then
-      WIP_COUNT=$( { grep -rE "TODO|WIP|PLACEHOLDER|TBD" "$dir/" 2>/dev/null || true; } | wc -l | tr -d ' ')
-      if [ "$WIP_COUNT" -gt 0 ]; then
-        if [ "$WIP_COUNT" -gt 3 ]; then
-          echo "WIP markers in $(basename "$dir")/: $WIP_COUNT (listing first 5)"
-          grep -rnE "TODO|WIP|PLACEHOLDER|TBD" "$dir/" 2>/dev/null | head -5
-        else
-          echo "WIP markers in $(basename "$dir")/: $WIP_COUNT"
-        fi
-      fi
-    fi
-  done
-fi
 
 # 记录 compaction 时间戳
 if [ -n "$BOOK_DIR" ]; then
