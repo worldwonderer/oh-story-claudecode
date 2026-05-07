@@ -28,11 +28,11 @@ echo "Branch: $BRANCH"
 git log --oneline -5 2>/dev/null || echo "(no git history)"
 echo ""
 
-# active.md 摘要（只看当前位置部分，前 10 行）
+# 上下文.md 摘要（只看当前位置部分，前 10 行）
 BOOK_DIR=$(discover_book_dir)
-if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/active.md" ]; then
+if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/上下文.md" ]; then
   echo "--- 当前位置 ---"
-  head -10 "$BOOK_DIR/追踪/active.md"
+  head -10 "$BOOK_DIR/追踪/上下文.md"
   echo "---"
   echo ""
 fi

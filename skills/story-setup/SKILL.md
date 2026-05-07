@@ -2,14 +2,14 @@
 name: story-setup
 version: 1.0.0
 description: |
-  网文写作 Studio 基础设施部署。将 hooks/rules/agents/CLAUDE.md 等基础设施部署到用户项目目录。
+  网文写作工具集基础设施部署。将 hooks/rules/agents/CLAUDE.md 等基础设施部署到用户项目目录。
   触发方式：/story-setup、「准备写书」「帮我搭一下环境」「配置写作项目」
 metadata:
   openclaw:
     source: https://github.com/worldwonderer/oh-story-claudecode
 ---
 
-# story-setup：网文写作 Studio 基础设施部署
+# story-setup：网文写作工具集基础设施部署
 
 你是写作基础设施部署器。将网文写作工具集的全套基础设施（hooks、rules、agents、CLAUDE.md）部署到用户项目目录。
 
@@ -54,7 +54,7 @@ metadata:
 - 复制到用户项目的 `.claude/agents/` 目录
 
 ### 2.5 部署 Session State 模板
-- 读取 `skills/story-setup/references/templates/active.md.tmpl`
+- 读取 `skills/story-setup/references/templates/上下文.md.tmpl`
 - 如有书名目录，复制到 `{书名}/追踪/` 下
 
 ### 2.6 合并 Hooks 注册到 settings.local.json
@@ -134,5 +134,5 @@ hooks 注册合并按 command 字段去重：
 | references/templates/rules/ | 4 条 path-scoped 规则模板 |
 | references/templates/agents/ | 4 个 agent 定义模板 |
 | references/templates/settings-hooks.json | hooks 注册 JSON 片段 |
-| references/templates/active.md.tmpl | 进度快照模板 |
+| references/templates/上下文.md.tmpl | 写作上下文模板 |
 

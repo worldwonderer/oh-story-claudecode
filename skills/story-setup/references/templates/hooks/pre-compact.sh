@@ -17,10 +17,10 @@ echo "=== Pre-Compact Summary ==="
 
 BOOK_DIR=$(discover_book_dir)
 
-# active.md 状态摘要（路径 + 行数，不输出内容）
-if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/active.md" ]; then
-  LINE_COUNT=$(wc -l < "$BOOK_DIR/追踪/active.md" | tr -d ' ')
-  echo "Active state: $BOOK_DIR/追踪/active.md ($LINE_COUNT lines)"
+# 上下文.md 状态摘要（路径 + 行数，不输出内容）
+if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/上下文.md" ]; then
+  LINE_COUNT=$(wc -l < "$BOOK_DIR/追踪/上下文.md" | tr -d ' ')
+  echo "Writing context: $BOOK_DIR/追踪/上下文.md ($LINE_COUNT lines)"
 else
   echo "Active state: not found"
 fi

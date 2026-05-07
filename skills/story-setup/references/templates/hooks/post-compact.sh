@@ -15,9 +15,9 @@ discover_book_dir() {
 
 BOOK_DIR=$(discover_book_dir)
 
-if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/active.md" ]; then
-  LINE_COUNT=$(wc -l < "$BOOK_DIR/追踪/active.md" | tr -d ' ')
-  echo "Context was compacted. Read $BOOK_DIR/追踪/active.md ($LINE_COUNT lines) to restore writing context."
+if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/上下文.md" ]; then
+  LINE_COUNT=$(wc -l < "$BOOK_DIR/追踪/上下文.md" | tr -d ' ')
+  echo "Context was compacted. Read $BOOK_DIR/追踪/上下文.md ($LINE_COUNT lines) to restore writing context."
 else
-  echo "Context was compacted. Check 追踪/active.md to restore context."
+  echo "Context was compacted. Check 追踪/上下文.md to restore context."
 fi
