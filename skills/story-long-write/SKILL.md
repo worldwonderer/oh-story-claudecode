@@ -61,6 +61,10 @@ metadata:
 - 节奏感好 → 推荐：都市爽文、重生文、游戏文
 - 生活经验丰富 → 推荐：行业文、都市日常、种田文
 
+#### Agent 增强
+
+- **story-architect**（串行，可选）: `Agent(subagent_type: "story-architect", prompt: "根据用户的选题方向，输出题材定位表和 3-5 个核心梗建议。")` → [完整 prompt](references/agent-prompts.md#phase-1story-architect--题材定位审查)
+
 ---
 
 ### Phase 2：核心设定
@@ -102,6 +106,12 @@ metadata:
 完成核心设定后，创建以下 artifact（加载 [references/artifact-protocols.md](references/artifact-protocols.md) 中对应模板）：
 - **设定/关系.md**：角色关系映射（参考 character-design.md「四种关系类型」）
 - **设定/题材定位.md**：题材核心梗三分法+对标分析（参考 genre-frameworks-unified.md「核心梗解析」）。对标分析表保留 2-3 行摘要，详细数据见 `对标/` 目录
+
+#### Agent 增强
+
+- **story-architect** + **character-designer**（可并行）：
+  - `Agent(subagent_type: "story-architect", prompt: "审查世界观骨架的完整性和独特性。")` → [完整 prompt](references/agent-prompts.md#phase-2story-architect--世界观审查)
+  - `Agent(subagent_type: "character-designer", prompt: "审查主角设定和语言风格档案。")` → [完整 prompt](references/agent-prompts.md#phase-2character-designer--主角设定审查)
 
 ---
 
@@ -150,6 +160,10 @@ metadata:
 - **追踪/伏笔.md** + **追踪/时间线.md**：伏笔状态表+故事时间线（参考 advanced-plot-techniques.md「连续性追踪」）
 
 前 3 章细纲额外加载 [references/opening-design.md](references/opening-design.md)（黄金三章法则+六大标准）。
+
+#### Agent 增强
+
+- **story-architect**（串行）: `Agent(subagent_type: "story-architect", prompt: "审查大纲结构完整性：钩子密度、爽点节奏、反转铺垫、范围控制。")` → [完整 prompt](references/agent-prompts.md#phase-3story-architect--大纲结构审查)
 
 ---
 
@@ -231,6 +245,11 @@ metadata:
 6. **禁用词扫描**：对照 `story-deslop/references/banned-words.md` 检查本章，命中即替换，不要留到 Phase 5
 7. **更新追踪**：写完后即时更新 `追踪/伏笔.md`（新增/回收伏笔）和 `追踪/时间线.md`（记录事件时序）
 
+##### Agent 增强（串行）
+
+- **character-designer**: `Agent(subagent_type: "character-designer", prompt: "审查第{N}章对话质量和角色语言风格一致性。")` → [完整 prompt](references/agent-prompts.md#phase-4character-designer--对话质量审查)
+- **narrative-writer**: 对话审查通过后 → `Agent(subagent_type: "narrative-writer", prompt: "扫描第{N}章的禁用词和AI味。")` → [完整 prompt](references/agent-prompts.md#phase-4narrative-writer--禁用词和ai味扫描)
+
 #### 写作技巧提醒
 
 | 场景 | 技巧 |
@@ -260,6 +279,12 @@ metadata:
 检查后更新追踪文件：
 - 更新 `追踪/伏笔.md` 中的过期伏笔和回收状态
 - 更新 `追踪/时间线.md` 中的时间线疑点
+
+#### Agent 增强
+
+- **narrative-writer** + **consistency-checker**（可并行）：
+  - `Agent(subagent_type: "narrative-writer", prompt: "做AI味检测和格式检查：6 Gate 全检。")` → [完整 prompt](references/agent-prompts.md#phase-5narrative-writer--ai味检测和格式检查)
+  - `Agent(subagent_type: "consistency-checker", prompt: "做事实冲突扫描，输出 S1-S4 分级冲突报告。")` → [完整 prompt](references/agent-prompts.md#phase-5consistency-checker--事实冲突扫描)
 
 ---
 

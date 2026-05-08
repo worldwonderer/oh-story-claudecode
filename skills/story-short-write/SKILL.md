@@ -72,6 +72,10 @@ metadata:
 | 细思极恐 | 悬疑、心理 | 高 | 🔥 |
 | 共鸣感动 | 现实、职场、婚姻 | 中 | 🔥🔥🔥 |
 
+#### Agent 增强
+
+- **story-architect**（串行，可选）: `Agent(subagent_type: "story-architect", prompt: "审查情绪目标选择，建议最适合的题材方向和核心梗。")` → [完整 prompt](references/agent-prompts.md#phase-1story-architect--情绪目标审查)
+
 ---
 
 ### Phase 2：构思核心框架
@@ -170,6 +174,11 @@ metadata:
 - 设定.md 维护结构物件追踪表：
   `| 物件 | 第1现(节号/含义) | 第2现(节号/含义) | 第3现(节号/含义) |`
 
+#### Agent 增强
+
+- **story-architect**（串行）: `Agent(subagent_type: "story-architect", prompt: "审查核心框架的反转设计、钩子强度、情绪弧线。")` → [完整 prompt](references/agent-prompts.md#phase-2story-architect--核心框架审查)
+- **character-designer**（可与 architect 并行）: `Agent(subagent_type: "character-designer", prompt: "审查人设速写的语言风格差异化、动机链、关系。")` → [完整 prompt](references/agent-prompts.md#phase-2character-designer--人设速写审查)
+
 ---
 
 ### Phase 3：逐场景写作
@@ -228,6 +237,10 @@ metadata:
 4. 伏笔/物件已植入？
 5. **节长验证**：统计本节字数（不含空格/换行）。如果 <800 字，必须回查哪个子事件的感知层或反应层太薄，补足后再写下一节。不足 800 的常见原因：(a) 感知层只有 1 句（需要 2-3 句、至少 2 个感官）(b) 子事件之间缺连接动作 (c) 对话只有 1 轮（应 ≥2 轮并穿插身体细节）
 6. 三层展开后仍偏短 → 加一轮对话（参考 writing-craft.md 第 3 节对话权力模式）或简短回忆（第 7 节扩展规则）
+
+#### Agent 增强
+
+- **narrative-writer**（串行，可选）: `Agent(subagent_type: "narrative-writer", prompt: "检查已写段落的 AI 味和节长达标情况。")` → [完整 prompt](references/agent-prompts.md#phase-3narrative-writer--ai味和节长检查)
 
 按以下结构分段写：
 
@@ -376,6 +389,10 @@ metadata:
 3. 不推高情绪的心理活动 → 删
 4. 读者能猜到的内容 → 缩短
 5. 重复表达的情绪 → 合并
+
+#### Agent 增强
+
+- **consistency-checker**（串行）: `Agent(subagent_type: "consistency-checker", prompt: "全文一致性扫描，输出 S1-S4 分级冲突报告。")` → [完整 prompt](references/agent-prompts.md#phase-4consistency-checker--全文一致性扫描)
 
 ---
 
