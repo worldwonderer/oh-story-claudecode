@@ -98,7 +98,7 @@ metadata:
   你是 narrative-writer，从文字质量层面审查以下内容。
   你的任务是【找问题】，不是验证正确性。以最严苛的标准审视。
   审查范围：{待审查内容}
-  禁用词表：story-deslop/references/banned-words.md
+  禁用词表：references/banned-words.md
   检查项：
   1. 是否存在禁用词/套话/陈词滥调？
   2. 格式是否合规（一段一句、≤60字、无空行、对话独立成行）？

@@ -30,7 +30,7 @@ extract_referenced_paths() {
   # Match [text](relative/path) — capture the path part
   grep -oE '\]\([^)]+\)' "$file" 2>/dev/null | sed 's/](\(.*\))/\1/' | grep -v '^http' | grep -v '^#' || true
   # Match bare relative paths in code blocks or prose: references/xxx, scripts/xxx
-  grep -oE '(references|scripts|assets)/[^ ")\]]+' "$file" 2>/dev/null || true
+  grep -oE '(references|scripts|assets)/[^ `")\]]+' "$file" 2>/dev/null || true
 }
 
 # 从 SKILL.md 提取所有 subagent_type 引用
