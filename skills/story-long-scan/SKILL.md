@@ -74,10 +74,14 @@ metadata:
 | 榜单 | URL | 核心字段 |
 |------|-----|----------|
 | 新人签约新书榜 | qidian.com/rank/newsign/ | 作者·题材·签约·免费/VIP·字数·总推荐·标签·简介 |
-| 三江推荐榜 | qidian.com/rank/sanjiang/ | 按周分组，VIP/免费区分 |
+| 签约作者新书榜 | qidian.com/rank/signnewbook/ | 已签约作者新书，新风向信号 |
+| 公众作者新书榜 | qidian.com/rank/pubnewbook/ | 公众作者新书，发现潜力作者 |
+| 新人作者新书榜 | qidian.com/rank/newauthor/ | 新人作品，新人赛道风向 |
+| 三江推荐 | qidian.com/sanjiang/ | 编辑推荐，按周分组（注意：非 /rank/ 路径） |
 | 月票榜 | qidian.com/rank/yuepiao/ | 付费认可度最高指标 |
 | 畅销榜 | qidian.com/rank/hotsales/ | 真金白银投票 |
-| 新书榜 | qidian.com/rank/newbook/ | 新风向信号 |
+| 阅读指数榜 | qidian.com/rank/readindex/ | 阅读量综合指标 |
+| 收藏榜 | qidian.com/rank/collect/ | 读者关注热度 |
 
 **番茄采集目标**：
 
@@ -166,7 +170,10 @@ URL 参数：`/rank/{channel}_{type}_{cat_id}`，channel 0=女频/1=男频，typ
 |---|---|
 | 月票榜/推荐票榜 | 付费用户认可度高、持续追读强 |
 | 畅销榜 | 真金白银投票，最硬核的指标 |
-| 新书榜 | 新题材、新风向的早期信号 |
+| 签约作者新书榜 | 已签约作者的新作风向 |
+| 公众作者新书榜 | 公众作者的新作，发现潜力股 |
+| 新人作者新书榜 | 新人赛道，新人作者风向标 |
+| 三江推荐 | 编辑精选推荐，按周分组，发现平台力推作品 |
 | 分类榜单 | 各垂直题材的竞争格局 |
 | 追读率 | 核心指标，决定推荐位分配 |
 

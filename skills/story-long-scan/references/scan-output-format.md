@@ -9,10 +9,14 @@
 | 榜单 | URL | 说明 |
 |------|-----|------|
 | 新人签约新书榜 | https://www.qidian.com/rank/newsign/ | 新人作品，签约状态 |
-| 三江推荐榜 | https://www.qidian.com/rank/sanjiang/ | 编辑推荐，按周分组 |
+| 签约作者新书榜 | https://www.qidian.com/rank/signnewbook/ | 已签约作者新书 |
+| 公众作者新书榜 | https://www.qidian.com/rank/pubnewbook/ | 公众作者新书 |
+| 新人作者新书榜 | https://www.qidian.com/rank/newauthor/ | 新人作者作品 |
+| 三江推荐 | https://www.qidian.com/sanjiang/ | 编辑推荐，按周分组（非 /rank/ 路径） |
 | 月票榜 | https://www.qidian.com/rank/yuepiao/ | 付费意愿最强指标 |
 | 畅销榜 | https://www.qidian.com/rank/hotsales/ | 真金白银 |
-| 新书榜 | https://www.qidian.com/rank/newbook/ | 新风向信号 |
+| 阅读指数榜 | https://www.qidian.com/rank/readindex/ | 阅读量综合指标 |
+| 收藏榜 | https://www.qidian.com/rank/collect/ | 读者关注热度 |
 | 原创推荐榜 | https://www.qidian.com/rank/recom/ | 综合推荐 |
 
 **单条数据字段**:
@@ -57,8 +61,6 @@
 
 {简介原文}
 ```
-
-**三江榜特殊处理**: 按周分组，每周一个 `### 第 YYYY.MM.DD-YYYY.MM.DD 周` 标题。
 
 ---
 
@@ -263,7 +265,7 @@ URL: {题材榜URL}  ·  抓取：{ISO 8601 时间戳}
 
 - 榜单页直接包含：排名、书名、作者、题材、字数、推荐数、签约状态、免费/VIP
 - 详情页需要提取：标签、最新更新、简介
-- 三江榜按周分组，需识别周标题边界
+- 三江推荐按周分组，需识别周标题边界（URL: `/sanjiang/`，非 `/rank/` 路径）
 - 简介清洗后截断至 100 字
 
 ### 番茄采集要点
@@ -300,6 +302,7 @@ URL: {题材榜URL}  ·  抓取：{ISO 8601 时间戳}
 
 示例：
 - `起点新人签约新书榜_20260425.md`
+- `起点签约作者新书榜_20260425.md`
 - `起点三江近四周_20260425.md`
 - `番茄男频阅读榜_全题材_20260425.md`
 - `七猫男频大热榜_20260425.md`
@@ -311,7 +314,7 @@ URL: {题材榜URL}  ·  抓取：{ISO 8601 时间戳}
 
 | 平台 | 默认采集组合 |
 |------|-------------|
-| 起点 | 新人签约新书榜 + 月票榜前20 + 畅销榜前20 |
+| 起点 | 新人签约新书榜 + 签约作者新书榜前20 + 月票榜前20 + 畅销榜前20 |
 | 番茄 | 男频阅读榜全题材 + 女频阅读榜全题材 |
 | 七猫 | 男频大热榜日榜 + 女频大热榜日榜 |
 | 晋江 | 收入金榜 + 月榜 |

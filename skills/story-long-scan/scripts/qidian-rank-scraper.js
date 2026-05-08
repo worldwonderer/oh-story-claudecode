@@ -9,10 +9,12 @@
  * 用法：
  *   node qidian-rank-scraper.js --type hotsales               # 畅销榜
  *   node qidian-rank-scraper.js --type yuepiao                 # 月票榜
- *   node qidian-rank-scraper.js --type newbook                 # 新书榜
+ *   node qidian-rank-scraper.js --type signnewbook             # 签约作者新书榜
+ *   node qidian-rank-scraper.js --type pubnewbook              # 公众作者新书榜
+ *   node qidian-rank-scraper.js --type newauthor               # 新人作者新书榜
  *   node qidian-rank-scraper.js --type newsign                 # 新人签约新书榜
  *   node qidian-rank-scraper.js --type recom                   # 原创推荐榜
- *   node qidian-rank-scraper.js --type sanjiang                 # 三江推荐榜
+ *   node qidian-rank-scraper.js --type sanjiang                 # 三江推荐（/sanjiang/，非 /rank/ 路径）
  *   node qidian-rank-scraper.js --type all                     # 全部榜单
  *
  * 前置：
@@ -28,10 +30,14 @@ const BASE_URL = "https://www.qidian.com/rank";
 const RANK_TYPES = [
   { id: "hotsales", label: "畅销榜" },
   { id: "yuepiao", label: "月票榜" },
-  { id: "newbook", label: "新书榜" },
+  { id: "signnewbook", label: "签约作者新书榜" },
+  { id: "pubnewbook", label: "公众作者新书榜" },
+  { id: "newauthor", label: "新人作者新书榜" },
   { id: "newsign", label: "新人签约新书榜" },
   { id: "recom", label: "原创推荐榜" },
-  { id: "sanjiang", label: "三江推荐榜" },
+  { id: "readindex", label: "阅读指数榜" },
+  { id: "collect", label: "收藏榜" },
+  { id: "sanjiang", label: "三江推荐", baseUrl: "https://www.qidian.com/sanjiang/" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -129,7 +135,7 @@ function scrapeRank(port, rankTypeId) {
     return null;
   }
 
-  const url = `${BASE_URL}/${rankTypeId}/`;
+  const url = rt.baseUrl || `${BASE_URL}/${rankTypeId}/`;
   console.log(`\n→ 采集 起点${rt.label}...`);
   console.log(`  URL: ${url}`);
 
