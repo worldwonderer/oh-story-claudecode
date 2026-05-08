@@ -18,7 +18,7 @@ while IFS= read -r -d '' file; do
   # 检查正文文件是否包含硬编码的情节值
   case "$file" in
     */正文/*)
-      HARDCODED=$(grep -nE "(身高|体重|年龄)[：:][0-9]+" "$file" 2>/dev/null || true)
+      HARDCODED=$(grep -nE "(身高|体重|年龄)(：|:)[0-9]+" "$file" 2>/dev/null || true)
       if [ -n "$HARDCODED" ]; then
         WARNINGS="$WARNINGS\n⚠ $file: Hardcoded character attributes found (should reference 设定/ files):\n$HARDCODED"
       fi
