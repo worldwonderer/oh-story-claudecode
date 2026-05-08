@@ -116,7 +116,37 @@ check_skill() {
     fi
   fi
 
-  # Check 4: Agent references valid
+  # Check 4: Internal cross-references in references/ files
+  if [ -d "$skill_dir/references" ]; then
+    local broken_xrefs=()
+    while IFS= read -r -d '' ref_file; do
+      [ "$(basename "$ref_file")" = ".gitkeep" ] && continue
+      # Extract markdown links [text](path) from reference files
+      while IFS= read -r xref; do
+        [ -z "$xref" ] && continue
+        # Skip external URLs, anchors, and template placeholders
+        [[ "$xref" == http* ]] && continue
+        [[ "$xref" == \#* ]] && continue
+        [[ "$xref" == *"{"* ]] && continue
+        local xref_full="$(dirname "$ref_file")/$xref"
+        if [ ! -e "$xref_full" ]; then
+          broken_xrefs+=("$(basename "$ref_file") -> $xref")
+        fi
+      done < <(grep -oE '\]\([^)]+\)' "$ref_file" 2>/dev/null | sed 's/](\(.*\))/\1/' | grep -v '^http' | grep -v '^#' || true)
+    done < <(find "$skill_dir/references" -type f -name "*.md" -print0 2>/dev/null)
+
+    if [ ${#broken_xrefs[@]} -eq 0 ]; then
+      echo "  [PASS] no broken cross-references in references/"
+    else
+      echo "  [FAIL] broken cross-references in references/:"
+      for x in "${broken_xrefs[@]}"; do
+        echo "         -> $x"
+      done
+      errors=$((errors + 1))
+    fi
+  fi
+
+  # Check 5: Agent references valid
   local agent_names=()
   if [ -d "$REPO_ROOT/skills/story-setup/references/templates/agents" ]; then
     for f in "$REPO_ROOT/skills/story-setup/references/templates/agents/"*.md; do

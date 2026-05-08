@@ -429,6 +429,7 @@ metadata:
 | [references/reversal-toolkit.md](references/reversal-toolkit.md) | 设计反转时，反转类型+时机+误导底层路径 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 精修检查+毒点排查 |
 | [references/anti-ai-writing.md](references/anti-ai-writing.md) | **去AI味时必读**：完整 AI 腔黑名单+禁用比喻+重复表达限制 |
+| [references/banned-words.md](references/banned-words.md) | 禁用词表（anti-ai-writing.md 的完整词表） |
 | [references/writing-craft.md](references/writing-craft.md) | **写作全程参考**：身体细节+结构物件三现+对话权力+数字叙事+一动一静+开头密度+小节密度配方 |
 | [references/villain-and-reveal.md](references/villain-and-reveal.md) | **Phase 2 设计反派时**：反派模板+4种揭露机制+报应设计 |
 | [references/character-design.md](references/character-design.md) | 设定人物时 |
