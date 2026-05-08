@@ -31,26 +31,6 @@ metadata:
 
 详细规则见 `references/format-and-structure.md`，写作前必须加载。
 
-### 段落规则
-- 一句一段，不超 60 字，段间无空行，无缩进
-- 一段只做一个动作：叙事/对话/心理/动作，不混合
-
-### 对话规则
-- 对话独立成行，不写「他说」「她道」，用动作代替
-- 默认 `""` | 知乎盐言 `【】` | 部分古言 `「」`
-
-### 小节结构
-- 数字编号分割（`1` `2` `3` 或 `###1.`），每小节 800-1500 字（爽文可压缩至 500-800 字/节，见 genre-writing-formulas.md）
-- 每小节必须有：1个主事件 + 3-5个子事件 + 1个情绪变化 + 1个读者新获知的信息
-- 全文 8-15 个小节（按目标字数和节长反推；8000字÷1000字/节≈8节，12000字÷800字/节≈15节）
-
-### 5 条绝对禁止
-1. 禁止大段落（>60 字必须拆）
-2. 禁止段间空行
-3. 禁止「他说/她道」（用动作代替）
-4. 禁止缩进
-5. 禁止 Markdown 渲染正文
-
 ---
 
 ## 写作流程
@@ -112,66 +92,16 @@ metadata:
 
 框架确定后，完成设计任务，然后在工作目录下创建文件。
 
-#### 设计任务（框架确定后，写作前完成）
+#### 设计任务（框架确定后执行）
 
-**开始前先加载 references**（逐项检查，不能跳过）：
-- 写结构物件 → 加载 `writing-craft.md` ✅/❌
-- 写反派/揭露方式 → 加载 `villain-and-reveal.md` ✅/❌
-- 写大纲 → 已有 genre-writing-formulas.md 的题材速查表即可 ✅/❌
-- 反转信息差验证 → 需加载 `reversal-toolkit.md` 或 `writing-craft.md` ✅/❌
-- 伏笔回查 → 需加载 `writing-craft.md` ✅/❌
-- 如某项不适用（如无反派），标注原因后可跳过
+详细步骤和模板见 `references/writing-workflow.md`。按顺序完成：
 
-1. **设计结构物件**（1-2 个）：用 writing-craft.md「结构物件系统」模板
-   - 填写：`- 第1现（第X节）：{场景}（{含义}）` 重复三次，含节号定位
-2. **设计反派**（如有）：用 villain-and-reveal.md 反派模板
-   - 填写：`{身份} + {动机} + {作恶方式} + {致命弱点} + {报应}`
-3. **确定揭露方式**：从 villain-and-reveal.md 4 种真相揭露机制中选一种
-4. **编写 小节大纲.md**：每节 1 行，格式如下：
-   `主事件 | 子事件×3-5 | 情绪 | 读者新获知什么 | 钩子 | 伏笔/物件 | 动静 | 对话密度 | 目标字数`
-   - 子事件必须功能明确（推动剧情/铺垫反转/升级情绪），禁止装饰性子事件
-   - 子事件不足 3 个时用扩展规则（见 writing-craft.md 第 7 节「子事件不够时怎么扩」）
-   - 子事件用 `->` 连接，每个子事件标注功能标签：
-     `对话` / `冲突` / `伏笔` / `回忆` / `发现` / `递进`
-   - 动静标记：`动` 或 `静` 或 `动静`，相邻两节尽量交替；如因题材需要连续同标记，需确保节内有情绪变化（如：两节都是"静"，但第一节"疑惑→心酸"、第二节"心碎→崩溃"，情绪曲线仍在上升）
-   - 对话密度：`高`（3+轮）/ `中`（1-2轮）/ `零`（全节无对话），尽量不连续 2 节标 `零`；翻阅日记、独自发现等场景允许例外，但连续零对话段落的情绪必须靠感知层+反应层推进
-5. **反转信息差验证**（outline 写完后、写作前必须验证）：
-   - 回答：读者在第几节知道真相？用「揭穿节号 ÷ 全文总节数」计算位置百分比
-     - < 50% → 不是反转，是延迟揭露（读者已知真相太早，后续缺少震撼）
-     - 50-60% → 灰区，需审视反转力度是否足够（前文误导线索是否充分）
-     - > 60% → 反转位置合理（读者等得够久，冲击力最大化）
-   - 检查：至少有 1 条读者被成功误导的假线索（不是读者猜到后等角色追上来）
-   - 检查：反转前是否铺垫了 ≥3 条指向真相的线索（线索要隐蔽，不是明示）
-   - 验证：找一个人（或自我模拟）只看 outline，能否在反转前猜到真相？猜到 = 失败
-6. **伏笔回查清单**（outline 写完后、写作前检查）：
-   - 列出结尾所有关键元素（物件/信息/角色/关系变化）
-   - 每个结尾元素在前文有 ≥1 次铺垫？没有 = 天降，必须补铺垫
-   - 结构物件三现完整？（第 1 现在铺垫段，第 2 现在反转段，第 3 现在结尾段）
-   - 铺垫节号与揭穿节号的间距 ≥ 3 节（间距太短铺垫无效）
-
-#### 写作前加载（按需，同时 ≤ 3 个）
-
-- 必读：`format-and-structure.md`
-- 必读：`anti-ai-writing.md`（写作时自检 AI 腔）
-- 按题材加载 1 个：`genre-writing-formulas.md` 中对应题材速查表
-- 按需加载：`writing-craft.md` / `villain-and-reveal.md` / `emotional-methods.md`
-
-#### 工作目录结构
-
-```
-{标题}/
-├── 设定.md          # 核心框架 + 人设 + 反转铺垫 + 结构物件（含三现追踪表）+ 反派设计
-├── 小节大纲.md  # 小节大纲：每节 1 行（主事件|子事件×3-5|情绪|读者新获知什么|钩子|伏笔/物件|动静|对话密度）
-├── 正文.md          # 完整正文
-└── 对标/            # 可选：用户手动指定的参考目录
-    └── {参考小说}/拆文报告.md
-```
-
-**操作原则：**
-- 正文直接写入文件，不要只输出在对话里
-- 精修时读取文件再改写，修改记录直接体现在设定.md的结构物件追踪中
-- 设定.md 维护结构物件追踪表：
-  `| 物件 | 第1现(节号/含义) | 第2现(节号/含义) | 第3现(节号/含义) |`
+1. 设计结构物件（1-2 个）→ 加载 `writing-craft.md`
+2. 设计反派（如有）→ 加载 `villain-and-reveal.md`
+3. 确定揭露方式 → 同上
+4. 编写 小节大纲.md（格式见 writing-workflow.md）
+5. 反转信息差验证（公式见 writing-workflow.md）
+6. 伏笔回查清单（标准见 writing-workflow.md）
 
 ---
 
@@ -207,34 +137,9 @@ metadata:
 
 > **节长速算**：平均每行 15 字 × 55 行 ≈ 825 字。写到第 30 行时如果还不到 500 字，说明子事件展开不够，必须加感知层和反应层。
 
-每个小节按「场景展开法」写作（详见 writing-craft.md 第 8 节）：
+每个小节按「场景展开法」写作（详见 writing-craft.md 第 8 节）：发生层(30-40字) → 感知层(60-80字,≥2个感官) → 反应层(40-60字)，三层合计 ≥150 字。
 
-1. **进入场景**：主角此刻在哪、在做什么（1-2 句切入）
-2. **展开子事件**：每个子事件三层展开，三层总字数 ≥150 字
-   - 发生层：这件事出现了（1-2 句叙事，含一个具体细节，~30-40 字）
-   - 感知层：主角注意到什么细节（2-3 句感官/物件，至少 2 个不同感官，~60-80 字）
-   - 反应层：身体如何回应（1-3 句身体动作，~40-60 字）
-   - 子事件之间用身体动作连接（~20 字），不用叙述过渡
-
-   **子事件展开示例**（163 字，三层完整）：
-   ```
-   发生层：他把车停在路边，熄了灯。
-   感知层：引擎关掉之后，车里一下子安静了。
-   只剩下我急促的呼吸声和窗外不知道哪里传来的一声狗叫。
-   仪表盘上的时钟亮着，绿色的数字跳了一下：23:47。
-   反应层：我把额头抵在方向盘上，凉了一下。
-   试着松手，十根指头都僵了，一根一根掰开才松掉。
-   ```
-   如果你写的子事件只有 3-4 行（≤60 字），说明缺少感知层和反应层。
-3. **收尾**：钩子或情绪定格（1-2 句）
-
-**写完后对照 小节大纲.md 检查：**
-1. 每个子事件三层都展开了？（不只是提到，要有感知+反应，三层合计 ≥150 字）
-2. 本节情绪到位？
-3. 读者新获知的信息已传达？
-4. 伏笔/物件已植入？
-5. **节长验证**：统计本节字数（不含空格/换行）。如果 <800 字，必须回查哪个子事件的感知层或反应层太薄，补足后再写下一节。不足 800 的常见原因：(a) 感知层只有 1 句（需要 2-3 句、至少 2 个感官）(b) 子事件之间缺连接动作 (c) 对话只有 1 轮（应 ≥2 轮并穿插身体细节）
-6. 三层展开后仍偏短 → 加一轮对话（参考 writing-craft.md 第 3 节对话权力模式）或简短回忆（第 7 节扩展规则）
+**写完后对照 小节大纲.md 检查**：每个子事件三层都展开了？本节情绪到位？伏笔/物件已植入？节长 <800 字 → 回查感知层/反应层补足后再写下一节。
 
 按以下结构分段写：
 
@@ -324,78 +229,10 @@ metadata:
 
 ### Phase 4：精修打磨
 
-#### 精修检查清单
+加载 `references/writing-workflow.md` 中的精修清单完成检查。
+重点：开头钩子、情绪曲线、反转铺垫、每句话价值、格式规范、AI 腔排查。
 
-```
-## 精修清单
-
-### 开头
-- [ ] 前 3 句话能抓住人？
-- [ ] 没有无意义的背景介绍？
-- [ ] 包含一个开篇钩子？
-
-### 情绪
-- [ ] 情绪曲线是否有明确走向？
-- [ ] 反转前的情绪铺垫够不够？
-- [ ] 反转后的冲击够不够？
-
-### 反转
-- [ ] 反转是否出乎意料？
-- [ ] 反转是否合情合理（回看有铺垫）？
-- [ ] 反转时机是否合适？
-
-### 节奏
-- [ ] 有没有拖沓的部分？
-- [ ] 每句话是否都有存在价值？
-- [ ] 字数是否在目标范围内？
-
-### 格式
-- [ ] 段落不超 60 字？无大段落？
-- [ ] 段间无空行？
-- [ ] 对话独立成行、用正确引号？
-- [ ] 无「他说/她道」？
-
-### 钩子
-- [ ] 每 2-3 小节有钩子？
-- [ ] 章末有钩子（悬念或余韵）？
-
-### AI 腔
-- [ ] 无禁止比喻：「命运的齿轮」「如潮水般」「仿佛春风」「心猛地一沉」「眼眶泛红」
-- [ ] 同一身体部位/情绪描写不超 5 次（统计：手指/心/膝盖/眼睛，超限必须替换）
-- [ ] 「像」使用频率：全文不超 10 处（含「像是」「不像」）
-- [ ] 完整 AI 腔黑名单见 anti-ai-writing.md
-
-### 技法
-- [ ] 身体细节：有无情绪词可替换为身体状态？
-- [ ] 结构物件：三现是否完整？（查设定.md追踪表）
-- [ ] 一动一静：每节是否有动有静？
-- [ ] 开头密度：前 100 字事件 ≥ 3？
-
-### 结尾
-- [ ] 结尾是否有余韵？
-- [ ] 读者会不会想转发？
-```
-
-#### 删减原则
-
-1. 不推动剧情的对话 → 删
-2. 不铺垫反转的描写 → 删
-3. 不推高情绪的心理活动 → 删
-4. 读者能猜到的内容 → 缩短
-5. 重复表达的情绪 → 合并
-
----
-
-## 常见问题与解决方案
-
-| 问题 | 原因 | 解决方案 |
-|------|------|----------|
-| 开头不抓人 | 在做背景铺垫 | 直接从冲突开始 |
-| 中间拖沓 | 信息密度太低 | 删减或合并场景 |
-| 反转没力度 | 铺垫不够或太明显 | 增加误导线索 |
-| 结尾无力 | 反转后拖太长 | 反转后 500 字内收尾 |
-| 全篇平淡 | 情绪曲线太平 | 加大情绪落差 |
-| 感觉像流水账 | 缺乏情绪描写 | 加入人物内心感受 |
+不通过 → 回退补足。
 
 ---
 
@@ -420,22 +257,23 @@ metadata:
 
 | 文件 | 何时加载 |
 |------|----------|
-| [references/format-and-structure.md](references/format-and-structure.md) | **写作前必读**：格式规范+小节结构+对话规则+平台覆盖表+绝对禁止 |
-| [references/emotional-methods.md](references/emotional-methods.md) | **设计情感时**：三板斧+拉扯节奏+按题材策略+失败模式 |
-| [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | **核心参考**：题材写作公式 + 短篇题材创作要点速查表 + 钩子密度分级表 + 三翻四震技法 + 女频读者心理 + 情绪操控 + 反派嘲讽 + 爽点本质 + 核心梗驱动法 |
-| [references/hook-techniques.md](references/hook-techniques.md) | **写作全程**：钩子类型+密度规则+悬念编排+期待感理论 |
-| [references/female-audience-writing.md](references/female-audience-writing.md) | 女频写作技巧+女读者偏好+情感描写+对标拆书方法+感情线模式 |
-| [references/emotional-arc-design.md](references/emotional-arc-design.md) | 设计情绪曲线时，弧形模板+期待感管理+题材赛道策略 |
-| [references/reversal-toolkit.md](references/reversal-toolkit.md) | 设计反转时，反转类型+时机+误导底层路径 |
-| [references/quality-checklist.md](references/quality-checklist.md) | 精修检查+毒点排查 |
-| [references/anti-ai-writing.md](references/anti-ai-writing.md) | **去AI味时必读**：完整 AI 腔黑名单+禁用比喻+重复表达限制 |
-| [references/banned-words.md](references/banned-words.md) | 禁用词表（anti-ai-writing.md 的完整词表） |
-| [references/writing-craft.md](references/writing-craft.md) | **写作全程参考**：身体细节+结构物件三现+对话权力+数字叙事+一动一静+开头密度+小节密度配方 |
-| [references/villain-and-reveal.md](references/villain-and-reveal.md) | **Phase 2 设计反派时**：反派模板+4种揭露机制+报应设计 |
+| [references/format-and-structure.md](references/format-and-structure.md) | 写作前必读 |
+| [references/writing-workflow.md](references/writing-workflow.md) | Phase 2 设计任务 + Phase 4 精修 |
+| [references/writing-craft.md](references/writing-craft.md) | 写作全程参考 |
+| [references/anti-ai-writing.md](references/anti-ai-writing.md) | 去AI味时必读 |
+| [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | 核心参考，按题材加载 |
+| [references/emotional-methods.md](references/emotional-methods.md) | 设计情感时 |
+| [references/hook-techniques.md](references/hook-techniques.md) | 写作全程 |
+| [references/villain-and-reveal.md](references/villain-and-reveal.md) | Phase 2 设计反派时 |
+| [references/reversal-toolkit.md](references/reversal-toolkit.md) | 设计反转时 |
+| [references/emotional-arc-design.md](references/emotional-arc-design.md) | 设计情绪曲线时 |
+| [references/quality-checklist.md](references/quality-checklist.md) | 精修检查时 |
+| [references/banned-words.md](references/banned-words.md) | 禁用词表 |
+| [references/female-audience-writing.md](references/female-audience-writing.md) | 女频写作时 |
 | [references/character-design.md](references/character-design.md) | 设定人物时 |
 | [references/dialogue-mastery.md](references/dialogue-mastery.md) | 写对话时 |
-| [references/opening-design.md](references/opening-design.md) | 设计开头+黄金一章+开头模板 |
-| [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | 题材框架+核心梗+事业线/爱情线 |
+| [references/opening-design.md](references/opening-design.md) | 设计开头时 |
+| [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | 题材框架时 |
 
 ---
 
