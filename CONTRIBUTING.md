@@ -6,16 +6,21 @@
 
 ```
 skills/
+├── story/                   # 工具箱路由
+├── story-setup/             # 环境部署
 ├── story-long-write/        # 长篇写作
-│   ├── SKILL.md             # skill 定义（入口文件）
-│   └── references/          # 知识库，按需加载
 ├── story-long-analyze/      # 长篇拆文
 ├── story-long-scan/         # 长篇扫榜
 ├── story-short-write/       # 短篇写作
 ├── story-short-analyze/     # 短篇拆文
 ├── story-short-scan/        # 短篇扫榜
 ├── story-deslop/            # 去AI味
+├── story-review/            # 多视角审查
+├── story-cover/             # 封面生成
 └── browser-cdp/             # 浏览器操控
+scripts/
+├── static-check.sh          # CI 脚本：frontmatter + 引用路径 + 死文件 + 交叉引用
+└── check-shared-files.sh    # 共享文件一致性校验
 ```
 
 每个 skill 由一个 `SKILL.md`（入口）和 `references/` 目录（知识库）组成。
@@ -49,6 +54,26 @@ description: |
 1. 在 `skills/` 下创建目录，包含 `SKILL.md` 和 `references/`
 2. 确保在仓库根目录运行 `npx skills validate` 无报错
 3. 提交 PR
+
+## CI 检查
+
+PR 自动运行 `bash scripts/static-check.sh`，检查项：
+- frontmatter（name + description 必填）
+- 引用路径有效性（SKILL.md 中提到的 references 文件必须存在）
+- 死文件检测（references/ 中未被 SKILL.md 引用的文件会警告）
+- references 内部交叉引用有效性
+
+提交前建议本地运行：
+
+```bash
+bash scripts/static-check.sh       # CI 会跑的检查
+bash scripts/check-shared-files.sh # 共享文件一致性（CI 未强制）
+```
+
+## 共享文件规范
+
+部分文件跨 skill 共享（如 banned-words.md、anti-ai-writing.md），修改时必须同步所有副本。
+运行 `bash scripts/check-shared-files.sh` 检查一致性。
 
 ### 知识库贡献
 
