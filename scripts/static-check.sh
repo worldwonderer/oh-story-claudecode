@@ -74,8 +74,9 @@ check_skill() {
   local broken_paths=()
   while IFS= read -r ref_path; do
     [ -z "$ref_path" ] && continue
-    # Resolve relative to skill directory
-    local full_path="$skill_dir/$ref_path"
+    # Resolve relative to skill directory, strip anchor fragments
+    local clean_path="${ref_path%%#*}"
+    local full_path="$skill_dir/$clean_path"
     if [ ! -e "$full_path" ]; then
       broken_paths+=("$ref_path")
     fi
