@@ -70,6 +70,14 @@ npx skills add worldwonderer/oh-story-claudecode -y
 
 更新时重新执行同一条命令即可。
 
+## 在线体验
+
+**不想安装？** 打开链接即可直接使用短篇写作技能，无需 clone 仓库或配置环境：
+
+[🚀 在线体验短篇写作技能](https://socialistic.ai/en/skill/oh-story-claudecode-7aa95c)
+
+*适合不想折腾技术的写手，打开链接就能从构思到成稿一站式完成。*
+
 ## Skills
 
 | Skill | 触发 | 说明 |
