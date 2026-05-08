@@ -109,6 +109,16 @@
       "skills": ["./skills/story-setup"]
     },
     {
+      "name": "story-review",
+      "description": "多视角对抗式审查。4 个 Agent 并行 spawn，从故事架构、角色设计、文字质量、设定一致性四个角度找问题并综合裁决。内置番茄/起点/知乎三平台评分标准。",
+      "source": "./",
+      "strict": false,
+      "version": "1.0.0",
+      "category": "novel-quality",
+      "keywords": ["review", "audit", "multi-agent", "rubric", "审查", "评分", "番茄", "起点", "知乎", "chinese"],
+      "skills": ["./skills/story-review"]
+    },
+    {
       "name": "story-cover",
       "description": "网文封面生成。分析书名题材，生成专业封面图，支持 10 大题材视觉风格。",
       "source": "./",
