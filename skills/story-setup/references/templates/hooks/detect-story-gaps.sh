@@ -43,6 +43,7 @@ for BOOK_DIR in ${BOOK_DIRS[@]+"${BOOK_DIRS[@]}"}; do
 
   # 4. 未关闭的伏笔线索
   if [ -f "$BOOK_DIR/追踪/伏笔.md" ]; then
+    # 正则依赖 artifact-protocols.md 中的伏笔格式定义，格式变更时需同步更新
     STALE_FORESHADOW=$(grep -E "第[0-9]+章.*未回收|状态.*进行中|status.*open" "$BOOK_DIR/追踪/伏笔.md" 2>/dev/null || true)
     if [ -n "$STALE_FORESHADOW" ]; then
       echo "[WARN] Open foreshadowing threads detected in 伏笔.md. Consider running /story-review."

@@ -4,6 +4,9 @@ version: 1.0.0
 description: "Use this skill when you need to control a Chrome browser via CDP (Chrome DevTools Protocol) to reuse existing login sessions. Covers: launching Chrome in debug mode, opening URLs, waiting for page load, evaluating JavaScript, taking snapshots, and extracting auth tokens. Trigger phrases: browser automation, CDP, agent-browser, 浏览器操作, 操作浏览器, Chrome CDP, 复用登录态, extract token from browser."
 metadata:
   openclaw:
+    requires:
+      bins:
+        - agent-browser
     source: https://github.com/worldwonderer/oh-story-claudecode
 ---
 
@@ -15,7 +18,7 @@ metadata:
 
 - Windows（实验性）/ macOS / Linux，已安装 Google Chrome
 - Node.js 16+（Atomics.wait + SharedArrayBuffer）
-- `agent-browser` 命令行工具已安装
+- `agent-browser` 命令行工具已安装（`npm install -g agent-browser`）
 
 ---
 

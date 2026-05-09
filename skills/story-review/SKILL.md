@@ -66,7 +66,7 @@ metadata:
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
-  EVIDENCE: [具体引用]
+  FINDINGS: [结构/情节/节奏问题，附具体引用]
   RECOMMENDATIONS: [修改建议]
   ```
 
@@ -87,7 +87,7 @@ metadata:
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
-  EVIDENCE: [具体引用]
+  FINDINGS: [角色/对话问题，附具体引用]
   RECOMMENDATIONS: [修改建议]
   ```
 
@@ -108,8 +108,7 @@ metadata:
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
-  AI味级别: 轻度/中度/重度
-  EVIDENCE: [具体引用]
+  FINDINGS: AI味级别: 轻度/中度/重度; [禁用词/格式/节奏问题，附具体引用]
   RECOMMENDATIONS: [修改建议]
   ```
 
@@ -129,16 +128,16 @@ metadata:
   4. 时间线是否自洽？
   5. 伏笔密度是否合理？
 
-  输出格式（S1-S4 分级）：
+  输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
-  CONFLICTS:
-  - [S1/S2/S3/S4] 具体冲突描述
+  FINDINGS: [S1/S2/S3/S4] 具体冲突描述（每条标注严重等级）
+  RECOMMENDATIONS: [修复建议]
   ```
 
 ## Phase 3：综合裁决
 
-1. 收集 4 个 Agent 的 verdict
-2. 去重和分级
+1. 收集 4 个 Agent 的 VERDICT 和 FINDINGS
+2. 合并去重：将各 Agent 的 FINDINGS 按严重程度排序（S1 > S2 > S3 > S4，AI味重度 > 中度 > 轻度）
 3. **分歧呈现**：如果 Agent 间有冲突意见，明确呈现分歧让用户裁决
    - 例：story-architect 认为某段"结构合理"，但 character-designer 认为"角色弧线有问题"
    - 不要自动妥协，让用户看到双方理由

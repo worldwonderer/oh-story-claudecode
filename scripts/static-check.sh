@@ -100,8 +100,22 @@ check_skill() {
       [ "$ref_basename" = ".gitkeep" ] && continue
       # Check if basename is mentioned anywhere in SKILL.md
       if ! grep -qF "$ref_basename" "$skill_file" 2>/dev/null; then
-        local rel_path="${ref_file#$skill_dir/}"
-        dead_files+=("$rel_path")
+        # Fallback: check if a parent directory is referenced in SKILL.md
+        # (handles skills that reference directories like "references/templates/hooks/")
+        local parent_covered=false
+        local check_dir="$(dirname "$ref_file")"
+        while [ "$check_dir" != "$skill_dir" ] && [ "$check_dir" != "/" ]; do
+          local rel_dir="${check_dir#$skill_dir/}/"
+          if grep -qF "$rel_dir" "$skill_file" 2>/dev/null; then
+            parent_covered=true
+            break
+          fi
+          check_dir="$(dirname "$check_dir")"
+        done
+        if [ "$parent_covered" = false ]; then
+          local rel_path="${ref_file#$skill_dir/}"
+          dead_files+=("$rel_path")
+        fi
       fi
     done < <(find "$skill_dir/references" -type f -print0 2>/dev/null)
 

@@ -26,7 +26,8 @@ metadata:
 ## API 配置
 
 ```bash
-BASE_URL=${GPT_IMAGE_BASE_URL:-https://yunwu.ai/v1}
+# 可通过 GPT_IMAGE_BASE_URL 环境变量覆盖默认地址（如使用代理服务）
+BASE_URL=${GPT_IMAGE_BASE_URL:-https://api.openai.com/v1}
 API_KEY=${GPT_IMAGE_API_KEY:?请设置 export GPT_IMAGE_API_KEY=你的key}
 MODEL=gpt-image-2
 SIZE=1024x1536

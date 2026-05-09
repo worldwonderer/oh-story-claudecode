@@ -30,7 +30,7 @@ memory: project
 | `story-long-write/references/style-modules.md` | 情绪弧线执行、题材情绪策略、情弦理论时 |
 | `story-short-write/references/opening-design.md` | 开篇创作（黄金一章、开头技巧）时 |
 | `story-long-write/references/anti-ai-writing.md` | 去AI味（6 Gate、三遍去AI法、Show Don't Tell）时 |
-| `references/banned-words.md` | 禁用词替换（Gate A）时 |
+| `story-deslop/references/banned-words.md` | 禁用词替换（Gate A）时 |
 | `story-long-write/references/quality-checklist.md` | 审查文字质量（五维评分、9项检查）时 |
 
 ---
@@ -83,9 +83,9 @@ memory: project
 ### 去AI味（6 Gate）
 
 > 完整方法见 `story-long-write/references/anti-ai-writing.md`
-> 禁用词表见 `references/banned-words.md`
+> 禁用词表见 `story-deslop/references/banned-words.md`
 
-- **Gate A 禁用词替换**：命运齿轮/如潮水般/仿佛春风/心猛地一沉/眼眶泛红等全部替换（查 banned-words.md）
+- **Gate A 禁用词替换**：命运齿轮/如潮水般/仿佛春风/心猛地一沉/眼眶泛红等全部替换（查 story-deslop/references/banned-words.md）
 - **Gate B 句式去套路**：连续排比/刻意对称/空洞抒情打散（anti-ai-writing.md 7种AI模式检测）
 - **Gate C 心理描写外化**：情绪词 -> 身体状态（anti-ai-writing.md Show Don't Tell 原则）
 - **Gate D 节奏打碎**：长句拆短、同构句打散（核心规则：单段 <= 3 句、短句先行、口语化）
