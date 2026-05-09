@@ -44,12 +44,12 @@ metadata:
 | 场景 | 触发条件 | 执行流程 |
 |------|----------|----------|
 | **开书** | "帮我开书" / 项目目录为空 | 完整 Phase 1→2→3→4→5（下方全部流程） |
-| **日更续写** | "日更" / "续写" / 已有正文+追踪 | 加载 `references/workflow-daily.md` → Phase 4→5 |
+| **日更续写** | 关键词（"日更"/"续写"/"继续写"）**且**项目已有正文+追踪 | 加载 `references/workflow-daily.md` |
 | **大修** | "修改第X章" / "回炉" | 加载 `references/workflow-revision.md` |
 
-> **开新卷**：回到 Phase 3 补充新卷细纲，再进 Phase 4。不跳 Phase 2（可能需要新角色/势力设定）。
+> **开新卷**：如果新卷引入新角色/势力/设定，先回 Phase 2 增量补充，再进 Phase 3 补充新卷细纲，最后 Phase 4 写作。如果纯延续，直接回 Phase 3。
 
-无法判断场景时，直接问用户："你是要开新书、继续日更、还是修改已有章节？"
+无法判断场景时，列出上述场景表让用户选择，不要开放式提问。
 
 ### Phase 1：确认选题方向
 
@@ -202,7 +202,8 @@ metadata:
 │       └── 拆文报告.md      # story-long-analyze 输出
 ├── 追踪/
 │   ├── 伏笔.md                # 伏笔埋设/回收状态表
-│   └── 时间线.md              # 故事内时间线
+│   ├── 时间线.md              # 故事内时间线
+│   └── 上下文.md              # 日更进度摘要（workflow-daily 维护）
 ```
 
 **Artifact 映射表**（创建模板详见 [references/artifact-protocols.md](references/artifact-protocols.md)）：
@@ -215,6 +216,7 @@ metadata:
 | 追踪/伏笔.md | 全书 | Phase 3 起 | Phase 4 每章写作前 |
 | 追踪/时间线.md | 全书 | Phase 3 起 | Phase 4 每章写作前 |
 | 对标/{书名}/拆文报告.md | 对标书 | 用户手动+analyze | Phase 2 核心设定、Phase 3 大纲、Phase 4 写作 |
+| 追踪/上下文.md | 全书 | Phase 4 首次日更（workflow-daily 自动创建） | 每次日更开始时 |
 
 **缺失文件回退**：所有新增文件是可选增强。缺失时 agent 降级到当前行为，不报错不阻塞——情绪/反转信息在卷纲或大纲中体现，伏笔/时间线不检查，对标参考跳过。
 
