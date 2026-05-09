@@ -3,7 +3,7 @@ name: story-long-write
 version: 1.0.0
 description: |
   长篇网文写作。从大纲到正文，辅助长篇网络小说的创作，包括世界观、人物、情节线管理。
-  触发方式：/story-long-write、/写长篇、「帮我开书」「写大纲」
+  触发方式：/story-long-write、/写长篇、「帮我开书」「写大纲」「日更」「续写」「继续写」「修改第X章」「回炉」「重写第X章」
 metadata:
   openclaw:
     source: https://github.com/worldwonderer/oh-story-claudecode
@@ -38,6 +38,20 @@ metadata:
 ---
 
 ## 写作流程
+
+根据用户意图和项目状态选择场景：
+
+| 场景 | 触发条件 | 执行流程 |
+|------|----------|----------|
+| **开书** | "帮我开书" / 项目目录为空 | 完整 Phase 1→2→3→4→5（下方全部流程） |
+| **日更续写** | 关键词（"日更"/"续写"/"继续写"）**且**项目已有正文+追踪 | 加载 `references/workflow-daily.md` |
+| **大修** | "修改第X章" / "回炉" / "重写第X章" | 加载 `references/workflow-revision.md` |
+
+> **开新卷**：如果新卷引入新角色/势力/设定，先回 Phase 2 增量补充，再进 Phase 3 补充新卷细纲，最后 Phase 4 写作。如果纯延续，直接回 Phase 3。
+
+**匹配优先级**：同时命中多行时，按 日更续写 → 大修 → 开书 的顺序匹配。日更续写的 AND 条件（项目已有正文+追踪）不满足时，提示用户"项目还没有正文，建议先开书"。
+
+无法判断场景时，列出上述场景表让用户选择，不要开放式提问。
 
 ### Phase 1：确认选题方向
 
@@ -190,7 +204,8 @@ metadata:
 │       └── 拆文报告.md      # story-long-analyze 输出
 ├── 追踪/
 │   ├── 伏笔.md                # 伏笔埋设/回收状态表
-│   └── 时间线.md              # 故事内时间线
+│   ├── 时间线.md              # 故事内时间线
+│   └── 上下文.md              # 日更进度摘要（workflow-daily 维护）
 ├── 参考资料/
 │   └── {topic}.md             # story-researcher 输出的研究资料
 ```
@@ -205,6 +220,7 @@ metadata:
 | 追踪/伏笔.md | 全书 | Phase 3 起 | Phase 4 每章写作前 |
 | 追踪/时间线.md | 全书 | Phase 3 起 | Phase 4 每章写作前 |
 | 对标/{书名}/拆文报告.md | 对标书 | 用户手动+analyze | Phase 2 核心设定、Phase 3 大纲、Phase 4 写作 |
+| 追踪/上下文.md | 全书 | Phase 4 首次日更（workflow-daily 自动创建） | 每次日更开始时 |
 | 参考资料/{topic}.md | 按需 | Phase 4（story-researcher 输出） | Phase 4 后续章节写作时复用 |
 
 **缺失文件回退**：所有新增文件是可选增强。缺失时 agent 降级到当前行为，不报错不阻塞——情绪/反转信息在卷纲或大纲中体现，伏笔/时间线不检查，对标参考跳过。
@@ -303,6 +319,8 @@ metadata:
 | [references/reversal-toolkit.md](references/reversal-toolkit.md) | 反转类型+时机+误导底层路径 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 质量检查+毒点排查+常见问题速查 |
 | [references/narrative-units.md](references/narrative-units.md) | 叙事单元体系：情绪模块+戏剧单元+叙事元素+结构技法，Phase 3 大纲和 Phase 4 写作时参考 |
+| [references/workflow-daily.md](references/workflow-daily.md) | 日更续写工作流：快速上下文加载+批量写作+进度摘要 |
+| [references/workflow-revision.md](references/workflow-revision.md) | 大修工作流：定位章节+重写+追踪更新+级联检查 |
 
 ---
 
