@@ -62,7 +62,9 @@ metadata:
   3. 情绪节奏是否合理？
   4. 钩子和反转设计质量如何？
   5. 范围控制：有无角色/设定膨胀？
-  6. 按平台 rubric 逐项对照，标记 PASS/FAIL
+  6. 剧情循环是否存在且可重复？（参见 advanced-plot-techniques "剧情循环设计"）
+  7. 高潮场景是否用了蓄能→假胜→崩解结构？（参见 advanced-plot-techniques "高潮构建公式"）
+  8. 按平台 rubric 逐项对照，标记 PASS/FAIL
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
@@ -84,6 +86,8 @@ metadata:
   3. 人物弧线是否连贯？
   4. 角色行为是否符合其动机？
   5. 对话是否有潜台词和信息控制？
+  6. 爱情线好感度与CP行为是否匹配？（参见 character-design "爱情线好感度体系"）
+  7. 好感度进度是否可感知？
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
