@@ -25,7 +25,7 @@ metadata:
 
 ```
 用户提到具体题材（追妻/重生/虐文/...）？
-  ├─ 是 → 加载 genre-frameworks-unified.md 对应题材的「短篇视角」章节
+  ├─ 是 → 加载 genre-catalog.md 对应题材的「短篇视角」章节
   └─ 否 → 使用通用模板（Phase 2-6）
 ```
 
@@ -82,9 +82,13 @@ metadata:
 | [references/output-templates.md](references/output-templates.md) | 拆文时：输出模板+结构库+必填字段 |
 | [references/deconstruction-examples.md](references/deconstruction-examples.md) | 学习拆文方法时（3个完整案例） |
 | [references/zhihu-style.md](references/zhihu-style.md) | 分析知乎盐言故事时 |
-| [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | 拆解特定题材时，加载对应题材的「短篇视角」章节 |
-| [references/hook-techniques.md](references/hook-techniques.md) | 深度分析钩子设计时 |
-| [references/character-design.md](references/character-design.md) | 深度分析人物设计时 |
+| [references/genre-catalog.md](references/genre-catalog.md) | 拆解特定题材时，加载对应题材的「短篇视角」章节 |
+| [references/hooks-chapter.md](references/hooks-chapter.md) | 深度分析章节钩子设计时 |
+| [references/hooks-suspense.md](references/hooks-suspense.md) | 深度分析悬念设计时 |
+| [references/hooks-paragraph.md](references/hooks-paragraph.md) | 深度分析段落钩子时 |
+| [references/character-basics.md](references/character-basics.md) | 深度分析人物基础时 |
+| [references/character-design-methods.md](references/character-design-methods.md) | 深度分析人设方法时 |
+| [references/character-relations.md](references/character-relations.md) | 深度分析人物关系时 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 评估质量时 |
 
 > **题材写作公式**：`references/genre-writing-formulas.md`（21大题材写作公式）
