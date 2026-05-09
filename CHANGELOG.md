@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- 新增 story-researcher 资料研究 agent（CDP 搜索+正文提取+多源交叉验证）
+- 长篇写作新增场景路由（开书/日更续写/大修）+ 日更工作流 + 大修工作流
+- story skill 路由表新增「查资料」入口
+- story-review 审查流程新增可选事实核查路径
 - 精简 story-short-write SKILL.md 22.8KB→13.7KB，新建 writing-workflow.md
 
 ## v0.4.1
