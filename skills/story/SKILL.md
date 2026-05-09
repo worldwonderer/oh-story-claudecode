@@ -24,7 +24,7 @@ description: |
 | 封面 | 封面、封面图 | `/story-cover` |
 | 环境部署 | 准备写书、搭环境、初始化 | `/story-setup` |
 | 浏览器操控 | 浏览器、抓取、登录态 | `/browser-cdp` |
-| 查资料 | 查资料、调研、查一下、帮我查 | 直接 spawn `story-researcher` agent |
+| 查资料 | 查资料、帮我查资料、调研、搜索一下、搜一下 | 直接 spawn `story-researcher` agent |
 
 ## 路由流程
 

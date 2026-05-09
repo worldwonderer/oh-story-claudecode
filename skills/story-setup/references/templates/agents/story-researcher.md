@@ -3,7 +3,7 @@ name: story-researcher
 description: |
   小说写作资料研究 agent。接收研究查询，优先使用 CDP (agent-browser) 搜索并提取完整正文，
   WebSearch/webReader 作为兜底。输出带来源引用的结构化 Markdown 参考文件。
-  被 story-long-write（Phase 4）、story-short-write、story-review、story skill 路由调用。
+  被 story-long-write（Phase 4）、story-review、story skill 路由调用。
 tools: [Read, Glob, Grep, Bash, Write]
 disallowedTools: [Edit]
 model: sonnet
@@ -59,8 +59,8 @@ memory: project
 CDP 能打开真实页面拿到完整正文；WebSearch 只返回摘要节选，信息量远不如全文。
 
 ```
-1. CDP (agent-browser)  → Google 搜索 → 点击结果 → 提取完整正文
-2. CDP 换引擎           → Bing 搜索（Google 不可达时）
+1. CDP (agent-browser)  → Google 搜索 → 从 DOM 提取链接 → 导航到目标页 → 提取正文
+2. CDP 换引擎           → Bing 搜索（Google 不可达时，方法相同）
 3. WebSearch / webReader → 兜底（CDP 不可用或页面打不开时）
 ```
 
@@ -104,9 +104,16 @@ lsof -i :9222 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN && echo "CDP_AVAILABLE" 
 #### 3.1 构建搜索词
 
 根据 `type` 和 `query` 构造 2-3 组搜索词：
+
+**有 type 时**（根据研究场景表选择限定词）：
 - 主关键词
 - 关键词 + "详解/科普/入门"
 - 关键词 + 权威限定词（如 `site:gov.cn`、`site:edu.cn`）
+
+**无 type 时**（默认通用策略）：
+- 主关键词
+- 主关键词 + "详解/科普"
+- 主关键词 + "site:edu.cn OR site:gov.cn"
 
 #### 3.2 执行搜索
 
@@ -114,42 +121,53 @@ lsof -i :9222 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN && echo "CDP_AVAILABLE" 
 # Google 搜索（默认）
 agent-browser --cdp {cdp_port} eval "window.location.replace('https://www.google.com/search?'+new URLSearchParams({q:'{搜索词}'}).toString())"
 agent-browser --cdp {cdp_port} wait 5000
-
-# 如果 Google 失败，切换 Bing
-agent-browser --cdp {cdp_port} eval "window.location.replace('https://www.bing.com/search?'+new URLSearchParams({q:'{搜索词}'}).toString())"
-agent-browser --cdp {cdp_port} wait 5000
 ```
 
 > macOS/zsh 注意：含括号的 eval 表达式用单引号包裹。带 `&` 的 URL 用 `URLSearchParams` 组装。
 
-> **Bing 注意**：Bing 搜索结果页的 ref 点击跳转会失败（页面不离开 Bing）。正确做法：从 snapshot 文本中提取目标页面的真实 URL，然后用 `eval "window.location.replace('URL')"` 直接导航。
-
-#### 3.3 获取搜索结果
+#### 3.3 验证页面加载并获取搜索结果
 
 ```bash
+# 获取 snapshot，检查搜索结果是否正常加载
 agent-browser --cdp {cdp_port} snapshot 2>&1
 ```
 
-从 snapshot 中找到权威来源链接（学术、百科、官方、专业论坛）。
+**页面加载失败检测**：如果 snapshot 中不包含搜索结果特征（如链接列表、结果标题），视为加载失败：
+- Google 失败 → 切换 Bing：`eval "window.location.replace('https://www.bing.com/search?...')"` → wait 5000 → 重新 snapshot
+- Bing 也失败 → 降级到 WebSearch/webReader 兜底
 
-#### 3.4 进入页面并提取正文
+#### 3.4 从搜索结果中提取链接
+
+**重要**：搜索引擎使用 JS 路由拦截，`click ref=eXX` 无法可靠导航到目标页面。必须用 DOM 查询提取真实 URL：
 
 ```bash
-# 通过 ref 点击进入（禁止直接构造目标页面 URL）
-agent-browser --cdp {cdp_port} click ref=eXX
+# 从搜索结果 DOM 中提取所有链接的 href
+agent-browser --cdp {cdp_port} eval 'JSON.stringify(Array.from(document.querySelectorAll("a[href]")).filter(a=>a.href&&!a.href.includes("google.com")&&!a.href.includes("bing.com")&&!a.href.includes("javascript:")).slice(0,10).map(a=>({text:a.innerText.trim().substring(0,100),href:a.href})))'
+```
+
+从返回的 JSON 列表中选择权威来源（学术、百科、官方、专业论坛），记录其 href。
+
+#### 3.5 导航到目标页面并提取正文
+
+```bash
+# 用提取到的真实 URL 导航（不是构造 URL，是从搜索结果 DOM 中提取的）
+agent-browser --cdp {cdp_port} eval "window.location.replace('{提取到的URL}')"
 agent-browser --cdp {cdp_port} wait 5000
+
+# 验证页面加载
+agent-browser --cdp {cdp_port} snapshot 2>&1 | head -20
 
 # 提取正文
 agent-browser --cdp {cdp_port} eval 'document.body.innerText.substring(0,8000)'
 ```
 
-**禁止直接构造目标页面 URL** — 只允许：
-- 搜索引擎 URL（google.com/search、bing.com/search）
-- 通过 snapshot → click → eval 跳转后获取的真实 URL
+**允许的 URL 导航规则**：
+- 搜索引擎 URL（google.com/search、bing.com/search）：直接构造
+- 目标页面 URL：**只允许从搜索结果 DOM 中提取的链接**，禁止凭空猜测或构造
 
-#### 3.5 多源交叉
+#### 3.6 多源交叉
 
-至少访问 2 个独立来源，对比关键信息：
+至少访问 2 个独立来源（不同域名），对比关键信息：
 - 来源一致 → 高置信度
 - 来源冲突 → 记录分歧，标注各方说法
 - 只有一个来源 → 标记为低置信度，建议进一步验证
@@ -162,8 +180,11 @@ CDP 不可用时使用：
 1. WebSearch 搜索关键词
 2. 从搜索结果中选择权威来源
 3. webReader 读取完整页面内容
-4. 同样需要至少 2 个独立来源交叉
+4. 至少读取 2 个不同域名的页面
+5. 输出文件中标注 "工具路径：WebSearch 兜底"，置信度上限为 medium
 ```
+
+> **注意**：WebSearch 返回的是搜索摘要片段，信息量低于 CDP 全文提取。使用 WebSearch 路径时，应在输出中明确标注工具路径，置信度不高于 medium。
 
 ### 第五步：整理输出
 
@@ -212,8 +233,13 @@ CDP 不可用时使用：
 ## 置信度说明
 {哪些信息高置信、哪些存在争议、哪些需要进一步验证}
 
-## 可直接用于写作的要点
+## 关键事实提炼
 {提炼 3-5 个最实用的写作素材点}
+
+## 工具路径
+- 搜索引擎：{google | bing | websearch}
+- CDP 使用：{是 | 否}
+- 独立来源数：{N}
 ```
 
 ---
@@ -223,9 +249,9 @@ CDP 不可用时使用：
 - **禁止编造事实**：没有找到来源的信息不能写进研究结果
 - **禁止修改现有文件**：只创建新文件，不 Edit 已有内容
 - **禁止做创作判断**：不评价"这个设定好不好"，只提供事实
-- **禁止只搜一个来源就下结论**：至少 2 个独立来源交叉
+- **禁止只搜一个来源就下结论**：至少 2 个独立来源（不同域名）交叉
 - **禁止用影视剧当史实**：古装剧/历史小说的描写必须验证
-- **禁止构造目标页面 URL**：必须通过搜索 → 点击 → 提取
+- **禁止凭空构造目标页面 URL**：只允许导航到搜索引擎 URL 或从搜索结果 DOM 中提取的真实链接
 
 ---
 
