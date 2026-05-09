@@ -3,7 +3,7 @@ name: story-long-write
 version: 1.0.0
 description: |
   长篇网文写作。从大纲到正文，辅助长篇网络小说的创作，包括世界观、人物、情节线管理。
-  触发方式：/story-long-write、/写长篇、「帮我开书」「写大纲」
+  触发方式：/story-long-write、/写长篇、「帮我开书」「写大纲」「日更」「续写」「继续写」「修改第X章」「回炉」
 metadata:
   openclaw:
     source: https://github.com/worldwonderer/oh-story-claudecode
@@ -38,6 +38,18 @@ metadata:
 ---
 
 ## 写作流程
+
+根据用户意图和项目状态选择场景：
+
+| 场景 | 触发条件 | 执行流程 |
+|------|----------|----------|
+| **开书** | "帮我开书" / 项目目录为空 | 完整 Phase 1→2→3→4→5（下方全部流程） |
+| **日更续写** | "日更" / "续写" / 已有正文+追踪 | 加载 `references/workflow-daily.md` → Phase 4→5 |
+| **大修** | "修改第X章" / "回炉" | 加载 `references/workflow-revision.md` |
+
+> **开新卷**：回到 Phase 3 补充新卷细纲，再进 Phase 4。不跳 Phase 2（可能需要新角色/势力设定）。
+
+无法判断场景时，直接问用户："你是要开新书、继续日更、还是修改已有章节？"
 
 ### Phase 1：确认选题方向
 
@@ -298,6 +310,8 @@ metadata:
 | [references/reversal-toolkit.md](references/reversal-toolkit.md) | 反转类型+时机+误导底层路径 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 质量检查+毒点排查+常见问题速查 |
 | [references/narrative-units.md](references/narrative-units.md) | 叙事单元体系：情绪模块+戏剧单元+叙事元素+结构技法，Phase 3 大纲和 Phase 4 写作时参考 |
+| [references/workflow-daily.md](references/workflow-daily.md) | 日更续写工作流：快速上下文加载+批量写作+进度摘要 |
+| [references/workflow-revision.md](references/workflow-revision.md) | 大修工作流：定位章节+重写+追踪更新+级联检查 |
 
 ---
 
