@@ -191,6 +191,26 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 
 这套 skill 现在能让我度过找工作的过渡期 :joy:，希望也能帮到有需要的朋友。
 
+## FAQ
+
+### 能在 Codex 里用吗？
+
+目前正式适配的是 **Claude Code** 和 **OpenClaw**。OpenAI Codex 由于架构不同，支持情况如下：
+
+| 功能 | Codex 可用 | 说明 |
+|:-----|:----------:|:-----|
+| SKILL.md 知识内容 | ✅ | 写作理论、技法参考、禁用词表等 Markdown 内容可手动加载到上下文 |
+| `/story-*` 触发命令 | ❌ | 斜杠命令和 skill 路由是 Claude Code / OpenClaw 专有机制 |
+| hooks（session-start 等） | ❌ | `.claude/hooks/` 是 Claude Code 专有功能 |
+| agents（story-architect 等） | ❌ | `.claude/agents/` 目录是 Claude Code 专有，Codex 使用 `AGENTS.md` |
+| rules | ❌ | `.claude/rules/` 是 Claude Code 专有 |
+| CLAUDE.md 项目指令 | ❌ | Codex 使用 `codex.md` 或 `AGENTS.md`，格式和机制不同 |
+| `/story-setup` 自动部署 | ❌ | 部署流程依赖 Claude Code 目录结构 |
+
+**想在 Codex 里使用写作知识？** 可以手动将 `references/` 目录下的 Markdown 文件内容作为上下文提供给 Codex，写作理论和方法论本身与工具无关，但自动化流程和 agent 协作目前无法使用。
+
+后续如 Codex 提供类似的 skill/plugin 机制，会跟进适配。
+
 ## Star History
 
 <a href="https://www.star-history.com/?repos=worldwonderer%2Foh-story-claudecode&type=date&legend=top-left">
