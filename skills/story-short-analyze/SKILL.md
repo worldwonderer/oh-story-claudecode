@@ -90,6 +90,8 @@ metadata:
 | [references/character-design-methods.md](references/character-design-methods.md) | 深度分析人设方法时 |
 | [references/character-relations.md](references/character-relations.md) | 深度分析人物关系时 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 评估质量时 |
+| [references/genre-core-mechanics.md](references/genre-core-mechanics.md) | 分析核心梗设计与循环机制时 |
+| [references/genre-readers.md](references/genre-readers.md) | 分析读者心理与期待管理时 |
 
 > **题材写作公式**：`references/genre-writing-formulas.md`（21大题材写作公式）
 > **通用写作技法**：`references/genre-writing-techniques.md`（情绪操控+感情线+震惊场景+喜剧机制）
