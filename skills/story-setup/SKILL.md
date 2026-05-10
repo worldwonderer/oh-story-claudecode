@@ -2,7 +2,7 @@
 name: story-setup
 version: 1.0.0
 description: |
-  网文写作工具集基础设施部署。将 hooks/rules/agents/CLAUDE.md 等基础设施部署到用户项目目录。
+  网文写作工具集基础设施部署。将 hooks/rules/agents/CLAUDE.md/.codex/config.toml 等基础设施部署到用户项目目录。
   触发方式：/story-setup、「准备写书」「帮我搭一下环境」「配置写作项目」
 metadata:
   openclaw:
@@ -11,7 +11,7 @@ metadata:
 
 # story-setup：网文写作工具集基础设施部署
 
-你是写作基础设施部署器。将网文写作工具集的全套基础设施（hooks、rules、agents、CLAUDE.md）部署到用户项目目录。
+你是写作基础设施部署器。将网文写作工具集的全套基础设施（hooks、rules、agents、CLAUDE.md、.codex/config.toml）部署到用户项目目录。
 
 **执行铁律：不覆盖用户已有配置，合并而非替换。**
 
@@ -27,7 +27,10 @@ metadata:
 3. 检查 `.claude/settings.local.json` 是否存在
    - 存在 → 读取现有配置，后续合并
    - 不存在 → 后续创建新文件
-4. 检查 `.active-book` 文件是否存在
+4. 检查 `.codex/config.toml` 是否存在
+   - 存在 → 读取现有配置，后续合并
+   - 不存在 → 后续创建新文件
+5. 检查 `.active-book` 文件是否存在
    - 存在 → 显示当前活跃书目
    - 不存在 → 跳过
 
@@ -63,12 +66,18 @@ metadata:
 - 合并 hooks 配置（按「settings-hooks.json 合并算法」处理）
 - 写入 `.claude/settings.local.json`
 
-### 2.7 创建部署标记
+### 2.7 部署 Codex 配置
+- 读取 `skills/story-setup/references/templates/codex/config.toml.tmpl`
+- 读取用户项目的 `.codex/config.toml`（如存在）
+- 合并 Codex 配置（按「config.toml 合并策略」处理）
+- 写入 `.codex/config.toml`
+
+### 2.8 创建部署标记
 
 - 创建 `.story-deployed` 文件（sentinel file）
-- 写入两行：第一行 `deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">`，第二行 `agents_version: 2`
+- 写入两行：第一行 `deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">`，第二行 `agents_version: 3`
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
-- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本为 1，提示用户重新运行 story-setup 以更新 Agent
+- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本 < 3，提示用户重新运行 story-setup 以更新 Agent
 
 ## Phase 3：验证安装
 
@@ -79,9 +88,11 @@ metadata:
    - 检查 `.claude/rules/` 下的规则文件是否存在且包含 `paths` frontmatter
 3. 验证 agents：
    - 检查 `.claude/agents/` 下的 agent 定义文件是否存在
-4. 验证部署标记：
+4. 验证 Codex 配置：
+   - 检查 `.codex/config.toml` 是否存在且包含基础行为配置
+5. 验证部署标记：
    - 检查 `.story-deployed` 是否存在且包含时间戳
-5. 输出安装报告：
+6. 输出安装报告：
    - 列出所有已部署的文件
    - 列出需要注意的事项（如已有配置已合并）
    - 提示用户可以开始使用 `/story-long-write` 或 `/story-short-write`
@@ -102,7 +113,7 @@ metadata:
 用户已有 CLAUDE.md 时，按 section 合并：
 1. 读取用户现有 CLAUDE.md，按 `##` 标题切分为 section map
 2. 读取模板 CLAUDE.md.tmpl，同样切分
-3. 模板中的标准 section（Skill 路由表、文件结构、协作规则、Context Recovery、语言）**覆盖**用户同名 section
+3. 模板中的标准 section（Skill 路由表、文件结构、协作规则、Skill 执行约束、Context Recovery、语言）**覆盖**用户同名 section
 4. 用户独有的 section（自定义内容）**保留**不动
 5. 未知冲突用 AskUserQuestion 让用户选择保留哪个版本
 
@@ -117,11 +128,27 @@ hooks 注册合并按 command 字段去重：
    - 用户独有的其他配置（permissions、env 等）→ 完整保留
 4. 写入合并后的完整 settings.local.json
 
+## config.toml 合并策略
+
+Codex 配置按 section/键合并，尽量保留用户自定义内容：
+1. 读取用户现有 `.codex/config.toml`（如存在），作为基底
+2. 读取模板 `config.toml.tmpl`
+3. 模板中的基础行为配置覆盖同名键：
+   - `developer_instructions`
+   - `approval_policy`
+   - `sandbox_mode`
+   - `project_doc_fallback_filenames`
+4. `[features]` 段按键合并：
+   - 模板中出现的新 key append 到用户配置
+   - 用户已存在的同名 key 保留其值，除非模板明确要求覆盖
+5. 其余用户自定义 section/键完整保留
+6. 写入合并后的 `.codex/config.toml`
+
 ## 重新部署
 
 - `.story-deployed` 不存在 → 全新安装，Phase 2 全部执行
-- `.story-deployed` 存在且 `agents_version: 2` → 提示已部署，AskUserQuestion 确认是否重新部署
-- `.story-deployed` 存在但无 `agents_version` 或版本 < 2 → 提示需要更新，重新执行 Phase 2 覆盖 agents/hooks/rules，CLAUDE.md 和 settings.local.json 走合并策略
+- `.story-deployed` 存在且 `agents_version: 3` → 提示已部署，AskUserQuestion 确认是否重新部署
+- `.story-deployed` 存在但无 `agents_version` 或版本 < 3 → 提示需要更新，重新执行 Phase 2 覆盖 agents/hooks/rules，CLAUDE.md、settings.local.json 和 `.codex/config.toml` 走合并策略
 
 ---
 
@@ -134,5 +161,6 @@ hooks 注册合并按 command 字段去重：
 | references/templates/rules/ | 4 条 path-scoped 规则模板 |
 | references/templates/agents/ | 5 个 agent 定义模板（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher） |
 | references/templates/settings-hooks.json | hooks 注册 JSON 片段 |
+| references/templates/codex/config.toml.tmpl | Codex 基础配置模板 |
 | references/templates/上下文.md.tmpl | 写作上下文模板 |
 

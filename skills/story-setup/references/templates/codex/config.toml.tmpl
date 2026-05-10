@@ -1,0 +1,21 @@
+# 1. 基础行为
+#
+# 配置项说明：
+# - `developer_instructions`：附加开发者指令，用于定制 Codex 在本机中的行为。
+# - `approval_policy`：审批策略。官方文档列出 `untrusted`、`on-failure`、`on-request`、
+#   `never` 等模式；官方样例配置把 `on-request` 标为默认值。
+# - `sandbox_mode`：沙箱模式。官方文档列出 `read-only`、`workspace-write`、
+#   `danger-full-access`。官方样例配置把 `read-only` 标为默认值。
+# - `project_doc_fallback_filenames`：当项目中不存在主项目说明文件时，用于继续查找的
+#   备用文件名列表。
+################################################################################
+developer_instructions = "请使用中文回答，优先准确、简洁；涉及改代码时先说明将修改什么。"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+project_doc_fallback_filenames = ["CLAUDE.md"]
+
+[features]
+shell_snapshot = true
+collaboration_modes = true
+multi_agent = true
+unified_exec = true
