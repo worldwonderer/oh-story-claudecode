@@ -92,6 +92,7 @@ metadata:
 | [references/quality-checklist.md](references/quality-checklist.md) | 评估质量时 |
 
 > **题材写作公式**：`references/genre-writing-formulas.md`（21大题材写作公式）
+> **通用写作技法**：`references/genre-writing-techniques.md`（情绪操控+感情线+震惊场景+喜剧机制）
 > **市场数据**：`references/real-market-data.md`（跨平台写作差异对照表）
 
 ---

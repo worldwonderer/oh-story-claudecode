@@ -262,6 +262,7 @@ metadata:
 | [references/writing-craft.md](references/writing-craft.md) | 写作全程参考 |
 | [references/anti-ai-writing.md](references/anti-ai-writing.md) | 去AI味时必读 |
 | [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | 核心参考，按题材加载 |
+| [references/genre-writing-techniques.md](references/genre-writing-techniques.md) | 通用写作技法+情绪操控+感情线法则 |
 | [references/emotional-methods.md](references/emotional-methods.md) | 设计情感时 |
 | [references/hooks-chapter.md](references/hooks-chapter.md) | 章节钩子设计 |
 | [references/hooks-suspense.md](references/hooks-suspense.md) | 悬念设计 |
