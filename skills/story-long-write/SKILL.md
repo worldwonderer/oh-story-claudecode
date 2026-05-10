@@ -327,7 +327,7 @@ metadata:
 |------|---------|
 | 搭建大纲 | `references/outline-methods.md` |
 | 设计矛盾与结构 | `references/outline-conflict.md` |
-| 深度结构理论 | `references/outline-structure-theory.md` |
+| 深度结构设计 | `references/outline-structure-theory.md` |
 | 节奏与升级感 | `references/outline-rhythm.md` |
 | 小纲与卡文 | `references/plot-core-methods.md` |
 | 选择叙事框架 | `references/plot-frameworks.md` |
@@ -345,7 +345,7 @@ metadata:
 | 题材风格 | `references/style-genre-modules.md` |
 | 打斗/装逼 | `references/style-combat-face.md` |
 | 写作技法 | `references/style-craft.md` |
-| 商业创作理论 | `references/style-commercial-theory.md` |
+| 商业创作核心方法 | `references/style-commercial-theory.md` |
 | 对话 | `references/dialogue-mastery.md` |
 | 人物深化 | `references/character-design-methods.md` |
 | 情绪技法 | `references/plot-emotion-system.md` |
