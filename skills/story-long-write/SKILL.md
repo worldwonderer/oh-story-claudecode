@@ -350,6 +350,8 @@ metadata:
 | 人物深化 | `references/character-design-methods.md` |
 | 情绪技法 | `references/plot-emotion-system.md` |
 | 叙事单元 | `references/narrative-units.md` |
+| 写作技法全程参考 | `references/writing-craft.md` |
+| 格式与结构规范 | `references/format-and-structure.md` |
 
 ### Phase 5：质量检查
 
