@@ -137,6 +137,11 @@ metadata:
 | 需要市场数据 | story-long-scan | `/story-long-scan` |
 | 更适合短篇 | story-short-scan → story-short-analyze | `/story-short-scan` |
 
+## 回流规则
+
+拆文结束后只输出拆文结果，不自动继续到写作/扫榜/润色。
+如用户显式要求下一步，再按需回流到对应 skill。
+
 ---
 
 ## 参考资料

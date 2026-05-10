@@ -24,6 +24,8 @@ metadata:
 3. **每句话必须有用**。不推动剧情、不铺垫反转、不推高情绪的句子 → 删。
 4. **开头 3 句定生死，结尾定传播**。开头必须包含钩子，结尾必须有余韵。
 5. **默认第一人称**。短篇网文（盐言/黑岩/点众/七猫短篇）绝大多数用第一人称，代入感最强。除非题材明确需要第三人称（如多视角悬疑），否则一律用「我」。
+6. **每节完成后给出操作选项**。每个小节/阶段完成后，必须只输出固定提示模板，不得附加总结、建议、解释或其他内容：
+   `你要怎么处理这一节：1. 审查本节 2. 去除本节AI味 3. 继续写下一节`
 
 ---
 
@@ -145,7 +147,7 @@ metadata:
 
 #### 第一段：开头（前 300-500 字）
 
-**目标**：3 句话内抓住读者。**必须包含一个开篇钩子**（从 hooks-chapter.md 选择类型）。
+**目标**：3 句话内抓住读者。**必须包含一个开篇钩子**（从 hook-techniques.md 选择类型）。
 
 **技法指令**：前 100 字事件密度 ≥ 3，不做背景铺垫，直接上事件链。
 
@@ -173,7 +175,7 @@ metadata:
 
 - 用物件/数字/习惯建立羁绊（详见 emotional-methods.md「羁绊铺设」）
 - 埋入至少 3 个反转线索，分散在不同小节
-- 每 2-3 个小节埋一个钩子（类型从 hooks-paragraph.md 选择）
+- 每 2-3 个小节埋一个钩子（类型从 hook-techniques.md 选择）
 - 小节用数字分割，每小节推进一个情节点
 - 情绪强度逐节递增，不允许连续 2 节无情绪变化
 - **结构物件第 1 现必须在此段完成**
@@ -249,6 +251,17 @@ metadata:
 | 需要市场方向 | story-short-scan | `/story-short-scan` |
 | 设定太大，适合长篇 | story-long-write | `/story-long-write` |
 
+### 每节结束后的固定提示
+
+每写完一个小节/场景批次，默认且仅能使用固定提示：
+`你要怎么处理这一节：1. 审查本节 2. 去除本节AI味 3. 继续写下一节`
+
+**禁止项：**
+- 不要在这句提示前后追加任何总结
+- 不要替用户预选操作
+- 不要省略选项
+- 不要改写成其他句式
+
 ---
 
 ## 参考资料
@@ -262,25 +275,18 @@ metadata:
 | [references/writing-craft.md](references/writing-craft.md) | 写作全程参考 |
 | [references/anti-ai-writing.md](references/anti-ai-writing.md) | 去AI味时必读 |
 | [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | 核心参考，按题材加载 |
-| [references/genre-writing-techniques.md](references/genre-writing-techniques.md) | 通用写作技法+情绪操控+感情线法则 |
 | [references/emotional-methods.md](references/emotional-methods.md) | 设计情感时 |
-| [references/hooks-chapter.md](references/hooks-chapter.md) | 章节钩子设计 |
-| [references/hooks-suspense.md](references/hooks-suspense.md) | 悬念设计 |
-| [references/hooks-paragraph.md](references/hooks-paragraph.md) | 段落钩子技巧 |
+| [references/hook-techniques.md](references/hook-techniques.md) | 写作全程 |
 | [references/villain-and-reveal.md](references/villain-and-reveal.md) | Phase 2 设计反派时 |
 | [references/reversal-toolkit.md](references/reversal-toolkit.md) | 设计反转时 |
 | [references/emotional-arc-design.md](references/emotional-arc-design.md) | 设计情绪曲线时 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 精修检查时 |
 | [references/banned-words.md](references/banned-words.md) | 禁用词表 |
 | [references/female-audience-writing.md](references/female-audience-writing.md) | 女频写作时 |
-| [references/character-basics.md](references/character-basics.md) | 人物基础设定 |
-| [references/character-design-methods.md](references/character-design-methods.md) | 人设方法 |
-| [references/character-relations.md](references/character-relations.md) | 人物关系设计 |
+| [references/character-design.md](references/character-design.md) | 设定人物时 |
 | [references/dialogue-mastery.md](references/dialogue-mastery.md) | 写对话时 |
 | [references/opening-design.md](references/opening-design.md) | 设计开头时 |
-| [references/genre-catalog.md](references/genre-catalog.md) | 题材框架 |
-| [references/genre-core-mechanics.md](references/genre-core-mechanics.md) | 核心梗设计 |
-| [references/genre-readers.md](references/genre-readers.md) | 读者心理 |
+| [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | 题材框架时 |
 
 ---
 

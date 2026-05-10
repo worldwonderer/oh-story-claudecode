@@ -41,7 +41,7 @@ metadata:
    - 知乎盐言 → 读取 [references/rubrics/zhihu.md](references/rubrics/zhihu.md)
    - 未指定 → 默认加载 [references/quality-rubric.md](references/quality-rubric.md)
 
-## Phase 2：并行 Spawn 4 个 Agent（+ 可选 researcher）
+## Phase 2：并行 Spawn 4 个 Agent
 
 使用 Agent 工具并行调用 4 次（不同 subagent_type）。
 
@@ -62,13 +62,11 @@ metadata:
   3. 情绪节奏是否合理？
   4. 钩子和反转设计质量如何？
   5. 范围控制：有无角色/设定膨胀？
-  6. 剧情循环是否存在且可重复？（参见 plot-core-methods "卡文对策与剧情循环设计"）
-  7. 高潮场景是否用了蓄能→假胜→崩解结构？（参见 plot-core-methods "高潮构建公式"）
-  8. 按平台 rubric 逐项对照，标记 PASS/FAIL
+  6. 按平台 rubric 逐项对照，标记 PASS/FAIL
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
-  FINDINGS: [结构/情节/节奏问题，附具体引用]
+  EVIDENCE: [具体引用]
   RECOMMENDATIONS: [修改建议]
   ```
 
@@ -86,12 +84,10 @@ metadata:
   3. 人物弧线是否连贯？
   4. 角色行为是否符合其动机？
   5. 对话是否有潜台词和信息控制？
-  6. 爱情线好感度与CP行为是否匹配？（参见 character-relations "好感度体系"）
-  7. 好感度进度是否可感知？
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
-  FINDINGS: [角色/对话问题，附具体引用]
+  EVIDENCE: [具体引用]
   RECOMMENDATIONS: [修改建议]
   ```
 
@@ -112,7 +108,8 @@ metadata:
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT
-  FINDINGS: AI味级别: 轻度/中度/重度; [禁用词/格式/节奏问题，附具体引用]
+  AI味级别: 轻度/中度/重度
+  EVIDENCE: [具体引用]
   RECOMMENDATIONS: [修改建议]
   ```
 
@@ -132,21 +129,20 @@ metadata:
   4. 时间线是否自洽？
   5. 伏笔密度是否合理？
 
-  输出格式：
+  输出格式（S1-S4 分级）：
   VERDICT: APPROVE / CONCERNS / REJECT
-  FINDINGS: [S1/S2/S3/S4] 具体冲突描述（每条标注严重等级）
-  RECOMMENDATIONS: [修复建议]
+  CONFLICTS:
+  - [S1/S2/S3/S4] 具体冲突描述
   ```
 
 ## Phase 3：综合裁决
 
-1. 收集 4 个 Agent 的 VERDICT 和 FINDINGS
-2. 合并去重：将各 Agent 的 FINDINGS 按严重程度排序（S1 > S2 > S3 > S4，AI味重度 > 中度 > 轻度）
-3. **可选事实核查**：如果审查内容涉及需要验证的外部事实（历史年代、地理方位、职业细节等），额外 spawn `story-researcher` agent 搜索验证。将研究结果纳入裁决参考。
-4. **分歧呈现**：如果 Agent 间有冲突意见，明确呈现分歧让用户裁决
+1. 收集 4 个 Agent 的 verdict
+2. 去重和分级
+3. **分歧呈现**：如果 Agent 间有冲突意见，明确呈现分歧让用户裁决
    - 例：story-architect 认为某段"结构合理"，但 character-designer 认为"角色弧线有问题"
    - 不要自动妥协，让用户看到双方理由
-5. 输出综合审查报告
+4. 输出综合审查报告
 
 ## Phase 4：输出报告（full 模式）
 
@@ -236,3 +232,18 @@ Review Mode: solo
 ## 语言
 
 - 所有输出使用中文
+
+## 回流规则
+
+审查结束后，先输出审查结果，再自动补回对应的固定菜单；不自动执行菜单中的下一步。
+如用户显式要求下一步，再按需回流：
+- 长篇 → `story-long-write`
+- 短篇 → `story-short-write`
+- 先润色 → `story-deslop`
+
+### 自动回显菜单
+
+- 长篇章节：
+  `你要怎么处理这一章：1. 审查本章 2. 去除本章AI味 3. 继续写下一章`
+- 短篇小节：
+  `你要怎么处理这一节：1. 审查本节 2. 去除本节AI味 3. 继续写下一节`

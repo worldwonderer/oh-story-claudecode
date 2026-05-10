@@ -20,6 +20,50 @@ const fs = require("fs");
 const path = require("path");
 const { ab, sleep, evalJSON, scrollLoad, getArg } = require("./cdp-utils");
 
+const FANQIE_CATEGORIES = {
+  "1": [
+    { name: "西方奇幻", catId: "1141" },
+    { name: "东方仙侠", catId: "1140" },
+    { name: "科幻末世", catId: "8" },
+    { name: "都市日常", catId: "261" },
+    { name: "都市修真", catId: "124" },
+    { name: "都市高武", catId: "1014" },
+    { name: "历史古代", catId: "273" },
+    { name: "战神赘婿", catId: "27" },
+    { name: "都市种田", catId: "263" },
+    { name: "传统玄幻", catId: "258" },
+    { name: "历史脑洞", catId: "272" },
+    { name: "悬疑脑洞", catId: "539" },
+    { name: "都市脑洞", catId: "262" },
+    { name: "玄幻脑洞", catId: "257" },
+    { name: "悬疑灵异", catId: "751" },
+    { name: "抗战谍战", catId: "504" },
+    { name: "游戏体育", catId: "746" },
+    { name: "动漫衍生", catId: "718" },
+    { name: "男频衍生", catId: "1016" },
+  ],
+  "0": [
+    { name: "古风世情", catId: "1139" },
+    { name: "科幻末世", catId: "8" },
+    { name: "游戏体育", catId: "746" },
+    { name: "女频衍生", catId: "1015" },
+    { name: "玄幻言情", catId: "248" },
+    { name: "种田", catId: "23" },
+    { name: "年代", catId: "79" },
+    { name: "现言脑洞", catId: "267" },
+    { name: "宫斗宅斗", catId: "246" },
+    { name: "悬疑脑洞", catId: "539" },
+    { name: "古言脑洞", catId: "253" },
+    { name: "快穿", catId: "24" },
+    { name: "青春甜宠", catId: "749" },
+    { name: "星光璀璨", catId: "745" },
+    { name: "女频悬疑", catId: "747" },
+    { name: "职场婚恋", catId: "750" },
+    { name: "豪门总裁", catId: "748" },
+    { name: "民国言情", catId: "1017" },
+  ],
+};
+
 // ---------------------------------------------------------------------------
 // 页面提取
 // ---------------------------------------------------------------------------
@@ -27,15 +71,30 @@ const { ab, sleep, evalJSON, scrollLoad, getArg } = require("./cdp-utils");
 /** 提取侧边菜单品类链接 */
 function extractCategories(port, channel, type) {
   const prefix = `/rank/${channel}_${type}_`;
-  const js = "JSON.stringify(Array.from(document.querySelectorAll('a')).filter(a=>a.href&&a.href.indexOf('" + prefix + "')>-1&&a.parentElement&&a.parentElement.classList.contains('arco-menu-item-inner')).map(a=>({name:a.innerText.trim(),href:a.getAttribute('href')})).filter(x=>x.name))";
-  return evalJSON(port, js) || [];
+  const js = "JSON.stringify(Array.from(document.querySelectorAll('a[href]')).map(a=>({href:a.getAttribute('href'),name:(a.innerText||a.textContent||'').trim()})).filter(x=>x.href&&x.href.indexOf('" + prefix + "')===0&&x.name).filter((x,i,arr)=>arr.findIndex(y=>y.href===x.href)===i))";
+  const extracted = evalJSON(port, js) || [];
+  if (extracted.length) return extracted;
+  return (FANQIE_CATEGORIES[channel] || []).map((x) => ({
+    name: x.name,
+    href: `/rank/${channel}_${type}_${x.catId}`,
+  }));
 }
 
 /** 从 __INITIAL_STATE__ 提取当前品类页的作品数据 */
 function extractBookList(port) {
-  const js = "JSON.stringify(window.__INITIAL_STATE__?.rank?.book_list||[])";
-  const list = evalJSON(port, js);
-  return Array.isArray(list) ? list : [];
+  const candidates = [
+    "JSON.stringify(window.__INITIAL_STATE__?.rank?.book_list||[])",
+    "JSON.stringify(window.__INITIAL_STATE__?.rank?.readRankList||[])",
+    "JSON.stringify(window.__INITIAL_STATE__?.rank?.newRankList||[])",
+  ];
+  for (let i = 0; i < 4; i++) {
+    for (const js of candidates) {
+      const list = evalJSON(port, js);
+      if (Array.isArray(list) && list.length) return list;
+    }
+    sleep(1500);
+  }
+  return [];
 }
 
 /** 批量获取真实书名、作者和简介：用同步 XHR 请求详情页解析 */
@@ -122,8 +181,7 @@ function scrapeChannel(ch, type) {
     console.log(`  [${ci + 1}/${categories.length}] ${cat.name}`);
 
     ab(PORT, "open", `https://fanqienovel.com${cat.href}`);
-    sleep(2500);
-    scrollLoad(PORT, 2);
+    sleep(4000);
 
     const books = extractBookList(PORT);
     if (!Array.isArray(books) || !books.length) {

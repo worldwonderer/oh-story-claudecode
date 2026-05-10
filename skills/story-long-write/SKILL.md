@@ -3,7 +3,7 @@ name: story-long-write
 version: 1.0.0
 description: |
   长篇网文写作。从大纲到正文，辅助长篇网络小说的创作，包括世界观、人物、情节线管理。
-  触发方式：/story-long-write、/写长篇、「帮我开书」「写大纲」「日更」「续写」「继续写」「修改第X章」「回炉」「重写第X章」
+  触发方式：/story-long-write、/写长篇、「帮我开书」「写大纲」
 metadata:
   openclaw:
     source: https://github.com/worldwonderer/oh-story-claudecode
@@ -38,20 +38,6 @@ metadata:
 ---
 
 ## 写作流程
-
-根据用户意图和项目状态选择场景：
-
-| 场景 | 触发条件 | 执行流程 |
-|------|----------|----------|
-| **开书** | "帮我开书" / 项目目录为空 | 完整 Phase 1→2→3→4→5（下方全部流程） |
-| **日更续写** | 关键词（"日更"/"续写"/"继续写"）**且**项目已有正文+追踪 | 加载 `references/workflow-daily.md` |
-| **大修** | "修改第X章" / "回炉" / "重写第X章" | 加载 `references/workflow-revision.md` |
-
-> **开新卷**：如果新卷引入新角色/势力/设定，先回 Phase 2 增量补充，再进 Phase 3 补充新卷细纲，最后 Phase 4 写作。如果纯延续，直接回 Phase 3。
-
-**匹配优先级**：同时命中多行时，按 日更续写 → 大修 → 开书 的顺序匹配。日更续写的 AND 条件（项目已有正文+追踪）不满足时，提示用户"项目还没有正文，建议先开书"。
-
-无法判断场景时，列出上述场景表让用户选择，不要开放式提问。
 
 ### Phase 1：确认选题方向
 
@@ -114,8 +100,8 @@ metadata:
 ```
 
 完成核心设定后，创建以下 artifact（加载 [references/artifact-protocols.md](references/artifact-protocols.md) 中对应模板）：
-- **设定/关系.md**：角色关系映射（参考 character-relations.md「四种关系类型」）
-- **设定/题材定位.md**：题材核心梗三分法+对标分析（参考 genre-core-mechanics.md「核心梗解析」）。对标分析表保留 2-3 行摘要，详细数据见 `对标/` 目录
+- **设定/关系.md**：角色关系映射（参考 character-design.md「四种关系类型」）
+- **设定/题材定位.md**：题材核心梗三分法+对标分析（参考 genre-frameworks-unified.md「核心梗解析」）。对标分析表保留 2-3 行摘要，详细数据见 `对标/` 目录
 
 ---
 
@@ -161,8 +147,8 @@ metadata:
 
 大纲完成后，创建以下 artifact（加载 [references/artifact-protocols.md](references/artifact-protocols.md) 中对应模板）：
 - **大纲/大纲.md**：全书卷级鸟瞰（卷名+字数+章数+核心事件+状态变化，一段式汇总）
-- **大纲/卷纲_第X卷.md**：每卷的爽点节奏+情绪弧线+人物弧线+伏笔+反转（参考 outline-methods.md「大纲三层结构法」 + emotional-arc-design.md「六种弧线速查」 + reversal-toolkit.md「五种反转类型」）
-- **追踪/伏笔.md** + **追踪/时间线.md**：伏笔状态表+故事时间线（参考 plot-core-methods.md「连续性追踪」）
+- **大纲/卷纲_第X卷.md**：每卷的爽点节奏+情绪弧线+人物弧线+伏笔+反转（参考 outline-arrangement.md「大纲三层结构法」 + emotional-arc-design.md「六种弧线速查」 + reversal-toolkit.md「五种反转类型」）
+- **追踪/伏笔.md** + **追踪/时间线.md**：伏笔状态表+故事时间线（参考 advanced-plot-techniques.md「连续性追踪」）
 
 前 3 章细纲额外加载 [references/opening-design.md](references/opening-design.md)（黄金三章法则+六大标准）。
 
@@ -204,10 +190,7 @@ metadata:
 │       └── 拆文报告.md      # story-long-analyze 输出
 ├── 追踪/
 │   ├── 伏笔.md                # 伏笔埋设/回收状态表
-│   ├── 时间线.md              # 故事内时间线
-│   └── 上下文.md              # 日更进度摘要（workflow-daily 维护）
-├── 参考资料/
-│   └── {topic}.md             # story-researcher 输出的研究资料
+│   └── 时间线.md              # 故事内时间线
 ```
 
 **Artifact 映射表**（创建模板详见 [references/artifact-protocols.md](references/artifact-protocols.md)）：
@@ -220,8 +203,6 @@ metadata:
 | 追踪/伏笔.md | 全书 | Phase 3 起 | Phase 4 每章写作前 |
 | 追踪/时间线.md | 全书 | Phase 3 起 | Phase 4 每章写作前 |
 | 对标/{书名}/拆文报告.md | 对标书 | 用户手动+analyze | Phase 2 核心设定、Phase 3 大纲、Phase 4 写作 |
-| 追踪/上下文.md | 全书 | Phase 4 首次日更（workflow-daily 自动创建） | 每次日更开始时 |
-| 参考资料/{topic}.md | 按需 | Phase 4（story-researcher 输出） | Phase 4 后续章节写作时复用 |
 
 **缺失文件回退**：所有新增文件是可选增强。缺失时 agent 降级到当前行为，不报错不阻塞——情绪/反转信息在卷纲或大纲中体现，伏笔/时间线不检查，对标参考跳过。
 
@@ -232,6 +213,13 @@ metadata:
 - **细纲一章一个文件**：`细纲_第XXX章.md`，含钩子设计，与正文一一对应
 - **正文按章拆分**：每章一个文件，`第XXX章_章名.md`
 - 每章写完直接写入 `正文/` 目录，不要先输出到对话
+
+**重复写作约定：**
+- 同一章节被重复要求“重写/再写/继续优化”时，默认视为**覆盖当前章节的最终版本**，不是新增一版。
+- 已存在的 `正文/第XXX章_*.md`、`追踪/伏笔.md`、`追踪/时间线.md` 必须按当前最终版本**原地更新**，禁止重复追加同一事件、同一伏笔、同一时间点。
+- 如果旧记录与最终版本冲突，以最终版本为准，先删除旧条目再写新条目。
+- 若用户明确要求“保留多个版本”，再另存为 `第XXX章_草稿A.md` / `第XXX章_草稿B.md`。
+- 追踪更新只允许依据**当前终版正文**抽取信息，禁止从草稿、废稿、上一轮未确认内容中继承伏笔或时间线。
 
 #### 单章写作流程
 
@@ -245,13 +233,24 @@ metadata:
    - (4) `设定/角色/{相关角色}.md` — 本章涉及角色
    - (5) `对标/{对标书名}/拆文报告.md`（如存在）— 对标参考（如不存在，查找 `拆文库/{对标书名}/拆文报告.md`）
    - (6) `对标/{对标书名}/原文/第{N}章_*.md`（如存在）— 同位置章节参考
-   - (7) `参考资料/{topic}.md`（如存在）— 历史研究资料（由 story-researcher 产出）
 3. **确认节奏**：本章是快节奏（冲突/打斗）还是慢节奏（铺垫/日常）
-3.5. **资料研究**（按需）：如果写作中遇到需要查证的外部事实（历史年代、地理方位、职业细节等），spawn `story-researcher` agent 搜索并输出到 `参考资料/` 目录。研究完成后再继续写作。
 4. **写作**：直接写入 `正文/第XXX章_章名.md`
 5. **检查**：章尾是否有钩子、爽点是否到位、字数是否达标
-6. **禁用词扫描**：对照 `references/banned-words.md` 检查本章，一级词（高频AI腔）命中即替换；二级词（低频/语境相关）高频出现时替换，偶发可参考 `references/anti-ai-writing.md` 定性裁定
-7. **更新追踪**：写完后即时更新 `追踪/伏笔.md`（新增/回收伏笔）和 `追踪/时间线.md`（记录事件时序）
+6. **禁用词扫描**：对照 `references/banned-words.md` 检查本章，命中即替换，不要留到 Phase 5
+7. **更新追踪**：写完后即时更新 `追踪/伏笔.md`（去重后新增/回收伏笔）和 `追踪/时间线.md`（去重后记录事件时序）
+8. **章节完成后给出操作选项**：每章完成后，必须只输出固定提示模板，不能附加总结、建议、解释或其他内容：
+   `你要怎么处理这一章：1. 审查本章 2. 去除本章AI味 3. 继续写下一章`
+
+#### 追踪更新协议
+
+更新 `追踪/伏笔.md` 和 `追踪/时间线.md` 时，遵守以下规则：
+
+1. 先读取当前文件中的全部条目，按 `ID`、`章节+事件` 去重。
+2. 只保留与**当前最终章节正文**一致的记录。
+3. 删除所有与废稿、旧版、重复执行有关的脏记录。
+4. 新增伏笔必须能在当前终版正文中找到明确依据；不能凭前文记忆脑补。
+5. 同一章节内的时间线条目按“事件粒度”合并，不因重复运行而膨胀。
+6. 如果当前章节未产生新伏笔，就不要为了“看起来完整”硬写一条。
 
 #### 写作技巧提醒
 
@@ -262,7 +261,6 @@ metadata:
 | 打斗 | 不要流水账，写策略和反转，不写「你一拳我一脚」 |
 | 日常 | 日常要有人物互动和伏笔，不能只是「吃饭睡觉」 |
 | 爽点释放 | 铺垫要充分、释放要干脆，读者等得越久释放越要爽 |
-| 公式约束 | 参考 genre-writing-formulas.md 中的创作公式 |
 | 章尾 | 每章结尾都要有让读者想翻下一页的东西 |
 
 #### 字数与节奏参考
@@ -298,66 +296,39 @@ metadata:
 | 需要市场方向 | story-long-scan | `/story-long-scan` |
 | 太长，适合短篇 | story-short-write | `/story-short-write` |
 
+### 每章结束后的固定提示
+
+每写完一章，默认且仅能使用固定提示：
+`你要怎么处理这一章：1. 审查本章 2. 去除本章AI味 3. 继续写下一章`
+
+**禁止项：**
+- 不要在这句提示前后追加任何总结
+- 不要替用户预选操作
+- 不要省略选项
+- 不要改写成其他句式
+
 ---
 
-## 参考资料索引
+## 参考资料
 
-按场景加载，不一次全部加载。
+按需加载以下文件：
 
-### Phase 1：选题方向
-
-| 场景 | 加载文件 |
-|------|---------|
-| 确定题材类型 | `references/genre-catalog.md` |
-| 判断市场方向 | `references/genre-readers.md` |
-| 特殊题材考量 | `references/plot-special-topics.md` |
-
-### Phase 2：核心设定
-
-| 场景 | 加载文件 |
-|------|---------|
-| 设定人物 | `references/character-basics.md` |
-| 设计关系 | `references/character-relations.md` |
-| 题材框架与定位 | `references/genre-catalog.md` + `references/genre-core-mechanics.md` |
-| 创建 artifact | `references/artifact-protocols.md` |
-
-### Phase 3：大纲搭建
-
-| 场景 | 加载文件 |
-|------|---------|
-| 搭建大纲 | `references/outline-methods.md` |
-| 设计矛盾与结构 | `references/outline-conflict.md` |
-| 深度结构设计 | `references/outline-structure-theory.md` |
-| 节奏与升级感 | `references/outline-rhythm.md` |
-| 小纲与卡文 | `references/plot-core-methods.md` |
-| 选择叙事框架 | `references/plot-frameworks.md` |
-| 黄金三章 | `references/opening-design.md` |
-| 情绪弧线 | `references/emotional-arc-design.md` |
-| 反转设计 | `references/reversal-toolkit.md` |
-
-### Phase 4：正文写作
-
-| 场景 | 加载文件 |
-|------|---------|
-| 章节钩子 | `references/hooks-chapter.md` |
-| 悬念设计 | `references/hooks-suspense.md` |
-| 段落级钩子 | `references/hooks-paragraph.md` |
-| 题材风格 | `references/style-genre-modules.md` |
-| 打斗/装逼 | `references/style-combat-face.md` |
-| 写作技法 | `references/style-craft.md` |
-| 商业创作核心方法 | `references/style-commercial-theory.md` |
-| 对话 | `references/dialogue-mastery.md` |
-| 人物深化 | `references/character-design-methods.md` |
-| 情绪技法 | `references/plot-emotion-system.md` |
-| 叙事单元 | `references/narrative-units.md` |
-
-### Phase 5：质量检查
-
-| 场景 | 加载文件 |
-|------|---------|
-| 质量检查 | `references/quality-checklist.md` |
-| 禁用词扫描 | `references/banned-words.md` |
-| 去AI味 | `references/anti-ai-writing.md` |
+| 文件 | 何时加载 |
+|------|----------|
+| [references/outline-arrangement.md](references/outline-arrangement.md) | **核心参考**：大纲排布方法论+五步大纲法+故事结构分级+剧情质量控制+升级感设计+节点设计法+矛盾设计 |
+| [references/artifact-protocols.md](references/artifact-protocols.md) | 各 artifact 创建模板，Phase 2-3 过渡时加载 |
+| [references/advanced-plot-techniques.md](references/advanced-plot-techniques.md) | 高级技法：小纲四步法+高潮逆推+情绪拉扯+金手指运用+对标书选择+双线结构+AB交织法 |
+| [references/hook-techniques.md](references/hook-techniques.md) | **核心参考**：钩子原理+章尾钩子13式+章首钩子7式+实战模板+段落级钩子+悬念编排+期待感理论+断期待修复 |
+| [references/opening-design.md](references/opening-design.md) | **开头全流程**：黄金一章法则+六大标准+开局三大基点+核心模板+8大题材开头范例+决策树+开头规则 |
+| [references/character-design.md](references/character-design.md) | **人物全流程**：设定主角/配角/反派+人物元素提取+关系映射+动机链+群像写作+代入感构建法 |
+| [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | **题材全流程**：题材框架+核心梗解析+事业线/爱情线设计+微创新与差异化设计+读者心理需求+卖点偏移检验 |
+| [references/style-modules.md](references/style-modules.md) | **风格全流程**：题材风格+对话+打斗/智斗+镜头式写作+爽点释放+装逼打脸+流派特征+写作基础+白描+视角 |
+| [references/anti-ai-writing.md](references/anti-ai-writing.md) | **去AI味全流程**：预防AI痕迹+三遍去AI法+改写范例库 |
+| [references/dialogue-mastery.md](references/dialogue-mastery.md) | 对话节奏/潜台词/信息控制+对话模式数据库+弹幕技巧 |
+| [references/emotional-arc-design.md](references/emotional-arc-design.md) | 情绪曲线设计+弧形模板+期待感管理+题材赛道策略 |
+| [references/reversal-toolkit.md](references/reversal-toolkit.md) | 反转类型+时机+误导底层路径 |
+| [references/quality-checklist.md](references/quality-checklist.md) | 质量检查+毒点排查+常见问题速查 |
+| [references/narrative-units.md](references/narrative-units.md) | 叙事单元体系：情绪模块+戏剧单元+叙事元素+结构技法，Phase 3 大纲和 Phase 4 写作时参考 |
 
 ---
 

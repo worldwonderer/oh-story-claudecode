@@ -25,7 +25,7 @@ metadata:
 
 ```
 用户提到具体题材（追妻/重生/虐文/...）？
-  ├─ 是 → 加载 genre-catalog.md 对应题材的「短篇视角」章节
+  ├─ 是 → 加载 genre-frameworks-unified.md 对应题材的「短篇视角」章节
   └─ 否 → 使用通用模板（Phase 2-6）
 ```
 
@@ -73,6 +73,11 @@ metadata:
 | 需要市场数据 | story-short-scan | `/story-short-scan` |
 | 更适合长篇 | story-long-scan → story-long-analyze | `/story-long-scan` |
 
+## 回流规则
+
+拆文结束后只输出拆文结果，不自动继续到写作/扫榜/润色。
+如用户显式要求下一步，再按需回流到对应 skill。
+
 ---
 
 ## 参考资料
@@ -82,19 +87,12 @@ metadata:
 | [references/output-templates.md](references/output-templates.md) | 拆文时：输出模板+结构库+必填字段 |
 | [references/deconstruction-examples.md](references/deconstruction-examples.md) | 学习拆文方法时（3个完整案例） |
 | [references/zhihu-style.md](references/zhihu-style.md) | 分析知乎盐言故事时 |
-| [references/genre-catalog.md](references/genre-catalog.md) | 拆解特定题材时，加载对应题材的「短篇视角」章节 |
-| [references/hooks-chapter.md](references/hooks-chapter.md) | 深度分析章节钩子设计时 |
-| [references/hooks-suspense.md](references/hooks-suspense.md) | 深度分析悬念设计时 |
-| [references/hooks-paragraph.md](references/hooks-paragraph.md) | 深度分析段落钩子时 |
-| [references/character-basics.md](references/character-basics.md) | 深度分析人物基础时 |
-| [references/character-design-methods.md](references/character-design-methods.md) | 深度分析人设方法时 |
-| [references/character-relations.md](references/character-relations.md) | 深度分析人物关系时 |
+| [references/genre-frameworks-unified.md](references/genre-frameworks-unified.md) | 拆解特定题材时，加载对应题材的「短篇视角」章节 |
+| [references/hook-techniques.md](references/hook-techniques.md) | 深度分析钩子设计时 |
+| [references/character-design.md](references/character-design.md) | 深度分析人物设计时 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 评估质量时 |
-| [references/genre-core-mechanics.md](references/genre-core-mechanics.md) | 分析核心梗设计与循环机制时 |
-| [references/genre-readers.md](references/genre-readers.md) | 分析读者心理与期待管理时 |
 
 > **题材写作公式**：`references/genre-writing-formulas.md`（21大题材写作公式）
-> **通用写作技法**：`references/genre-writing-techniques.md`（情绪操控+感情线+震惊场景+喜剧机制）
 > **市场数据**：`references/real-market-data.md`（跨平台写作差异对照表）
 
 ---
