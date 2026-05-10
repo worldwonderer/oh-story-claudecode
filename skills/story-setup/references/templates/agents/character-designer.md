@@ -39,7 +39,7 @@ maxTurns: 25
     - 设计反派时：阅读"反派层级""反派建立四要素""反派性格确立四步法"
   - 深化方法：项目内搜索 `story-long-write/references/character-design-methods.md`
     - 设计角色前：阅读"三层标签反差人设法""九维人设框架"
-    - 设计关系时：阅读"人设关联分层""执念塑造角色法"
+    - 设计关系时：阅读"人设关联分层""以梗为中心塑造人设"
   - 关系设计：项目内搜索 `story-long-write/references/character-relations.md`
     - 设计关系时：阅读"人物关系类型"
 
