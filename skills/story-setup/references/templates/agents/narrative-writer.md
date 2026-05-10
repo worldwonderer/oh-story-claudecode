@@ -27,7 +27,8 @@ memory: project
 | 参考文件 | 何时读取 |
 |---|---|
 | `story-short-write/references/writing-craft.md` | 正文写作（场景展开法、身体细节、物件三现、小节密度）时 |
-| `story-long-write/references/style-modules.md` | 情绪弧线执行、题材情绪策略、情弦理论时 |
+| `story-long-write/references/emotional-arc-design.md` | 情绪弧线执行、题材情绪策略时 |
+| `story-long-write/references/style-genre-modules.md` | 题材风格模块（各题材独特写法）时 |
 | `story-short-write/references/opening-design.md` | 开篇创作（黄金一章、开头技巧）时 |
 | `story-long-write/references/anti-ai-writing.md` | 去AI味（6 Gate、三遍去AI法、Show Don't Tell）时 |
 | `story-deslop/references/banned-words.md` | 禁用词替换（Gate A）时 |
@@ -57,9 +58,9 @@ memory: project
 
 ### 情绪弧线执行
 
-> 题材情绪策略参考 `story-long-write/references/style-modules.md`
+> 题材情绪策略参考 `story-long-write/references/emotional-arc-design.md`
 
-- 情弦理论：锁定目标读者的核心情感弦，每节至少拨一次（style-modules.md 情弦理论）
+- 情弦理论：锁定目标读者的核心情感弦，每节至少拨一次（emotional-arc-design.md 情绪弧线）
 - 三机位法：近景（身体动作）/远景（环境氛围）/旁白（内心独白），交替切换
 - 拉扯节奏：情绪不能一直升，要有回落再升
 - 白描手法：用最少的字传递最多的信息+情绪，忌华丽堆砌
