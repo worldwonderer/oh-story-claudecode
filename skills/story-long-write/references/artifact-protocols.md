@@ -47,7 +47,7 @@
 - {}（只学结构，不抄桥段）
 ```
 
-创建参考：`advanced-plot-techniques.md` L182 (对标书选择法则、三同原则)
+创建参考：`plot-special-topics.md` (对标书选择法则)
 
 ---
 
@@ -90,7 +90,7 @@
 {列出推动剧情的2-3对核心对立/合作关系}
 ```
 
-创建参考：`character-design.md` L1000 (四种关系类型) + L1059 (关系图绘制)
+创建参考：`character-relations.md` (人物关系类型 + 关系图绘制)
 
 ---
 
@@ -121,7 +121,7 @@
 - 关键转折节点：{列出}
 ```
 
-创建参考：`genre-frameworks-unified.md` L1082 (核心梗解析与运用) + L1220 (微创新与差异化设计)
+创建参考：`genre-core-mechanics.md` (核心梗解析与运用 + 微创新与差异化设计)
 
 ---
 
@@ -168,7 +168,7 @@
 |------|---------|---------|---------------------|
 ```
 
-创建参考：`outline-arrangement.md` L1410 (大纲三层结构法) + L388 (升级感三步设计法) + `emotional-arc-design.md` L21 (六种弧线速查) + `reversal-toolkit.md` L20 (五种反转类型)
+创建参考：`outline-methods.md` (大纲三层结构法) + `outline-rhythm.md` (升级感三步设计法) + `emotional-arc-design.md` (六种弧线速查) + `reversal-toolkit.md` (五种反转类型)
 
 ---
 
@@ -192,7 +192,7 @@
 |----|------|--------------------------|
 ```
 
-创建参考：`advanced-plot-techniques.md` L856 (连续性追踪与节奏管理)
+创建参考：`plot-core-methods.md` (连续性追踪与节奏管理)
 
 ---
 
@@ -221,4 +221,4 @@
 |------|------|---------|
 ```
 
-创建参考：`advanced-plot-techniques.md` L856 (连续性追踪与节奏管理)
+创建参考：`plot-core-methods.md` (连续性追踪与节奏管理)
