@@ -262,6 +262,7 @@ metadata:
 | 打斗 | 不要流水账，写策略和反转，不写「你一拳我一脚」 |
 | 日常 | 日常要有人物互动和伏笔，不能只是「吃饭睡觉」 |
 | 爽点释放 | 铺垫要充分、释放要干脆，读者等得越久释放越要爽 |
+| 公式约束 | 参考 genre-writing-formulas.md 中的创作公式 |
 | 章尾 | 每章结尾都要有让读者想翻下一页的东西 |
 
 #### 字数与节奏参考
@@ -319,6 +320,7 @@ metadata:
 | [references/reversal-toolkit.md](references/reversal-toolkit.md) | 反转类型+时机+误导底层路径 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 质量检查+毒点排查+常见问题速查 |
 | [references/narrative-units.md](references/narrative-units.md) | 叙事单元体系：情绪模块+戏剧单元+叙事元素+结构技法，Phase 3 大纲和 Phase 4 写作时参考 |
+| [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | **创作公式**：矛盾冲突/信息差/情绪操控/Show Don't Tell 规则，Phase 4 单章写作时按需加载 |
 | [references/workflow-daily.md](references/workflow-daily.md) | 日更续写工作流：快速上下文加载+批量写作+进度摘要 |
 | [references/workflow-revision.md](references/workflow-revision.md) | 大修工作流：定位章节+重写+追踪更新+级联检查 |
 
