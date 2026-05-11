@@ -111,7 +111,7 @@ metadata:
 用户已有 CLAUDE.md 时，按 section 合并：
 1. 读取用户现有 CLAUDE.md，按 `##` 标题切分为 section map
 2. 读取模板 CLAUDE.md.tmpl，同样切分
-3. 模板中的标准 section（Skill 路由表、文件结构、协作规则、Skill 执行约束、Compact 后恢复上下文）**覆盖**用户同名 section
+3. 模板中的标准 section（Skill 路由表、文件结构、协作规则、Compact 后恢复上下文）**覆盖**用户同名 section
 4. 模板中有但用户 CLAUDE.md 中没有的 section → 追加到用户 CLAUDE.md 末尾
 5. 用户独有的 section（自定义内容）**保留**不动
 6. 最终输出顺序：模板标准 section 按模板顺序排列在前，用户独有 section 按用户原始顺序追加在后
