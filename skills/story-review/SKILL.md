@@ -41,6 +41,8 @@ metadata:
    - 知乎盐言 → 读取 [references/rubrics/zhihu.md](references/rubrics/zhihu.md)
    - 未指定 → 默认加载 [references/quality-rubric.md](references/quality-rubric.md)
 
+**Phase 1.5：可选 story-explorer 预查询**。如果项目已部署 story-explorer agent，可 spawn `Agent(subagent_type: "story-explorer", prompt: "项目目录：{dir}\n查询类型：setting_appearances\n查询参数：{审查涉及的设定关键词}")` 预查设定摘要，将结果注入各 agent 的 prompt，减少重复 grep。此步可选，跳过不影响审查流程。
+
 ## Phase 2：并行 Spawn 4 个 Agent（+ 可选 researcher）
 
 使用 Agent 工具并行调用 4 次（不同 subagent_type）。

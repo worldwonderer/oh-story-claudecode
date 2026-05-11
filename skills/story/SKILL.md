@@ -24,6 +24,7 @@ description: |
 | 封面 | 封面、封面图 | `/story-cover` |
 | 环境部署 | 准备写书、搭环境、初始化 | `/story-setup` |
 | 浏览器操控 | 浏览器、抓取、登录态 | `/browser-cdp` |
+| 导入小说 | 导入、反向解析、导入小说、把我的书导进来 | `/story-import` |
 | 查资料 | 查资料、帮我查资料、调研、搜索一下、搜一下 | 直接 spawn `story-researcher` agent |
 
 ## 路由流程
