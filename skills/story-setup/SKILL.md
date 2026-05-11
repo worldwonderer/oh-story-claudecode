@@ -70,10 +70,8 @@ metadata:
   ```
   deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">
   agents_version: 2
-  hooks_checksum: <md5 of concatenated hook scripts>
   setup_skill_version: 1.0.0
   ```
-- `hooks_checksum` 由所有 hooks 脚本内容的 md5 值拼接生成，用于后续自检
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
 - 如果 `.story-deployed` 已存在但无 `agents_version` 或版本为 1，提示用户重新运行 story-setup 以更新 Agent
 
@@ -139,7 +137,7 @@ hooks 注册合并按 command 字段去重：
 | 文件 | 用途 |
 |------|------|
 | references/templates/CLAUDE.md.tmpl | 项目根 CLAUDE.md 模板 |
-| references/templates/hooks/ | 5 个 hook 脚本模板 |
+| references/templates/hooks/ | 6 个 hook 脚本模板 |
 | references/templates/rules/ | 4 条 path-scoped 规则模板 |
 | references/templates/agents/ | 5 个 agent 定义模板（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher） |
 | references/templates/settings-hooks.json | hooks 注册 JSON 片段 |

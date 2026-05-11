@@ -11,13 +11,13 @@ HAS_WARNINGS=false
 BOOK_DIRS=()
 while IFS= read -r -d '' dir; do
   BOOK_DIRS+=("$(dirname "$dir")")
-done < <(find . -maxdepth 4 -type d -name "追踪" -print0 2>/dev/null || true)
+done < <(find "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" -maxdepth 4 -type d -name "追踪" -print0 2>/dev/null || true)
 
 # 短篇项目检测：查找包含 .md 文件但没有 追踪/ 子目录的项目目录
 SHORT_DIRS=()
 while IFS= read -r -d '' dir; do
   SHORT_DIRS+=("$(dirname "$dir")")
-done < <(find . -maxdepth 3 -type d -name "正文" -print0 2>/dev/null || true)
+done < <(find "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" -maxdepth 3 -type d -name "正文" -print0 2>/dev/null || true)
 
 # 从短篇目录中排除已被长篇检测到的目录
 for short_dir in "${SHORT_DIRS[@]+${SHORT_DIRS[@]}}"; do
@@ -67,7 +67,7 @@ for BOOK_DIR in ${BOOK_DIRS[@]+"${BOOK_DIRS[@]}"}; do
   # 4. 未关闭的伏笔线索
   if [ -f "$BOOK_DIR/追踪/伏笔.md" ]; then
     # 正则依赖 artifact-protocols.md 中的伏笔格式定义，格式变更时需同步更新
-    STALE_FORESHADOW=$(grep -E "第[0-9]+章.*未回收|状态.*进行中|status.*open" "$BOOK_DIR/追踪/伏笔.md" 2>/dev/null || true)
+    STALE_FORESHADOW=$(grep -E "状态.*(已埋|已过期)" "$BOOK_DIR/追踪/伏笔.md" 2>/dev/null || true)
     if [ -n "$STALE_FORESHADOW" ]; then
       BOOK_OUTPUT+="[WARN] $BOOK_NAME: Open foreshadowing threads detected in 伏笔.md. Consider running /story-review.\n"
     fi

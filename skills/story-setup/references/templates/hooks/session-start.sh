@@ -29,7 +29,7 @@ HAS_CONTENT=false
 # 部署自检：.story-deployed 存在但 hooks 文件被误删时发出警告
 if [ -f ".story-deployed" ]; then
   MISSING_HOOKS=""
-  for hook in session-start.sh detect-story-gaps.sh pre-compact.sh post-compact.sh validate-story-commit.sh; do
+  for hook in session-start.sh session-end.sh detect-story-gaps.sh pre-compact.sh post-compact.sh validate-story-commit.sh; do
     if [ ! -f ".claude/hooks/$hook" ]; then
       MISSING_HOOKS+="$hook "
     fi
