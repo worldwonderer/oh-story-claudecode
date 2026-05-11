@@ -331,6 +331,7 @@ metadata:
 | 节奏与升级感 | `references/outline-rhythm.md` |
 | 小纲与卡文 | `references/plot-core-methods.md` |
 | 选择叙事框架 | `references/plot-frameworks.md` |
+| 题材写作公式 | `references/genre-writing-formulas.md` |
 | 黄金三章 | `references/opening-design.md` |
 | 情绪弧线 | `references/emotional-arc-design.md` |
 | 反转设计 | `references/reversal-toolkit.md` |
@@ -348,8 +349,10 @@ metadata:
 | 商业创作核心方法 | `references/style-commercial-theory.md` |
 | 对话 | `references/dialogue-mastery.md` |
 | 人物深化 | `references/character-design-methods.md` |
-| 情绪技法 | `references/plot-emotion-system.md` |
+| 情绪技法 | `references/plot-emotion-system.md` + `references/emotional-methods.md` |
 | 叙事单元 | `references/narrative-units.md` |
+| 写作技法全程参考 | `references/writing-craft.md` |
+| 格式与结构规范 | `references/format-and-structure.md` |
 
 ### Phase 5：质量检查
 

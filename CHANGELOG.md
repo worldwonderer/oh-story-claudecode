@@ -2,13 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## v0.5.0
+
+### 参考文件操作手册格式重构（核心变更）
+
+- 全 skill references 从「知识百科」统一转为「操作手册」格式：决策路由表 + 指令语气 + 质量检查清单
+- 大文件拆分：character-design → basics + methods + relations；genre-frameworks → catalog + mechanics + readers + formulas；hook-techniques → chapter + suspense + paragraph；outline-arrangement → methods + conflict + structure-theory + rhythm；style-modules → craft + genre-modules + combat-face + commercial-theory；advanced-plot-techniques → core-methods + frameworks + special-topics + emotion-system
+- 新增 writing-craft.md（306行）、format-and-structure.md（137行）、emotional-methods.md（179行）
+- 13 个共享文件跨 skill (long-write/short-write/short-analyze/deslop) byte-for-byte 同步
+- Agent 模板和 SKILL.md 索引全部更新为新文件名
+
+### 新功能
 
 - 新增 story-researcher 资料研究 agent（CDP 搜索+正文提取+多源交叉验证）
 - 长篇写作新增场景路由（开书/日更续写/大修）+ 日更工作流 + 大修工作流
 - story skill 路由表新增「查资料」入口
 - story-review 审查流程新增可选事实核查路径
+- static-check.sh 新增 Check 6：检测反引号行内悬空文件引用
+- static-check.sh Check 5 增强：支持 `(subagent_type: xxx)` 格式匹配
+
+### 改进
+
 - 精简 story-short-write SKILL.md 22.8KB→13.7KB，新建 writing-workflow.md
+- 长篇写作增加创作公式引用、分层摘要协议与扫榜新元素提取
+- reference 文件拆分压缩 + 术语直白化
+
+### 修复
+
+- opening-design.md 恢复 6 个丢失知识点（鬼灭之刃范例/信息团排版/改进方向/创意正确展开/期待感三路径/卖点设计与验证）
+- 全文件箭头风格统一（`-->` → `->`，21 处）
+- character-relations.md `x` → `×` 符号修正
+- story-outline.md 裸路径 → 全路径修复
+- SKILL.md Phase 3 索引补全 genre-writing-formulas.md
+- 9 项 bug 修复与改进（B-1~B-5/D-1~D-3/D-4）
+- 悬空文件引用修复（artifact-protocols/agent 模板/publishing-guide）
 
 ## v0.4.1
 

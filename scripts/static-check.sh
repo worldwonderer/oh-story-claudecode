@@ -38,6 +38,7 @@ extract_agent_refs() {
   local file="$1"
   grep -oE 'subagent_type:[[:space:]]*"[^"]+"' "$file" 2>/dev/null | sed 's/subagent_type:[[:space:]]*"//' | sed 's/"$//' || true
   grep -oE 'subagent_type="[^"]+"' "$file" 2>/dev/null | sed 's/subagent_type="//' | sed 's/"//' || true
+  grep -oE '\(subagent_type:[[:space:]]*[a-z][a-z0-9_-]+\)' "$file" 2>/dev/null | sed 's/(subagent_type:[[:space:]]*//' | sed 's/)$//' || true
 }
 
 # ---------- checks ----------
@@ -191,6 +192,47 @@ check_skill() {
     echo "  [FAIL] unknown agent references:"
     for a in "${broken_agents[@]}"; do
       echo "         -> $a"
+    done
+    errors=$((errors + 1))
+  fi
+
+  # Check 6: Backtick-wrapped inline file references (e.g. `character-design.md`)
+  # Only checks ASCII-named reference files, skips artifact templates (Chinese paths, dates)
+  local broken_inline=()
+  while IFS= read -r -d '' src_file; do
+    local src_rel="${src_file#$skill_dir/}"
+    while IFS= read -r ref_name; do
+      [ -z "$ref_name" ] && continue
+      # Skip template placeholders and non-ASCII paths (artifact templates)
+      [[ "$ref_name" == *"{"* ]] && continue
+      [[ "$ref_name" =~ [^[:ascii:]] ]] && continue
+      # Only check filenames that look like reference docs (lowercase ASCII + hyphens + underscores)
+      local base_name="$(basename "$ref_name")"
+      [[ "$base_name" =~ ^[a-z0-9_-]+\.md$ ]] || continue
+      # Try resolving: 1) relative to source file, 2) anywhere in this skill, 3) anywhere in skills/, 4) repo root
+      local found=false
+      local ref_dir="$(dirname "$src_file")"
+      if [ -f "$ref_dir/$ref_name" ]; then
+        found=true
+      elif find "$skill_dir" -type f -name "$base_name" -print -quit 2>/dev/null | grep -q .; then
+        found=true
+      elif find "$SKILLS_DIR" -type f -name "$base_name" -print -quit 2>/dev/null | grep -q .; then
+        found=true
+      elif [ -f "$REPO_ROOT/$ref_name" ]; then
+        found=true
+      fi
+      if [ "$found" = false ]; then
+        broken_inline+=("$src_rel -> $ref_name")
+      fi
+    done < <(grep -oE '`[^`]+\.md`' "$src_file" 2>/dev/null | sed 's/`//g' | sort -u || true)
+  done < <(find "$skill_dir" -type f -name "*.md" -print0 2>/dev/null)
+
+  if [ ${#broken_inline[@]} -eq 0 ]; then
+    echo "  [PASS] no broken inline file references"
+  else
+    echo "  [FAIL] broken inline file references (backtick-wrapped):"
+    for x in "${broken_inline[@]}"; do
+      echo "         -> $x"
     done
     errors=$((errors + 1))
   fi

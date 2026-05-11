@@ -27,11 +27,15 @@ memory: project
 
 | 参考文件 | 何时读取 |
 |---|---|
-| `story-long-write/references/hook-techniques.md` | 设计章首/章尾钩子、三翻四震结构、悬念构建时 |
+| `story-long-write/references/hooks-chapter.md` | 设计章首/章尾钩子、三翻四震结构时 |
+| `story-long-write/references/hooks-suspense.md` | 设计悬念体系、多线悬念周期时 |
 | `story-long-write/references/emotional-arc-design.md` | 设计情绪弧线、期待感管理、确定题材情绪策略时 |
 | `story-long-write/references/reversal-toolkit.md` | 设计反转、铺设误导、嵌套反转、打脸节奏时 |
-| `story-long-write/references/outline-arrangement.md` | 排布大纲、卷级结构、细纲、高潮逆推时 |
-| `story-long-write/references/genre-frameworks-unified.md` | 题材定位、核心梗提炼、微创新、金手指设计时 |
+| `story-long-write/references/outline-methods.md` | 排布大纲、五步法、大纲三层结构法时 |
+| `story-long-write/references/outline-rhythm.md` | 设计大纲节奏、升级感三步法时 |
+| `story-long-write/references/outline-conflict.md` | 设计矛盾、主线支线、冲突结构时 |
+| `story-long-write/references/genre-catalog.md` | 题材定位、题材框架速查时 |
+| `story-long-write/references/genre-core-mechanics.md` | 核心梗提炼、微创新、金手指设计时 |
 | `story-long-write/references/opening-design.md` | 设计开篇、黄金一章、开局三大基点时 |
 | `story-long-write/references/quality-checklist.md` | 审查大纲质量、黄金三章检查、通用质量检查时 |
 
@@ -44,7 +48,7 @@ memory: project
 - 核心梗三代论：主题 -- 题材核心 -- 核心情绪，提炼全书驱动力
 - 微创新五手法：在已有题材框架上做差异化
 - 对标分析：从对标书中提取可借鉴的结构模式
-- **执行时读取** `genre-frameworks-unified.md`（题材框架速查、核心梗三代论、微创新五手法、金手指骨相分类）
+- **执行时读取** `genre-catalog.md`（题材框架速查）+ `genre-core-mechanics.md`（核心梗三代论、微创新五手法、金手指骨相分类）
 
 ### 世界观设定
 - 背景设定：时代、地理、历史、社会结构
@@ -58,7 +62,7 @@ memory: project
 - 章节规划：字数、节奏、情绪节拍
 - AB交织法：A线升级感 + B线情节冲突
 - 五重驱动检查：压迫感/实力感/认知颠覆/资源升值/悬念增殖
-- **执行时读取** `outline-arrangement.md`（五步法、八节点结构、高潮逆推法、AB交织法、三重重复循环法）
+- **执行时读取** `outline-methods.md`（五步法、大纲三层结构法）+ `outline-conflict.md`（高潮逆推法、AB交织法）+ `outline-rhythm.md`（升级感三步设计法）
 
 ### 开篇设计
 - 黄金开篇技巧：5种核心开篇方法
@@ -72,7 +76,7 @@ memory: project
 - 期待感核心模型：建立 -- 维持 -- 打破 -- 重建的循环
 - 三翻四震结构：连续翻转的节奏控制
 - 悬念构建检查清单：基础/冲击力/公平性/节奏
-- **执行时读取** `hook-techniques.md`（完整钩子技法、实战模板、拉期待86种手法）
+- **执行时读取** `hooks-chapter.md`（章首/章尾钩子技法、实战模板）+ `hooks-suspense.md`（悬念构建、拉期待手法）
 
 ### 反转设计
 - 5种反转类型：身份/视角/动机/时间线/信息

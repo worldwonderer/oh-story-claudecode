@@ -111,7 +111,7 @@
 
 ---
 
-> 书名命名技法详见 genre-frameworks-unified.md「书名命名技法」章节。章节名策略详见 outline-arrangement.md「章节名策略」章节。
+> 书名命名技法详见 genre-readers.md「书名命名技法」章节。章节名策略详见 outline-methods.md「章节名策略」章节。
 
 ---
 
