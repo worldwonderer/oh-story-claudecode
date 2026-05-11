@@ -33,7 +33,7 @@ metadata:
 
 ## Phase 2：部署基础设施
 
-使用 AskUserQuestion 确认部署位置后，依次执行：
+使用 AskUserQuestion 确认部署位置后，依次执行。每一步骤执行后验证结果；如果任何步骤失败（文件系统报错、模板文件缺失等），停止后续步骤，向用户报告失败原因，不创建 `.story-deployed` 标记。已存在文件被跳过不算失败。
 
 ### 2.1 部署 CLAUDE.md
 - 读取 `skills/story-setup/references/templates/CLAUDE.md.tmpl`
@@ -57,7 +57,8 @@ metadata:
 - 读取 `skills/story-setup/references/templates/上下文.md.tmpl`
 - 如有书名目录，复制到 `{书名}/追踪/` 下
 
-### 2.6 部署 Codex 项目配置
+### 2.6 部署 Codex 项目配置（可选，供 Codex CLI 用户使用）
+- 此配置仅在使用 OpenAI Codex CLI 时生效，不影响 Claude Code 用户；如果不使用 Codex，此文件可以忽略
 - 确保用户项目根目录存在 `.codex/` 目录
 - 读取 `skills/story-setup/references/templates/.codex/config.toml.tmpl`
 - 写入用户项目 `.codex/config.toml`
@@ -110,9 +111,11 @@ metadata:
 用户已有 CLAUDE.md 时，按 section 合并：
 1. 读取用户现有 CLAUDE.md，按 `##` 标题切分为 section map
 2. 读取模板 CLAUDE.md.tmpl，同样切分
-3. 模板中的标准 section（Skill 路由表、文件结构、协作规则、Context Recovery、语言）**覆盖**用户同名 section
-4. 用户独有的 section（自定义内容）**保留**不动
-5. 未知冲突用 AskUserQuestion 让用户选择保留哪个版本
+3. 模板中的标准 section（Skill 路由表、文件结构、协作规则、Skill 执行约束、Compact 后恢复上下文）**覆盖**用户同名 section
+4. 模板中有但用户 CLAUDE.md 中没有的 section → 追加到用户 CLAUDE.md 末尾
+5. 用户独有的 section（自定义内容）**保留**不动
+6. 最终输出顺序：模板标准 section 按模板顺序排列在前，用户独有 section 按用户原始顺序追加在后
+7. 未知冲突用 AskUserQuestion 让用户选择保留哪个版本
 
 ## settings-hooks.json 合并算法
 

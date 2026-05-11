@@ -44,8 +44,9 @@
 
 ### v3 (当前)
 
-- 新增项目级 `.codex/config.toml` 模板部署
+- 新增项目级 `.codex/config.toml` 模板部署（仅 Codex CLI 用户，不影响 Claude Code）
 - 保持 `.codex/config.toml` 已有用户配置不被覆盖
+- CLAUDE.md 模板新增「Skill 执行约束」section，规范 skill 执行流程纪律
 
 ### v2
 
