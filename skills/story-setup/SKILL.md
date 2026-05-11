@@ -66,7 +66,14 @@ metadata:
 ### 2.7 创建部署标记
 
 - 创建 `.story-deployed` 文件（sentinel file）
-- 写入两行：第一行 `deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">`，第二行 `agents_version: 2`
+- 写入以下字段：
+  ```
+  deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">
+  agents_version: 2
+  hooks_checksum: <md5 of concatenated hook scripts>
+  setup_skill_version: 1.0.0
+  ```
+- `hooks_checksum` 由所有 hooks 脚本内容的 md5 值拼接生成，用于后续自检
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
 - 如果 `.story-deployed` 已存在但无 `agents_version` 或版本为 1，提示用户重新运行 story-setup 以更新 Agent
 
@@ -94,8 +101,10 @@ metadata:
 |--------|----------|------|
 | `{项目名}` | 用户项目名称或目录名 | 《剑来》、《暗卫》 |
 | `{书名}` | 书名目录名（与目录一致） | 与 `{项目名}` 相同，或用户自定义 |
+| `{目标平台}` | 目标发布平台 | 起点、番茄、晋江、知乎盐言 |
+| `{作者名}` | 用户笔名或昵称 | 未指定时用「作者」 |
 
-替换时去掉花括号。如果用户未指定项目名，用当前目录名。
+替换时去掉花括号。如果用户未指定项目名，用当前目录名。未指定的占位符保留原样不替换。
 
 ## CLAUDE.md 合并策略
 

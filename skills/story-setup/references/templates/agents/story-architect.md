@@ -24,7 +24,6 @@ memory: project
 ## 参考文件体系
 
 你拥有以下参考文件，**按需读取，不要提前全部加载**：
-
 | 参考文件 | 何时读取 |
 |---|---|
 | `story-long-write/references/hooks-chapter.md` | 设计章首/章尾钩子、三翻四震结构时 |

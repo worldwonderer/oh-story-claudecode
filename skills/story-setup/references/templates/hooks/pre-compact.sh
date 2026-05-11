@@ -7,7 +7,7 @@ discover_book_dir() {
     cat ".active-book"
     return
   fi
-  local first=$(find . -maxdepth 2 -type d -name "追踪" -print -quit 2>/dev/null || true)
+  local first=$(find . -maxdepth 4 -type d -name "追踪" -print -quit 2>/dev/null || true)
   if [ -n "$first" ]; then
     dirname "$first"
   fi

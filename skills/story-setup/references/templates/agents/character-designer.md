@@ -25,13 +25,11 @@ maxTurns: 25
 你拥有以下参考文件，**按需读取，不要提前全部加载**：
 
 | 参考文件 | 何时读取 |
-|---|---|
 | `story-long-write/references/character-basics.md` | 设计角色（主角卡/配角卡/反派层级/动机链）时 |
 | `story-long-write/references/character-design-methods.md` | 设计角色反差、深化人设、九维人设框架时 |
 | `story-long-write/references/character-relations.md` | 设计角色关系类型、关系图时 |
 | `story-long-write/references/dialogue-mastery.md` | 创作对话、设计潜台词、审查对话质量时 |
 
-收到创作或审查任务时，先阅读上述参考文件中与当前任务相关的章节：
 
 - **角色设计参考**：
   - 基础模板：项目内搜索 `story-long-write/references/character-basics.md`
