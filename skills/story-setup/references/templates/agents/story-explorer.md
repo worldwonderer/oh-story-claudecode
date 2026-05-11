@@ -134,13 +134,15 @@ maxTurns: 15
 
 ### context_load 流程（综合查询）
 
-1. `Read 追踪/上下文.md` -> 进度摘要
+1. `Read 追踪/上下文.md` -> 进度摘要。如不存在，`Glob 正文/第*.md` 扫描最大章节号推断下一章编号
 2. `Read 追踪/伏笔.md` -> 筛选待回收伏笔
 3. `Read 追踪/时间线.md` -> 最近时间节点
 4. `Read 大纲/细纲_第{N}章.md` -> 本章写作计划
 5. 从细纲提取角色名 -> `Read 设定/角色/{name}.md`
 6. `Read 正文/第{N-1}章_*.md` -> 最新一章（衔接用）
 7. 汇总为"写作上下文包"
+
+> 任何文件缺失时，在 `gaps` 中包含该事实并继续处理，返回仍能组装的部分上下文，不要完全失败。
 
 ---
 
@@ -239,12 +241,12 @@ maxTurns: 15
 
 ## 被调用协议
 
-skill 通过 `Agent(subagent_type: "story-explorer")` 调用你。
+调用方通过 `Agent(subagent_type: "story-explorer")` 调用你（如 story-long-write、story-review、story 路由等）。
 
 你收到的 prompt 会包含：
-- `project_dir`：书籍项目目录路径
-- `query_type`：查询类型（见上表）
-- `query`：具体查询内容
+- `项目目录`：书籍项目目录路径
+- `查询类型`：查询类型（见上表）
+- `查询参数`：具体查询内容
 - 可选的额外参数（如章节号、角色名、关键词）
 
 输出格式：结构化 JSON（见上方输出格式章节）。

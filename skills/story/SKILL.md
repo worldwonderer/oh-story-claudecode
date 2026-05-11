@@ -25,6 +25,7 @@ description: |
 | 环境部署 | 准备写书、搭环境、初始化 | `/story-setup` |
 | 浏览器操控 | 浏览器、抓取、登录态 | `/browser-cdp` |
 | 导入小说 | 导入、反向解析、导入小说、把我的书导进来 | `/story-import` |
+| 查故事资料 | 查角色、查伏笔、查进度、查设定、什么状态、写到哪了 | 直接 spawn `story-explorer` agent（使用结构化 prompt：`项目目录：{dir}\n查询类型：{根据意图选择}\n查询参数：{用户查询}`） |
 | 查资料 | 查资料、帮我查资料、调研、搜索一下、搜一下 | 直接 spawn `story-researcher` agent |
 
 ## 路由流程

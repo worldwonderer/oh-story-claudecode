@@ -122,6 +122,7 @@ metadata:
 - 中断时通过 `_progress.md` 追踪进度
 - 新会话读取 `_progress.md` 定位断点
 - 从断点所在块的起始章节恢复
+- `_progress.md` 格式参照 [output-templates.md](../story-long-analyze/references/output-templates.md) 的 `_progress.md` 段落，包含当前阶段、最后处理章节、已完成阶段列表、更新时间
 
 ### 质量门控
 
@@ -210,6 +211,7 @@ source: 导入反推
 | 核心规则 | 设定/世界观/背景设定.md | 与其他无法独立的内容合并 |
 | 特殊设定 | 设定/世界观/背景设定.md | 合并 |
 | 金手指 | 设定/世界观/金手指.md | 独立文件 |
+| 势力/组织 | 设定/势力/{势力名}.md | 内容 >= 200 字时独立为势力文件，不足则合并到 `背景设定.md` |
 
 内容不足独立成文件时，合并到 `背景设定.md`。
 
@@ -308,6 +310,8 @@ source: 导入反推
 2. **正文对照**：确认正文文件数与源文件章节数一致
 3. **角色覆盖**：确认主要角色都已迁移
 
+完整迁移质量清单见 `references/structure-mapping.md` 末尾的质量检查清单。
+
 ### 4.2 缺失项提示
 
 向用户展示导入结果摘要和需要人工补充的内容：
@@ -340,6 +344,8 @@ source: 导入反推
 
 - 设置 `.active-book` 指向导入的书名目录
 - 确认项目可以被 story-long-write 识别
+- 检查项目是否已部署 story-setup 基础设施（`.story-deployed` 是否存在）。如不存在，建议用户运行 `/story-setup` 完成环境部署（包括 agents、hooks、rules、CLAUDE.md）
+- 可选验证：如果项目已部署 story-explorer agent（检查 `.claude/agents/story-explorer.md` 是否存在），可 spawn `Agent(subagent_type: "story-explorer", prompt: "项目目录：{dir}\n查询类型：progress\n查询参数：导入验证")` 交叉验证迁移数据完整性
 
 ---
 
@@ -399,6 +405,7 @@ source: 导入反推
 | 导入完想审查质量 | story-review | `/story-review` |
 | 想深入分析对标 | story-long-analyze | `/story-long-analyze` |
 | 从零开新书 | story-long-write | `/story-long-write` + "开书" |
+| 项目未部署环境 | story-setup | `/story-setup` |
 
 ---
 

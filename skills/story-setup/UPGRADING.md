@@ -37,13 +37,20 @@
 `.story-deployed` 文件记录部署版本：
 - 无此文件 → 未部署，需全新安装
 - `agents_version: 1` → 旧版，需重新部署以获取新 Agent
-- `agents_version: 2` → 当前版本
+- `agents_version: 2` → 旧版，需重新部署以获取 story-explorer agent
+- `agents_version: 3` → 当前版本
 
 ## 版本变更
 
-### v2 (当前)
+### v2
 
-- 4 个创作型 Agent（story-architect, character-designer, narrative-writer, consistency-checker）
+- 4 个创作型 Agent + 1 个研究型 Agent（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher）
 - Agent 引用 skill references 写作理论
 - Hook 脚本优化（减少 context 输出）
 - 4 条 path-scoped 规则
+
+### v3 (当前)
+
+- 新增 story-explorer 只读查询 Agent（角色/伏笔/设定/进度查询，日更上下文快速加载）
+- 6 个 Agent 总计（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher, story-explorer）
+- story-explorer 被 story-long-write、story-review、story 路由集成调用
