@@ -1,6 +1,6 @@
 # oh-story-claudecode
 
-网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 与 [OpenClaw](https://github.com/nicepkg/openclaw)（开源 Claude Code 增强客户端）。
+网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 与 [OpenClaw](https://github.com/openclaw/openclaw)（开源 Claude Code 增强客户端）。
 
 ## Highlights
 
