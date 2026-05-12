@@ -68,16 +68,16 @@ flowchart LR
 **方式二** 命令行：
 
 ```bash
-npx skills add worldwonderer/oh-story-claudecode -y
+npx skills add worldwonderer/oh-story-claudecode -y -g
 ```
 
-更新时重新执行同一条命令即可。
+`-g` 全局安装，所有目录可用；去掉 `-g` 则只装到当前目录。更新时重新执行同一条命令即可。
 
 ## Skills
 
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
-| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md 一键部署 |
+| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md 一键部署（已有配置安全合并） |
 | `story` | `/story` `/网文` | 工具箱路由 · 模糊意图自动分发到对应 skill |
 | `story-long-write` | `/story-long-write` `/写长篇` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |
@@ -87,11 +87,11 @@ npx skills add worldwonderer/oh-story-claudecode -y
 | `story-short-scan` | `/story-short-scan` | 短篇扫榜 · 知乎盐言/番茄短篇风口数据 |
 | `story-deslop` | `/story-deslop` `/去AI味` | 去AI味 · 检测并清除 AI 写作痕迹 |
 | `story-import` | `/story-import` `/导入小说` | 逆向导入 · 将已有小说反向解析为标准项目结构 |
-| `story-review` | `/story-review` `/审查` | 多视角审查 · 4 Agent 对抗式审稿 + 番茄/起点/知乎评分标准 |
+| `story-review` | `/story-review` `/审查` | 多视角审查 · 4 Agent 多视角审稿 + 番茄/起点/知乎评分标准 |
 | `story-cover` | `/story-cover` `/封面` | 封面生成 · 书名题材分析 + GPT-Image-2 出图 |
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
 
-自然语言同样触发：「帮我开书」→ `story-long-write`，「这篇太 AI 了」→ `story-deslop`，「把我的书导进来」→ `story-import`，「沈栀现在什么状态」→ `story-explorer`。
+自然语言同样触发：「帮我开书」→ `story-long-write`，「这篇太 AI 了」→ `story-deslop`，「把我的书导进来」→ `story-import`，「沈栀现在什么状态」→ 自动 spawn `story-explorer` agent。
 
 <details>
 <summary>封面生成示例</summary>
@@ -113,19 +113,22 @@ npx skills add worldwonderer/oh-story-claudecode -y
 | **story-researcher** | Sonnet | 资料研究 · CDP 搜索+正文提取、多源交叉验证、结构化参考文件输出 |
 | **story-explorer** | Haiku | 故事查询 · 角色/伏笔/设定/进度只读查询，日更上下文快速加载 |
 
-Agent 按需加载 `references/` 中的写作理论（角色设计、对话技法、反转工具箱等 110+ 种技法），不预占上下文。
+Agent 按需加载 `references/` 中的写作理论（角色设计、对话技法、反转工具箱等 100+ 份方法论文件），不预占上下文。
 
 ## 自动化 Hooks
 
-`/story-setup` 部署后自动生效的 5 个 hook：
+`/story-setup` 部署后自动生效的 6 个 hook：
 
 | Hook | 触发时机 | 功能 |
 |:-----|:---------|:-----|
 | session-start.sh | 会话开始 | 显示分支、进度快照、拆文状态 |
+| session-end.sh | 会话结束 | 记录会话日志到 `追踪/session-log.txt` |
 | detect-story-gaps.sh | 会话开始 | 检测设定缺口、大纲缺失、伏笔断线 |
 | pre-compact.sh | 上下文压缩前 | 保存进度快照路径和行数摘要 |
 | post-compact.sh | 上下文压缩后 | 提示读取进度快照恢复上下文 |
 | validate-story-commit.sh | git commit 时 | 检查硬编码属性、设定必填字段（仅警告，不阻断） |
+
+> Hook 输出会进入 Claude 的系统上下文供 AI 感知，不直接显示在对话中。手动查看：`bash .claude/hooks/session-start.sh`
 
 ## 项目文件结构
 
@@ -163,7 +166,19 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 │   └── {topic}.md       # 按研究主题拆分
 ```
 
+**短篇：**
+
+```
+短篇/{标题}/
+├── 正文/{标题}.md
+├── 小节大纲.md          # 8 节结构 + 情绪曲线
+├── 设定.md              # 人设 + 反转铺垫 + 结构物件
+└── 自检_{标题}.md       # 字数 / 禁用词 / 格式自检
+```
+
 **拆文库：** 拆文 skill 默认输出到项目根目录 `拆文库/{书名}/`，写作 skill 可直接引用其中的 `拆文报告.md` 作为对标参考。
+
+**`.active-book`：** 项目根目录的文本文件，内容是当前活跃书目的**相对路径**（如 `长篇/我的小说`），hook 和写作 skill 据此定位当前项目。
 
 ## 知识体系
 
@@ -190,13 +205,15 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 | 读者画像 | 9 维画像 · 目标读者分析 | long-scan |
 | 市场数据 | 题材趋势 · 平台特性 · 采集格式 · 投稿指南 | long-scan / short-scan |
 | 封面风格 | 10 大题材视觉风格 · 色彩构图 · 提示词模板 | story-cover |
-| 对抗式审查 | 多视角审稿 · 评分标准 · 毒点排查 | story-review |
+| 多视角审稿 | 多视角审稿 · 评分标准 · 毒点排查 | story-review |
 
 ## 适用平台
 
 **长篇** 起点中文网 · 番茄小说 · 晋江文学城 · 七猫小说 · 刺猬猫
 
 **短篇** 知乎盐言故事 · 番茄短篇 · 七猫短篇
+
+真实产出样例见 [demo/](demo/)：短篇《曾将爱意私藏》约 8500 字 · 封面《剑道独尊》示例图。
 
 这套 skill 现在能让我度过找工作的过渡期 :joy:，希望也能帮到有需要的朋友。
 
@@ -213,6 +230,10 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 ## 贡献
 
 欢迎贡献新 skill、补充知识库、更新市场数据。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## License
+
+[MIT](./LICENSE)
 
 ## 致谢
 
