@@ -119,10 +119,10 @@ metadata:
 
 ### 恢复机制
 
-- 中断时通过 `_progress.md` 追踪进度
-- 新会话读取 `_progress.md` 定位断点
+- 中断时通过进度文件追踪进度
+- 新会话读取进度文件定位断点
 - 从断点所在块的起始章节恢复
-- `_progress.md` 格式参照 [output-templates.md](../story-long-analyze/references/output-templates.md) 的 `_progress.md` 段落，包含当前阶段、最后处理章节、已完成阶段列表、更新时间
+- 进度文件格式参照 [output-templates.md](../story-long-analyze/references/output-templates.md) 中的进度段落，包含当前阶段、最后处理章节、已完成阶段列表、更新时间
 
 ### 质量门控
 
