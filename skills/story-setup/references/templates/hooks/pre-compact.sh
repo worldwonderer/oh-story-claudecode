@@ -2,17 +2,8 @@
 # pre-compact.sh — compact 前记录写作状态摘要（不 dump 内容）
 set -euo pipefail
 
-discover_book_dir() {
-  if [ -f ".active-book" ]; then
-    cat ".active-book"
-    return
-  fi
-  local root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-  local first=$(find "$root" -maxdepth 4 -type d -name "追踪" -print -quit 2>/dev/null || true)
-  if [ -n "$first" ]; then
-    dirname "$first"
-  fi
-}
+# 加载公共函数库
+source "$(dirname "$0")/lib/common.sh"
 
 echo "=== Pre-Compact Summary ==="
 

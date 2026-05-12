@@ -3,22 +3,8 @@
 # 设计原则：静默执行，不输出任何内容
 set -euo pipefail
 
-discover_book_dir() {
-  if [ -f ".active-book" ]; then
-    cat ".active-book"
-    return
-  fi
-  local root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-  local first=$(find "$root" -maxdepth 4 -type d -name "追踪" -print -quit 2>/dev/null || true)
-  if [ -n "$first" ]; then
-    dirname "$first"
-    return
-  fi
-  local story_files=$(find "$root" -maxdepth 3 -name "*.md" -path "*/正文/*" -print -quit 2>/dev/null || true)
-  if [ -n "$story_files" ]; then
-    dirname "$(dirname "$story_files")"
-  fi
-}
+# 加载公共函数库
+source "$(dirname "$0")/lib/common.sh"
 
 BOOK_DIR=$(discover_book_dir)
 

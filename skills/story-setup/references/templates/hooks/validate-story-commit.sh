@@ -17,7 +17,7 @@ while IFS= read -r -d '' file; do
 
   # 检查正文文件是否包含硬编码的情节值
   case "$file" in
-    */正文/*)
+    正文/*|*/正文/*)
       HARDCODED=$(grep -nE "(身高|体重|年龄)(：|:)[0-9]+" "$file" 2>/dev/null || true)
       if [ -n "$HARDCODED" ]; then
         WARNINGS="$WARNINGS\n⚠ $file: Hardcoded character attributes found (should reference 设定/ files):\n$HARDCODED"
@@ -25,11 +25,11 @@ while IFS= read -r -d '' file; do
       ;;
   esac
 
-  # 检查设定文件的必填字段
+  # 检查设定文件的必填字段（结构化匹配：key:value 格式）
   case "$file" in
-    */设定/*)
-      if ! grep -qE "^#|名字|名称" "$file" 2>/dev/null; then
-        WARNINGS="$WARNINGS\n⚠ $file: Setting file missing required fields (name/名字)"
+    设定/*|*/设定/*)
+      if ! grep -qE "^(名字|姓名|名称|name|Name)[：:]" "$file" 2>/dev/null; then
+        WARNINGS="$WARNINGS\n⚠ $file: Setting file missing required fields (name/名字: ...)"
       fi
       ;;
   esac

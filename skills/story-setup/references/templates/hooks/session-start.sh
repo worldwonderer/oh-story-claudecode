@@ -3,25 +3,8 @@
 # 设计原则：无可用信息时完全静默，不输出任何内容，避免污染 context
 set -euo pipefail
 
-# 发现活跃的书目目录（支持长篇和短篇项目）
-discover_book_dir() {
-  if [ -f ".active-book" ]; then
-    cat ".active-book"
-    return
-  fi
-  local root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-  # 长篇项目：查找 追踪/ 目录（支持深层嵌套，maxdepth 4）
-  local first=$(find "$root" -maxdepth 4 -type d -name "追踪" -print -quit 2>/dev/null || true)
-  if [ -n "$first" ]; then
-    dirname "$first"
-    return
-  fi
-  # 短篇项目：查找包含正文 .md 文件但没有 追踪/ 的目录
-  local story_files=$(find "$root" -maxdepth 3 -name "*.md" -path "*/正文/*" -print -quit 2>/dev/null || true)
-  if [ -n "$story_files" ]; then
-    dirname "$(dirname "$story_files")"
-  fi
-}
+# 加载公共函数库
+source "$(dirname "$0")/lib/common.sh"
 
 OUTPUT=""
 HAS_CONTENT=false
