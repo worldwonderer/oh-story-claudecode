@@ -8,6 +8,7 @@
 skills/
 ├── story/                   # 工具箱路由
 ├── story-setup/             # 环境部署
+├── story-import/            # 逆向导入
 ├── story-long-write/        # 长篇写作
 ├── story-long-analyze/      # 长篇拆文
 ├── story-long-scan/         # 长篇扫榜

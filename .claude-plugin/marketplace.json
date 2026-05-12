@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "网络小说创作工具箱 — 扫榜、拆文、写作全流程 Claude Code skill，覆盖长篇与短篇网文",
-    "version": "0.5.0"
+    "version": "0.6.0"
   },
   "plugins": [
     {
@@ -117,6 +117,16 @@
       "category": "novel-quality",
       "keywords": ["review", "audit", "multi-agent", "rubric", "审查", "评分", "番茄", "起点", "知乎", "chinese"],
       "skills": ["./skills/story-review"]
+    },
+    {
+      "name": "story-import",
+      "description": "逆向导入已有小说。将已写好的小说（半成品或完本）反向解析为标准项目目录结构，兼容后续写作流程。",
+      "source": "./",
+      "strict": false,
+      "version": "1.0.0",
+      "category": "novel-import",
+      "keywords": ["import", "reverse-engineer", "导入", "反推", "迁移", "chinese"],
+      "skills": ["./skills/story-import"]
     },
     {
       "name": "story-cover",
