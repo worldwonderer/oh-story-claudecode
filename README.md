@@ -1,6 +1,75 @@
 # oh-story-claudecode
 
-网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 Claude Code、OpenClaw。
+网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 与 [OpenClaw](https://github.com/nicepkg/openclaw)（开源 Claude Code 增强客户端）。
+
+## Highlights
+
+- **全流程覆盖** — 扫榜选材、拆文学习、大纲搭建、正文写作、去AI味、对抗式审查、封面生成，一站搞定
+- **安全合并部署** — `/story-setup` 一键部署 hooks/agents/rules，已有配置不覆盖，合并而非替换
+- **103 种写作技法** — 角色设计、钩子工具箱、反转技法、去AI味模板……按需加载，不占上下文
+
+## Quick Start
+
+4 步跑通你的第一个短篇：
+
+**1. 安装 skill 包**
+
+```bash
+npx skills add worldwonderer/oh-story-claudecode -g -y
+```
+
+`-g` 全局安装，所有项目可用。不加 `-g` 则只装到当前目录。
+
+**2. 初始化写作环境**
+
+在 Claude Code 里输入：
+
+```
+/story-setup
+```
+
+自动部署 hooks、agents、规则文件。已有配置不会被覆盖。
+
+**3. 用 demo 素材学写短篇**
+
+```
+学习 demo/短篇-曾将爱意私藏.txt，然后帮我写一篇知乎风格的追妻火葬场短篇小说
+```
+
+**4. 去AI味，出成品**
+
+```
+/story-deslop
+```
+
+自动检测并清除 AI 写作痕迹。
+
+<details>
+<summary>封面生成示例</summary>
+
+![封面示例 — 剑道独尊](demo/封面-剑道独尊.png)
+
+</details>
+
+## Installation
+
+**方式一** 直接告诉 Claude Code / OpenClaw：
+
+```
+安装这个 skill https://github.com/worldwonderer/oh-story-claudecode
+```
+
+**方式二** 命令行：
+
+```bash
+# 全局安装（推荐，所有项目可用）
+npx skills add worldwonderer/oh-story-claudecode -g -y
+
+# 项目级安装（仅当前目录可用）
+npx skills add worldwonderer/oh-story-claudecode -y
+```
+
+更新时重新执行同一条命令即可。`skills` 为 [Vercel Labs](https://github.com/vercel-labs/skills) 开源的 CLI 工具。
 
 ## 流程总览
 
@@ -39,6 +108,8 @@ flowchart LR
 
     subgraph S4 ["  精修定稿"]
         deslop["去 AI 味"]:::final
+        review["审查"]:::final
+        cover["封面"]:::final
     end
 
     entry_l --> setup
@@ -54,30 +125,18 @@ flowchart LR
     entry_i -.->|导入已有小说| setup
     setup -.->|逆向导入| write_l
     write_l --> deslop
+    write_l --> review
+    write_l --> cover
     write_s --> deslop
+    write_s --> review
+    write_s --> cover
 ```
-
-## 安装
-
-**方式一** 直接告诉 Claude Code / OpenClaw：
-
-```
-安装这个 skill https://github.com/worldwonderer/oh-story-claudecode
-```
-
-**方式二** 命令行：
-
-```bash
-npx skills add worldwonderer/oh-story-claudecode -y
-```
-
-更新时重新执行同一条命令即可。
 
 ## Skills
 
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
-| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md 一键部署 |
+| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md 一键部署，安全合并已有配置 |
 | `story` | `/story` `/网文` | 工具箱路由 · 模糊意图自动分发到对应 skill |
 | `story-long-write` | `/story-long-write` `/写长篇` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |
@@ -91,14 +150,7 @@ npx skills add worldwonderer/oh-story-claudecode -y
 | `story-cover` | `/story-cover` `/封面` | 封面生成 · 书名题材分析 + GPT-Image-2 出图 |
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
 
-自然语言同样触发：「帮我开书」→ `story-long-write`，「这篇太 AI 了」→ `story-deslop`，「把我的书导进来」→ `story-import`，「沈栀现在什么状态」→ `story-explorer`。
-
-<details>
-<summary>封面生成示例</summary>
-
-![封面示例 — 剑道独尊](demo/封面-剑道独尊.png)
-
-</details>
+自然语言同样触发：「帮我开书」→ `story-long-write`，「这篇太 AI 了」→ `story-deslop`，「把我的书导进来」→ `story-import`。
 
 ## Agent 体系
 
@@ -113,11 +165,13 @@ npx skills add worldwonderer/oh-story-claudecode -y
 | **story-researcher** | Sonnet | 资料研究 · CDP 搜索+正文提取、多源交叉验证、结构化参考文件输出 |
 | **story-explorer** | Haiku | 故事查询 · 角色/伏笔/设定/进度只读查询，日更上下文快速加载 |
 
-Agent 按需加载 `references/` 中的写作理论（角色设计、对话技法、反转工具箱等 110+ 种技法），不预占上下文。
+> `story-explorer` 是 Agent 而非 Skill，通过自然语言触发（如「沈栀现在什么状态」），在 Agents 模板中定义。
+
+Agent 按需加载 `references/` 中的写作理论（角色设计、对话技法、反转工具箱等 103 种技法），不预占上下文。
 
 ## 自动化 Hooks
 
-`/story-setup` 部署后自动生效的 5 个 hook：
+`/story-setup` 部署后自动生效的 6 个 hook：
 
 | Hook | 触发时机 | 功能 |
 |:-----|:---------|:-----|
@@ -125,7 +179,10 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 | detect-story-gaps.sh | 会话开始 | 检测设定缺口、大纲缺失、伏笔断线 |
 | pre-compact.sh | 上下文压缩前 | 保存进度快照路径和行数摘要 |
 | post-compact.sh | 上下文压缩后 | 提示读取进度快照恢复上下文 |
+| session-end.sh | 会话结束 | 输出进度摘要与下次续写建议 |
 | validate-story-commit.sh | git commit 时 | 检查硬编码属性、设定必填字段（仅警告，不阻断） |
+
+Hook 的输出（进度快照、缺口检测报告等）会在 Claude Code 会话中直接可见。
 
 ## 项目文件结构
 
@@ -161,6 +218,23 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 │   └── 时间线.md        # 故事内时间线
 ├── 参考资料/            # story-researcher 输出的研究资料
 │   └── {topic}.md       # 按研究主题拆分
+├── .active-book         # 当前活跃书名（hooks 读取此文件定位项目）
+```
+
+**短篇：**
+
+```
+短篇/
+├── {篇名}/
+│   ├── 设定/
+│   │   ├── 题材定位.md  # 题材、风格、对标
+│   │   └── 角色/        # 主要角色档案
+│   ├── 大纲/
+│   │   └── 大纲.md      # 情绪弧线、反转设计、钩子编排
+│   ├── 正文/
+│   │   └── {篇名}.md    # 完整正文
+│   └── 追踪/
+│       └── 上下文.md    # 上下文摘要
 ```
 
 **拆文库：** 拆文 skill 默认输出到项目根目录 `拆文库/{书名}/`，写作 skill 可直接引用其中的 `拆文报告.md` 作为对标参考。
@@ -198,6 +272,25 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 
 **短篇** 知乎盐言故事 · 番茄短篇 · 七猫短篇
 
+## Troubleshooting
+
+| 问题 | 解决方案 |
+|:-----|:---------|
+| `npx skills add` 报错 command not found | 确认 Node.js 18+ 已安装：`node -v`。`skills` CLI 由 Vercel Labs 提供，首次 `npx` 会自动下载 |
+| 安装后找不到 skill | 检查是否用了 `-g` 全局安装。项目级安装只对当前目录生效 |
+| `/story-setup` 后 hook 没生效 | hook 部署在 `.claude/settings.local.json` 的 `hooks` 段，检查该文件是否正确生成 |
+| 多本书怎么切换？ | 编辑项目根目录的 `.active-book` 文件，写入目标书名目录即可 |
+| 写作中途上下文丢失怎么办？ | hook 会在 compact 前自动保存进度快照到 `追踪/上下文.md`，compact 后会提示你读取恢复 |
+
+## Contributing
+
+欢迎贡献新 skill、补充知识库、更新市场数据。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 致谢
+
+- [LINUX DO - The New Ideal Community](https://linux.do) — 社区支持
+- [FanqieRankTracker](https://github.com/wen1701/FanqieRankTracker) — 番茄小说字体反爬解码方案参考
+
 这套 skill 现在能让我度过找工作的过渡期 :joy:，希望也能帮到有需要的朋友。
 
 ## Star History
@@ -209,12 +302,3 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=worldwonderer/oh-story-claudecode&type=date&legend=top-left" />
  </picture>
 </a>
-
-## 贡献
-
-欢迎贡献新 skill、补充知识库、更新市场数据。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-## 致谢
-
-- [LINUX DO - The New Ideal Community](https://linux.do) — 社区支持
-- [FanqieRankTracker](https://github.com/wen1701/FanqieRankTracker) — 番茄小说字体反爬解码方案参考
