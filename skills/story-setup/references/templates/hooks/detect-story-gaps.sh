@@ -1,6 +1,8 @@
 #!/bin/bash
 # detect-story-gaps.sh — 检测写作项目中的 5 项缺口
 # 设计原则：无缺口时完全静默，不输出任何内容，避免污染 context
+# 注意：本脚本有独立的短篇项目检测逻辑（find 正文/ 目录并去重），
+# 不使用 lib/common.sh 的 discover_book_dir（该函数只找单个目录）
 set -euo pipefail
 
 OUTPUT=""

@@ -1,6 +1,6 @@
 #!/bin/bash
 # common.sh — 公共函数库，供各 hook 文件 source
-set -euo pipefail
+# 注意：不加 set -euo pipefail，避免 source 时覆盖调用方的 shell options
 
 # 发现活跃的书目目录（支持长篇和短篇项目）
 # 长篇：查找 追踪/ 目录
