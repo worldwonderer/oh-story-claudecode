@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.0
+
+### 新功能
+
+- 新增 **story-explorer** 只读查询 Agent（Haiku）：10 种查询类型（角色状态、伏笔、设定、时间线、进度、上下文加载等），被 story-long-write、story-review、story 路由集成调用
+- 新增 **story-import** 逆向导入 Skill：4 阶段流水线（确认来源 → 深度分析 → 结构迁移 → 项目激活），将已有小说反向解析为标准项目目录结构
+- story 路由表新增「查故事资料」和「导入小说」入口
+
+### 改进
+
+- story-setup agents_version 升级到 v3（6 个 Agent）
+- UPGRADING.md 新增 v3 版本记录
+- story-long-write、story-review、workflow-daily 统一 story-explorer 集成模式（部署检测 + 结构化 prompt + 回退机制）
+- structure-mapping.md 新增势力/散落情节/悬念映射规则
+
+### 修复
+
+- structure-mapping.md 细纲反推表格格式修复（2 列 → 3 列 Markdown 表格）
+- story-explorer context_load 增加备用逻辑（追踪文件缺失时扫描正文推断章节号）
+- 统一所有调用点的参数命名为中文（项目目录/查询类型/查询参数）
+
 ## v0.5.0
 
 ### 参考文件操作手册格式重构（核心变更）

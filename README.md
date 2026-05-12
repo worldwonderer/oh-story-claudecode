@@ -83,6 +83,7 @@ npx skills add worldwonderer/oh-story-claudecode -y
 | `story-short-analyze` | `/story-short-analyze` | 短篇拆文 · 叙事结构、情绪曲线、钩子拆解 |
 | `story-short-scan` | `/story-short-scan` | 短篇扫榜 · 知乎盐言/番茄短篇风口数据 |
 | `story-deslop` | `/story-deslop` `/去AI味` | 去AI味 · 检测并清除 AI 写作痕迹 |
+| `story-import` | `/story-import` `/导入小说` | 逆向导入 · 将已有小说反向解析为标准项目结构 |
 | `story-review` | `/story-review` `/审查` | 多视角审查 · 4 Agent 对抗式审稿 + 番茄/起点/知乎评分标准 |
 | `story-cover` | `/story-cover` `/封面` | 封面生成 · 书名题材分析 + GPT-Image-2 出图 |
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
@@ -98,7 +99,7 @@ npx skills add worldwonderer/oh-story-claudecode -y
 
 ## Agent 体系
 
-写作 skill 内部通过 5 个专业 Agent 协作，各司其职：
+写作 skill 内部通过 6 个专业 Agent 协作，各司其职：
 
 | Agent | 模型 | 职责 |
 |:------|:-----|:-----|
@@ -107,6 +108,7 @@ npx skills add worldwonderer/oh-story-claudecode -y
 | **narrative-writer** | Sonnet | 叙事写手 · 正文写作、去AI味、格式合规 |
 | **consistency-checker** | Haiku | 一致性检查 · 事实冲突扫描、伏笔追踪、S1-S4 分级报告 |
 | **story-researcher** | Sonnet | 资料研究 · CDP 搜索+正文提取、多源交叉验证、结构化参考文件输出 |
+| **story-explorer** | Haiku | 故事查询 · 角色/伏笔/设定/进度只读查询，日更上下文快速加载 |
 
 Agent 按需加载 `references/` 中的写作理论（角色设计、对话技法、反转工具箱等 110+ 种技法），不预占上下文。
 
