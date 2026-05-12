@@ -4,7 +4,7 @@
 
 ## Highlights
 
-- **全流程覆盖** — 扫榜选材、拆文学习、大纲搭建、正文写作、去AI味、对抗式审查、封面生成，一站搞定
+- **全流程覆盖** — 扫榜选材、拆文学习、大纲搭建、正文写作、去AI味、多视角审稿、封面生成，一站搞定
 - **安全合并部署** — `/story-setup` 一键部署 hooks/agents/rules，已有配置不覆盖，合并而非替换
 - **103 种写作技法** — 角色设计、钩子工具箱、反转技法、去AI味模板……按需加载，不占上下文
 
@@ -146,7 +146,7 @@ flowchart LR
 | `story-short-scan` | `/story-short-scan` | 短篇扫榜 · 知乎盐言/番茄短篇风口数据 |
 | `story-deslop` | `/story-deslop` `/去AI味` | 去AI味 · 检测并清除 AI 写作痕迹 |
 | `story-import` | `/story-import` `/导入小说` | 逆向导入 · 将已有小说反向解析为标准项目结构 |
-| `story-review` | `/story-review` `/审查` | 多视角审查 · 4 Agent 对抗式审稿 + 番茄/起点/知乎评分标准 |
+| `story-review` | `/story-review` `/审查` | 多视角审稿 · 4 Agent 多角度审稿 + 番茄/起点/知乎评分标准 |
 | `story-cover` | `/story-cover` `/封面` | 封面生成 · 书名题材分析 + GPT-Image-2 出图 |
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
 
@@ -264,7 +264,7 @@ Hook 的输出（进度快照、缺口检测报告等）会在 Claude Code 会�
 | 读者画像 | 9 维画像 · 目标读者分析 | long-scan |
 | 市场数据 | 题材趋势 · 平台特性 · 采集格式 · 投稿指南 | long-scan / short-scan |
 | 封面风格 | 10 大题材视觉风格 · 色彩构图 · 提示词模板 | story-cover |
-| 对抗式审查 | 多视角审稿 · 评分标准 · 毒点排查 | story-review |
+| 多视角审稿 | 多角度审稿 · 评分标准 · 毒点排查 | story-review |
 
 ## 适用平台
 
