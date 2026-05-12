@@ -13,6 +13,7 @@ flowchart LR
     entry_l{{"长篇作者"}}:::entry
     entry_s{{"短篇作者"}}:::entry
     entry_r{{"已有方向"}}:::entry
+    entry_i{{"已有小说"}}:::entry
 
     subgraph S0 ["  环境部署"]
         setup["/story-setup"]:::phase
@@ -50,6 +51,8 @@ flowchart LR
     analyze_s --> write_s
     entry_r -.->|跳过准备| write_l
     entry_r -.->|跳过准备| write_s
+    entry_i -.->|导入已有小说| setup
+    setup -.->|逆向导入| write_l
     write_l --> deslop
     write_s --> deslop
 ```
@@ -88,7 +91,7 @@ npx skills add worldwonderer/oh-story-claudecode -y
 | `story-cover` | `/story-cover` `/封面` | 封面生成 · 书名题材分析 + GPT-Image-2 出图 |
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
 
-自然语言同样触发：「帮我开书」→ `story-long-write`，「这篇太 AI 了」→ `story-deslop`。
+自然语言同样触发：「帮我开书」→ `story-long-write`，「这篇太 AI 了」→ `story-deslop`，「把我的书导进来」→ `story-import`，「沈栀现在什么状态」→ `story-explorer`。
 
 <details>
 <summary>封面生成示例</summary>
