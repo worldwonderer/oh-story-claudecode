@@ -91,7 +91,11 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 | `story-cover` | `/story-cover` `/封面` | 封面生成 · 书名题材分析 + GPT-Image-2 出图 |
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
 
-自然语言同样触发：「帮我开书」→ `story-long-write`，「这篇太 AI 了」→ `story-deslop`，「把我的书导进来」→ `story-import`，「沈栀现在什么状态」→ 自动 spawn `story-explorer` agent。
+自然语言同样触发：
+- 「帮我开书」→ `story-long-write`
+- 「这篇太 AI 了」→ `story-deslop`
+- 「把我的书导进来」→ `story-import`
+- 「沈栀现在什么状态」→ 自动 spawn `story-explorer` agent
 
 <details>
 <summary>封面生成示例</summary>
