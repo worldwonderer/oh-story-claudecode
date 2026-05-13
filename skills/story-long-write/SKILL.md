@@ -75,6 +75,10 @@ metadata:
 - 节奏感好 → 推荐：都市爽文、重生文、游戏文
 - 生活经验丰富 → 推荐：行业文、都市日常、种田文
 
+#### Agent 调用：story-architect
+
+确认选题方向后，如果项目已部署 story-architect agent（检查 `.claude/agents/story-architect.md` 是否存在），可 spawn `Agent(subagent_type: "story-architect", prompt: "项目目录：{dir}\n任务类型：题材定位\n查询参数：{用户选择的方向+对标信息}")` 辅助题材分析和核心梗设计。如 agent 不可用，由主线程直接执行。
+
 ---
 
 ### Phase 2：核心设定
@@ -116,6 +120,14 @@ metadata:
 完成核心设定后，创建以下 artifact（加载 [references/artifact-protocols.md](references/artifact-protocols.md) 中对应模板）：
 - **设定/关系.md**：角色关系映射（参考 character-relations.md「四种关系类型」）
 - **设定/题材定位.md**：题材核心梗三分法+对标分析（参考 genre-core-mechanics.md「核心梗解析」）。对标分析表保留 2-3 行摘要，详细数据见 `对标/` 目录
+
+#### Agent 调用：story-architect + character-designer
+
+核心设定阶段，如果项目已部署对应 agent，可 spawn 以下 agent 辅助：
+- `Agent(subagent_type: "story-architect", prompt: "项目目录：{dir}\n任务类型：核心设定\n查询参数：世界观构建+核心冲突设计")` — 辅助世界观和核心冲突设计
+- `Agent(subagent_type: "character-designer", prompt: "项目目录：{dir}\n任务类型：角色设定\n查询参数：{主角设定信息}")` — 辅助角色设定和语言风格档案
+
+如 agent 不可用，由主线程直接执行。
 
 ---
 
@@ -165,6 +177,10 @@ metadata:
 - **追踪/伏笔.md** + **追踪/时间线.md**：伏笔状态表+故事时间线（参考 plot-core-methods.md「连续性追踪」）
 
 前 3 章细纲额外加载 [references/opening-design.md](references/opening-design.md)（黄金三章法则+六大标准）。
+
+#### Agent 调用：story-architect
+
+大纲搭建阶段，如果项目已部署 story-architect agent（检查 `.claude/agents/story-architect.md` 是否存在），可 spawn `Agent(subagent_type: "story-architect", prompt: "项目目录：{dir}\n任务类型：大纲搭建\n查询参数：卷级结构+细纲+钩子/反转/情绪弧线设计")` 辅助大纲排布、钩子/反转/情绪弧线设计。如 agent 不可用，由主线程直接执行。
 
 ---
 
@@ -248,7 +264,7 @@ metadata:
    - (7) `参考资料/{topic}.md`（如存在）— 历史研究资料（由 story-researcher 产出）
 3. **确认节奏**：本章是快节奏（冲突/打斗）还是慢节奏（铺垫/日常）
 3.5. **资料研究**（按需）：如果写作中遇到需要查证的外部事实（历史年代、地理方位、职业细节等），spawn `story-researcher` agent 搜索并输出到 `参考资料/` 目录。研究完成后再继续写作。
-4. **写作**：直接写入 `正文/第XXX章_章名.md`
+4. **写作**：如果项目已部署 narrative-writer agent（**必须先检查 `.claude/agents/narrative-writer.md` 是否存在**），spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：写正文\n章节：第{N}章\n细纲文件：大纲/细纲_第{N}章.md\n上一章：正文/第{N-1}章_*.md\n情绪目标：{从细纲读取}\n涉及角色：{从上下文读取}")` 执行正文写作，输出写入 `正文/第XXX章_章名.md`。如 narrative-writer agent 未部署，由主线程直接写作。
 5. **检查**：章尾是否有钩子、爽点是否到位、字数是否达标
 6. **禁用词扫描**：对照 `references/banned-words.md` 检查本章，一级词（高频AI腔）命中即替换；二级词（低频/语境相关）高频出现时替换，偶发可参考 `references/anti-ai-writing.md` 定性裁定
 7. **更新追踪**：写完后即时更新 `追踪/伏笔.md`（新增/回收伏笔）和 `追踪/时间线.md`（记录事件时序）
@@ -284,6 +300,14 @@ metadata:
 ### Phase 5：质量检查
 
 对已写内容做检查，参考 [references/quality-checklist.md](references/quality-checklist.md) 中的通用检查和长篇专项清单。
+
+#### Agent 调用：consistency-checker
+
+质量检查阶段，如果项目已部署 consistency-checker agent（检查 `.claude/agents/consistency-checker.md` 是否存在），spawn `Agent(subagent_type: "consistency-checker", prompt: "项目目录：{dir}\n检查范围：{本次写作的章节}\n检查类型：事实冲突+伏笔断线+角色属性不一致")` 执行一致性检查，获取 S1-S4 分级报告。如 agent 不可用，由主线程参照 quality-checklist.md 直接检查。
+
+#### Agent 调用：narrative-writer（去AI味审查）
+
+质量检查阶段，如果项目已部署 narrative-writer agent，可 spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：审查+去AI味\n检查范围：{本次写作的章节}")` 执行文字质量审查和去AI味检查。如 agent 不可用，由主线程直接执行。
 
 检查后更新追踪文件：
 - 更新 `追踪/伏笔.md` 中的过期伏笔和回收状态

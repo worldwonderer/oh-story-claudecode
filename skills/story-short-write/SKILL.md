@@ -58,6 +58,10 @@ metadata:
 
 > 如果用户有参考小说，先用 `/story-short-analyze` 拆解，输出存入 `拆文库/{书名}/`（或用户指定的 对标/ 目录）。写作时参考其结构/情绪/反转设计。
 
+#### Agent 调用：story-architect
+
+构思阶段，如果项目已部署 story-architect agent（检查 `.claude/agents/story-architect.md` 是否存在），可 spawn `Agent(subagent_type: "story-architect", prompt: "项目目录：{dir}\n任务类型：短篇构思\n查询参数：{情绪目标+题材方向}")` 辅助框架设计。如 agent 不可用，由主线程直接执行。
+
 帮用户确定短篇的核心框架：
 
 ```
@@ -103,6 +107,10 @@ metadata:
 5. 反转信息差验证（公式见 writing-workflow.md）
 6. 伏笔回查清单（标准见 writing-workflow.md）
 
+#### Agent 调用：character-designer
+
+设计任务完成后，如果项目已部署 character-designer agent（检查 `.claude/agents/character-designer.md` 是否存在），可 spawn `Agent(subagent_type: "character-designer", prompt: "项目目录：{dir}\n任务类型：角色设定\n查询参数：{人设速写+关系}")` 辅助角色设定和语言风格档案。如 agent 不可用，由主线程直接执行。
+
 ---
 
 ### Phase 3：逐场景写作
@@ -110,6 +118,10 @@ metadata:
 > 术语说明：Phase 3 按「段」划分叙事结构（开头段/铺垫段/升级段/反转段/结尾段），每段包含若干「小节」（数字编号的 beat）。「场景」指写作时的具体画面。
 
 **写作心法：你不是在翻译大纲，你在构建场景。读者要和主角一起经历。**
+
+#### Agent 调用：narrative-writer
+
+正文写作阶段，如果项目已部署 narrative-writer agent（检查 `.claude/agents/narrative-writer.md` 是否存在），spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：写正文\n情绪目标：{从核心框架读取}\n小节大纲：小节大纲.md\n涉及角色：{从核心框架读取}")` 执行正文写作。如 agent 不可用，由主线程直接写作。
 
 ⚠️ **硬约束：每节 ≥ 800 字 / 50-65 行**。
 题材例外：爽文、打脸、系统流等高信息密度题材可降至 ≥ 500 字/节（见 genre-writing-formulas.md 各题材速查表），但不得低于 500 字。
@@ -237,6 +249,14 @@ metadata:
 
 加载 `references/writing-workflow.md` 中的精修清单完成检查。
 重点：开头钩子、情绪曲线、反转铺垫、每句话价值、格式规范、AI 腔排查。
+
+#### Agent 调用：narrative-writer（去AI味）+ consistency-checker
+
+精修阶段，如果项目已部署对应 agent，可 spawn：
+- `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：去AI味+格式检查\n检查范围：{正文文件}")` — 执行去AI味（6 Gate）和格式合规检查
+- `Agent(subagent_type: "consistency-checker", prompt: "项目目录：{dir}\n检查范围：{正文文件}\n检查类型：事实冲突+伏笔断线+角色属性不一致")` — 执行一致性检查
+
+如 agent 不可用，由主线程直接执行。
 
 **自检记录隔离规则**：
 - 所有自检记录（字数统计、禁用词扫描结果、格式检查清单）必须写入独立文件 `自检_{标题}.md`（标题取自 Phase 2 核心框架）
