@@ -69,11 +69,11 @@ metadata:
 - 写入以下字段：
   ```
   deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">
-  agents_version: 3
+  agents_version: 4
   setup_skill_version: 1.0.0
   ```
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
-- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本 < 3，提示用户重新运行 story-setup 以更新 Agent（v3 新增 story-explorer 查询 agent）
+- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本 < 4，提示用户重新运行 story-setup 以更新 Agent（v4 新增 chapter-extractor 章节提取 agent）
 
 ## Phase 3：验证安装
 
@@ -127,8 +127,8 @@ hooks 注册合并按 command 字段去重：
 ## 重新部署
 
 - `.story-deployed` 不存在 → 全新安装，Phase 2 全部执行
-- `.story-deployed` 存在且 `agents_version: 3` → 提示已部署，AskUserQuestion 确认是否重新部署
-- `.story-deployed` 存在但 `agents_version` < 3 → 提示需要更新，重新执行 Phase 2 覆盖 agents/hooks/rules，CLAUDE.md 和 settings.local.json 走合并策略
+- `.story-deployed` 存在且 `agents_version: 4` → 提示已部署，AskUserQuestion 确认是否重新部署
+- `.story-deployed` 存在但 `agents_version` < 4 → 提示需要更新，重新执行 Phase 2 覆盖 agents/hooks/rules，CLAUDE.md 和 settings.local.json 走合并策略
 
 ---
 
@@ -139,7 +139,7 @@ hooks 注册合并按 command 字段去重：
 | references/templates/CLAUDE.md.tmpl | 项目根 CLAUDE.md 模板 |
 | references/templates/hooks/ | 6 个 hook 脚本模板 |
 | references/templates/rules/ | 4 条 path-scoped 规则模板 |
-| references/templates/agents/ | 6 个 agent 定义模板（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher, story-explorer） |
+| references/templates/agents/ | 7 个 agent 定义模板（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher, story-explorer, chapter-extractor） |
 | references/templates/settings-hooks.json | hooks 注册 JSON 片段 |
 | references/templates/上下文.md.tmpl | 写作上下文模板 |
 
