@@ -43,9 +43,9 @@ metadata:
 
 按 output-templates.md 中的模板输出：
 
-- **Phase 2**：黄金三章逐章拆解。按 [output-templates.md「快速 Phase 2 第一章」](references/output-templates.md) 模板输出第一章，第二三章按「快速 Phase 2 第二三章」说明追加关注点。
-- **Phase 3**：整体结构拆解。按 [output-templates.md「快速 Phase 3 整体结构」](references/output-templates.md) 输出故事线分析、人物架构、节奏地图。反派设计增加类型路由：人形反派用标准模板（层级/逼格/动机链）；非人形反派（灵气复苏/末世/国运等抽象对抗型）用：核心对抗面{描述} | 紧迫感来源{描述} | 升级机制{描述} | 叙事替代{用什么替代传统打脸}。
-- **Phase 4**：输出拆文报告。按 [output-templates.md「快速 Phase 4 拆文报告」](references/output-templates.md) 模板输出完整报告。写法技巧类型扩展：一笔两用、延迟揭示、视角欺骗、对比锚点、行为循环、身体反应替代心理描写、**跨章回扣**（物品/意象在不同章节承担不同功能）。
+- **Phase 2**：黄金三章逐章拆解。按 [output-templates.md](references/output-templates.md) 的「快速模式 > Phase 2 第一章」模板输出，第二三章追加信息密度/冲突升级/节奏变化关注点。
+- **Phase 3**：整体结构拆解。按 [output-templates.md](references/output-templates.md) 的「快速模式 > Phase 3 整体结构」模板输出故事线分析、人物架构、节奏地图。反派设计增加类型路由：人形反派用标准模板（层级/逼格/动机链）；非人形反派（灵气复苏/末世/国运等抽象对抗型）用：核心对抗面{描述} | 紧迫感来源{描述} | 升级机制{描述} | 叙事替代{用什么替代传统打脸}。
+- **Phase 4**：输出拆文报告。按 [output-templates.md](references/output-templates.md) 的「快速模式 > Phase 4 拆文报告」模板输出。写法技巧类型扩展：一笔两用、延迟揭示、视角欺骗、对比锚点、行为循环、身体反应替代心理描写、**跨章回扣**（物品/意象在不同章节承担不同功能）。
 
 **Phase 4+**（可选）：用户想保存结果时，提示「想系统拆解整本书？用深度模式。」
 
@@ -124,7 +124,7 @@ metadata:
 
 ## 质量门控概要
 
-阶段3-4完成前需通过质量检查，包含置信度、覆盖率、重叠率三项指标。具体阈值和计算方式见 [material-decomposition.md](references/material-decomposition.md)。自检清单见 [output-templates.md「质量检查」](references/output-templates.md)。
+阶段3-4完成前需通过质量检查，包含置信度、覆盖率、重叠率三项指标。具体阈值、计算方式和自检清单见 [material-decomposition.md 质量阈值体系](references/material-decomposition.md)。输出模板中的质量阈值速查见 [output-templates.md 质量阈值](references/output-templates.md)。
 
 ---
 
@@ -199,14 +199,14 @@ Stage 3-5 的分块策略：
 3. 从断点所在块的起始章节恢复
 4. 覆盖该块已有输出
 
-完整模板见 [output-templates.md「深度 阶段5：汇总报告」](references/output-templates.md)。
+完整模板见 [output-templates.md](references/output-templates.md) 的「深度模式 > 阶段5 汇总报告」部分。
 
 ---
 
 ## 流程衔接
 
 **流水线：** 长篇
-**位置：** 拆文（第 2/3 步）
+**位置：** 拆文（长篇流水线第 2 步，在 story-long-scan 之后、story-long-write 之前）
 
 | 时机 | 跳转到 | 命令 |
 |---|---|---|
