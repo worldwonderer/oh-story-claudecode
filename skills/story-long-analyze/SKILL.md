@@ -170,7 +170,7 @@ Agent(
 
 Stage 2 使用 chapter-extractor agent 按章节并行，不分块。
 
-Stage 3-5 的分块策略：
+Stage 3-5 的分块策略（输入分块大小 6-8K token/块，详见 [material-decomposition.md](references/material-decomposition.md)）：
 
 - 小型（<100章）：按阶段整体处理
 - 中型（100-500章）：按 5-8 章分块
