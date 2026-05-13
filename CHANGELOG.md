@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.0
+
+### 新功能
+
+- 新增 **chapter-extractor** 章节 Agent（Haiku）：客观白描铁律、动态密度公式、29词泛称黑名单、硬约束3次强化，支持并行章节提取
+- story-long-analyze 深度管线全面重构：对标 zenstory 14 个 prompt 模板，新增故事框架识别（预期数量引导+粒度混乱检测+4项自检）、4步聚合执行逻辑+5项筛选标准、3层置信度孤立情节兜底
+- 管线鲁棒性增强：Stage 3-4 并行执行图、计数验证（摘要数==章节数）、completed_with_errors 部分失败容忍、失败记录表
+
+### 改进
+
+- material-decomposition.md 方法论深化：两阶段角色模型、别名4类分类（proper_name/nickname/descriptor/title）、一人一实体原则、13种剧情类型描述、金手指8类分类+合并规则、语义分块硬约束+结构化元数据
+- output-templates.md 增强：character_arc 独立字段、故事线 periodization+伏笔回收+最低约束、金手指/世界观边界处理、框架识别自检模板
+- deconstruction-notes.md 新增管线阶段映射表
+- story-setup agents_version 升级到 v4（7 个 Agent）
+- story-import 管道表同步更新（情节点密度、角色过滤、质量门控指标）
+
+### 修复
+
+- material-decomposition.md 目录名统一为中文（chapters→章节 等）
+- output-templates.md 情节点密度矛盾修复（10-15→8-15动态调节）、情绪值补全（4→6）、重复行删除
+- SKILL.md 链接引用修正、质量门控指向权威来源（material-decomposition.md）
+- 孤立情节兜底 output-templates.md 同步为3层置信度
+
 ## v0.6.0
 
 ### 新功能
