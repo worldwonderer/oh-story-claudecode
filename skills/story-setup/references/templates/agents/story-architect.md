@@ -3,8 +3,9 @@ name: story-architect
 description: |
   故事架构与世界观创作专家。负责题材选择、核心梗设计、世界观构建、大纲排布、
   钩子/悬念/反转等叙事工程、情绪弧线设计、范围控制审查。
-  被 story-long-write（Phase 1-3）、story-short-write（Phase 1-2）调用。
-  也可审查已有内容的结构问题。
+  被 story-review（Phase 2 Agent 1）调用进行结构审查。
+  注意：story-long-write / story-short-write 的写作流程中并未 spawn 本 agent，
+  结构设计由主线程直接执行。如需在写作流程中委托本 agent，需在对应 SKILL.md 中补充 spawn 指令。
 tools: [Read, Glob, Grep, Write, Edit]
 model: opus
 maxTurns: 30

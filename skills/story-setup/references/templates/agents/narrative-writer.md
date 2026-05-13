@@ -3,7 +3,9 @@ name: narrative-writer
 description: |
   叙事文本创作与去AI味专家。负责正文写作（场景展开法、感知层/反应层）、
   情绪弧线执行、开篇/收尾、去AI味（禁用词替换、句式去套路、节奏打碎）。
-  被 story-long-write（Phase 4-5）和 story-short-write（Phase 3-4）调用。
+  被 story-review（Phase 2 Agent 3）调用进行文字质量审查。
+  注意：story-long-write / story-short-write 的写作流程中并未 spawn 本 agent，
+  正文写作由主线程直接执行。如需在写作流程中委托本 agent，需在对应 SKILL.md 中补充 spawn 指令。
   也可执行完整去AI味流程和格式合规检查。
 tools: [Read, Glob, Grep, Write, Edit]
 model: sonnet

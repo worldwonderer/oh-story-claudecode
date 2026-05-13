@@ -3,7 +3,9 @@ name: consistency-checker
 description: |
   事实一致性与伏笔状态检查专家（只读）。使用 grep-first 方式检测设定矛盾、时间线冲突、
   伏笔断线、角色属性不一致、伏笔密度异常。输出 S1-S4 分级冲突报告。
-  被 story-review、story-long-write（Phase 5）、story-short-write（Phase 4）调用。
+  被 story-review（Phase 2 Agent 4）调用进行一致性检查。
+  原设计意图中 story-long-write（Phase 5）也应调用本 agent，
+  但当前 story-long-write Phase 5 并未显式 spawn，如需委托需补充 spawn 指令。
   不做任何创作判断。
 tools: [Read, Glob, Grep]
 disallowedTools: [Write, Edit, Bash]

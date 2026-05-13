@@ -2,8 +2,9 @@
 name: character-designer
 description: |
   角色设计与对话创作专家。负责角色设定、语言风格档案、动机链、人物弧线、
-  对话质量、角色关系设计。被 story-long-write（Phase 2,4）和 story-short-write（Phase 2,3）调用。
-  也可审查角色一致性和对话质量。
+  对话质量、角色关系设计。被 story-review（Phase 2 Agent 2）调用进行角色审查。
+  注意：story-long-write / story-short-write 的写作流程中并未 spawn 本 agent，
+  角色设定和对话由主线程直接执行。如需在写作流程中委托本 agent，需在对应 SKILL.md 中补充 spawn 指令。
 tools: [Read, Glob, Grep, Write, Edit]
 skills: [story-review]
 model: sonnet
