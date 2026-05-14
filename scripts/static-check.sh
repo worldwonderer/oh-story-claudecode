@@ -209,6 +209,8 @@ check_skill() {
       # Only check filenames that look like reference docs (lowercase ASCII + hyphens + underscores)
       local base_name="$(basename "$ref_name")"
       [[ "$base_name" =~ ^[a-z0-9_-]+\.md$ ]] || continue
+      # Skip dynamic/runtime-generated files (underscore prefix)
+      [[ "$base_name" =~ ^_ ]] && continue
       # Try resolving: 1) relative to source file, 2) anywhere in this skill, 3) anywhere in skills/, 4) repo root
       local found=false
       local ref_dir="$(dirname "$src_file")"
