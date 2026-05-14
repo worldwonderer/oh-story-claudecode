@@ -106,7 +106,7 @@ Natural language also triggers: `帮我开书` ("help me start writing") → `st
 
 ## Agent System
 
-Writing skills internally coordinate 6 specialized agents:
+Writing skills internally coordinate 7 specialized agents:
 
 | Agent | Model | Role |
 |:------|:------|:-----|
@@ -118,15 +118,16 @@ Writing skills internally coordinate 6 specialized agents:
 | **story-explorer** | Haiku | Story query — read-only character/foreshadowing/setting/progress lookup, quick context loading |
 | **chapter-extractor** | Haiku | Chapter extraction — summaries, plot points, character mentions, parallel deconstruction unit |
 
-Agents load writing theory from `references/` on demand (character design, dialogue techniques, twist toolbox, etc. — 110+ techniques total), without reserving context window space.
+Agents load writing theory from `references/` on demand (character design, dialogue techniques, twist toolbox, etc. — 100+ methodology files), without reserving context window space.
 
 ## Automation Hooks
 
-5 hooks deployed automatically by `/story-setup`:
+6 hooks deployed automatically by `/story-setup`:
 
 | Hook | Trigger | Function |
 |:-----|:---------|:---------|
 | session-start.sh | Session start | Display branch, progress snapshot, deconstruction status |
+| session-end.sh | Session end | Log session to `追踪/session-log.txt` |
 | detect-story-gaps.sh | Session start | Detect setting gaps, missing outlines, foreshadowing breaks |
 | pre-compact.sh | Before context compaction | Save progress snapshot path and line-count summary |
 | post-compact.sh | After context compaction | Prompt to read progress snapshot for context recovery |

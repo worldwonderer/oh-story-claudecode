@@ -108,7 +108,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 ## Agent 体系
 
-写作 skill 内部通过 6 个专业 Agent 协作，各司其职：
+写作 skill 内部通过 7 个专业 Agent 协作，各司其职：
 
 | Agent | 模型 | 职责 |
 |:------|:-----|:-----|

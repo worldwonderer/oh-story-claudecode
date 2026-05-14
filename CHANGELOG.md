@@ -2,28 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## v0.7.0
+## v0.6.1
 
 ### 新功能
 
-- 新增 **chapter-extractor** 章节 Agent（Haiku）：客观白描铁律、动态密度公式、29词泛称黑名单、硬约束3次强化，支持并行章节提取
-- story-long-analyze 深度管线全面重构：对标 zenstory 14 个 prompt 模板，新增故事框架识别（预期数量引导+粒度混乱检测+4项自检）、4步聚合执行逻辑+5项筛选标准、3层置信度孤立情节兜底
-- 管线鲁棒性增强：Stage 3-4 并行执行图、计数验证（摘要数==章节数）、completed_with_errors 部分失败容忍、失败记录表
+- 新增 **chapter-extractor** 章节 Agent（Haiku）：客观白描铁律、动态密度公式（3-40范围）、100+项泛称黑名单（8类），支持并行章节提取
+- story-long-analyze 管线重构：故事框架识别、两步法剧情聚合、3层置信度孤立情节兜底
+- 管线鲁棒性：Stage 3-4 并行执行图、计数验证、completed_with_errors 部分失败容忍
 
 ### 改进
 
-- material-decomposition.md 方法论深化：两阶段角色模型、别名4类分类（proper_name/nickname/descriptor/title）、一人一实体原则、13种剧情类型描述、金手指8类分类+合并规则、语义分块硬约束+结构化元数据
-- material-decomposition.md 情节点密度对标 zenstory：从 8-15 硬上限扩展为 3-40 动态范围（150-200字/个），长章不再丢细节
-- material-decomposition.md 新增智能分块指引（>500章）：题材特化策略（修仙/都市/历史/玄幻）+ 四大铁律
-- material-decomposition.md 关系提取改为从情节点提取（不从原文），新增最终状态合并和 <5% 孤立阈值跳过
-- material-decomposition.md Stage 3.A 拆为两步法：先从摘要识别剧情大纲（含目标/冲突/类型），再按大纲分配情节点
-- chapter-extractor 角色过滤黑名单从 29 项扩展到 100+（亲属/社交/身份/年龄外貌/尊称贬称/通用指代/纯职位/组合职位）
-- chapter-extractor 新增单字过滤 + 别名去后缀规则（公子/姑娘/师父等）
-- SKILL.md 管道表 Stage 3 新增两步法剧情聚合描述、孤立兜底步数修正（4→6）
-- output-templates.md 增强：character_arc 独立字段、故事线 periodization+伏笔回收+最低约束、金手指/世界观边界处理、框架识别自检模板
-- deconstruction-notes.md 新增管线阶段映射表
+- 方法论深化：两阶段角色模型、别名4类分类、一人一实体原则、13种剧情类型、金手指8类分类
+- 情节点密度从 8-15 扩展为 3-40 动态范围（150-200字/个）
+- 新增智能分块（>500章）、关系提取改为从情节点提取、框架识别自检模板
 - story-setup agents_version 升级到 v4（7 个 Agent）
-- story-import 管道表同步更新（情节点密度、角色过滤、质量门控指标）
+- story-import 管道表同步更新
 
 ### 修复
 
