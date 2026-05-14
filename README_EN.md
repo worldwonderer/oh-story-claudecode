@@ -104,6 +104,34 @@ Natural language also triggers: `帮我开书` ("help me start writing") → `st
 
 </details>
 
+<details>
+<summary>Deconstruction demo — Coiling Dragon (deep analysis output)</summary>
+
+Full output from `/story-long-analyze` deep mode on the first 23 chapters of *Coiling Dragon* (original text excluded):
+
+```
+demo/拆文库-盘龙/
+├── 概要.md              # Novel overview + chapter index
+├── 拆文报告.md           # 5-dimension scoring + pacing analysis + takeaways
+├── 章节/
+│   ├── 第1章_深度拆解.md  # Golden三章 deep analysis
+│   └── 第1-23章_摘要.md   # Per-chapter summary + plot points + character mentions
+├── 角色/
+│   ├── 林雷.md           # Protagonist full profile
+│   ├── 霍格.md           # Core supporting
+│   ├── 希尔曼.md         # Core supporting
+│   ├── 德林柯沃特.md      # Core supporting
+│   ├── 沃顿.md           # Functional character
+│   └── 角色关系.md        # Relationship network
+├── 剧情/
+│   └── 故事线.md          # Framework + 4 plotlines + 2 storylines
+└── 设定/
+    ├── 世界观.md          # Power system + geography + factions
+    └── 金手指.md          # Panlong Ring + Delin Cowort
+```
+
+</details>
+
 ## Agent System
 
 Writing skills internally coordinate 7 specialized agents:
