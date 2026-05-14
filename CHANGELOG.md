@@ -17,7 +17,9 @@ All notable changes to this project will be documented in this file.
 - material-decomposition.md 新增智能分块指引（>500章）：题材特化策略（修仙/都市/历史/玄幻）+ 四大铁律
 - material-decomposition.md 关系提取改为从情节点提取（不从原文），新增最终状态合并和 <5% 孤立阈值跳过
 - material-decomposition.md Stage 3.A 拆为两步法：先从摘要识别剧情大纲（含目标/冲突/类型），再按大纲分配情节点
+- chapter-extractor 角色过滤黑名单从 29 项扩展到 100+（亲属/社交/身份/年龄外貌/尊称贬称/通用指代/纯职位/组合职位）
 - chapter-extractor 新增单字过滤 + 别名去后缀规则（公子/姑娘/师父等）
+- SKILL.md 管道表 Stage 3 新增两步法剧情聚合描述、孤立兜底步数修正（4→6）
 - output-templates.md 增强：character_arc 独立字段、故事线 periodization+伏笔回收+最低约束、金手指/世界观边界处理、框架识别自检模板
 - deconstruction-notes.md 新增管线阶段映射表
 - story-setup agents_version 升级到 v4（7 个 Agent）
