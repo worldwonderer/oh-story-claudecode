@@ -13,6 +13,9 @@ All notable changes to this project will be documented in this file.
 ### 改进
 
 - material-decomposition.md 方法论深化：两阶段角色模型、别名4类分类（proper_name/nickname/descriptor/title）、一人一实体原则、13种剧情类型描述、金手指8类分类+合并规则、语义分块硬约束+结构化元数据
+- material-decomposition.md 情节点密度对标 zenstory：从 8-15 硬上限扩展为 3-40 动态范围（150-200字/个），长章不再丢细节
+- material-decomposition.md 新增智能分块指引（>500章）：题材特化策略（修仙/都市/历史/玄幻）+ 四大铁律
+- material-decomposition.md 关系提取改为从情节点提取（不从原文），新增最终状态合并和 <5% 孤立阈值跳过
 - output-templates.md 增强：character_arc 独立字段、故事线 periodization+伏笔回收+最低约束、金手指/世界观边界处理、框架识别自检模板
 - deconstruction-notes.md 新增管线阶段映射表
 - story-setup agents_version 升级到 v4（7 个 Agent）
@@ -21,7 +24,7 @@ All notable changes to this project will be documented in this file.
 ### 修复
 
 - material-decomposition.md 目录名统一为中文（chapters→章节 等）
-- output-templates.md 情节点密度矛盾修复（10-15→8-15动态调节）、情绪值补全（4→6）、重复行删除
+- output-templates.md 情节点密度修复（8-15→3-40动态范围）、孤立阈值同步
 - SKILL.md 链接引用修正、质量门控指向权威来源（material-decomposition.md）
 - 孤立情节兜底 output-templates.md 同步为3层置信度
 
