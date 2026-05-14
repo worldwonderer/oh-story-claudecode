@@ -31,6 +31,8 @@ All notable changes to this project will be documented in this file.
 - output-templates.md 情节点密度修复（8-15→3-40动态范围）、孤立阈值同步
 - SKILL.md 链接引用修正、质量门控指向权威来源（material-decomposition.md）
 - 孤立情节兜底 output-templates.md 同步为3层置信度
+- 全书概要长度对标 zenstory（300-600→500-1000字），补全长篇体系感描述要求
+- SKILL.md 管道表 Stage 3 孤立兜底步数修正（4→6）
 
 ## v0.6.0
 
