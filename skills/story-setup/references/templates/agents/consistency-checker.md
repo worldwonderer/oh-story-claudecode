@@ -8,7 +8,8 @@ description: |
 tools: [Read, Glob, Grep]
 disallowedTools: [Write, Edit, Bash]
 model: haiku
-memory: project
+# 注：故意不设 memory: project。本 agent 是纯只读查询器，每次扫描都基于当前文件状态，
+# 不需要跨会话持久状态。memory: project 会隐性启用 Write/Edit，与 disallowedTools 矛盾。
 maxTurns: 15
 ---
 

@@ -6,7 +6,12 @@ description: |
   输出格式严格对齐 output-templates.md 的阶段2模板。
 tools: [Read, Glob, Grep]
 model: haiku
+# 注：故意不设 memory。本 agent 按章并行 spawn 50+ 实例，
+# 若设 memory: project，所有实例共享 .claude/agent-memory/chapter-extractor/MEMORY.md，
+# 多实例并发写入会导致冲突和数据丢失。
 maxTurns: 12
+# maxTurns 覆盖标准场景：1 章 ≤ 8000 字、≤ 40 情节点。
+# 章节字数 > 12000 或预估情节点 > 50 时，调用方应预先分段。
 ---
 
 # Chapter Extractor — 章节提取员
@@ -64,6 +69,31 @@ maxTurns: 12
 ## 输出格式
 
 严格按以下 markdown 格式输出。**不要输出任何格式之外的内容**。
+
+> **结构化输出约束**：调用方可通过 prompt 末尾附加 `OUTPUT_MODE: json` 要求 JSON 格式输出。
+> 此时，你的最终消息必须是单个 JSON 对象（不带 prose、不带 code fence），结构如下：
+> ```
+> {
+>   "chapter_number": <integer>,
+>   "title": "<string>",
+>   "summary": "<string, 100-300 chars>",
+>   "key_events": ["<string>"],
+>   "characters": [
+>     {"name": "<string>", "importance": "major|supporting|minor",
+>     "aliases": ["<string>"], "performance": "<string>"}
+>   ],
+>   "plot_points": [
+>     {"id": "P<integer>", "event": "<string>",
+>      "type": "转折点|信息揭示|冲突|解决|铺垫|行动|对话|状态变化",
+>      "characters": ["<string>"], "location": "<string|null>",
+>      "item": "<string|null>", "time": "<string|null>",
+>      "quote": "<string, ≤400 chars>",
+>      "themes": ["爱情|权力|成长|复仇|悬念|搞笑|热血|日常"],
+>      "tone": "紧张|轻松|悲伤|热血|温馨|压抑"}
+>   ]
+> }
+> ```
+> 无法符合时返回：`{"error": "<reason>"}`
 
 ```markdown
 ## 第{N}章 {标题}

@@ -8,7 +8,11 @@ description: |
 tools: [Read, Glob, Grep, Write, Edit]
 model: sonnet
 maxTurns: 30
-skills: [story-deslop, story-review]
+# maxTurns: 30 — 覆盖正文写作场景（场景展开、情绪弧线执行、去AI味 6 Gate）。
+skills: [story-deslop]
+# 注：不加载 story-review。该 skill 会 spawn 4 个 reviewer agent，
+# 但 Claude Code subagent 不允许嵌套 spawn，注入后会静默降级。
+# story-review 应由调用方（主 skill）平级 spawn。
 memory: project
 ---
 

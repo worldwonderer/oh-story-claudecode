@@ -8,6 +8,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run skill static check
         run: bash scripts/static-check.sh
+      - name: Check hook-regex sync
+        run: bash scripts/check-hook-regex-sync.sh
 
   windows:
     runs-on: windows-latest
