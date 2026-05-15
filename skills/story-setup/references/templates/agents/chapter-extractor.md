@@ -7,14 +7,7 @@ description: |
 tools: [Read, Glob, Grep]
 disallowedTools: [Write, Edit, Bash]
 model: haiku
-# JSON 结构化输出模式（OUTPUT_MODE: json）因 schema 复杂度较高，
-# 调用方若对 JSON 精度有严格要求，可在 prompt 中指定 model: sonnet 覆盖。
-# 注：故意不设 memory。本 agent 按章并行 spawn 50+ 实例，
-# 若设 memory: project，所有实例共享 .claude/agent-memory/chapter-extractor/MEMORY.md，
-# 多实例并发写入会导致冲突和数据丢失。
 maxTurns: 12
-# maxTurns 覆盖标准场景：1 章 ≤ 8000 字、≤ 40 情节点。
-# 章节字数 > 12000 或预估情节点 > 50 时，调用方应预先分段。
 ---
 
 # Chapter Extractor — 章节提取员
