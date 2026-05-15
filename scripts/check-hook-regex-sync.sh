@@ -35,27 +35,22 @@ fi
 echo "Protocol defines status values: $STATUS_ENUM"
 
 # 3. 区分"未关闭"和"已关闭"状态
-# "已关闭"状态（hook 不需要匹配这些）：
-CLOSED_STATES="已回收 已解决 已完成 已关闭"
-# 已回收是已关闭状态，不需要在 hook 的 "未关闭伏笔" 检测中匹配
-# 其余都是"未关闭"状态（hook 需要匹配）
+# "已关闭"状态（hook 不需要匹配这些）——须与 artifact-protocols.md 保持同步：
+CLOSED_STATES="已回收"
 
 # 4. 检查每个未关闭状态是否在 hook 中被匹配
 FAIL=""
-IFS='/'
-for state in $STATUS_ENUM; do
+while IFS= read -r state; do
+  [ -z "$state" ] && continue
+
   # 跳过已关闭状态
   is_closed=false
-  IFS_OLD="$IFS"
-  IFS=' '
   for closed in $CLOSED_STATES; do
-    IFS="$IFS_OLD"
     if [ "$state" = "$closed" ]; then
       is_closed=true
       break
     fi
   done
-  IFS="$IFS_OLD"
   if [ "$is_closed" = true ]; then
     echo "  SKIP (closed): $state"
     continue
@@ -68,8 +63,7 @@ for state in $STATUS_ENUM; do
     echo "  FAIL: $state → NOT matched in hook"
     FAIL="$FAIL $state"
   fi
-done
-unset IFS
+done < <(echo "$STATUS_ENUM" | tr '/' '\n')
 
 if [ -n "$FAIL" ]; then
   echo ""

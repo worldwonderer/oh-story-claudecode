@@ -10,7 +10,6 @@ model: opus
 maxTurns: 30
 # maxTurns: 30 — 覆盖创作型场景（大纲排布、情绪弧线设计、反转工程）。
 # opus 模型单次推理较慢，30 turns 足以完成复杂创作任务。
-skills: [story-review]
 memory: project
 ---
 
