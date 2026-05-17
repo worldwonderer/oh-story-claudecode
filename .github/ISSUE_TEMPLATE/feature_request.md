@@ -12,3 +12,9 @@ labels: enhancement
 ## 环境信息
 - **操作系统：** [macOS / Windows / Linux]
 - **使用模型：** [例如 Claude Opus 4.6 / GLM-5.1 / DeepSeek-V4]
+- **使用 Skill：** [例如 story-writer / novel-writer 等]
+- **写作类型：** [长篇 / 短篇]
+
+## 使用截图
+<!-- 如果有的话，贴一下运行截图或日志截图 -->
+
