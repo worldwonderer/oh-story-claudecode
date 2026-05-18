@@ -52,6 +52,7 @@ metadata:
 ### 2.4 部署 Agents
 - 读取 `skills/story-setup/references/templates/agents/` 下所有 `.md` 文件
 - 复制到用户项目的 `.claude/agents/` 目录
+- Agent 文件属于 story-setup 管理文件，可安全覆盖；版本升级时按 `UPGRADING.md` 的版本检测结果重新部署
 
 ### 2.5 部署 Session State 模板
 - 读取 `skills/story-setup/references/templates/上下文.md.tmpl`
@@ -69,11 +70,11 @@ metadata:
 - 写入以下字段：
   ```
   deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">
-  agents_version: 4
+  agents_version: 5
   setup_skill_version: 1.0.0
   ```
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
-- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本 < 4，提示用户重新运行 story-setup 以更新 Agent（v4 新增 chapter-extractor 章节提取 agent）
+- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本 < 5，提示用户重新运行 story-setup 以更新 Agent（v5 更新 narrative-writer 场景写法、段落密度规则和跨平台字数统计）
 
 ## Phase 3：验证安装
 
@@ -127,8 +128,8 @@ hooks 注册合并按 command 字段去重：
 ## 重新部署
 
 - `.story-deployed` 不存在 → 全新安装，Phase 2 全部执行
-- `.story-deployed` 存在且 `agents_version: 4` → 提示已部署，AskUserQuestion 确认是否重新部署
-- `.story-deployed` 存在但 `agents_version` < 4 → 提示需要更新，重新执行 Phase 2 覆盖 agents/hooks/rules，CLAUDE.md 和 settings.local.json 走合并策略
+- `.story-deployed` 存在且 `agents_version: 5` → 提示已部署，AskUserQuestion 确认是否重新部署
+- `.story-deployed` 存在但 `agents_version` < 5 → 提示需要更新，重新执行 Phase 2 覆盖 agents/hooks/rules，CLAUDE.md 和 settings.local.json 走合并策略
 
 ---
 

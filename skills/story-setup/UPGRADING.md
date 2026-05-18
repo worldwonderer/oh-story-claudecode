@@ -38,7 +38,9 @@
 - 无此文件 → 未部署，需全新安装
 - `agents_version: 1` → 旧版，需重新部署以获取新 Agent
 - `agents_version: 2` → 旧版，需重新部署以获取 story-explorer agent
-- `agents_version: 3` → 当前版本
+- `agents_version: 3` → 旧版，需重新部署以获取 story-explorer agent
+- `agents_version: 4` → 旧版，需重新部署以获取 chapter-extractor agent
+- `agents_version: 5` → 当前版本
 
 ## 版本变更
 
@@ -49,8 +51,19 @@
 - Hook 脚本优化（减少 context 输出）
 - 4 条 path-scoped 规则
 
-### v3 (当前)
+### v3
 
 - 新增 story-explorer 只读查询 Agent（角色/伏笔/设定/进度查询，日更上下文快速加载）
 - 6 个 Agent 总计（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher, story-explorer）
 - story-explorer 被 story-long-write、story-review、story 路由集成调用
+
+### v4
+
+- 新增 chapter-extractor 章节提取 Agent
+- 7 个 Agent 总计（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher, story-explorer, chapter-extractor）
+
+### v5 (当前)
+
+- 更新 narrative-writer 场景写法：使用“三维度织入”并按镜头断段控制段落密度
+- 字数统计改为 Python 字符统计优先，`wc -m` 仅作 macOS/Linux 备选，提升 Windows + DeepSeek/Claude Code 兼容性
+- 已部署项目重新运行 `/story-setup` 后获取新版 agent 定义
