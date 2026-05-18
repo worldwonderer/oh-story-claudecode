@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.5
+
+> 写作去 AI 味密度修复 + 对标路径说明统一
+
+### Bug 修复
+
+- 修复 Claude/Opus 4.7 下旧“三层展开”提示容易诱导的叠加式描写：同一动作/情绪不再按发生、感知、反应拆成多段重复描写
+- 修复三维度织入后一段到底的问题：新增镜头断段、手机阅读密度和输出前密度重排规则
+- 修复 Windows + DeepSeek/Claude Code 组合中字数统计偏差：优先使用 Python 字符统计，`wc -m` 仅作 macOS/Linux 备选，禁止模型估算和 `wc -c` 字节数
+
+### 改进
+
+- **story-short-write / story-long-write**：正文写作改为“三维度织入”，并明确按新动作/新物件/新信息/新对话断段
+- **story-deslop**：将“重复描写去重”纳入 Gate C/D，不再用专项门禁堆叠规则
+- **story-long-write / chapter-extractor / story-long-analyze**：长篇情节点密度统一为 150-200 字/个情节点，每章下限 10 个、上限 40 个
+- **story-setup**：agents_version 升级到 v5，narrative-writer 模板同步新版场景写法、段落密度和跨平台字数统计规则
+- **story-short-write**：统一短篇 `对标/` 与 `拆文库/` 路径说明：项目根 `拆文库/` 为原始产出，短篇目录 `对标/` 为当前作品引用视图
+
+### 验证
+
+- `git diff --check`
+- `bash scripts/static-check.sh`
+- `bash scripts/check-hook-regex-sync.sh`
+- tmux + Claude Code 场景实测：对比旧三层、三维度织入、镜头断段和密度重排后的段落/句长指标
+
 ## v0.6.4
 
 > 产线思路统一 — 核心思路集成 + 文件系统 + 准备层
