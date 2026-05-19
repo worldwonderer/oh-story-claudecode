@@ -40,7 +40,8 @@
 - `agents_version: 2` → 旧版，需重新部署以获取 story-explorer agent
 - `agents_version: 3` → 旧版，需重新部署以获取 story-explorer agent
 - `agents_version: 4` → 旧版，需重新部署以获取 chapter-extractor agent
-- `agents_version: 5` → 当前版本
+- `agents_version: 5` → 旧版，需重新部署以统一短篇主会话/子代理正文格式
+- `agents_version: 6` → 当前版本
 
 ## 版本变更
 
@@ -62,8 +63,13 @@
 - 新增 chapter-extractor 章节提取 Agent
 - 7 个 Agent 总计（story-architect, character-designer, narrative-writer, consistency-checker, story-researcher, story-explorer, chapter-extractor）
 
-### v5 (当前)
+### v5
 
 - 更新 narrative-writer 场景写法：使用“三维度织入”并按镜头断段控制段落密度
 - 字数统计改为 Python 字符统计优先，`wc -m` 仅作 macOS/Linux 备选，提升 Windows + DeepSeek/Claude Code 兼容性
 - 已部署项目重新运行 `/story-setup` 后获取新版 agent 定义
+
+### v6 (当前)
+
+- 统一 narrative-writer 子代理与主会话的短篇正文格式：固定写入 `正文.md`、小节标记统一、段落无空行、对话半角双引号
+- 短篇写作不再由 narrative-writer 创建长篇 `追踪/上下文.md`

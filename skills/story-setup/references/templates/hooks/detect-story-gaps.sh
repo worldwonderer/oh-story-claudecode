@@ -18,8 +18,12 @@ done < <(find "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" -maxdepth 4 
 # 短篇项目检测：查找包含 .md 文件但没有 追踪/ 子目录的项目目录
 SHORT_DIRS=()
 while IFS= read -r -d '' dir; do
-  SHORT_DIRS+=("$(dirname "$dir")")
-done < <(find "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" -maxdepth 3 -type d -name "正文" -print0 2>/dev/null || true)
+  if [ -d "$dir" ]; then
+    SHORT_DIRS+=("$(dirname "$dir")")
+  else
+    SHORT_DIRS+=("$(dirname "$dir")")
+  fi
+done < <(find "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" -maxdepth 3 \( -type d -name "正文" -o -type f -name "正文.md" \) -print0 2>/dev/null || true)
 
 # 从短篇目录中排除已被长篇检测到的目录
 for short_dir in "${SHORT_DIRS[@]+${SHORT_DIRS[@]}}"; do
@@ -49,6 +53,8 @@ for BOOK_DIR in ${BOOK_DIRS[@]+"${BOOK_DIRS[@]}"}; do
   SETTING_COUNT=0
   if [ -d "$BOOK_DIR/正文" ]; then
     CHAPTER_COUNT=$(find "$BOOK_DIR/正文" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+  elif [ -f "$BOOK_DIR/正文.md" ]; then
+    CHAPTER_COUNT=1
   fi
   if [ -d "$BOOK_DIR/设定" ]; then
     SETTING_COUNT=$(find "$BOOK_DIR/设定" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
@@ -68,13 +74,13 @@ for BOOK_DIR in ${BOOK_DIRS[@]+"${BOOK_DIRS[@]}"}; do
   fi
 
   # 5. 大纲缺失（按项目类型区分判定）
-  if [ -d "$BOOK_DIR/正文" ]; then
+  if [ -d "$BOOK_DIR/正文" ] || [ -f "$BOOK_DIR/正文.md" ]; then
     # 长篇判定：有 追踪/ 视为长篇，要求 大纲/ 目录
     if [ -d "$BOOK_DIR/追踪" ] && [ ! -d "$BOOK_DIR/大纲" ]; then
       BOOK_OUTPUT+="[WARN] $BOOK_NAME: 正文/ exists but 大纲/ is missing. Consider creating an outline first.\n"
     # 短篇判定：无 追踪/ 视为短篇，要求 小节大纲.md 单文件
     elif [ ! -d "$BOOK_DIR/追踪" ] && [ ! -f "$BOOK_DIR/小节大纲.md" ]; then
-      BOOK_OUTPUT+="[WARN] $BOOK_NAME: 正文/ exists but 小节大纲.md is missing. Consider creating an outline first.\n"
+      BOOK_OUTPUT+="[WARN] $BOOK_NAME: 正文 exists but 小节大纲.md is missing. Consider creating an outline first.\n"
     fi
   fi
 

@@ -23,10 +23,4 @@ STAGED=$(git diff --name-only --cached 2>/dev/null | wc -l | tr -d ' ') || STAGE
 echo "Git: ${CHANGED} unstaged, ${STAGED} staged"
 
 
-# 记录 compaction 时间戳
-if [ -n "$BOOK_DIR" ]; then
-  mkdir -p "$BOOK_DIR/追踪"
-  echo "[$(date '+%Y-%m-%dT%H:%M:%S%z')] compact performed" >> "$BOOK_DIR/追踪/compaction-log.txt"
-fi
-
 echo "=== Pre-Compact Complete ==="
