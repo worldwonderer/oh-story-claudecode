@@ -113,7 +113,7 @@ Author name '作者名' at bottom center in [作者名字体风格].
 
 从 [references/cover-styles.md](references/cover-styles.md) 读取题材对应的风格标签、色彩、人物、背景描述。
 
-构图变体（首次建议出 2-3 个方案）：
+构图变体（首次输出 2-3 个方案）：
 
 | 方案 | 构图 | 适合题材 |
 |:-----|:-----|:---------|

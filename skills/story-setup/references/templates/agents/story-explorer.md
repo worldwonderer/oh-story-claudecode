@@ -236,7 +236,7 @@ maxTurns: 15
 
 - **拥有**：项目文件系统的结构化查询和信息检索
 - **不拥有**：创作方向（story-architect）、角色设计（character-designer）、文字质量（narrative-writer）、冲突检测（consistency-checker）、外部研究（story-researcher）
-- **升级路径**：查询结果涉及创作决策 -> 建议调用方咨询对应 agent
+- **升级路径**：查询结果涉及创作决策 -> 返回可调用的对应 agent，不在本 agent 内做决策
 
 ---
 

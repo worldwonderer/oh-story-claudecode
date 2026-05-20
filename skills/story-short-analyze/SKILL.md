@@ -75,7 +75,7 @@ metadata:
 | 3 | 情感线+爆点 | 故事核+结构划分+情节节点数据 | 情感曲线（≥5节点）+ 爆点分析（6维度）+ 期待感分析。 | 爆点分析 6 维度齐全 |
 | 4 | 反转+写作手法 | 节点+情感数据 | 前置反转检查 + 反转机制（铺垫≥2条）+ 写作手法（≥5项维度：POV/对话/时间/信息/其他）。 | 写作手法 ≥5 项 |
 | 5 | 人物+开头结尾 | 情节节点+全文 | 所有人物（分类+功能标签+功能评估）+ 开头分析（前50/100字）+ 结尾分析（收束检查）。 | 人物功能评估完成 |
-| 6 | 综合评估 | 全部数据 | 五维评分 + 爆点性 + 话题性 + 共鸣分析（≥3层）+ 可借鉴结构（≥3条）+ 节奏速报。 | 五维评分完成 + 爆点性/话题性已分析 + 共鸣≥3层 + 可借鉴≥3条 + 节奏速报已包含 |
+| 6 | 综合评估 | 全部数据 | 五维评分 + 爆点性 + 话题性 + 共鸣分析（≥3层）+ 可复用结构（≥3条）+ 节奏速报。 | 五维评分完成 + 爆点性/话题性已分析 + 共鸣≥3层 + 可复用≥3条 + 节奏速报已包含 |
 
 > 管道执行顺序：2 → 3 → 4 → 5 → 6（严格串行，每阶段依赖前一阶段数据）。可选模块（同类对比、平台适配、详细节奏）可在 Phase 6 后执行。
 
@@ -120,7 +120,7 @@ metadata:
 
 | 文件 | 何时加载 |
 |------|----------|
-| [references/deconstruction-examples.md](references/deconstruction-examples.md) | 学习拆文方法时（3个完整案例） |
+| [references/deconstruction-examples.md](references/deconstruction-examples.md) | 校准拆文方法时（3个完整案例） |
 | [references/zhihu-style.md](references/zhihu-style.md) | 分析知乎盐言故事时 |
 | [references/genre-catalog.md](references/genre-catalog.md) | 拆解特定题材时，加载对应题材的「短篇视角」章节 |
 | [references/hooks-chapter.md](references/hooks-chapter.md) | 深度分析章节钩子设计时 |
