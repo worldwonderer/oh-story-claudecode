@@ -78,11 +78,11 @@ metadata:
 - 写入以下字段：
   ```
   deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">
-  agents_version: 6
+  agents_version: 7
   setup_skill_version: 1.0.0
   ```
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
-- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本 < 6，提示用户重新运行 story-setup 以更新 Agent（v6 统一短篇主会话/子代理正文格式；v5 更新 narrative-writer 场景写法、段落密度规则和跨平台字数统计）
+- 如果 `.story-deployed` 已存在但无 `agents_version` 或版本 < 7，提示用户重新运行 story-setup 以更新 hooks/agents/rules（v7 修复日更续写 continuation 与伏笔 hook 误报；v6 统一短篇主会话/子代理正文格式；v5 更新 narrative-writer 场景写法、段落密度规则和跨平台字数统计）
 
 ## Phase 3：验证安装
 
@@ -136,8 +136,8 @@ hooks 注册合并按 command 字段去重：
 ## 重新部署
 
 - `.story-deployed` 不存在 → 全新安装，Phase 2 全部执行
-- `.story-deployed` 存在且 `agents_version: 6` → 提示已部署，AskUserQuestion 确认是否重新部署
-- `.story-deployed` 存在但 `agents_version` < 6 → 提示需要更新，重新执行 Phase 2 覆盖 agents/hooks/rules，CLAUDE.md 和 settings.local.json 走合并策略
+- `.story-deployed` 存在且 `agents_version: 7` → 提示已部署，AskUserQuestion 确认是否重新部署
+- `.story-deployed` 存在但 `agents_version` < 7 → 提示需要更新，重新执行 Phase 2 覆盖 agents/hooks/rules，CLAUDE.md 和 settings.local.json 走合并策略
 
 ---
 

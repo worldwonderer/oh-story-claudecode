@@ -63,13 +63,21 @@ for BOOK_DIR in ${BOOK_DIRS[@]+"${BOOK_DIRS[@]}"}; do
     BOOK_OUTPUT+="[WARN] $BOOK_NAME: $CHAPTER_COUNT chapters but only $SETTING_COUNT setting files. Consider adding more settings.\n"
   fi
 
-  # 4. 未关闭的伏笔线索
+  # 4. 过期或异常伏笔线索
   if [ -f "$BOOK_DIR/追踪/伏笔.md" ]; then
-    # 正则与 artifact-protocols.md 状态枚举{未埋/已埋/已回收/已过期}对应，仅匹配未关闭状态。
-    # 同步校验脚本：scripts/check-hook-regex-sync.sh
-    STALE_FORESHADOW=$(grep -E '状态.*(未埋|已埋|已过期)' "$BOOK_DIR/追踪/伏笔.md" 2>/dev/null || true)
-    if [ -n "$STALE_FORESHADOW" ]; then
-      BOOK_OUTPUT+="[WARN] $BOOK_NAME: Open foreshadowing threads detected in 伏笔.md. Consider running /story-review.\n"
+    # 仅检查表格数据行中的状态列。正常开放状态（未埋/已埋）不报警，
+    # 避免长篇项目每次 SessionStart 都触发全量伏笔审计。
+    # 行为回归脚本：scripts/check-hook-regex-sync.sh
+    ABNORMAL_FORESHADOW=$(awk -F'|' '
+      function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
+      /^\|/ && $0 !~ /^\|[-[:space:]|]+$/ {
+        status=trim($6)
+        if (status == "" || status ~ /^状态\{/) next
+        if (status == "已过期" || (status != "未埋" && status != "已埋" && status != "已回收")) print
+      }
+    ' "$BOOK_DIR/追踪/伏笔.md" 2>/dev/null || true)
+    if [ -n "$ABNORMAL_FORESHADOW" ]; then
+      BOOK_OUTPUT+="[WARN] $BOOK_NAME: Overdue/abnormal foreshadowing entries detected in 伏笔.md. Consider /story-review lean or explicit foreshadow audit.\n"
     fi
   fi
 

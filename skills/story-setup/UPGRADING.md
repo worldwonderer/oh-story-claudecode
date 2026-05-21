@@ -41,7 +41,8 @@
 - `agents_version: 3` → 旧版，需重新部署以获取 story-explorer agent
 - `agents_version: 4` → 旧版，需重新部署以获取 chapter-extractor agent
 - `agents_version: 5` → 旧版，需重新部署以统一短篇主会话/子代理正文格式
-- `agents_version: 6` → 当前版本
+- `agents_version: 6` → 旧版，需重新部署以获取日更续写与伏笔 hook 修复
+- `agents_version: 7` → 当前版本
 
 ## 版本变更
 
@@ -69,7 +70,13 @@
 - 字数统计改为 Python 字符统计优先，`wc -m` 仅作 macOS/Linux 备选，提升 Windows + DeepSeek/Claude Code 兼容性
 - 已部署项目重新运行 `/story-setup` 后获取新版 agent 定义
 
-### v6 (当前)
+### v6
 
 - 统一 narrative-writer 子代理与主会话的短篇正文格式：固定写入 `正文.md`、小节标记统一、段落无空行、对话半角双引号
 - 短篇写作不再由 narrative-writer 创建长篇 `追踪/上下文.md`
+
+### v7 (当前)
+
+- 修复长篇 `/story-long-write 日更` 批量续写中的 continuation 规则：同一批次内“继续/续写/日更”保持在 daily workflow，不直接跳到正文续写。
+- 修复 `detect-story-gaps.sh` 对伏笔表头和正常开放伏笔（`未埋`/`已埋`）的误报；SessionStart 只提示 `已过期` 或异常状态。
+- 已部署项目需重新运行 `/story-setup`，以覆盖 `.claude/hooks/`、`.claude/agents/`、`.claude/rules/` 并获得新版 hook 行为。
