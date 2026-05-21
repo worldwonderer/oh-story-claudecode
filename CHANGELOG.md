@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.6
+
+> 日更续写稳定性 + 伏笔 hook 降噪
+
+### Bug 修复
+
+- 修复长篇 `/story-long-write 日更` 在多次会话后，同一批次内用户回复“继续”可能跳出 `workflow-daily.md`、直接进入正文续写的问题。
+- 修复日更流程偶发绕过真实项目文件、依赖聊天记忆写作的问题：每章开始前必须确认读取本轮 workflow 内的细纲、上一章正文、上下文、伏笔、时间线和角色状态/设定。
+- 修复 SessionStart hook 把正常开放伏笔（`未埋` / `已埋`）当成问题提示，进而诱发全量伏笔审计和 token 膨胀的问题。
+- 修复 `workflow-daily.md` 中裸 `SKILL.md` section 描述被本地 static-check 误判为断裂 section 引用的问题。
+
+### 改进
+
+- **story-long-write**：日更批量写作中，“继续 / 续写 / 日更”统一解释为继续当前 daily workflow，不重新进入场景选择，也不跳过状态筛选和意图确认。
+- **workflow-daily**：正常批量执行时不再逐章询问“是否继续”；仅在细纲缺失、章节号冲突、请求范围超过已有细纲、用户要求改大纲/追踪等真实阻塞时暂停确认。
+- **伏笔处理**：日更流程只处理本轮新增、推进、回收的增量伏笔；全量伏笔审计只由 `/story-review` 或用户明确要求触发。
+- **story-setup**：`agents_version` 升级到 v7，既有项目重新运行 `/story-setup` 后可获得新版 hook/agent/rule。
+- **CI/脚本**：`check-hook-regex-sync.sh` 从静态正则覆盖检查升级为行为级 fixture 校验，验证正常开放状态不报警、`已过期` 和异常状态报警。
+
+### 验证
+
+- `git diff --check`
+- `bash scripts/check-hook-regex-sync.sh`
+- `bash scripts/check-shared-files.sh`
+- `bash scripts/static-check.sh`
+- GitHub CI：macOS / Windows / static-check 全绿
+- tmux + Claude Code 场景实测：构造 42 章长篇项目，执行 `/story-long-write 日更` 写第43章，再回复“继续”写第44章；两轮均保持在 daily workflow，读取必需上下文/伏笔/时间线/角色状态，未触发全量伏笔审计。
+
 ## v0.6.5
 
 > 写作去 AI 味密度修复 + 对标路径说明统一
