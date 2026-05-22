@@ -339,9 +339,9 @@ metadata:
 
 | 时机 | 跳转到 | 命令 |
 |---|---|---|
-| 有参考小说想对标 | story-short-analyze | `/story-short-analyze`（拆文模式） → 输出存入 `拆文库/{书名}/` |
+| 有参考小说想对标 | story-short-analyze | `/story-short-analyze` → 输出存入 `拆文库/{书名}/` |
 | 写完，去 AI 味 | story-deslop | `/story-deslop` |
-| 想自检 | story-short-analyze | `/story-short-analyze`（自检模式） |
+| 想自检 | 本 skill 质量自检 | 用 Phase 4 自检流程 + `references/quality-checklist.md` 逐项核对 |
 | 需要市场方向 | story-short-scan | `/story-short-scan` |
 | 设定太大，适合长篇 | story-long-write | `/story-long-write` |
 
