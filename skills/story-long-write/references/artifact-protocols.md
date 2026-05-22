@@ -23,7 +23,7 @@
 
 > **拆文库/对标关系**：`拆文库/` = analyze skill 的原始产出（source of truth）。`对标/` = 写作项目的引用视图。首次引用时从 `拆文库/` 复制到 `对标/`。
 
-此文件由 `story-long-analyze` 的快速模式或深度模式输出。write skill 的职责是**读取**，不创建。
+此文件由 `story-long-analyze` 拆解管道输出（快速预览报告或完整拆文报告）。write skill 的职责是**读取**，不创建。
 
 如需手动创建简版对标摘要（未使用 analyze skill 时）：
 

@@ -3,7 +3,7 @@ name: story-import
 version: 1.0.0
 description: |
   逆向导入已有小说。将已写好的小说（半成品或完本）反向解析为标准项目目录结构，
-  兼容 story-long-write 的后续写作流程。内部复用 story-long-analyze 的深度分析管线。
+  兼容 story-long-write 的后续写作流程。内部复用 story-long-analyze 的拆解管线。
   触发方式：/story-import、「导入小说」「反向解析」「导入」「把我的书导进来」
 metadata:
   openclaw:
@@ -22,7 +22,7 @@ metadata:
 
 ### 原则 1：先分析后迁移
 
-先用深度分析管线完整拆解小说（输出到 `拆文库/`），再将分析结果迁移为项目结构。分析数据保留，不丢弃。
+先用拆解管线完整拆解小说（输出到 `拆文库/`），再将分析结果迁移为项目结构。分析数据保留，不丢弃。
 
 ### 原则 2：复用不重复
 
@@ -69,11 +69,11 @@ metadata:
 
 ## Phase 2：深度分析
 
-复用 story-long-analyze 的 6 阶段深度分析管线。分析方法论详见 [story-long-analyze/references/material-decomposition.md](../story-long-analyze/references/material-decomposition.md)，输出模板详见 [story-long-analyze/references/output-templates.md](../story-long-analyze/references/output-templates.md)。
+复用 story-long-analyze 的 6 阶段拆解管线。分析方法论详见 [story-long-analyze/references/material-decomposition.md](../story-long-analyze/references/material-decomposition.md)，输出模板详见 [story-long-analyze/references/output-templates.md](../story-long-analyze/references/output-templates.md)。
 
 ### 输出目录
 
-分析阶段输出到 `拆文库/{书名}/`（与 story-long-analyze 深度模式一致）：
+分析阶段输出到 `拆文库/{书名}/`（与 story-long-analyze 拆解管道一致）：
 
 ```
 拆文库/{书名}/
@@ -103,7 +103,7 @@ metadata:
 | 阶段 | 名称 | 输入 | 输出 | 完成标志 |
 |------|------|------|------|----------|
 | 0 | 概要提取 | 原始文本 | 概要.md + 章节索引 | 章节结构识别完成 |
-| 1 | 黄金三章 | 前 3 章原文 | 第 1-3 章_深度拆解.md | 3 章拆解完成 |
+| 1 | 黄金三章 | 前 3 章原文 | 第1章_深度拆解.md / 第2章_深度拆解.md / 第3章_深度拆解.md | 3 章拆解完成 |
 | 2 | 逐章摘要 | 分块章节文本 | 章节摘要.md（含情节点+角色）。每章3-40情节点（密度150-200字/个，按字数动态调节）。角色过滤（龙套不提取、别名归类）。**并行 chapter-extractor agent 模式**。**计数验证：摘要数 == 章节数**。 | 所有章节处理完成 |
 | 3 | 聚合分析 | 全部章节摘要 | 剧情/*.md + 故事线.md。**故事框架识别**（前置）。**两步法剧情聚合**（先从摘要识别剧情大纲，再按大纲分配情节点）。**角色合并**（跨章节去重+别名归一）。**角色分级**（主角/反派/核心配角/功能角色）。**孤立情节兜底**（6步，含覆盖率验证）。**质量门控**（置信度>=0.85/覆盖率85%-95%/重叠率<=35%）。 | 质量检查通过 |
 | 4 | 设定+关系 | 阶段 3 合并后角色数据+情节点 | 设定/*.md + 角色/*.md。**两阶段角色模型**。**别名解析**（置信度≥0.85自动合并）。 | 设定和关系提取完成 |
