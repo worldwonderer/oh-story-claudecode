@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.7
+
+> 拆书 skill 重构：长篇双模式合并 + 短篇去模式化
+
+### 改进
+
+- **story-long-analyze（长篇拆书）**：「快速 / 深度」双模式合并为单一拆解管道。「快速」不再是独立模式，而是管道跑完黄金三章（Stage 1）后的可停靠交付点——产出 `快速预览.md` 并询问是否继续全量拆解。确认后从 Stage 2 续跑，不重跑已完成阶段；`快速预览.md` 与终态 `拆文报告.md` 字段向上兼容。
+- **story-long-analyze**：文档单一事实源。质量阈值、分块策略统一归 `material-decomposition.md`；运维内容（`_progress.md` 模板、错误处理、恢复机制）拆出为独立的 `pipeline-ops.md`。
+- **story-short-analyze（短篇拆书）**：砍掉「标准 / 精细」双档，统一为单一全量拆解。双档在实操中无人遵守，连示范 demo 都没按标准模式产出。
+- **story-short-analyze**：质量阈值收敛到唯一权威文件；管道阶段术语 `Phase 2-6` 对齐为 `Stage 2-6`，与长篇 Stage 体系一致；新增原文备份前置步骤。
+- 黄金三章深度拆解产物由单文件拆为三个单章文件 `第N章_深度拆解.md`。
+- 同步更新下游 skill：story-long-write、story-import、chapter-extractor agent 模板的拆书术语与文件名引用。
+
+### Bug 修复
+
+- 修复 `story-short-write` 指向「自检模式 / 拆文模式」的悬空引用——这两个入口在 story-short-analyze 中并不存在。
+- 修复短篇拆书情节节点密度在三处文件给出不一致数值的问题，统一到唯一权威的字数分档表。
+
+### 验证
+
+- 长篇、短篇拆书各经独立验收，发现的问题已修复。
+- 长篇新管道用《盘龙》开篇 23 章端到端实跑，Stage 1 停靠点、断点续跑、字段向上兼容均跑通。
+- 全仓旧模式术语（快速模式 / 深度模式 / 标准模式 / 精细模式 / 自检模式）零残留。
+- GitHub CI：macOS / Windows / static-check 全绿。
+
 ## v0.6.6
 
 > 日更续写稳定性 + 伏笔 hook 降噪

@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-05-21 -->
+<!-- Last synced with README.md: 2026-05-22 -->
 
 **English** | [中文](README.md)
 
@@ -156,16 +156,13 @@ Writing skills internally coordinate 7 specialized agents:
 
 Agents load writing theory from `references/` on demand (character design, dialogue techniques, twist toolbox, etc. — 100+ methodology files), without reserving context window space.
 
-## Upgrading to v0.6.6
+## Upgrading to v0.6.7
 
-If you have already run `/story-setup` inside a writing project, run `/story-setup` again from the project root after updating this skill pack.
+This release refactors the long-form and short-form deconstruction skills. The changes live inside the deconstruction skills and take effect once you update the skill pack.
 
-This release bumps `agents_version` to v7 and focuses on reducing token blow-ups in 40+ chapter daily long-form writing projects:
-
-- After `/story-long-write 日更` enters the daily batch flow, same-batch “continue / rewrite / daily write” requests stay inside `workflow-daily.md` instead of jumping directly to prose writing.
-- Before each chapter, the workflow must read concrete project files from the current run: chapter outline, previous chapter prose, `追踪/上下文.md`, `追踪/伏笔.md`, `追踪/时间线.md`, and character status/settings.
-- The SessionStart hook now warns only for `已过期` or abnormal foreshadowing states; normal open states (`未埋` / `已埋`) no longer trigger full foreshadowing audits.
-- Daily writing only handles incremental foreshadowing changes for the current batch; run `/story-review` explicitly when you need a full audit.
+- **Long-form deconstruction**: the "quick / deep" dual modes are merged into a single pipeline. After the golden three chapters it produces `快速预览.md` and asks whether to continue the full deconstruction; on confirmation it resumes from where it paused without re-running completed stages.
+- **Short-form deconstruction**: the "standard / fine" dual tiers are removed in favor of a single full deconstruction; pipeline stage terminology is aligned with the long-form skill.
+- Quality thresholds and chunking strategy for both deconstruction skills are consolidated into a single authoritative file, so the docs no longer repeat themselves.
 
 ## Automation Hooks
 
