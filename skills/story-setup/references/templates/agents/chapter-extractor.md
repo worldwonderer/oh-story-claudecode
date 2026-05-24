@@ -3,7 +3,7 @@ name: chapter-extractor
 description: |
   章节摘要与情节点提取专家。接收单章文本，输出结构化摘要、情节点列表、角色提及。
   被 story-long-analyze（拆解管道 Stage 2）按章节并行调用。
-  输出格式严格对齐 output-templates.md 的阶段2模板。
+  输出格式严格遵循本文件「输出格式」章节；不依赖外部输出模板文件。
 tools: [Read, Glob, Grep]
 disallowedTools: [Write, Edit, Bash]
 model: haiku

@@ -2,7 +2,7 @@
 
 > **用途**：21个题材的结构骨架、情绪节拍、必选场景、关键规则。按题材分类，可直接套用。
 > **语气**：指令式——每个公式都是可直接套用的结构骨架。
-> **配合**：按当前 skill 加载通用技法 reference；长篇写作使用 style-craft，短篇写作/分析使用 genre-writing-techniques。
+> **配合**：优先使用当前 skill 内的通用技法 reference；story-setup 部署后使用项目本地 agent reference bundle 中的写作技法、结构格式、题材风格模块副本。
 
 ---
 

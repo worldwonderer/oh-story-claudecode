@@ -1,50 +1,28 @@
 #!/bin/bash
 # detect-story-gaps.sh — 检测写作项目中的 5 项缺口
 # 设计原则：无缺口时完全静默，不输出任何内容，避免污染 context
-# 注意：本脚本有独立的短篇项目检测逻辑（find 正文/ 目录并去重），
-# 不使用 lib/common.sh 的 discover_book_dir（该函数只找单个目录）
 set -euo pipefail
 
+# 加载公共函数库（project_root + discover_all_books）
+source "$(dirname "$0")/lib/common.sh"
+
+ROOT=$(project_root)
 OUTPUT=""
 HAS_WARNINGS=false
 
 # 1. 新项目检测：没有书名目录（同时支持长篇和短篇项目）
-# 长篇项目：查找 追踪/ 目录
-BOOK_DIRS=()
-while IFS= read -r -d '' dir; do
-  BOOK_DIRS+=("$(dirname "$dir")")
-done < <(find "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" -maxdepth 4 -type d -name "追踪" -print0 2>/dev/null || true)
+# bash 3.2 兼容：不用关联数组，由 discover_all_books 内部按顺序去重。
+declare -a BOOK_DIRS=()
+while IFS= read -r dir; do
+  [ -n "$dir" ] && BOOK_DIRS+=("$dir")
+done < <(discover_all_books)
 
-# 短篇项目检测：查找包含 .md 文件但没有 追踪/ 子目录的项目目录
-SHORT_DIRS=()
-while IFS= read -r -d '' dir; do
-  if [ -d "$dir" ]; then
-    SHORT_DIRS+=("$(dirname "$dir")")
-  else
-    SHORT_DIRS+=("$(dirname "$dir")")
-  fi
-done < <(find "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" -maxdepth 3 \( -type d -name "正文" -o -type f -name "正文.md" \) -print0 2>/dev/null || true)
-
-# 从短篇目录中排除已被长篇检测到的目录
-for short_dir in "${SHORT_DIRS[@]+${SHORT_DIRS[@]}}"; do
-  is_book=false
-  for book_dir in "${BOOK_DIRS[@]+${BOOK_DIRS[@]}}"; do
-    if [ "$short_dir" = "$book_dir" ]; then
-      is_book=true
-      break
-    fi
-  done
-  if [ "$is_book" = false ]; then
-    BOOK_DIRS+=("$short_dir")
-  fi
-done
-
-if [ ${#BOOK_DIRS[@]} -eq 0 ]; then
-  # 完全新项目，没有任何目录结构 — 静默，不输出
-  : # no-op
+if [ "${#BOOK_DIRS[@]}" -eq 0 ]; then
+  # 完全新项目，没有任何目录结构 — 静默退出
+  exit 0
 fi
 
-for BOOK_DIR in ${BOOK_DIRS[@]+"${BOOK_DIRS[@]}"}; do
+for BOOK_DIR in "${BOOK_DIRS[@]}"; do
   BOOK_NAME=$(basename "$BOOK_DIR")
   BOOK_OUTPUT=""
 
@@ -72,7 +50,7 @@ for BOOK_DIR in ${BOOK_DIRS[@]+"${BOOK_DIRS[@]}"}; do
       function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
       /^\|/ && $0 !~ /^\|[-[:space:]|]+$/ {
         status=trim($6)
-        if (status == "" || status ~ /^状态\{/) next
+        if (status == "" || status == "状态" || status ~ /^状态\{/) next
         if (status == "已过期" || (status != "未埋" && status != "已埋" && status != "已回收")) print
       }
     ' "$BOOK_DIR/追踪/伏笔.md" 2>/dev/null || true)
@@ -101,10 +79,10 @@ done
 
 # 3. 全局拆文未完成检测（项目级，非书目级）
 GLOBAL_PROGRESS_OUTPUT=""
-if [ -d "拆文库" ]; then
+if [ -d "$ROOT/拆文库" ]; then
   while IFS= read -r -d '' progress_file; do
-    GLOBAL_PROGRESS_OUTPUT+="[WARN] Incomplete analysis: $progress_file. Run /story-long-analyze to continue.\n"
-  done < <(find "拆文库" -name "_progress.md" -print0 2>/dev/null || true)
+    GLOBAL_PROGRESS_OUTPUT+="[WARN] Incomplete analysis: ${progress_file#$ROOT/}. Run /story-long-analyze to continue.\n"
+  done < <(find "$ROOT/拆文库" -name "_progress.md" -print0 2>/dev/null || true)
 fi
 if [ -n "$GLOBAL_PROGRESS_OUTPUT" ]; then
   OUTPUT+="$GLOBAL_PROGRESS_OUTPUT"

@@ -96,6 +96,28 @@ assert_foreshadow_warn() {
 }
 
 assert_no_foreshadow_warn "header-only" ""
+
+plain_header_root="$TMP_DIR/plain-header"
+mkdir -p "$plain_header_root/.claude/hooks/lib" "$plain_header_root/book/追踪" "$plain_header_root/book/正文" "$plain_header_root/book/设定" "$plain_header_root/book/大纲"
+cp "$HOOK_FILE" "$plain_header_root/.claude/hooks/detect-story-gaps.sh"
+cp "$COMMON_FILE" "$plain_header_root/.claude/hooks/lib/common.sh"
+chmod +x "$plain_header_root/.claude/hooks/detect-story-gaps.sh"
+cat > "$plain_header_root/book/追踪/伏笔.md" <<'EOF_PLAIN_HEADER'
+# 伏笔追踪
+
+| ID | 名称 | 埋下 | 回收 | 状态 | 备注 |
+|----|------|------|------|------|------|
+| F001 | 玉佩 | 第1章 | 第20章 | 未埋 | ok |
+EOF_PLAIN_HEADER
+plain_header_output=$(run_hook "$plain_header_root" || true)
+if echo "$plain_header_output" | grep -q 'foreshadowing entries detected\|伏笔'; then
+  echo "FAIL: plain-header should not emit foreshadow warning"
+  echo "Output:"
+  echo "$plain_header_output"
+  exit 1
+fi
+echo "  OK no warn: plain-header"
+
 assert_no_foreshadow_warn "planned-unplanted" "| F001 | 计划后续埋设 | 第5章 | 第10章 | 未埋 | 中 |"
 assert_no_foreshadow_warn "normal-open-planted" "| F002 | 正常开放伏笔 | 第1章 | 第20章 | 已埋 | 高 |"
 assert_no_foreshadow_warn "closed-recovered" "| F003 | 已回收伏笔 | 第1章 | 第3章 | 已回收 | 低 |"
