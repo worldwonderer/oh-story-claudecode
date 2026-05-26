@@ -90,6 +90,7 @@ metadata:
 │   ├── 世界观.md
 │   └── 金手指.md
 ├── 拆文报告.md
+├── 文风画像.md          # Stage 6 派生：整书级写作技法视图（句长/标点/对话潜台词/情绪交替 + 原文锚点 few-shot）
 └── _progress.md
 ```
 
@@ -108,6 +109,7 @@ metadata:
 | 3 | 聚合分析 | 全部章节摘要 | 剧情/*.md + 故事线.md。**故事框架识别**（前置，决定聚合策略）。**两步法剧情聚合**（先从摘要识别剧情大纲，再按大纲分配情节点）。**角色合并**（跨章节去重+别名归一）。**角色分级**（主角/反派/核心配角/功能角色）。**孤立情节兜底**（6步，含覆盖率验证）。**质量门控**（阈值详见 material-decomposition.md 质量阈值体系）。 | 质量检查通过 |
 | 4 | 设定+关系 | 阶段3合并后角色数据+情节点 | 设定/*.md + 角色/*.md。**两阶段角色模型**（Stage 2 轻量提及→Stage 4 完整档案）。**别名解析**（置信度≥0.85自动合并）。**角色关系提取**（从情节点提取，不从原文；含演变追踪+最终状态合并+隐含推断）。非人形反派在此阶段做完整抽象对抗型分析。 | 设定和关系提取完成 |
 | 5 | 汇总报告 | 全部输出 | 拆文报告.md（含「写法技巧」清单，覆盖一笔两用/延迟揭示/视角欺骗/对比锚点/行为循环/身体反应替代心理描写/**跨章回扣**——物品/意象在不同章节承担不同功能） | 报告生成完成 |
+| 6 | 文风画像派生 | 拆文报告.md + 章节/第1-3章_深度拆解.md + 章节/*_摘要.md + 原文/原文.txt | 文风画像.md（整书级写作技法视图：句长/标点/对话潜台词/情绪交替周期 + 4-6 段原文锚点 few-shot 片段，硬上限 ~4000 字。详见 [style-profile-protocol.md](references/style-profile-protocol.md) + [style-profile-generator.md](references/style-profile-generator.md)） | 画像落盘 `拆文库/{书名}/文风画像.md` |
 
 ### Stage 1 停靠点
 
@@ -120,6 +122,14 @@ Stage 0+1 完成后，管道**自动停靠**，产出快速预览报告并询问
    - 选「继续全量拆解」→ 读 `_progress.md`，从 **Stage 2** 续跑，**不重跑 Stage 0/1**。
    - 选「就到这里」→ 管道结束，`_progress.md` 状态保持 `paused_after_stage1`，告知用户「之后可随时 `/story-long-analyze` 同一本书，会自动从 Stage 2 续跑」。
 4. **跳过询问的情形**：用户在一开始就明确说「完整拆解 / 一次跑完 / 系统拆解 / 别问」时，仍生成 `快速预览.md`（保留早期判断快照），但**不停下询问**，直接从 Stage 2 续跑到 Stage 5。
+
+### Stage 6 文风画像派生
+
+Stage 5 完成后追加 Stage 6，从拆文产物综合派生 `文风画像.md`：句长分布、标点习惯、对话潜台词模式、情绪交替周期 + 4-6 段原文 few-shot 片段。
+
+按 [references/style-profile-generator.md](references/style-profile-generator.md) 的 6 步 SOP 跑；模板见 [references/style-profile-protocol.md](references/style-profile-protocol.md)。
+
+原文缺失或章节分隔符识别不出 → 画像 `degenerate: true`。Stage 6 失败不阻断管道。
 
 ### Stage 3-4 并行执行
 
@@ -230,6 +240,8 @@ Stage 3-5 的分块策略（规模分级、智能分块、跨块合并、输出�
 | [references/material-decomposition.md](references/material-decomposition.md) | Stage 2-5：5阶段方法论 + 质量阈值 + 分块策略 |
 | [references/pipeline-ops.md](references/pipeline-ops.md) | 管道运维：_progress.md 模板、错误处理、恢复机制操作步骤 |
 | [references/deconstruction-notes.md](references/deconstruction-notes.md) | 拆书方法+影视拆解+抽象拆解法+题材实战 |
+| [references/style-profile-protocol.md](references/style-profile-protocol.md) | Stage 6：文风画像 模板 + 字段定义 + confidence/degenerate 语义 |
+| [references/style-profile-generator.md](references/style-profile-generator.md) | Stage 6：文风画像 生成 SOP（6 步，含正确的中文数字章节正则 + 全角冒号 tone grep） |
 
 ---
 

@@ -40,6 +40,7 @@ maxTurns: 15
 | `progress` | 查写作进度 | "现在写到哪了？" |
 | `relationship` | 查角色关系 | "沈栀和林墨什么关系？" |
 | `context_load` | 综合上下文加载 | "我要写第N章，给我上下文" |
+| `benchmark_style_load` | 加载对标文风资料 | "准备写第 N 章，目标情绪={tone}，给我文风指令" |
 
 ---
 
@@ -133,6 +134,46 @@ maxTurns: 15
 2. `Grep 正文/` 角色名对 -> 找最近互动
 3. 返回关系描述 + 最新互动章节
 
+### benchmark_style_load 流程
+
+加载对标书的文风画像 + 按 tone 匹配章节的深度拆解 + 原文锚点片段。
+
+1. **解析输入**：项目目录 + 本章目标情绪 + （可选）本章爽点类型 + （可选）本章 target 字数
+2. **主对标书选择**：
+   - `Read 设定/题材定位.md`，提取 `主对标书` 字段
+   - 若有 → 用该书
+   - 若字段缺失 → `Glob 对标/*/` 取字典序第一个目录，并在 `gaps.main_benchmark_unspecified: true` 提示主对标书未指定
+3. **对标书路径查找**：优先 `{项目}/对标/{书名}/`，回退 `拆文库/{书名}/`（向上找到工作区根，再下钻拆文库）
+4. **读文风画像**：
+   - `Read {对标书路径}/文风画像.md`
+   - 不存在 → 返回 `gaps.profile_missing: true, expected_path: "..."`，**不继续后续步骤**
+   - 检查画像 header 的 `degenerate: true` → 返回 `gaps.profile_degenerate: true`（画像质量降级，但仍可作为软提示）
+5. **Staleness check**：
+   - 读画像「生成元信息」的 `拆文报告.md (mtime: ...)`
+   - `stat` 当前 `{对标书路径}/拆文报告.md` 实际 mtime
+   - 不匹配 → `gaps.profile_stale: true`，但仍返回画像（不阻塞）
+6. **章节 tone 候选集**：
+   - `Glob {对标书路径}/章节/*_摘要.md`
+   - 对每个文件 `Grep -hE '基调：(紧张|轻松|悲伤|热血|温馨|压抑)'`（**全角冒号**，不锚定行首）拿到该章所有情节点 tone
+   - 章基调聚合：众数（mode）；并列时按 grep 输出顺序取最早
+   - 候选集 = 章基调 == 目标情绪的章节列表
+7. **tone-distance fallback**（候选集空时）：
+   - 邻居矩阵：紧张↔热血 / 温馨↔轻松 / 悲伤↔压抑
+   - 用邻居 tone 重新筛候选集
+   - 仍空 → `gaps.tone_match_failed: true`，跳过 step 8 但仍返回画像
+8. **确定性 tiebreaker**（候选集多章时）：
+   - L1 爽点类型最强匹配（调用方提供爽点字段时，对每个候选章读 `_摘要.md` 的「关键事件」判断）
+   - L2 字数最接近本章 target（如提供）
+   - L3 章节号最小
+9. **读匹配章节深度拆解**：
+   - `Read {对标书路径}/章节/第K章_深度拆解.md`
+   - 提取「可借鉴要素」+ 反应层 + 章尾钩子类型
+10. **抽取原文锚点片段**（从画像里）：
+    - 从画像 `## 原文锚点片段` 段读出所有 tone-tagged 片段
+    - 按本章目标情绪选 1-2 段（精确匹配优先，无则取相邻 tone）
+    - 完整传递 300-500 字原文（不要截断/概括）
+11. **返回结构化 JSON**
+
 ### context_load 流程（综合查询）
 
 1. `Read 追踪/上下文.md` -> 进度摘要。如不存在，`Glob 正文/第*.md` 扫描最大章节号推断下一章编号
@@ -215,6 +256,33 @@ maxTurns: 15
     "chapter_plan": {},
     "characters": [],
     "previous_chapter_summary": "..."
+  }
+}
+```
+
+**benchmark_style_load**：
+```json
+{
+  "query_type": "benchmark_style_load",
+  "results": {
+    "style_profile_path": "对标/{书名}/文风画像.md",
+    "style_profile_summary": "<≤200字 提取核心：标点习惯 + 对话技法 + 情绪交替模式>",
+    "matched_chapter_K": 14,
+    "matched_chapter_techniques": "<深度拆解里的可借鉴要素，≤300字>",
+    "anchor_excerpts": [
+      {"tone": "悲伤", "source": "第14章 第7段（行 823-901）", "demo_point": "对话潜台词手法", "text": "<300-500字原文>"},
+      {"tone": "热血", "source": "第8章 第3段（行 401-465）", "demo_point": "爽点铺放比", "text": "<300-500字原文>"}
+    ]
+  },
+  "source_files": ["设定/题材定位.md", "对标/{书名}/文风画像.md", "对标/{书名}/拆文报告.md", "对标/{书名}/章节/第14章_深度拆解.md"],
+  "gaps": {
+    "profile_missing": false,
+    "profile_stale": false,
+    "profile_degenerate": false,
+    "stale_reason": null,
+    "main_benchmark_unspecified": false,
+    "raw_text_unavailable": false,
+    "tone_match_failed": false
   }
 }
 ```
