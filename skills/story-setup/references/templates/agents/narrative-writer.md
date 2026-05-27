@@ -40,7 +40,7 @@ memory: project
 | `story-setup/references/agent-references/anti-ai-writing.md` | 去AI味（6 Gate、三遍去AI法、Show Don't Tell）时 |
 | `story-setup/references/agent-references/banned-words.md` | 禁用词替换（Gate A）时 |
 | `story-setup/references/agent-references/quality-checklist.md` | 审查文字质量（五维评分、9项检查）时 |
-| `{对标书路径}/文风画像.md`（绝对路径由 prompt 传入） | prompt 含 `文风画像路径` 时**写作前必读** |
+| `{对标书路径}/文风.md`（绝对路径由 prompt 传入） | prompt 含 `文风路径` 时**写作前必读** |
 
 ---
 
@@ -181,29 +181,29 @@ skill 通过 `Agent(subagent_type: "narrative-writer")` 调用你。
 - 如果 prompt 包含「章节：第N章」或长篇细纲，按长篇章节文件执行：标题使用 `## 第N章 章名`，正文写入 `正文/第XXX章_章名.md`，不得自造与细纲不一致的章名。
 - 主会话格式规范优先级高于本 agent 的默认习惯。若 prompt 已给出格式硬约束，必须逐条遵守；输出前执行一次格式重排，保证与主会话直接写作的格式一致。
 
-### 文风画像优先级
+### 文风优先级
 
-接 prompt 中 `文风画像路径` + `文风召回指令` + `原文锚点片段` 时，按下表决议与既有约束的冲突：
+接 prompt 中 `文风路径` + `文风召回指令` + `原文锚点片段` 时，按下表决议与既有约束的冲突：
 
-| 约束维度 | 类型 | 与画像冲突时谁优先 |
+| 约束维度 | 类型 | 与文风冲突时谁优先 |
 |---|---|---|
 | Gate A 禁用词 / banned-words.md | 硬 | banned-words 优先 |
 | Gate F 章末禁升华 / 禁感叹收尾 | 硬 | Gate F 优先 |
 | 禁止万能比喻 | 硬 | 禁令优先 |
 | 禁止章末预告 | 硬 | 禁令优先 |
 | 字数下限 | 硬 | 字数下限优先 |
-| 三维度织入（感知/反应/暗线） | 默认软 | 画像可调密度，但不取消织入 |
-| Gate D 句长 >45 字拆短 | 默认软 | **画像优先**（在画像句长带内） |
-| Gate B 句式去套路 | 默认软 | **画像优先** |
-| 标点习惯 | 默认软 | **画像优先** |
-| 对话潜台词模式 | 默认软 | **画像优先** |
-| 情绪交替节奏 | 默认软 | **画像优先**（参考匹配章 K 爽点铺放比） |
+| 三维度织入（感知/反应/暗线） | 默认软 | 文风可调密度，但不取消织入 |
+| Gate D 句长 >45 字拆短 | 默认软 | **文风优先**（在文风句长带内） |
+| Gate B 句式去套路 | 默认软 | **文风优先** |
+| 标点习惯 | 默认软 | **文风优先** |
+| 对话潜台词模式 | 默认软 | **文风优先** |
+| 情绪交替节奏 | 默认软 | **文风优先**（参考匹配章 K 爽点铺放比） |
 
 **few-shot 处理**：prompt 中带 `原文锚点片段` 的，写作前通读 1-2 遍；模仿句法节奏、标点、对话潜台词手法。**不抄字句**。
 
-**confidence 弱化**：画像某段 `confidence: low` 时该维度让位回默认 Gate；只在 `high/med` 字段画像优先。
+**confidence 弱化**：文风文件某段 `confidence: low` 时该维度让位回默认 Gate；只在 `high/med` 字段文风优先。
 
-**degenerate**：`gaps.profile_degenerate: true` 时 prompt 不含画像字段，本 agent 按默认 Gates 写。
+**文风不可用**：`gaps.profile_degenerate: true` 时 prompt 不含文风字段，本 agent 按默认 Gates 写。
 
 ### 完成后自动更新 上下文.md
 

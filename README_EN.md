@@ -121,6 +121,7 @@ Full output from `/story-long-analyze` deep mode on the first 23 chapters of *Co
 demo/拆文库-盘龙/
 ├── 概要.md              # Novel overview + chapter index
 ├── 拆文报告.md           # 5-dimension scoring + pacing analysis + takeaways
+├── 文风.md              # Benchmark voice: sentence rhythm, punctuation, dialogue subtext, emotion pacing
 ├── 章节/
 │   ├── 第1章_深度拆解.md  # Golden三章 deep analysis
 │   └── 第1-23章_摘要.md   # Per-chapter summary + plot points + character mentions
@@ -137,6 +138,8 @@ demo/拆文库-盘龙/
     ├── 世界观.md          # Power system + geography + factions
     └── 金手指.md          # Panlong Ring + Delin Cowort
 ```
+
+Long-form deconstruction also produces `文风.md`; daily writing reads it to keep dialogue, punctuation, and emotional pacing close to the benchmark.
 
 </details>
 
@@ -208,6 +211,7 @@ The file system separates settings, outlines, prose, and tracking into independe
 │       ├── Characters/         # Structured character profiles (synced from analyze)
 │       ├── Plotlines/          # Structured plot lines (synced from analyze)
 │       ├── Settings/           # Structured world settings (synced from analyze)
+│       ├── 文风.md              # Benchmark voice used before daily writing
 │       └── Report.md            # Analyze skill output
 ├── Tracking/                # Continuity management (layered tracking)
 │   ├── Context.md           # Writing context (for compact recovery)

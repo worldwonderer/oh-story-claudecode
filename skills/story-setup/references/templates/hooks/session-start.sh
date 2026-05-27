@@ -40,8 +40,8 @@ if sentinel_exists "$ROOT/.story-deployed"; then
       HAS_CONTENT=true
       ;;
     *)
-      if [ "$AGENTS_VERSION" -lt 9 ]; then
-        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION is older than v9. Re-run /story-setup to refresh hooks and references.\n\n"
+      if [ "$AGENTS_VERSION" -lt 10 ]; then
+        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION is older than v10. Re-run /story-setup to refresh hooks, agents, and references.\n\n"
         HAS_CONTENT=true
       fi
       ;;

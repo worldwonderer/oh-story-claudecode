@@ -90,7 +90,7 @@ metadata:
 │   ├── 世界观.md
 │   └── 金手指.md
 ├── 拆文报告.md
-├── 文风画像.md          # Stage 6 派生：整书级写作技法视图（句长/标点/对话潜台词/情绪交替 + 原文锚点 few-shot）
+├── 文风.md          # Stage 6 文风：句长/标点/对话潜台词/情绪交替 + 原文锚点 few-shot
 └── _progress.md
 ```
 
@@ -98,7 +98,7 @@ metadata:
 
 这是 story-long-analyze 唯一的执行管道。Stage 0-1 跑完后**自动停靠**产出快速预览报告（见下「Stage 1 停靠点」），用户确认后从 Stage 2 续跑。
 
-**预期耗时提示**：开始前根据章节数给用户一个粗估：<50 章通常 30-60 分钟；50-200 章通常 1-3 小时；>200 章可能需要多轮会话。Stage 2 可并行提取，但 Stage 3-5 仍依赖前序产物，需按阶段推进。
+**预期耗时提示**：开始前根据章节数给用户一个粗估：<50 章通常 30-60 分钟；50-200 章通常 1-3 小时；>200 章可能需要多轮会话。Stage 2 可并行提取，但 Stage 3-6 仍依赖前序产物，需按阶段推进。
 
 
 | 阶段 | 名称 | 输入 | 输出 | 完成标志 |
@@ -109,7 +109,7 @@ metadata:
 | 3 | 聚合分析 | 全部章节摘要 | 剧情/*.md + 故事线.md。**故事框架识别**（前置，决定聚合策略）。**两步法剧情聚合**（先从摘要识别剧情大纲，再按大纲分配情节点）。**角色合并**（跨章节去重+别名归一）。**角色分级**（主角/反派/核心配角/功能角色）。**孤立情节兜底**（6步，含覆盖率验证）。**质量门控**（阈值详见 material-decomposition.md 质量阈值体系）。 | 质量检查通过 |
 | 4 | 设定+关系 | 阶段3合并后角色数据+情节点 | 设定/*.md + 角色/*.md。**两阶段角色模型**（Stage 2 轻量提及→Stage 4 完整档案）。**别名解析**（置信度≥0.85自动合并）。**角色关系提取**（从情节点提取，不从原文；含演变追踪+最终状态合并+隐含推断）。非人形反派在此阶段做完整抽象对抗型分析。 | 设定和关系提取完成 |
 | 5 | 汇总报告 | 全部输出 | 拆文报告.md（含「写法技巧」清单，覆盖一笔两用/延迟揭示/视角欺骗/对比锚点/行为循环/身体反应替代心理描写/**跨章回扣**——物品/意象在不同章节承担不同功能） | 报告生成完成 |
-| 6 | 文风画像派生 | 拆文报告.md + 章节/第1-3章_深度拆解.md + 章节/*_摘要.md + 原文/原文.txt | 文风画像.md（整书级写作技法视图：句长/标点/对话潜台词/情绪交替周期 + 4-6 段原文锚点 few-shot 片段，硬上限 ~4000 字。详见 [style-profile-protocol.md](references/style-profile-protocol.md) + [style-profile-generator.md](references/style-profile-generator.md)） | 画像落盘 `拆文库/{书名}/文风画像.md` |
+| 6 | 文风 | 拆文报告.md + 章节/第1-3章_深度拆解.md + 章节/*_摘要.md + 原文/原文.txt | 文风.md（整书级写作技法视图：句长/标点/对话潜台词/情绪交替周期 + 4-6 段原文锚点 few-shot 片段，硬上限 ~4000 字。详见 [style-profile-protocol.md](references/style-profile-protocol.md) + [style-profile-generator.md](references/style-profile-generator.md)） | 文风落盘 `拆文库/{书名}/文风.md` |
 
 ### Stage 1 停靠点
 
@@ -118,18 +118,18 @@ Stage 0+1 完成后，管道**自动停靠**，产出快速预览报告并询问
 1. **生成停靠交付物**：写 `拆文库/{书名}/快速预览.md`（模板见 [output-templates.md](references/output-templates.md) 的「快速预览报告」）。此时 `概要.md`、`章节/第1章_深度拆解.md`、`章节/第2章_深度拆解.md`、`章节/第3章_深度拆解.md`、`原文/` 均已落盘。
 2. **写停靠状态**：`_progress.md` 的「最终状态」字段写 `paused_after_stage1`，「断点」段记录「下一操作：Stage 2 逐章摘要」。
 3. **询问用户**（用 AskUserQuestion 风格的明确二选一）：
-   > 「黄金三章已拆完，快速预览报告见 `快速预览.md`。是否继续全量拆解（Stage 2-5：逐章摘要 / 聚合分析 / 设定关系 / 汇总报告）？预计耗时 {基于章节数粗估}。」
+   > 「黄金三章已拆完，快速预览报告见 `快速预览.md`。是否继续全量拆解（Stage 2-6：逐章摘要 / 聚合分析 / 设定关系 / 汇总报告 / 文风）？预计耗时 {基于章节数粗估}。」
    - 选「继续全量拆解」→ 读 `_progress.md`，从 **Stage 2** 续跑，**不重跑 Stage 0/1**。
    - 选「就到这里」→ 管道结束，`_progress.md` 状态保持 `paused_after_stage1`，告知用户「之后可随时 `/story-long-analyze` 同一本书，会自动从 Stage 2 续跑」。
-4. **跳过询问的情形**：用户在一开始就明确说「完整拆解 / 一次跑完 / 系统拆解 / 别问」时，仍生成 `快速预览.md`（保留早期判断快照），但**不停下询问**，直接从 Stage 2 续跑到 Stage 5。
+4. **跳过询问的情形**：用户在一开始就明确说「完整拆解 / 一次跑完 / 系统拆解 / 别问」时，仍生成 `快速预览.md`（保留早期判断快照），但**不停下询问**，直接从 Stage 2 续跑到 Stage 6。
 
-### Stage 6 文风画像派生
+### Stage 6 文风
 
-Stage 5 完成后追加 Stage 6，从拆文产物综合派生 `文风画像.md`：句长分布、标点习惯、对话潜台词模式、情绪交替周期 + 4-6 段原文 few-shot 片段。
+Stage 5 完成后追加 Stage 6，生成 `文风.md`：句长分布、标点习惯、对话潜台词模式、情绪交替周期 + 4-6 段原文 few-shot 片段。
 
 按 [references/style-profile-generator.md](references/style-profile-generator.md) 的 6 步 SOP 跑；模板见 [references/style-profile-protocol.md](references/style-profile-protocol.md)。
 
-原文缺失或章节分隔符识别不出 → 画像 `degenerate: true`。Stage 6 失败不阻断管道。
+原文缺失或章节分隔符识别不出 → 在 `文风.md` 的「生成记录」写明 `文风可用：否：{原因}`。Stage 6 失败不阻断管道。
 
 ### Stage 3-4 并行执行
 
@@ -237,11 +237,11 @@ Stage 3-5 的分块策略（规模分级、智能分块、跨块合并、输出�
 | 文件 | 何时加载 |
 |------|----------|
 | [references/output-templates.md](references/output-templates.md) | 管道全程：各 Stage 输出模板 + 快速预览报告模板 + 通用速查表 |
-| [references/material-decomposition.md](references/material-decomposition.md) | Stage 2-5：5阶段方法论 + 质量阈值 + 分块策略 |
+| [references/material-decomposition.md](references/material-decomposition.md) | Stage 2-5：素材拆解方法论 + 质量阈值 + 分块策略；Stage 6 另见文风资料 |
 | [references/pipeline-ops.md](references/pipeline-ops.md) | 管道运维：_progress.md 模板、错误处理、恢复机制操作步骤 |
 | [references/deconstruction-notes.md](references/deconstruction-notes.md) | 拆书方法+影视拆解+抽象拆解法+题材实战 |
-| [references/style-profile-protocol.md](references/style-profile-protocol.md) | Stage 6：文风画像 模板 + 字段定义 + confidence/degenerate 语义 |
-| [references/style-profile-generator.md](references/style-profile-generator.md) | Stage 6：文风画像 生成 SOP（6 步，含正确的中文数字章节正则 + 全角冒号 tone grep） |
+| [references/style-profile-protocol.md](references/style-profile-protocol.md) | Stage 6：文风模板 + 可信度/可用性说明 |
+| [references/style-profile-generator.md](references/style-profile-generator.md) | Stage 6：文风生成 SOP（6 步，含中文数字章节识别 + 全角冒号基调 grep） |
 
 ---
 

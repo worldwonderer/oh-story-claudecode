@@ -4,15 +4,15 @@
 
 > **日更准备步骤**：每章写作前 3 步——状态筛选 + 文风召回 + 意图确认，嵌入 Step 2 逐章循环。
 >
-> Step 2 必读两份对标资料：
-> 1. `{对标书路径}/文风画像.md`（整书级 ~4000 字，含原文锚点 few-shot）
-> 2. `{对标书路径}/章节/第K章_深度拆解.md`（按本章目标情绪匹配 tone 挑 1 章）
+> Step 2 必读两类对标资料：
+> 1. `{对标书路径}/文风.md`（整书级 ~4000 字，含原文锚点 few-shot）
+> 2. `{对标书路径}/章节/第K章_摘要.md`（按本章情绪/基调挑 1 章）；若同章存在 `第K章_深度拆解.md` 则加读，否则回退黄金三章深度拆解/文风文件里的可借鉴技巧
 >
 > 对标书路径查找：先 `{项目}/对标/{书名}/`，回退 `拆文库/{书名}/`。
 >
-> **画像缺失**：停止本章写作，不 inline 生成。报错：「对标书 X 缺少 文风画像.md。请用 `/story-long-analyze` 跑 Stage 6 生成画像，再 `/story-import` 同步。」
+> **文风缺失**：停止本章写作，不 inline 生成。报错：「对标书 X 缺少 文风.md。请用 `/story-long-analyze` 跑 Stage 6 生成文风，再 `/story-import` 同步。」
 >
-> **无对标项目**：跳过 Step 2.3，在 2.4 意图确认标记"无对标参考"。不读不存在的画像、不阻塞、不警告。
+> **无对标项目**：跳过 Step 2.3，在 2.4 意图确认标记"无对标参考"。不读不存在的文风、不阻塞、不警告。
 >
 > **多本对标书**：从 `设定/题材定位.md` 读 `主对标书` 字段；缺失时用 `对标/` 下字典序第一本并提示用户补字段。
 >
@@ -73,7 +73,7 @@
 第一卷·觉醒 | 废柴逆袭成天才 | 金手指觉醒，身世初现端倪
 ```
 
-> **首次日更 fallback**：如果 `追踪/` 目录下的文件全部为空或不存在（刚完成 Phase 3 但未日更过），额外加载 `大纲/卷纲_当前卷.md` 和最新一章正文来重建上下文。
+> **首次日更兜底**：如果 `追踪/` 目录下的文件全部为空或不存在（刚完成 Phase 3 但未日更过），额外加载 `大纲/卷纲_当前卷.md` 和最新一章正文来重建上下文。
 
 > **确定下一章编号 N**：从 `追踪/上下文.md` 的"最后完成章节"字段读取。如果文件不存在，扫描 `正文/` 目录中编号最大的章节 +1。
 
@@ -93,13 +93,14 @@
    - **2.1 标题预检**：扫描既有章节标题；如本章标题同名或明显重复，先按本章核心事件改名，并同步细纲标题与正文文件名
    - **2.2 状态筛选**：每章开始前必须确认以下来源已经在本轮 workflow 中读取或刚更新：本章细纲、上一章正文（或上一章刚写入的正文）、`追踪/上下文.md`、`追踪/伏笔.md`、`追踪/时间线.md`；涉及角色时，还必须确认 `追踪/角色状态.md` 或对应 `设定/角色/{角色名}.md` 的来源。"已加载"只指本轮 workflow 内实际读取/更新过的文件，不得用未标明来源的聊天记忆替代。角色最新状态优先从 `追踪/角色状态.md` 筛选（如不存在则从角色设定推断），待回收/推进伏笔从 `追踪/伏笔.md` 筛选；细纲不存在时仍按下方补建流程处理，不允许直接写正文
    - **2.3 文风召回**：
-     - 调 story-explorer 的 `benchmark_style_load` query_type（输入：项目目录 + 本章目标情绪 + 本章爽点类型 + 本章 target 字数）一次性拿到：`{style_profile_summary, matched_chapter_K, matched_techniques, anchor_excerpts, gaps}`
+     - 调 story-explorer 的 `benchmark_style_load` query_type（输入：项目目录 + 本章目标情绪 + 本章爽点类型 + 本章目标字数）一次性拿到：`{style_profile_path, style_profile_summary, matched_chapter_K, matched_chapter_techniques, anchor_excerpts, gaps}`
+     - 若 `gaps.no_benchmark: true` → 跳过文风召回，在 2.4 意图确认标记"无对标参考"
      - 若 `gaps.profile_missing: true` → 按上文 fail-fast 流程停止
-     - 若 `gaps.profile_degenerate: true`（画像降级） → 跳过画像、回到默认 Gates 写作
-     - 若 `gaps.tone_match_failed: true` → 仅用整书画像写作，不喂 matched_chapter
-     - 否则透传 `style_profile_path`、`matched_chapter_K`、`anchor_excerpts` 三个字段给 Step 2 末尾的 narrative-writer spawn prompt
-     - **无 story-explorer 时降级**：主会话手动按对标书路径查找读 `文风画像.md` + grep `章节/*_摘要.md` tone 字段找匹配章，然后读对应 `深度拆解.md`
-   - **2.4 意图确认**：从细纲「目标情绪」字段确认本章情绪目标，综合状态筛选结果 + 文风召回输出，用一句话写本章意图（情绪+节奏+文风指令）。文风指令例：「标点照画像破折号节拍、对话潜台词用问非所答、情绪交替参考第 K 章爽点铺放比。」
+     - 若 `gaps.profile_degenerate: true`（文风不可用） → 跳过文风、回到默认 Gates 写作
+     - 若 `gaps.tone_match_failed: true` → 仅用整书文风写作，不喂 matched_chapter
+     - 否则透传 `style_profile_path`、`style_profile_summary`、`matched_chapter_K`、`matched_chapter_techniques`、`anchor_excerpts` 给 Step 2 末尾的 narrative-writer spawn prompt；其中 `matched_chapter_techniques` 必须进入「文风召回指令」。准备层记录必须保留 `gaps` 原值，尤其 `gaps.matched_deep_dive_missing`；若为 true，文风召回指令中明确写“同章深度拆解缺失，已回退黄金三章/文风技巧”，不得在后续报告中反转为 false
+     - **无 story-explorer 时降级**：主会话手动按对标书路径查找读 `文风.md` + grep `章节/*_摘要.md` 的「基调」字段找匹配章，然后读对应 `第K章_摘要.md`；如 `第K章_深度拆解.md` 不存在，改读 `第1-3章_深度拆解.md` 中与本章基调最接近的一章
+   - **2.4 意图确认**：从细纲「目标情绪」字段确认本章情绪目标，综合状态筛选结果 + 文风召回输出，用一句话写本章意图（情绪+节奏+文风指令）。文风指令例：「标点照文风里的破折号节拍、对话潜台词用问非所答、情绪交替参考第 K 章爽点铺放比。」
    - 写正文 → **字数验证（优先 Python 字符统计，`wc -m` 仅作 Unix 备选，< 目标90%则强制扩充）** → 检查钩子/爽点 → 禁用词扫描
    - 每章写完后**立即更新**以下文件：
      - `追踪/伏笔.md`（新增/回收伏笔）

@@ -52,7 +52,7 @@ memory: project
 - 核心梗三代论：主题 -- 题材核心 -- 核心情绪，提炼全书驱动力
 - 微创新五手法：在已有题材框架上做差异化
 - 对标分析：从对标书中提取可借鉴的结构模式
-- **对标书清单**：题材定位输出必须含 `主对标书` 字段 + `对标书列表`（按引用强度标 主/辅/参考）。多本对标书时，`主对标书` 决定 story-long-write 日更默认调用哪本的文风画像；缺失字段会触发 story-long-write 用字典序第一本并提示用户补字段
+- **对标书清单**：题材定位输出必须含 `主对标书` 字段 + `对标书列表`（按引用强度标 主/辅/参考）。多本对标书时，`主对标书` 决定 story-long-write 日更默认调用哪本的文风；缺失字段会触发 story-long-write 用字典序第一本并提示用户补字段
 - **执行时读取** `story-setup/references/agent-references/genre-catalog.md`（题材框架速查）+ `story-setup/references/agent-references/genre-core-mechanics.md`（核心梗三代论、微创新五手法、金手指骨相分类）
 
 ### 世界观设定
