@@ -2,6 +2,10 @@
 # validate-story-commit.sh — 在 git commit 时检查格式问题（WARNING only, no BLOCKING）
 set -euo pipefail
 
+# Ensure UTF-8 handling for Chinese paths (Windows compatibility)
+export LANG=${LANG:-en_US.UTF-8}
+export LC_ALL=${LC_ALL:-en_US.UTF-8}
+
 # 仅在 git commit 命令时触发（由 settings.json 的 if 过滤器控制）
 # 其他 Bash 命令不应到达此脚本，但做安全检查
 

@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Ensure UTF-8 handling for Chinese paths (Windows compatibility)
+export LANG=${LANG:-en_US.UTF-8}
+export LC_ALL=${LC_ALL:-en_US.UTF-8}
+
 # 用 git 定位项目根目录，避免硬编码跳级
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "$REPO_ROOT" ]; then

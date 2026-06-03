@@ -2,6 +2,10 @@
 # detect-story-gaps.sh — 检测写作项目中的 5 项缺口
 set -euo pipefail
 
+# Ensure UTF-8 handling for Chinese paths (Windows compatibility)
+export LANG=${LANG:-en_US.UTF-8}
+export LC_ALL=${LC_ALL:-en_US.UTF-8}
+
 echo "=== Story Gap Detection ==="
 
 # 1. 新项目检测：没有书名目录

@@ -2,6 +2,10 @@
 # session-start.sh — 显示项目状态和写作上下文摘要
 set -euo pipefail
 
+# Ensure UTF-8 handling for Chinese paths (Windows compatibility)
+export LANG=${LANG:-en_US.UTF-8}
+export LC_ALL=${LC_ALL:-en_US.UTF-8}
+
 # 发现活跃的书目目录
 discover_book_dir() {
   if [ -f ".active-book" ]; then

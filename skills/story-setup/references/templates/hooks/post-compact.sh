@@ -2,6 +2,10 @@
 # post-compact.sh — compact 后提醒恢复上下文
 set -euo pipefail
 
+# Ensure UTF-8 handling for Chinese paths (Windows compatibility)
+export LANG=${LANG:-en_US.UTF-8}
+export LC_ALL=${LC_ALL:-en_US.UTF-8}
+
 discover_book_dir() {
   if [ -f ".active-book" ]; then
     cat ".active-book"

@@ -2,6 +2,10 @@
 # pre-compact.sh — compact 前记录写作状态摘要（不 dump 内容）
 set -euo pipefail
 
+# Ensure UTF-8 handling for Chinese paths (Windows compatibility)
+export LANG=${LANG:-en_US.UTF-8}
+export LC_ALL=${LC_ALL:-en_US.UTF-8}
+
 discover_book_dir() {
   if [ -f ".active-book" ]; then
     cat ".active-book"
