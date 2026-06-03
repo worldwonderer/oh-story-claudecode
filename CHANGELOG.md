@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.14
+
+> 细纲后自动补全新设定/角色（防设定漂移）· Windows `python3` 跨平台修复（Store 占位程序 exit 49）· SessionStart hook 中文化 · 文档纠偏（README_EN / CONTRIBUTING）· 工程守卫加固（python 调用 / 语法 / 共享文件精度）
+
+### 改进
+
+- **story-long-write（细纲后自动建档）**：Phase 3 细纲段新增「细纲后设定补全」——每批细纲建完后扫描会复用的新具名角色/势力/关键设定，自动建 `设定/角色|势力|世界观` 档案 + `追踪/角色状态` 初始条目。按卷纲/细纲判断是否复用，一次性路人不建档；已存在按细纲增量补充、不覆盖；只填细纲已确定信息、留占位符、不杜撰。产物映射表补 `设定/角色|势力` 行；单章流程 step 11 增补「正文里首次引入的会复用角色」按同规则建档。（Closes #123）
+- **SessionStart hook 中文化**：`detect-story-gaps.sh` 与 `session-start.sh` 面向作者展示的输出改为中文（保留 `[WARN]`/`[INFO]` 级别标记与 `/story-setup` 等命令名），降低非技术中文作者每次会话开始的理解成本。
+- **dialogue-mastery 语言差异化表补全为 7 维**：原表只有 5 行，与同文件自查清单及 character-designer agent 写的「7 维差异化」矛盾；补上「身份影响措辞 / 进度影响态度」两维，4 个字节同步副本（long-write / short-write / agent-references / story-review）一并更新。
+- **文档纠偏**：`README_EN` 安装命令补 `-g` 全局参数 + 全局/局部说明，短篇结构块纠正为真实文件名（`正文.md` / `小节大纲.md` / `拆文库/`，删不存在的 `References/`），对齐 `README.md`；`CONTRIBUTING` 把 CI 描述纠正为实际的 4 个守卫脚本 + `node --check`。
+- **story 路由（多书切换）**：新增「切换/列出书目」意图与多书切换流程（扫描含 `追踪/`、`设定/` 的书目录，写回 `.active-book`）。
+
+### Bug 修复
+
+- **Windows 下 `python3` 触发 Store 占位程序 exit 49（修复 #121）**：真因是 Windows 上 `python3` 解析到 Microsoft Store 的 App Execution Alias 占位程序，在非交互子进程（Claude Code 的 Git Bash）里静默 `exit 49`，与中文路径无关。所有文档化的「跨平台字数统计」`python3` 调用改为解释器探测（`python3`→`python`→`py` 选可用者）；`validate-story-commit.sh` 的 `command -v python3` 守卫换成实跑探测（占位程序会让 `command -v` 误判存在）。（取代 #122）
+- **agent 模板枚举漂移修复**：`story-architect` 情绪弧线对齐 emotional-arc-design（V形/倒V形/W形/递进/延迟满足/急转）、章首钩子改「按开篇策略选类型」、删残留玄学公式；`character-designer` 对话权力模式改 压制/反转/心死（对齐 dialogue-mastery）。
+
+### 工程
+
+- **跨平台 python 守卫**：新增 `scripts/check-python-invocation.sh`（禁止 `skills/` 里裸调 `python3`，覆盖 `-c`/`-m`/`<<`/脚本路径，放行探测列表与说明文字）与 `scripts/test-charcount-portable.sh`（构造中文路径 + 已知字数断言，`--stub` 模式塞入 exit-49 假 `python3` 复现 Windows 故障并断言回退到可用解释器）；`cross-platform.yml` 三平台接入，Windows 用 Git Bash 跑 stub 测试。
+- **CI 语法守卫**：`cross-platform.yml` static-check 新增 `node --check`，覆盖全部 `*-scraper.js` + `cdp-utils.js` + `setup-cdp-chrome.js`（此前 0 覆盖，语法回归可直接进主干）。
+- **采集脚本健壮性（7 个 scraper）**：`writeFileSync` 前补 `fs.mkdirSync(OUTDIR,{recursive})`（`--outdir` 指向不存在目录不再 ENOENT 丢数据）；裸 `main()` 统一包 try/catch + `process.exit(1)`；fanqie 额外补 per-category / per-channel try/catch（单品类/单频道失败不中断整轮）。
+- **check-shared-files 精度提升**：`character-basics` / `character-design-methods` / `character-relations` 此前被整体豁免、漂移不报警；改为只排除 story-short-analyze 那份（带分析师视角 header 的有意分叉），其余副本仍强制字节一致，恢复对 writer↔writer 漂移的守卫。
+
+### 说明
+
+- 同名共享文件改动均按 `check-shared-files.sh` 字节同步到全部副本；三平台 CI 守卫全绿。
+- `story-deslop` rubric 收紧仍在分支开发中，留待后续版本。
+
 ## v0.6.13
 
 > write skill references 一致性修复 + 抽象概念可落地化（补真实网文例子 / 删黑话比喻）+ 同 skill 去重（指针化）+ agent 模板枚举漂移修复
