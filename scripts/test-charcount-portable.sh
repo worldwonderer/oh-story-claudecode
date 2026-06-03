@@ -25,9 +25,8 @@ trap 'rm -rf "$WORK"' EXIT
 # 中文目录 + 中文文件名，复现 issue #121 的路径场景
 BOOK_DIR="$WORK/小说项目/第一卷"
 mkdir -p "$BOOK_DIR"
-FILE="$BOOK_DIR/正文.md"
 # 12 个码位：中文字数测试(6) + ABC(3) + 123(3)，无结尾换行
-printf '%s' '中文字数测试ABC123' > "$FILE"
+printf '%s' '中文字数测试ABC123' > "$BOOK_DIR/正文.md"
 EXPECT=12
 
 if [ "$STUB" -eq 1 ]; then
@@ -42,8 +41,12 @@ if [ "$STUB" -eq 1 ]; then
 fi
 
 # === 与技能文档逐字一致的探测 + 统计命令 ===
+# 用相对路径统计（先 cd 进书目录，再传文件名）——这正是技能里模型的用法：
+# 先 cd 到项目/正文目录再用相对路径。Windows Git Bash 下若把绝对 POSIX 路径
+# （/tmp/...、/c/...）直接喂给原生 Windows python，会被解析成 C:\tmp\... 而找不到文件；
+# 相对路径按子进程真实 cwd 解析，三平台一致。
 for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done
-GOT="$("$PYBIN" -c "from pathlib import Path; print(len(Path('$FILE').read_text(encoding='utf-8')))")"
+GOT="$(cd "$BOOK_DIR" && "$PYBIN" -c "from pathlib import Path; print(len(Path('正文.md').read_text(encoding='utf-8')))")"
 # === 命令结束 ===
 
 echo "selected interpreter: $PYBIN"
