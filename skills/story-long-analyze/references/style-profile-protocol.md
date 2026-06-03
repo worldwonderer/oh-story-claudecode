@@ -37,7 +37,7 @@
 - 文风可用：是  # 若原文缺失或锚点不足，写“否：原因”
 
 ## 整体语感
-- 句长分布：{由 `style-profile-generator.md` Step 4 的 `python3` 1-liner 在 3 章拼接样本上确定性测量——短句(<15字)占比 X%、中句(15-30)Y%、长句(>30)Z%、平均句长 N 字、标点密度 M%。一句概括语感。`confidence: high`（数据由脚本算出，不是抽样估计）。}
+- 句长分布：{由 `style-profile-generator.md` Step 4 的跨平台 Python 1-liner 在 3 章拼接样本上确定性测量——短句(<15字)占比 X%、中句(15-30)Y%、长句(>30)Z%、平均句长 N 字、标点密度 M%。一句概括语感。`confidence: high`（数据由脚本算出，不是抽样估计）。}
   - confidence: high | med | low
 - 标点习惯：{破折号/省略号/句号/感叹号/分号 的高频用法。附 2-3 个原文短片段示例。}
   - confidence: high | med | low

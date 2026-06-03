@@ -116,7 +116,7 @@ memory: project
 
 - 短篇写作以节为验证粒度（逐节统计）：每节 >= 800 字 / 50-65 行（除非细纲明确标注了其他字数目标，则按细纲目标执行）
 - 长篇写作以章为验证粒度（每章整体统计）：每章 >= 2000 字（高速推进节奏）或 >= 3000 字（正常/舒缓节奏），以细纲字数目标为准
-- 写完每节（短篇）或每章（长篇）后**必须立即**统计字数：优先使用 Python 字符统计 `python3 -c "from pathlib import Path; print(len(Path('文件路径').read_text(encoding='utf-8')))"`；`wc -m` 仅作 macOS/Linux 备选；禁止 `wc -c` 和模型估算
+- 写完每节（短篇）或每章（长篇）后**必须立即**统计字数：优先使用跨平台 Python 字符统计 `for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done; "$PYBIN" -c "from pathlib import Path; print(len(Path('文件路径').read_text(encoding='utf-8')))"`（**勿直接用 `python3`**：Windows 上它会触发 Microsoft Store 占位程序、exit 49 失败，上面的探测会按 `python3→python→py` 选可用解释器）；`wc -m` 仅作 macOS/Linux 备选；禁止 `wc -c` 和模型估算
 - **字数不足时的处理**：
   - 写正文：先回到细纲/小节大纲补足计划内情节点、冲突或转折，再写正文。
   - 去AI味/改写已有正文：不得新增原文没有的情节、设定、关系或时间线；只能恢复被误删的信息，或把既有信息改成更自然的动作/对话表达。

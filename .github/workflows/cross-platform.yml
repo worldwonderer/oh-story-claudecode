@@ -6,6 +6,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - name: Run skill static check
         run: bash scripts/static-check.sh
       - name: Check hook-regex sync
@@ -14,6 +17,12 @@ jobs:
         run: bash scripts/check-shared-files.sh
       - name: Check story-setup deployment
         run: bash scripts/check-story-setup-deployment.sh
+      - name: Guard against bare python3 invocations
+        run: bash scripts/check-python-invocation.sh
+      - name: Portable char-count (real interpreter)
+        run: bash scripts/test-charcount-portable.sh
+      - name: Portable char-count (simulated Windows Store stub)
+        run: bash scripts/test-charcount-portable.sh --stub
       - name: Syntax-check collection scripts
         run: |
           for f in $(find skills -name '*-scraper.js' -o -name 'cdp-utils.js' -o -name 'setup-cdp-chrome.js'); do
@@ -28,6 +37,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
         with:
@@ -38,6 +50,14 @@ jobs:
         run: node -e "const { sleep } = require('./skills/story-short-scan/scripts/cdp-utils.js'); const t0 = Date.now(); sleep(100); console.log('slept', Date.now()-t0, 'ms');"
       - name: Verify setup script dry-run
         run: node skills/browser-cdp/scripts/setup-cdp-chrome.js 9222 --dry-run
+      # Run under Git Bash (shell: bash on windows-latest), matching how Claude Code
+      # executes its Bash tool on Windows — this is where the python3 exit-49 bug bites.
+      - name: Portable char-count (real interpreter)
+        shell: bash
+        run: bash scripts/test-charcount-portable.sh
+      - name: Portable char-count (simulated Windows Store stub)
+        shell: bash
+        run: bash scripts/test-charcount-portable.sh --stub
 
   macos:
     runs-on: macos-latest
@@ -46,6 +66,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
         with:
@@ -56,3 +79,7 @@ jobs:
         run: node -e "const { sleep } = require('./skills/story-short-scan/scripts/cdp-utils.js'); const t0 = Date.now(); sleep(100); console.log('slept', Date.now()-t0, 'ms');"
       - name: Verify setup script dry-run
         run: node skills/browser-cdp/scripts/setup-cdp-chrome.js 9222 --dry-run
+      - name: Portable char-count (real interpreter)
+        run: bash scripts/test-charcount-portable.sh
+      - name: Portable char-count (simulated Windows Store stub)
+        run: bash scripts/test-charcount-portable.sh --stub

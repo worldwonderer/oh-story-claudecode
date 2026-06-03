@@ -194,7 +194,7 @@ metadata:
 ⚠️ **硬约束：每节 ≥ 800 字 / 50-65 行**。
 题材例外：爽文、打脸、系统流等高信息密度题材可降至 ≥ 500 字/节（见 genre-writing-formulas.md 各题材速查表），但不得低于 500 字。
 写完每节后必须统计字数和行数。不足 800 字（高信息密度题材不足 500 字）的节不得跳过，必须补充更多子事件/对话来补足后再写下一节。整篇完成后总字数必须 ≥ 8000 字。
-**字数统计必须跨平台可执行：优先使用 Python 字符统计**：`python3 -c "from pathlib import Path; print(len(Path('文件路径').read_text(encoding='utf-8')))"`。Windows / DeepSeek / Claude Code 组合下不要让模型自行估算字数；`wc -m` 仅作为 macOS/Linux 备选，禁止使用 `wc -c`（字节数）。如果当前 agent/工具环境没有 Bash/Python 权限，必须明确声明“未完成机器字数验证”，并按行数速算作为临时估计，不得声称已通过字数硬验证。
+**字数统计必须跨平台可执行：优先使用 Python 字符统计**：`for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done; "$PYBIN" -c "from pathlib import Path; print(len(Path('文件路径').read_text(encoding='utf-8')))"`。**不要直接调 `python3`**——Windows 上 `python3` 会落到 Microsoft Store 占位程序、以 exit 49 静默失败；上面的探测会按 `python3→python→py` 选出真正可用的解释器。Windows / DeepSeek / Claude Code 组合下不要让模型自行估算字数；`wc -m` 仅作为 macOS/Linux 备选，禁止使用 `wc -c`（字节数）。如果当前 agent/工具环境没有 Bash/Python 权限，必须明确声明“未完成机器字数验证”，并按行数速算作为临时估计，不得声称已通过字数硬验证。
 **⚠️ 字数不足 = 章节未完成。禁止在字数未达标时结束章节。必须继续展开场景直到达标。**
 
 **节数守恒**：正文节数必须等于小节大纲规划节数。不得合并多节为一节。如果写作中发现某节不需要独立存在，应回到大纲阶段调整，而非在写作时偷减。
@@ -306,7 +306,7 @@ metadata:
 
 **中文文本统计注意事项**：
 - `wc -c` 统计的是字节数，中文每字符 3 字节（UTF-8），不等于字数
-- 字数统计必须优先使用 Python 字符统计：`python3 -c "from pathlib import Path; print(len(Path('文件路径').read_text(encoding='utf-8')))"`
+- 字数统计必须优先使用跨平台 Python 字符统计：`for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done; "$PYBIN" -c "from pathlib import Path; print(len(Path('文件路径').read_text(encoding='utf-8')))"`（**勿直接用 `python3`**：Windows 上它会触发 Microsoft Store 占位程序、exit 49 失败）
 - `wc -m` 仅作为 macOS/Linux 备选；Windows 环境或模型兼容性不确定时不要依赖 `wc`
 - 禁止用 `wc -c` 或模型估算字数
 - 行数统计使用 `wc -l` 是安全的

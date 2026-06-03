@@ -72,10 +72,11 @@ grep -nE '^第[一二三四五六七八九十百千两零0-9]+章' 原文/原文
 
 **确定性句长/标点统计**（替代旧版「眼测」）：
 
-Stage 6 由**主线程**执行，Bash 工具可用。把上一步拼好的 `/tmp/style-sample.txt` 喂给下面的脚本（heredoc 作 Python 源，脚本内 open 样本文件，避免 `python3 - <<EOF < file` 双重重定向冲突）：
+Stage 6 由**主线程**执行，Bash 工具可用。把上一步拼好的 `/tmp/style-sample.txt` 喂给下面的脚本（heredoc 作 Python 源，脚本内 open 样本文件，避免 stdin heredoc 与 `< file` 双重重定向冲突）。先探测可用解释器再跑——**勿直接用 `python3`**，Windows 上它会触发 Microsoft Store 占位程序、exit 49 失败：
 
 ```bash
-python3 <<'PYEOF'
+for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done
+"$PYBIN" <<'PYEOF'
 import re
 with open('/tmp/style-sample.txt', 'r', encoding='utf-8') as f:
     text = f.read()
@@ -141,7 +142,7 @@ PYEOF
 
 **不修改 chapter-extractor**。文风直接从既有字段（基调/主题标签/可借鉴要素）整理生成即可。
 
-句长 / 标点密度由 Step 4 的 `python3` 1-liner 在 Stage 6 主线程直接算出，不依赖 chapter-extractor。若将来需要章级精细分布（如「第 N 章 短句占比」），再考虑给 chapter-extractor 加 `punctuation_density` / `sentence_length_distribution` 字段——但**不在本次范围内**。
+句长 / 标点密度由 Step 4 的跨平台 Python 1-liner 在 Stage 6 主线程直接算出，不依赖 chapter-extractor。若将来需要章级精细分布（如「第 N 章 短句占比」），再考虑给 chapter-extractor 加 `punctuation_density` / `sentence_length_distribution` 字段——但**不在本次范围内**。
 
 ## 与写作端的关系
 

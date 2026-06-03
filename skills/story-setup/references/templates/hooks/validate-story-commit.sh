@@ -11,8 +11,14 @@ fi
 export HOOK_INPUT
 
 is_git_commit_command() {
-  command -v python3 >/dev/null 2>&1 || return 1
-  python3 - <<'PY'
+  # 探测真正可用的解释器：Windows 上 `command -v python3` 会命中 Microsoft Store
+  # 占位程序（exit 49），所以必须实跑一次 -c "" 而非只查 PATH。
+  local PYBIN=""
+  for c in python3 python py; do
+    if "$c" -c "" >/dev/null 2>&1; then PYBIN="$c"; break; fi
+  done
+  [ -z "$PYBIN" ] && return 1
+  "$PYBIN" - <<'PY'
 import json
 import os
 import re
