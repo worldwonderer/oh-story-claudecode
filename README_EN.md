@@ -294,6 +294,11 @@ I built this skill pack to help me through a job-hunting transition :joy:, and I
 
 Contributions are welcome — new skills, knowledge base additions, market data updates. See [CONTRIBUTING.md](CONTRIBUTING.md) (Chinese only).
 
+## Community
+
+- **Telegram**: <https://t.me/ohstoryclaudecode> — chat, troubleshooting, and feature discussion.
+- **GitHub Discussions**: [ask questions, get help, share workflows](https://github.com/worldwonderer/oh-story-claudecode/discussions).
+
 ## Acknowledgments
 
 - [LINUX DO - The New Ideal Community](https://linux.do) — Community support
