@@ -467,7 +467,7 @@ source: 导入反推
 
 #### 3-S.1 正文迁移
 
-将 `拆文库/{书名}/原文/` 的全文迁移为单文件 `{标题}/正文.md`，按 [format-and-structure.md](references/format-and-structure.md) 规范化格式（小节标记 `###1.`、段间无空行、半角双引号对话）。**原文已是成稿，不重写内容，只规范格式。**
+将 `拆文库/{书名}/原文/` 的全文迁移为单文件 `{标题}/正文.md`，按 [format-and-structure.md](references/format-and-structure.md) 规范化格式（小节标记 `###1.`、段间无空行、对话引号按项目/平台约定统一）。**原文已是成稿，不重写内容，只规范格式。**
 
 #### 3-S.2 设定生成
 

@@ -287,6 +287,21 @@ AI写作的结尾特征：总想总结、升华、点题。
 
 ---
 
+### Phase 3.5：确定性标点收尾（文件模式）
+
+当输入是正文文件路径，且 Phase 3 已落盘修改后，运行本 skill 自带脚本做最后一遍确定性标点收尾：
+
+```bash
+node scripts/normalize-punctuation.js <正文文件...>
+```
+
+作用边界：
+- 只处理正文里的 `——`、`—`、`--` 和独立行 `---`；默认不改变引号风格。
+- 知乎盐言短篇可保留 `「」`；只有用户或项目明确要求时，才加 `--quote-mode ascii` 或 `--quote-mode yan`。
+- 该脚本是 `story-deslop` 的本地副本，不引用其他 skill 的文件。
+
+---
+
 ### Phase 4：输出润色结果
 
 ```
@@ -346,6 +361,7 @@ AI写作的结尾特征：总想总结、升华、点题。
 |------|----------|
 | [references/banned-words.md](references/banned-words.md) | 检测和替换禁用词时 |
 | [references/anti-ai-writing.md](references/anti-ai-writing.md) | **去AI味完整指南**：预防+三遍法+范例 |
+| [scripts/normalize-punctuation.js](scripts/normalize-punctuation.js) | 文件模式落盘后做确定性标点收尾；默认保留引号风格 |
 
 ---
 

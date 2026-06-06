@@ -1,6 +1,6 @@
 #!/bin/bash
 # check-shared-files.sh — 检查跨 skill 同名文件内容一致性
-# 扫描所有 skill 的 references/ 目录，找出同名文件并比较内容
+# 扫描所有 skill 的 references/ 与 scripts/ 目录，找出同名文件并比较内容
 # 兼容 bash 3+（macOS）
 set -euo pipefail
 
@@ -45,7 +45,7 @@ checked=0
 echo "Shared File Consistency Check"
 echo "=============================="
 
-# Find all basenames that appear in 2+ skills
+# Find all reference basenames that appear in 2+ skills
 dup_names="$(find "$SKILLS_DIR" -type f -path '*/references/*' ! -name '.gitkeep' -exec basename {} \; 2>/dev/null | sort | uniq -d)"
 
 for base in $dup_names; do
@@ -81,6 +81,42 @@ for base in $dup_names; do
       paths=(${filtered[@]+"${filtered[@]}"})
       ;;
   esac
+
+  if [ ${#paths[@]} -lt 2 ]; then
+    continue
+  fi
+
+  checked=$((checked + 1))
+  ref_path="${paths[0]}"
+  ref_skill="$(echo "$ref_path" | sed "s|$SKILLS_DIR/||" | cut -d'/' -f1)"
+  all_match=true
+
+  for ((i = 1; i < ${#paths[@]}; i++)); do
+    if ! diff -q "$ref_path" "${paths[$i]}" >/dev/null 2>&1; then
+      skill_name="$(echo "${paths[$i]}" | sed "s|$SKILLS_DIR/||" | cut -d'/' -f1)"
+      if [ "$all_match" = true ]; then
+        echo ""
+        echo "MISMATCH: $base"
+        echo "  Reference: $ref_skill"
+      fi
+      echo "  Differs in: $skill_name"
+      all_match=false
+      mismatches=$((mismatches + 1))
+    fi
+  done
+done
+
+# Script copies are also skill-local assets. If two skills carry the same script
+# basename, treat them as managed copies and require byte identity. This avoids
+# cross-skill file references while still catching drift between duplicated tools.
+script_dup_names="$(find "$SKILLS_DIR" -type f -path '*/scripts/*' ! -name '.gitkeep' -exec basename {} \; 2>/dev/null | sort | uniq -d)"
+
+for base in $script_dup_names; do
+  paths=()
+  while IFS= read -r fpath; do
+    [ -z "$fpath" ] && continue
+    paths+=("$fpath")
+  done < <(find "$SKILLS_DIR" -type f -path '*/scripts/*' -name "$base" 2>/dev/null)
 
   if [ ${#paths[@]} -lt 2 ]; then
     continue

@@ -100,7 +100,7 @@
      - 若 `gaps.tone_match_failed: true` → 仅用整书文风写作，不喂 matched_chapter
      - 否则透传 `style_profile_path`、`style_profile_summary`、`matched_chapter_K`、`matched_chapter_techniques`、`anchor_excerpts` 给 Step 2 末尾的 narrative-writer spawn prompt；其中 `matched_chapter_techniques` 必须进入「文风召回指令」。准备层记录必须保留 `gaps` 原值，尤其 `gaps.matched_deep_dive_missing`；若为 true，文风召回指令中明确写“同章深度拆解缺失，已回退黄金三章/文风技巧”，不得在后续报告中反转为 false
      - **无 story-explorer 时降级**：主会话手动按对标书路径查找读 `文风.md` + grep `章节/*_摘要.md` 的「基调」字段找匹配章，然后读对应 `第K章_摘要.md`；如 `第K章_深度拆解.md` 不存在，改读 `第1-3章_深度拆解.md` 中与本章基调最接近的一章
-   - **2.4 意图确认**：从细纲「目标情绪」字段确认本章情绪目标，综合状态筛选结果 + 文风召回输出，用一句话写本章意图（情绪+节奏+文风指令）。文风指令例：「标点照文风里的破折号节拍、对话潜台词用问非所答、情绪交替参考第 K 章爽点铺放比。」
+   - **2.4 意图确认**：从细纲「目标情绪」字段确认本章情绪目标，综合状态筛选结果 + 文风召回输出，用一句话写本章意图（情绪+节奏+文风指令）。文风指令例：「标点照文风里的停顿节奏、对话潜台词用问非所答、情绪交替参考第 K 章爽点铺放比。」
    - 写正文 → **字数验证（优先 Python 字符统计，`wc -m` 仅作 Unix 备选，< 目标90%则强制扩充）** → 检查钩子/爽点 → 禁用词扫描
    - 每章写完后**立即更新**以下文件：
      - `追踪/伏笔.md`（新增/回收伏笔）
