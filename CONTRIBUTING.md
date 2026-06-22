@@ -109,3 +109,62 @@ fork → branch → commit → PR → review → merge
 - 一个 PR 聚焦一个改动
 - commit message 用中文，格式：`类型: 简短描述`
 - 类型：`feat`（新增）/ `fix`（修复）/ `docs`（文档）/ `refactor`（重构）
+
+## OpenCode 模板同步
+
+本项目同时支持 Claude Code 和 OpenCode 两个 CLI。OpenCode 的 agent 模板和项目指令模板由 `scripts/sync-opencode.py` 从 Claude Code 模板自动生成。
+
+### 何时需要同步
+
+当你修改了以下文件后，需要运行同步脚本：
+
+- `skills/story-setup/references/templates/agents/*.md`（agent 定义）
+- `skills/story-setup/references/templates/CLAUDE.md.tmpl`（项目指令模板）
+
+### 同步步骤
+
+```bash
+python scripts/sync-opencode.py
+```
+
+脚本会：
+1. 将 `templates/agents/` 下的 Claude Code agent 转换为 opencode 格式，写入 `opencode/agents/`
+2. 将 `CLAUDE.md.tmpl` 复制到 `opencode/AGENTS.md.tmpl`，替换 `.claude/` 路径引用
+3. 输出同步结果摘要
+
+### CI 检测
+
+PR 中如果修改了 Claude Code 模板文件，CI 会自动检测 opencode 模板是否同步。如果 CI 报错，请在本地运行同步脚本并提交结果。
+
+### 手动维护的部分
+
+以下文件无法自动生成，需要手动维护：
+
+- `skills/story-setup/references/opencode/plugin.ts` — hooks 逻辑
+- `skills/story-setup/references/opencode/commands/` — slash commands
+- `skills/story-setup/references/opencode/opencode.json.patch` — 配置片段
+
+### sync-opencode.py 已知局限
+
+运行同步脚本后需进行以下手动检查：
+
+- **路径解析段**：已由 `fix_path_rules_section()` 自动处理，无需手动修复
+- **agent 数量**：确认 `opencode/agents/` 下始终为 7 个文件
+
+### OpenCode 关键兼容性问题
+
+**Glob 不搜索隐藏目录**：opencode 的 Glob 工具不搜索 `.opencode/` 目录，这导致了以下设计决策：
+
+- **agent-references** 部署到 `skills/story-setup/references/agent-references/`（非隐藏），而非 `.opencode/skills/`
+- **agent 文件** 双份部署：`.opencode/agents/`（opencode 系统使用）+ `agents/`（Glob 可见副本）
+- **subagent 检测**：所有 spawn agent 的 skill（story-review、story-long-write、story-deslop、story-import、story-long-analyze、story-short-write）需同时检查 `.claude/agents/` 和 `.opencode/agents/` 两个目录（`.claude/agents/` 优先，不存在时 fallback 到 `.opencode/agents/`）
+
+**插件输出不可见**：opencode 插件的 `output.extra.system` 已移除（真实 API 中不存在此字段）。系统提示注入改用 `experimental.session.compacting` 的 `output.context` 传递写作上下文。
+
+**session-start 系统提示注入不支持**：OpenCode 公开 Plugin API 中无 `chat.message` 或等效 hook，部署状态检测和写作进度无法在会话开始时注入模型上下文。用户可手动运行 `/story-setup` 查看状态。
+
+### OpenCode 使用注意事项
+
+- **首次部署后需要重启 opencode**：story-setup 部署的 `.opencode/commands/` 下的 slash command 在 opencode 重启后才会生效。退出 opencode 后执行 `opencode -c` 重新进入即可。
+- **首次部署使用自然语言触发**：新项目中没有 slash command，需要用自然语言触发 story-setup（如「请使用 story-setup skill，帮我部署网文写作环境」）。
+- **opencode 配置不热加载**：修改 `opencode.json`、agent 文件或 plugin 后均需重启 opencode。

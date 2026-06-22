@@ -127,6 +127,43 @@ agent-browser --cdp 9222 type "<sel>" "<text>"
 
 ---
 
+## OpenCode 环境注意事项
+
+opencode 没有后台执行命令行的工具，长时间的 CDP 操作（如等待页面加载、大批量数据抓取）会阻塞整个会话，导致 CLI 无响应。
+
+### 超时包装
+
+Windows 上对 CDP 命令使用 PowerShell Job 包装超时：
+
+```powershell
+$job = Start-Job { agent-browser --cdp 9222 eval "window.location.replace('https://www.qidian.com/rank/')" }
+Wait-Job $job -Timeout 30 | Out-Null
+if ($job.State -eq 'Running') { Stop-Job $job; Write-Output "⏱ CDP 操作超时（30s），请重试或手动打断" }
+else { Receive-Job $job }
+Remove-Job $job -Force
+```
+
+macOS / Linux 上使用 `timeout` 命令：
+
+```bash
+timeout 30 agent-browser --cdp 9222 eval "window.location.replace('https://www.qidian.com/rank/')" || echo "⏱ CDP 操作超时（30s），请重试或手动打断"
+```
+
+### 已知限制
+
+即使加了超时包装，以下场景仍可能出现问题：
+
+| 场景 | 风险 | 缓解 |
+|------|------|------|
+| 页面加载超时 | eval 命令等待永不返回 | 设置 30s 超时，超时后重试 |
+| 大批量数据抓取 | 多页翻页时累计等待过长 | 每页独立超时，失败后从断点继续 |
+| Chrome 进程僵死 | CDP 连接断开但进程未退出 | 用 `pkill` / `taskkill` 清理后重连 |
+| 网络波动 | 请求挂起无超时 | 超时后自动重试一次 |
+
+如遇到持续卡死的操作，在 opencode 中按 `ESC` 手动打断。
+
+---
+
 ## 常见问题
 
 | 问题 | 解决方案 |

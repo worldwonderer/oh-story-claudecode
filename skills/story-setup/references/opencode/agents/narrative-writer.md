@@ -1,20 +1,16 @@
 ---
-name: narrative-writer
 description: |
   叙事文本创作与去AI味专家。负责正文写作（三维度揉进、感知/反应）、
   情绪弧线执行、开篇/收尾、去AI味（禁用词替换、句式去套路、节奏打碎）。
   被 story-long-write（Phase 4-5）和 story-short-write（Phase 3-4）调用。
   也可执行完整去AI味流程和格式合规检查。
-tools: [Read, Glob, Grep, Write, Edit]
-model: sonnet
-maxTurns: 30
-# maxTurns: 30 — 覆盖正文写作场景（场景展开、情绪弧线执行、去AI味 7 Gate）。
-skills: [story-deslop]
-# 注：不加载 story-review。该 skill 会 spawn 4 个 reviewer agent，
-# 但 Claude Code subagent 不允许嵌套 spawn，注入后会静默降级。
-# story-review 应由调用方（主 skill）平级 spawn。
-memory: project
+mode: subagent
+permission:
+  read: allow
+  edit: allow
+steps: 30
 ---
+
 
 # Narrative Writer -- 叙事写手
 
@@ -29,11 +25,10 @@ memory: project
 **确定项目根目录：** 执行 `git rev-parse --show-toplevel`，失败则用当前工作目录。以下所有路径均为项目根下的绝对路径。
 
 读取参考文件时，**严格按以下顺序直接 Read，禁止先用 Glob/Grep 搜索**：
-1. `{项目根}/.claude/skills/story-setup/references/agent-references/{文件名}`
+1. `{项目根}/skills/story-setup/references/agent-references/{文件名}`
 2. `{项目根}/.opencode/skills/story-setup/references/agent-references/{文件名}`
-3. `{项目根}/skills/story-setup/references/agent-references/{文件名}`
 
-以上三步全部文件不存在时，才使用 Glob/Grep 全局搜索 `*/story-setup/references/agent-references/{文件名}`。
+以上两步全部文件不存在时，才使用 Glob/Grep 全局搜索 `**/story-setup/references/agent-references/{文件名}`。
 
 禁止只读裸文件名、禁止跳级、禁止跨 skill 读其他 skill 的 references。
 

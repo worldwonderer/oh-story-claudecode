@@ -1,0 +1,35 @@
+name: Sync OpenCode Templates
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "skills/story-setup/references/templates/agents/**"
+      - "skills/story-setup/references/templates/CLAUDE.md.tmpl"
+      - "skills/story-setup/references/opencode/**"
+      - "scripts/sync-opencode.py"
+      - ".github/workflows/sync-opencode.yml"
+
+jobs:
+  check-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run sync check
+        run: python scripts/sync-opencode.py
+
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain skills/story-setup/references/opencode/)" ]; then
+            echo "::error::OpenCode templates are out of sync with Claude Code templates."
+            echo "::error::Run 'python scripts/sync-opencode.py' locally and commit the changes."
+            git diff skills/story-setup/references/opencode/
+            exit 1
+          fi
+          echo "OpenCode templates are in sync."

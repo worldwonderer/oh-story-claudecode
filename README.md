@@ -2,7 +2,7 @@
 
 # oh-story-claudecode
 
-网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 Claude Code、OpenClaw。
+网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 Claude Code、OpenCode、OpenClaw。
 
 ## 核心思路
 
@@ -75,7 +75,7 @@ flowchart LR
 
 ## 安装
 
-**方式一** 直接告诉 Claude Code / OpenClaw：
+**方式一** 直接告诉 Claude Code / OpenCode / OpenClaw：
 
 ```
 安装这个 skill https://github.com/worldwonderer/oh-story-claudecode
@@ -89,6 +89,17 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 `-g` 全局安装，所有目录可用；去掉 `-g` 则只装到当前目录。更新时重新执行同一条命令即可。
 
+> **OpenCode 用户：** 全局安装后，opencode 会自动从 `~/.claude/skills/` 发现 skills。首次使用时，用自然语言触发 story-setup（如「请使用 story-setup skill，帮我部署网文写作环境」），它会自动检测 OpenCode 环境并部署对应的 agents、commands 和插件。
+>
+> **首次部署后必须重启 opencode**（退出后执行 `opencode -c`），`.opencode/commands/` 下的 slash command 才会生效。之后 `/story-setup`、`/story-long-write` 等命令即可直接使用。
+>
+> **OpenCode 已知差异：** opencode 与 Claude Code 的机制差异导致部分功能实现方式不同：
+> - `session-start` / `detect-gaps`：opencode 插件暂未移植这两个 hook，会话开始与缺口检测不会注入提示（仅保留 compact 摘要与写正文前的大纲守卫）
+> - `session-end`：opencode 无等价事件，暂不支持
+> - `validate-commit`：改用 git 原生 `pre-commit` hook，适用于所有 CLI
+> - `browser-cdp`：无后台任务机制，长耗时操作可能卡死，需用户按 `ESC` 打断（SKILL.md 已内置超时包装指引）
+> - `compact` 相关 hook：依赖 `experimental` API，可能在 opencode 未来版本变动
+>
 > 升级后如果项目里已经跑过 `/story-setup`，建议在项目根重跑一次 `/story-setup`，同步 hooks / agents / references。每版变更见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases)。
 
 > **多 agent 协作要先部署再新开会话**：7 个专业 agent（story-architect、narrative-writer、consistency-checker 等）由 `/story-setup` 写入项目 `.claude/agents/`。Claude Code 只在**会话启动时**注册 custom agent，所以 **`/story-setup` 跑完必须新开一个 Claude Code 会话**，story-review 的多视角对抗审查、写作流程里的 agent 协作才会生效；否则 skill 会拿到「subagent_type 不可用」并降级 solo（单视角）。判断是否生效：新会话里跑 `/story-review`，报告头是 `Effective Mode: full/lean` 即注册成功，是 `Fallback: ... -> solo` 说明还在旧会话。
@@ -97,7 +108,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
-| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md 一键部署（已有配置安全合并） |
+| `story-setup` | `/story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md 一键部署（已有配置安全合并，支持 Claude Code / OpenCode） |
 | `story` | `/story` `/网文` | 工具箱路由 · 模糊意图自动分发到对应 skill |
 | `story-long-write` | `/story-long-write` `/写长篇` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |

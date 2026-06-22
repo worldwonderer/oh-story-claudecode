@@ -76,7 +76,7 @@ metadata:
 在进入 Phase 2 之前，先检测项目是否已部署 story-setup 基础设施：
 
 - 检测 `.story-deployed` 是否存在；
-- 检测 `.claude/agents/chapter-extractor.md` 是否存在（Phase 2 长篇深度分析的并行 agent）。
+- 优先检测 `.claude/agents/` 下的 `chapter-extractor.md` 是否存在；不存在时再检测 `.opencode/agents/`（Phase 2 长篇深度分析的并行 agent）。
 
 **未部署时**，提示用户：
 
@@ -625,7 +625,7 @@ name: {角色名}
 
 - 设置 `.active-book` 指向导入的书名/标题目录
 - 确认项目可以被对应写作 skill 识别（长篇 → story-long-write，短篇 → story-short-write）
-- 可选验证：如果项目已部署 story-explorer agent（检查 `.claude/agents/story-explorer.md` 是否存在），可 spawn `Agent(subagent_type: "story-explorer", prompt: "项目目录：{dir}\n查询类型：progress\n查询参数：导入验证")` 交叉验证迁移数据完整性
+- 可选验证：如果项目已部署 story-explorer agent（优先检查 `.claude/agents/` 下的 `story-explorer.md` 是否存在；不存在时再检查 `.opencode/agents/`），可 spawn `Agent(subagent_type: "story-explorer", prompt: "项目目录：{dir}\n查询类型：progress\n查询参数：导入验证")` 交叉验证迁移数据完整性
 
 > setup 环境检测已在 Phase 1「环境检测前置」完成，此处不再重复检测。
 

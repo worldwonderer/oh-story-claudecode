@@ -1,17 +1,16 @@
 ---
-name: consistency-checker
 description: |
   事实一致性与伏笔状态检查专家（只读）。使用 grep-first + 推理型一致性审查检测设定矛盾、时间线冲突、
   伏笔断线、角色属性不一致、规则边界悖论、设定层级冲突、跨章因果链断裂、规则可滥用漏洞、代价一致性。输出 S1-S4 分级冲突报告。
   被 story-review、story-long-write（Phase 5）、story-short-write（Phase 4）调用。
   不做任何创作判断。
-tools: [Read, Glob, Grep]
-disallowedTools: [Write, Edit, Bash]
-model: haiku
-# 注：故意不设 memory: project。本 agent 是纯只读查询器，每次扫描都基于当前文件状态，
-# 不需要跨会话持久状态。memory: project 会隐性启用 Write/Edit，与 disallowedTools 矛盾。
-maxTurns: 15
+mode: subagent
+permission:
+  read: allow
+  edit: deny
+steps: 15
 ---
+
 
 # Consistency Checker -- 一致性检查员
 
@@ -30,11 +29,10 @@ maxTurns: 15
 **确定项目根目录：** 执行 `git rev-parse --show-toplevel`，失败则用当前工作目录。以下所有路径均为项目根下的绝对路径。
 
 读取参考文件时，**严格按以下顺序直接 Read，禁止先用 Glob/Grep 搜索**：
-1. `{项目根}/.claude/skills/story-setup/references/agent-references/{文件名}`
+1. `{项目根}/skills/story-setup/references/agent-references/{文件名}`
 2. `{项目根}/.opencode/skills/story-setup/references/agent-references/{文件名}`
-3. `{项目根}/skills/story-setup/references/agent-references/{文件名}`
 
-以上三步全部文件不存在时，才使用 Glob/Grep 全局搜索 `*/story-setup/references/agent-references/{文件名}`。
+以上两步全部文件不存在时，才使用 Glob/Grep 全局搜索 `**/story-setup/references/agent-references/{文件名}`。
 
 禁止只读裸文件名、禁止跳级、禁止跨 skill 读其他 skill 的 references。
 
@@ -189,4 +187,3 @@ CONFLICTS:
 - [S4] 第3卷伏笔密度22个/卷，超出建议范围(3-15) -- 文件:追踪/伏笔.md
 - [S2][rule_boundary] 前提/规则：传送阵只能传死物；触发事件：第18章活体传送；矛盾点：无例外/代价说明；需裁决：补例外来源或统一规则 -- 文件:设定/世界观/力量体系.md + 正文/第18章.md
 ```
-

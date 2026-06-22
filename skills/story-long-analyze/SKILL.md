@@ -268,7 +268,7 @@ Agent(
 
 以下任一情况，Stage 2 自动退回串行模式，由主线程按 chapter-extractor 方法论逐章处理（结果同样套 output-templates.md 的章节摘要模板，质量不受影响，只是改为串行、速度略慢）：
 
-- **agent 未部署**：`.claude/agents/chapter-extractor.md` 不存在。`.claude/agents/` 通常不随仓库提交，由 `/story-setup` 部署；模板源在 `skills/story-setup/references/templates/agents/chapter-extractor.md`，必要时可手动复制部署。
+- **agent 未部署**：agent 目录（优先 `.claude/agents/`，其次 `.opencode/agents/`）下的 `chapter-extractor.md` 不存在。`.claude/agents/` 通常不随仓库提交，由 `/story-setup` 部署；模板源在 `skills/story-setup/references/templates/agents/chapter-extractor.md`，必要时可手动复制部署。
 - **环境不支持 spawn 子代理**：本 skill 正运行在某个子代理上下文中，无法再起下一层 agent。
 
 ### Stage 2 收尾：合并章节摘要（_章节摘要汇总.md）

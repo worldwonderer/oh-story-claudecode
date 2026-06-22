@@ -30,6 +30,14 @@ metadata:
 4. 检查 `.active-book` 文件是否存在
    - 存在 → 显示当前活跃书目
    - 不存在 → 跳过
+5. 检查 `opencode.json` 或 `.opencode/` 是否存在
+   - 存在 → 识别为 opencode 项目，`target_cli = opencode`
+   - 不存在 → 跳过
+6. 如 `.claude/` 或 `CLAUDE.md` 与 opencode 标记同时存在 → 使用 AskUserQuestion 让用户选择目标 CLI（选项：仅 Claude Code / 仅 OpenCode / 两者都部署）
+7. 如两者都不存在（全新项目）→ 使用 AskUserQuestion 让用户选择目标 CLI
+   - 用户选择 opencode → `target_cli = opencode`，部署时创建 `opencode.json` 和 `.opencode/`
+   - 用户选择 claude-code → 按现有逻辑处理
+   - 用户选择两者 → `target_cli = claude-code,opencode`
 
 ## Phase 2：部署基础设施
 
@@ -47,6 +55,22 @@ metadata:
 | `skills/story-setup/references/templates/settings-hooks.json` | `.claude/settings.local.json` | user+managed | merge by hook command | hook JSON valid and registered commands deduped |
 | `skills/story-setup/references/templates/上下文.md.tmpl` | `{书名}/追踪/上下文.md` | user state | create only if absent | never overwrite existing writing context |
 | generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir` |
+| `skills/story-setup/references/opencode/AGENTS.md.tmpl` | `AGENTS.md` | user+managed | marker/section merge | contains story skill routing sections | target_cli 含 opencode |
+| `skills/story-setup/references/opencode/agents/` | `.opencode/agents/` | story-setup managed | replace | 7 agent files exist | target_cli 含 opencode |
+| `skills/story-setup/references/opencode/plugin.ts` | `.opencode/plugins/story-hooks.ts` | story-setup managed | replace | TypeScript plugin file exists | target_cli 含 opencode |
+| `skills/story-setup/references/opencode/commands/` | `.opencode/commands/` | story-setup managed | replace | 13 command files exist | target_cli 含 opencode |
+| `skills/story-setup/references/opencode/opencode.json.patch` | merge into `opencode.json` | user+managed | merge by plugin/permission key | plugin entry registered | target_cli 含 opencode |
+| `skills/story-setup/references/agent-references/` | `skills/story-setup/references/agent-references/` | story-setup managed | replace | every reference resolves | target_cli 含 opencode |
+| `skills/story-setup/references/opencode/pre-commit.sh` | `.git/hooks/pre-commit` | user+managed | append or create | file exists and is executable；含 marker 块则替换块内容，不含则检测 exit 0 位置智能插入 | target_cli 含 opencode |
+
+### opencode.json 合并算法
+
+部署 `opencode.json.patch` 时按以下规则合并：
+
+1. 读取现有 `opencode.json`（如存在），解析 JSON
+2. 合并 `plugin` 数组：将 `./.opencode/plugins/story-hooks.ts` 加入数组，去重
+3. 保留用户已有的其他配置字段（`permission`、`model`、`provider` 等），不覆盖
+4. 写入合并后的 `opencode.json`
 
 ### 2.1 部署 CLAUDE.md
 
@@ -108,7 +132,7 @@ metadata:
   deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">
   agents_version: 14
   setup_skill_version: 1.2.3
-  target_cli: claude-code
+  target_cli: claude-code（或 opencode，或 claude-code,opencode 同时支持两个 CLI）
   resolver_strategy: project-local-skill-reference
   references_dir: .claude/skills/story-setup/references/agent-references
   ```
@@ -134,8 +158,15 @@ metadata:
 6. 输出安装报告：
    - 列出所有已部署的文件
    - 列出需要注意的事项（如已有配置已合并）
-   - **⚠️ 重启提示（必须醒目输出）**：本次部署写入了 `.claude/agents/`，但这些 custom agent 只在「会话启动」时才会被 Claude Code 注册成 `subagent_type`。**请新开一个 Claude Code 会话再开始写作**，否则当前会话里 story-review / story-long-write 等想 spawn `story-architect`、`narrative-writer` 等时会拿到「subagent_type 不可用」并降级 solo（单视角，失去多 agent 协作）。判断是否生效：新会话里跑 `/story-review`，报告头若是 `Effective Mode: full/lean` 即注册成功；若是 `Fallback: ... -> solo` 说明还在旧会话或未注册。
-   - 重启后即可使用 `/story-long-write` 或 `/story-short-write`
+    - **⚠️ 重启提示（必须醒目输出）**：本次部署写入了 `.claude/agents/`，但这些 custom agent 只在「会话启动」时才会被 Claude Code 注册成 `subagent_type`。**请新开一个 Claude Code 会话再开始写作**，否则当前会话里 story-review / story-long-write 等想 spawn `story-architect`、`narrative-writer` 等时会拿到「subagent_type 不可用」并降级 solo（单视角，失去多 agent 协作）。判断是否生效：新会话里跑 `/story-review`，报告头若是 `Effective Mode: full/lean` 即注册成功；若是 `Fallback: ... -> solo` 说明还在旧会话或未注册。
+    - 重启后即可使用 `/story-long-write` 或 `/story-short-write`
+7. 验证 opencode 部署（仅当 target_cli 含 opencode 时）：
+    - 检查 `.opencode/agents/` 下的 7 个 agent 定义文件是否存在，且 frontmatter 包含 `mode: subagent` 和 `permission` 字段
+    - 检查 `.opencode/plugins/story-hooks.ts` 是否存在
+     - 检查 `.opencode/commands/` 下的 13 个 command 文件是否存在
+    - 检查 `skills/story-setup/references/agent-references/` 下 reference 文件完整且数量与源目录一致
+    - 检查 `opencode.json` 的 `plugin` 数组是否包含 story-hooks 条目
+    - 检查 `.git/hooks/pre-commit` 是否存在且有执行权限（Windows 上跳过执行权限检查）
 
 ---
 

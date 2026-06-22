@@ -46,7 +46,7 @@ echo "Shared File Consistency Check"
 echo "=============================="
 
 # Find all reference basenames that appear in 2+ skills
-dup_names="$(find "$SKILLS_DIR" -type f -path '*/references/*' ! -name '.gitkeep' -exec basename {} \; 2>/dev/null | sort | uniq -d)"
+dup_names="$(find "$SKILLS_DIR" -type f -path '*/references/*' ! -name '.gitkeep' ! -path '*/opencode/*' -exec basename {} \; 2>/dev/null | sort | uniq -d)"
 
 for base in $dup_names; do
   # Skip known intentional differences

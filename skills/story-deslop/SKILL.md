@@ -158,7 +158,7 @@ node scripts/check-ai-patterns.js --check <正文文件...>
 Phase 2 诊断完成后，按以下顺序选择执行路径：
 
 1. **已在 narrative-writer 子代理内**：直接 inline 执行 Gate A-G，不再 spawn（嵌套 spawn 会被静默降级）。
-2. **未在子代理内且 `.claude/agents/narrative-writer.md` 存在**：spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：去AI味\n检查范围：{待处理的正文文件}\nAI味等级：{Phase 2 诊断结果}\n处理策略：{轻度/中度/重度对应的 Gate 范围}\n模式处理：按 references/anti-ai-writing.md 的问题模式目录执行；模式 8（解释腔/上帝视角/安排感）归入 Gate G，其余新增模式归入 Gate A-F 的对应处理。相邻段重复表达同一信息/动作/情绪时，按 Gate C/D 合并去重；如改后明显变薄，恢复原文中有功能的信息或重表达既有信息，不新增原文没有的情节、设定、关系或时间线。")`。
+2. **未在子代理内且 agent 目录（优先 `.claude/agents/`，其次 `.opencode/agents/`）下的 `narrative-writer.md` 存在**：spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：去AI味\n检查范围：{待处理的正文文件}\nAI味等级：{Phase 2 诊断结果}\n处理策略：{轻度/中度/重度对应的 Gate 范围}\n模式处理：按 references/anti-ai-writing.md 的问题模式目录执行；模式 8（解释腔/上帝视角/安排感）归入 Gate G，其余新增模式归入 Gate A-F 的对应处理。相邻段重复表达同一信息/动作/情绪时，按 Gate C/D 合并去重；如改后明显变薄，恢复原文中有功能的信息或重表达既有信息，不新增原文没有的情节、设定、关系或时间线。")`。
 3. **agent 不存在或 spawn 失败**：主线程 inline 执行。
 
 以下为各 Gate 的详细规则（无论 agent 还是主线程执行，均须遵循）：

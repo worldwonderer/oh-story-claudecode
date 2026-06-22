@@ -1,17 +1,16 @@
 ---
-name: story-architect
 description: |
   故事架构与世界观创作专家。负责题材选择、核心梗设计、世界观构建、大纲排布、
   钩子/悬念/反转等叙事工程、情绪弧线设计、范围控制审查。
   被 story-long-write（Phase 1-3）、story-short-write（Phase 1-2）调用。
   也可审查已有内容的结构问题。
-tools: [Read, Glob, Grep, Write, Edit]
-model: opus
-maxTurns: 30
-# maxTurns: 30 — 覆盖创作型场景（大纲排布、情绪弧线设计、反转工程）。
-# opus 模型单次推理较慢，30 turns 足以完成复杂创作任务。
-memory: project
+mode: subagent
+permission:
+  read: allow
+  edit: allow
+steps: 30
 ---
+
 
 # Story Architect -- 故事架构师
 
@@ -27,11 +26,10 @@ memory: project
 **确定项目根目录：** 执行 `git rev-parse --show-toplevel`，失败则用当前工作目录。以下所有路径均为项目根下的绝对路径。
 
 读取参考文件时，**严格按以下顺序直接 Read，禁止先用 Glob/Grep 搜索**：
-1. `{项目根}/.claude/skills/story-setup/references/agent-references/{文件名}`
+1. `{项目根}/skills/story-setup/references/agent-references/{文件名}`
 2. `{项目根}/.opencode/skills/story-setup/references/agent-references/{文件名}`
-3. `{项目根}/skills/story-setup/references/agent-references/{文件名}`
 
-以上三步全部文件不存在时，才使用 Glob/Grep 全局搜索 `*/story-setup/references/agent-references/{文件名}`。
+以上两步全部文件不存在时，才使用 Glob/Grep 全局搜索 `**/story-setup/references/agent-references/{文件名}`。
 
 禁止只读裸文件名、禁止跳级、禁止跨 skill 读其他 skill 的 references。
 
