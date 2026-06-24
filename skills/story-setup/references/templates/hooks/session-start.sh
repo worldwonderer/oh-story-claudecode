@@ -113,6 +113,37 @@ if [ -d "$ROOT/拆文库" ]; then
   fi
 fi
 
+# 版本更新检查（被动提醒：每 24h 至多一次，全程静默兜底，失败绝不影响会话；关掉：export STORY_NO_UPDATE_CHECK=1）
+story_update_check() {
+  [ -n "${STORY_NO_UPDATE_CHECK:-}" ] && return 0
+  command -v curl >/dev/null 2>&1 || return 0
+  local vfile=""
+  [ -f "$ROOT/.claude/skills/story/VERSION" ] && vfile="$ROOT/.claude/skills/story/VERSION"
+  [ -z "$vfile" ] && [ -f "$HOME/.claude/skills/story/VERSION" ] && vfile="$HOME/.claude/skills/story/VERSION"
+  [ -n "$vfile" ] || return 0
+  local cur; cur=$(tr -dc '0-9.' < "$vfile" 2>/dev/null) || return 0
+  [ -n "$cur" ] || return 0
+  local cache="${HOME:-$ROOT}/.claude/.story-update-cache"
+  local now; now=$(date +%s 2>/dev/null) || return 0
+  local last=0 latest=""
+  if [ -f "$cache" ]; then
+    last=$(sed -n '1p' "$cache" 2>/dev/null || echo 0)
+    latest=$(sed -n '2p' "$cache" 2>/dev/null || echo "")
+  fi
+  case "$last" in ''|*[!0-9]*) last=0;; esac
+  if [ "$((now - last))" -ge 86400 ] || [ -z "$latest" ]; then
+    latest=$(curl -fsS --max-time 5 "https://api.github.com/repos/worldwonderer/oh-story-claudecode/releases/latest" 2>/dev/null \
+      | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | grep -o '[0-9][0-9.]*' | head -1) || latest=""
+    [ -n "$latest" ] && printf '%s\n%s\n' "$now" "$latest" > "$cache" 2>/dev/null || true
+  fi
+  [ -n "$latest" ] || return 0
+  if [ "$latest" != "$cur" ] && [ "$(printf '%s\n%s\n' "$cur" "$latest" | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)" = "$latest" ]; then
+    OUTPUT+="[INFO] 网文工具箱有新版本 v${latest}（当前 v${cur}）。更新：npx skills add worldwonderer/oh-story-claudecode -y -g 后重跑 /story-setup；或对 /story 说“检查更新”。关掉提醒：export STORY_NO_UPDATE_CHECK=1\n"
+    HAS_CONTENT=true
+  fi
+}
+story_update_check || true
+
 # 仅在有实际内容时输出，否则完全静默
 if [ "$HAS_CONTENT" = true ]; then
   printf '%b' "$OUTPUT"
