@@ -32,7 +32,8 @@ metadata:
 | `GPT_IMAGE_API_KEY` | ✅ | — | OpenAI 或兼容代理的 API Key |
 | `GPT_IMAGE_BASE_URL` | | `https://api.openai.com/v1` | 兼容代理时改这个 |
 | `GPT_IMAGE_MODEL` | | `gpt-image-2` | 仅在测试新模型时覆盖 |
-| `GPT_IMAGE_SIZE` | | `1024x1536` | gpt-image-2 要求两边为 16 倍数、比例 ≤ 3:1 |
+| `GPT_IMAGE_SIZE` | | `1024x1536` | 目标比例提示（番茄 3:4→`768x1024`，默认 2:3→`1024x1536`）。官方 gpt-image-2 认任意 16 倍数尺寸（比例≤3:1），但**很多中转代理会忽略 size、按预设返回约 2:3**（已实测）——平台尺寸不靠它，由 Step 3.5 兜底 |
+| `UPLOAD_SIZE` | | — | 平台固定上传像素（番茄 `600x800`）；设置后 Step 3.5 居中裁剪+缩放出上传版（不变形、不依赖出图尺寸） |
 | `BOOK_DIR` | ✅ | — | 输出目录，建议 `./covers/<书名>` |
 | `REF_IMAGE` | | — | 参考图本地路径或 URL；设置后走 `images/edits` 图生图 |
 
@@ -45,9 +46,18 @@ metadata:
 ### Step 1：收集信息
 
 必填：书名、作者名（笔名）、目标平台、输出目录 `BOOK_DIR`（建议 `./covers/<书名>`，调用前 export）
-选填：参考图 `REF_IMAGE`（本地路径或 URL，设置后切换到图生图）、风格偏好、尺寸（默认竖版 1024x1536）
+选填：参考图 `REF_IMAGE`（本地路径或 URL，设置后切换到图生图）、风格偏好、尺寸
 
-**根据目标平台确定封面风格**，加载 [references/cover-styles.md](references/cover-styles.md) 获取详细平台和题材风格。
+> **书名和笔名是封面必需信息**：缺任一必须先用 AskUserQuestion 问用户补全，不得编造或留空。
+
+**按目标平台定封面尺寸**：番茄上传 600×800 是 **3:4**（不是 2:3），出图比例不对、平台二次裁剪就会切掉书名/笔名。
+
+| 平台 | 上传尺寸 | 比例 | 生成 `GPT_IMAGE_SIZE`（尽量） |
+|:-----|:--------|:-----|:-------------------|
+| 番茄小说 | 600×800 | 3:4 | `768x1024` |
+| 其他平台（默认竖版） | 按平台规格 | 2:3 | `1024x1536` |
+
+`export GPT_IMAGE_SIZE` 给目标比例（官方按它出图，很多代理会忽略、返回约 2:3）；平台有固定上传像素再 `export UPLOAD_SIZE`（番茄 `600x800`）。**平台尺寸最终由 Step 3.5 居中裁剪+缩放保证，不依赖代理认不认 size。** 平台与题材风格见 [references/cover-styles.md](references/cover-styles.md)。
 
 ### Step 1.5：题材判定
 
@@ -132,7 +142,7 @@ Title text '{书名}' at top center in [书名字体风格].
 Author name '{作者名}' at bottom center in [作者名字体风格 — 从上表选择].
 [题材风格标签]. [人物描述]. [背景描述].
 [色彩指令]. [光效指令].
-Professional book cover, high detail digital painting, portrait 2:3 ratio, no watermark
+Professional book cover, high detail digital painting, portrait [平台比例：番茄=3:4，默认=2:3] ratio, keep title and author name inside the central safe area away from edges (inner ~85%), no watermark
 ```
 
 #### 提示词技巧（实测验证）
@@ -261,6 +271,35 @@ file "$OUT"
 ls -lt "$BOOK_DIR/封面/"
 ```
 
+### Step 3.5：导出平台上传尺寸（平台有固定像素时）
+
+设了 `UPLOAD_SIZE`（番茄 600×800）就把原图**居中裁剪+缩放**成上传尺寸——不论出图是 2:3 还是 3:4 都裁成平台精确像素，不变形，避免平台再裁切掉书名/笔名。原图保留、另存 `_上传` 版：
+
+```bash
+SRC="${OUT:-$(ls -t "${BOOK_DIR:-.}"/封面/封面_v*.png 2>/dev/null | grep -v _上传 | head -1)}"  # 复用 Step 3 的 $OUT；新 shell 里从 BOOK_DIR 找最新原图
+TARGET="${UPLOAD_SIZE:-}"   # 番茄=600x800；未设则跳过
+if [ -n "$TARGET" ] && [ -f "$SRC" ]; then
+  UP="${SRC%.png}_上传.png"; W="${TARGET%x*}"; H="${TARGET#*x}"
+  if command -v magick >/dev/null 2>&1; then M=magick
+  elif command -v convert >/dev/null 2>&1; then M=convert; else M=""; fi
+  if [ -n "$M" ]; then
+    "$M" "$SRC" -resize "${W}x${H}^" -gravity center -extent "${W}x${H}" "$UP"  # 缩放填满后居中裁
+  elif command -v sips >/dev/null 2>&1; then
+    cp "$SRC" "$UP"
+    sw=$(sips -g pixelWidth "$UP" | awk '/pixelWidth/{print $NF}')
+    sh=$(sips -g pixelHeight "$UP" | awk '/pixelHeight/{print $NF}')
+    if [ $((sw*H)) -ge $((sh*W)) ]; then sips --resampleHeight "$H" "$UP" >/dev/null
+    else sips --resampleWidth "$W" "$UP" >/dev/null; fi
+    sips -c "$H" "$W" "$UP" >/dev/null   # sips -c 是 高 宽，居中裁
+  else
+    echo "无 magick/convert/sips，跳过；手动把 $SRC 居中裁剪+缩放到 $TARGET 再上传" >&2
+  fi
+  [ -f "$UP" ] && file "$UP"
+fi
+```
+
+> 书名/笔名已在提示词里留中心安全区，居中裁剪不会切到。
+
 ### Step 4：质量检查 + 迭代
 
 | 检查项 | 标准 |
@@ -269,6 +308,7 @@ ls -lt "$BOOK_DIR/封面/"
 | 题材匹配 | 视觉风格与书名题材一致 |
 | 构图合理 | 主体突出，文字不遮挡核心画面 |
 | 平台适配 | 符合目标平台的封面风格调性 |
+| 平台尺寸 | 比例与平台一致；缩放到上传尺寸后书名、笔名完整可见、未被裁切 |
 
 不满意时调整方向：更换构图、调整色调、换字体风格、换平台风格。
 
