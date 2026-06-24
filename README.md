@@ -89,16 +89,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 `-g` 全局安装，所有目录可用；去掉 `-g` 则只装到当前目录。更新时重新执行同一条命令即可。
 
-> **OpenCode 用户：** 全局安装后，opencode 会自动从 `~/.claude/skills/` 发现 skills。首次使用时，用自然语言触发 story-setup（如「请使用 story-setup skill，帮我部署网文写作环境」），它会自动检测 OpenCode 环境并部署对应的 agents、commands 和插件。
->
-> **首次部署后必须重启 opencode**（退出后执行 `opencode -c`），`.opencode/commands/` 下的 slash command 才会生效。之后 `/story-setup`、`/story-long-write` 等命令即可直接使用。
->
-> **OpenCode 已知差异：** opencode 与 Claude Code 的机制差异导致部分功能实现方式不同：
-> - `session-start` / `detect-gaps`：opencode 插件暂未移植这两个 hook，会话开始与缺口检测不会注入提示（仅保留 compact 摘要与写正文前的大纲守卫）
-> - `session-end`：opencode 无等价事件，暂不支持
-> - `validate-commit`：改用 git 原生 `pre-commit` hook，适用于所有 CLI
-> - `browser-cdp`：无后台任务机制，长耗时操作可能卡死，需用户按 `ESC` 打断（SKILL.md 已内置超时包装指引）
-> - `compact` 相关 hook：依赖 `experimental` API，可能在 opencode 未来版本变动
+> **OpenCode 用户：** 全局安装后 opencode 自动从 `~/.claude/skills/` 发现 skills；首次用自然语言触发 story-setup（如「用 story-setup 部署网文写作环境」），**部署后退出重进 `opencode -c`** 才能用 slash command。部分 hook 行为与 Claude Code 有差异（session-start / session-end / compact 等），详见 [CONTRIBUTING.md](CONTRIBUTING.md) 的 OpenCode 章节。
 >
 > 升级后如果项目里已经跑过 `/story-setup`，建议在项目根重跑一次 `/story-setup`，同步 hooks / agents / references。每版变更见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases)。
 

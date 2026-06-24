@@ -93,16 +93,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 > After updating, if a project has already run `/story-setup`, re-run `/story-setup` from the project root to sync hooks / agents / references. Per-version changes are in [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases).
 >
-> **OpenCode users:** After global installation, opencode automatically discovers skills from `~/.claude/skills/`. On first use, trigger story-setup with natural language (e.g., "Please use story-setup skill to deploy the web novel writing environment"). It auto-detects the OpenCode environment and deploys corresponding agents, commands, and plugin.
->
-> **You must restart opencode after first deployment** (exit and run `opencode -c`) for `.opencode/commands/` slash commands to take effect.
->
-> **OpenCode known differences:** Due to mechanism differences between opencode and Claude Code:
-> - `session-start` / `detect-gaps`: not yet ported for opencode — no injection at session start or gap detection (only the compact summary and the outline-before-prose guard are active)
-> - `session-end`: No equivalent event in opencode, unsupported
-> - `validate-commit`: Uses git native `pre-commit` hook instead, works for all CLIs
-> - `browser-cdp`: No background task mechanism — long operations may hang, requiring user to press `ESC` (SKILL.md includes timeout wrapping guidance)
-> - `compact` hooks: Depend on `experimental` API, may change in future opencode versions
+> **OpenCode users:** After global install, opencode auto-discovers skills from `~/.claude/skills/`; trigger story-setup with natural language on first use (e.g., "use story-setup to deploy the web novel environment"), then **exit and re-enter with `opencode -c`** for slash commands to work. Some hook behaviors differ from Claude Code (session-start / session-end / compact, etc.) — see the OpenCode section in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 > **Multi-agent collaboration needs setup + a fresh session**: the 7 specialist agents (story-architect, narrative-writer, consistency-checker, etc.) are written into your project's `.claude/agents/` by `/story-setup`. Claude Code only registers custom agents **at session start**, so **after `/story-setup` finishes you must open a new Claude Code session** before story-review's multi-perspective review and the agent collaboration in the writing flow take effect; otherwise skills get "subagent_type unavailable" and fall back to solo (single perspective). To check: run `/story-review` in the new session — a header of `Effective Mode: full/lean` means agents registered, `Fallback: ... -> solo` means you're still in the old session.
 
