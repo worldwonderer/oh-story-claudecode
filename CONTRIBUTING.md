@@ -163,8 +163,11 @@ PR 中如果修改了 Claude Code 模板文件，CI 会自动检测 opencode 模
 
 **session-start 系统提示注入不支持**：OpenCode 公开 Plugin API 中无 `chat.message` 或等效 hook，部署状态检测和写作进度无法在会话开始时注入模型上下文。用户可手动运行 `/story-setup` 查看状态。
 
+**其它 hook 差异**：`detect-gaps`（缺口检测）插件未移植，会话开始不注入提示（仅保留 compact 摘要与写正文前的大纲守卫）；`session-end` opencode 无等价事件、暂不支持；`validate-commit` 改用 git 原生 `pre-commit` hook（适用于所有 CLI）。
+
 ### OpenCode 使用注意事项
 
 - **首次部署后需要重启 opencode**：story-setup 部署的 `.opencode/commands/` 下的 slash command 在 opencode 重启后才会生效。退出 opencode 后执行 `opencode -c` 重新进入即可。
 - **首次部署使用自然语言触发**：新项目中没有 slash command，需要用自然语言触发 story-setup（如「请使用 story-setup skill，帮我部署网文写作环境」）。
 - **opencode 配置不热加载**：修改 `opencode.json`、agent 文件或 plugin 后均需重启 opencode。
+- **browser-cdp 长耗时操作可能卡死**：opencode 无后台任务机制，长耗时浏览器操作需用户按 `ESC` 打断（SKILL.md 已内置超时包装指引）。
