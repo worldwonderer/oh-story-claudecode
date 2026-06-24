@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.18
+
+> OpenCode CLI 完整支持（#151）· 内置版本更新提醒（#173）· 对话机械化/论文腔修复（#171）· 续写文风漂移每章自检（#168）· 新名词锚点（#175）· AI 句式硬门槛与 detector 复扫（#166）· 封面平台尺寸裁剪兜底（#176）· Windows 中文系统 hook 字节稳定（#164）
+
+### 新增
+
+- **OpenCode CLI 完整支持（#151）**：新增 `skills/story-setup/references/opencode/` 适配层（`plugin.ts` 写正文前大纲守卫、13 个 command 包装、`AGENTS.md.tmpl`、`pre-commit.sh`、`opencode.json.patch`），`scripts/sync-opencode.py` 由 Claude agent 模板自动生成 opencode 副本并经 `.github/workflows/sync-opencode.yml`（check-sync）守卫；6 个写作 skill + story-setup 的 agent 检测同时兼容 `.claude/agents/` 与 `.opencode/agents/`，agent 参考路径解析增加 `.opencode/skills/` 步骤。
+- **内置版本更新检查（#173）**：不新增 skill，把更新检查折进 `/story` 路由——主动「检查/更新版本」读 `skills/story/VERSION` 比对 GitHub latest release，提示 当前→最新 + Releases/CHANGELOG，由 AskUserQuestion 决定是否更新（只通知、不自动安装）；session-start 增加被动提醒（每 24h 至多一次、curl 5s 超时、全程静默兜底、`STORY_NO_UPDATE_CHECK=1` 可关，仅落后才提示）。被动提醒走 deployed hook，仅 Claude Code；主动检查两端通用。
+
+### 改进
+
+- **对话机械化/论文腔/不分场合修复（#171）**：`narrative-writer` 参考表接入 `dialogue-mastery`（按需读取），审查清单新增对话质量逐项（机械对话/角色科普嘴/说话不分场合）、新增「写完后对话自检」收尾步使对话检查每章必跑；写前意图确认（`story-long-write` 3.3 / `workflow-daily` 2.4）新增「③对话声线基线」按本章基调收敛（高压 beat→搞笑声线让位、信息型配角不当科普嘴、逐句承接对方情绪）；`story-review` Agent2（character-designer）新增对话三症状独立审查。`dialogue-mastery.md`（4 份同步）补「每句回应上一句情绪」「Gate G 同样管台词」「场合例外声线让位」。
+- **续写文风漂移（逗号结巴体）每章自检（#168）**：`narrative-writer` 新增「写完后文风自检」收尾步，取目标句长带粗测本章句段长/碎句比，漂移即按目标带把碎句合并回中长句重写（以 `文风.md`/原文锚点为准，不模仿可能已漂移的上一章）；目标句长带快照钉进抗 compaction 的 `追踪/上下文.md` 新增「## 文风指纹」区（首次写作从 `文风.md` 快照填入、之后不变），自检优先据上下文指纹判漂，闭合长会话 compaction 后丢失文风路径的盲区。
+- **新名词/设定首次出现给读者锚点（#175）**：`anti-ai-writing.md`（6 份同步）Gate G/模式8 自检后补反向制衡「删解释腔 ≠ 把读者读懵」——新名词/设定首次出现仍要靠角色动作反应/对话半句/场景物理后果一笔带出当下作用，不整段讲来历、也不甩零信息生词，并给「蓝晶」示例区分「锚 vs 解释」。
+- **AI 句式硬门槛 + detector 复扫（#166）**：`narrative-writer`、写作 skill、review/deslop 流程把「先否定再肯定」翻转句式列为硬禁令（文风召回/对标模仿/Gate B 软规则都不能覆盖）；`story-deslop`/`story-long-write`/`story-short-write`/`story-review` 携带本地 `check-ai-patterns.js`，文件模式在预检/交付前 `node scripts/check-ai-patterns.js --check <正文文件…>` 复扫到 0；narrative-writer 无 Bash 工具时只报告已自检、不谎称已运行脚本。detector 收敛误报：`是`-类连词（只是/可是/于是…）、either-or「不是A就是B / 也是B」与句尾反问「…，是吗 / 是吧 / 是嘛」不再被当成翻转句式（4 份同步副本 + 回归用例）。
+- **封面：强制收集笔名 + 平台尺寸由裁剪兜底（#176）**：`story-cover` Step 1 缺书名/笔名先 AskUserQuestion 补全、不留空；`GPT_IMAGE_SIZE` 降级为「目标比例提示」（实测多数中转/聚合代理忽略 size，对任意请求都返回约 2:3 竖图）；新增 Step 3.5 居中裁剪+缩放（crop-to-fill），不论出图比例都确定性裁成平台精确像素（番茄 600×800），不变形、不依赖代理是否认 size；提示词书名/笔名留中心安全区（inner ~85%）。
+
+### 修复
+
+- **Windows 中文系统 hook 字节稳定（#164）**：根治 GBK 区域编码两层坑——python stdout 恒 cp936（改 `sys.stdout.buffer.write`）；导出 GBK 下 gawk/sed/grep/bash 通配 mis-decode UTF-8（7 个 deployed hook 统一 `export LC_ALL=C`（python-safe 放置）、`common.sh` book-name sed 包裹、全角冒号改 `(：|:)` 交替、全角空格 U+3000 处理）。新增真 GBK 区域端到端 CI（ubuntu/windows/macos）+ 静态 locale-safety 守卫 + python `print()` 禁用。
+- **字数统计错误（#170）**：修复字数统计；`narrative-writer` Gate E 增「具体字数表达校验」（禁止正文中未经脚本核验的「这五个字」式字数断言，改非数字表述）。
+
+### 文档
+
+- **精简 README OpenCode 注意事项（#179）**：README / README_EN 把 #151 引入的「OpenCode 已知差异」5 条 bullet 压成一行（安装发现 + 重启 + 首次自然语言触发 + 「部分 hook 行为有差异，详见 CONTRIBUTING」），实现细节统一回填 `CONTRIBUTING.md`（detect-gaps/session-end/validate-commit/browser-cdp ESC），指针名副其实不丢信息。
+
+### 发布准备
+
+- `CHANGELOG.md` 新增 v0.6.18 条目；`.claude-plugin/marketplace.json` metadata.version 0.6.17 → 0.6.18；`skills/story/VERSION` 0.6.17 → 0.6.18（更新检查锚点，须与 release tag 一致）。
+- story-setup `setup_skill_version` 1.2.3 / `agents_version` 14（v0.6.17 之后已 bump，本次不变）。由于 templates/hooks/rules/references 更新（含 OpenCode 适配层、对话/文风自检、detector 复扫、被动更新提醒），已部署项目需重新运行 `/story-setup`，并在部署后新开 Claude Code 会话。
+- canonical source 位于 `skills/**`、`scripts/**`、`CHANGELOG.md` 和 `.claude-plugin/marketplace.json`；根目录 `.claude/` 仍视为 ignored 本地部署镜像。
+
 ## v0.6.17
 
 > 用户反馈专项：长篇细纲升级为章节蓝图（#162）· 语气标点谱系（#161）· story-setup v13 部署刷新 · 汇入 v0.6.16 之后的深度限知、正文元信息、拆文模块链、review 一致性、段落/主语节奏等修复

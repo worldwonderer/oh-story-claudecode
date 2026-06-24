@@ -18,7 +18,7 @@ Professional authors follow a three-step method:
 
 Built around four pillars: reverse-engineering hits · plot modularization · layered state management · human-AI collaboration.
 
-> Starting in v0.6.17, long-form outlines become richer chapter blueprints (five-stage summary, multi-line plot plan, relationship/order tracking, ending hooks), and prose/review guidance adds tone-aware punctuation to avoid all-period flattening.
+> Starting in v0.6.18, the toolkit fully supports the OpenCode CLI (auto-discovered agents, command and hook adapters) and ships a built-in update reminder; serialized writing adds per-chapter dialogue-voice and style-drift self-checks, and cover generation crop-fills to each platform's exact size (e.g. 番茄 600×800).
 
 ## Pipeline Overview
 

@@ -149,4 +149,9 @@
 - **AI 句式硬门槛（issue #166）**：`narrative-writer`、写作 skill、review/deslop 流程都把“先否定再肯定”的翻转句式列为硬禁令；文风召回、对标模仿和 Gate B 软规则都不能覆盖这条禁令。
 - **detector 复扫链路**：`story-deslop`、`story-long-write`、`story-short-write`、`story-review` 都携带本地 `check-ai-patterns.js`，文件模式在预检或交付前对正文执行 `node scripts/check-ai-patterns.js --check <正文文件...>`；命中时回到正文改写，直到复扫到 0。
 - **narrative-writer 交付边界**：agent 本身没有 Bash/Node 工具时，只能报告已按规则自检，不能声称已运行脚本；主会话或调用方具备执行能力时，必须对实际落盘文件复扫。
-- 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/references；**部署后新开会话**，否则旧会话仍使用 v13 agent 定义，无法获得 issue #166 的硬门槛和脚本复扫要求。
+- **字数统计修复（issue #170）**：`narrative-writer` Gate E 增「具体字数表达校验」——禁止正文写未经脚本核验的「这五个字」式字数断言，改用非数字表述。
+- **对话机械化/论文腔/不分场合修复（issue #171）**：`narrative-writer` 参考表接入 `dialogue-mastery`、审查清单加对话质量逐项、新增「写完后对话自检」收尾步；写前意图确认加「对话声线基线」（高压 beat→搞笑声线让位、信息型配角不当科普嘴、逐句承接对方情绪），`consistency-checker`/`character-designer` 审查侧同步。
+- **续写文风漂移每章自检（issue #168）**：`narrative-writer` 新增「写完后文风自检」，并把目标句长带快照钉进 `追踪/上下文.md` 的「## 文风指纹」区（抗 compaction），续写逐章按目标带把碎句合并回中长句，防逗号结巴体。
+- **新名词/设定首次出现给读者锚点（issue #175）**：`anti-ai-writing.md` Gate G 自检后补「删解释腔 ≠ 把读者读懵」反向制衡，新名词首次出现靠动作/对话半句/场景后果一笔带出当下作用。
+- **被动版本更新检查（issue #173）**：`session-start.sh` 增加被动更新提醒——每 24h 至多一次、curl 5s 超时、全程静默兜底、`STORY_NO_UPDATE_CHECK=1` 可关，仅落后才提示。
+- 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/references；**部署后新开会话**，否则旧会话仍使用 v13 agent 定义，无法获得以上 v14 的全部改进。

@@ -22,6 +22,12 @@ const HARD_SEPARATORS = new Set(['。', '.', '！', '!', '？', '?']);
 const MAX_NEGATIVE_SPAN = 80;
 const MAX_POSITIVE_SPAN = 80;
 
+// either-or「不是A就是B / 不是A也是B」里紧贴的「是」是连词的一部分，不是肯定项系动词。
+// 含「不」以沿用「不是A，也不是B」第二个否定段不算翻转的旧排除。
+const COMPACT_EITHER_OR_PREV = new Set(['不', '就', '也']);
+// 句尾语气/反问助词；「…，是吗 / 是吧 / 是嘛」是反问尾巴，不是否定后的肯定翻转。
+const TAG_PARTICLES = new Set(['吗', '吧', '嘛']);
+
 const options = {
   json: false,
   files: [],
@@ -232,13 +238,13 @@ function findPositiveFlipEnd(candidate) {
     if (SOFT_SEPARATORS.has(char)) {
       const next = skipGap(candidate, index + 1);
       if (startsWithAt(candidate, next, '而是')) return next + 2;
-      if (candidate[next] === '是') return next + 1;
+      if (candidate[next] === '是' && !TAG_PARTICLES.has(candidate[next + 1])) return next + 1;
       crossedSeparator = true;
     }
 
     if (HARD_SEPARATORS.has(char)) {
       const next = skipGap(candidate, index + 1);
-      if (candidate[next] === '是') return next + 1;
+      if (candidate[next] === '是' && !TAG_PARTICLES.has(candidate[next + 1])) return next + 1;
       if (char !== '.') break;
       crossedSeparator = true;
     }
@@ -254,9 +260,10 @@ function findPositiveFlipEnd(candidate) {
     // caught here — there is no separator-local way to tell them from a
     // conjunction without a word list, and on a hard rescan-to-0 gate a false
     // positive (forcing a rewrite of good prose) costs more than missing this
-    // rarer form. Also never treat the “是” inside a second negative fragment
-    // (“不是A，也不是B”) as the flip.
-    if (char === '是' && candidate[index - 1] !== '不' && !crossedSeparator) {
+    // rarer form. The “是” in the either-or idiom “不是A就是B / 也是B” is part of
+    // the 就是/也是 conjunction, not a copula, so 就/也 are excluded too. Also never
+    // treat the “是” inside a second negative fragment (“不是A，也不是B”) as the flip.
+    if (char === '是' && !COMPACT_EITHER_OR_PREV.has(candidate[index - 1]) && !crossedSeparator) {
       return index + 1;
     }
 
