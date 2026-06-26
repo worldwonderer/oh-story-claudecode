@@ -130,6 +130,72 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 - **部署后必须 trust + 新开 Codex 会话**：Codex custom agents 位于 `.codex/agents/*.toml`，项目 `.codex/` 配置层需要被 trust；部署后需要新会话/刷新后才可能稳定暴露给 spawn。若运行时返回 `unknown agent_type`，调用方必须降级 solo/direct 并报告 fallback。
 - 将 `skills/story-setup/references/agent-references/` 同步复制到 `.codex/skills/story-setup/references/agent-references/`，作为 Codex agent 的项目内参考资料主路径
 
+### 2.4.4 配置 OpenCode Agent 模型
+
+> 仅当 `target_cli` 含 `opencode` 时执行。OpenCode 子代理不指定模型时继承主模型，导致低成本 Agent 也消耗主模型额度。此步骤自动检测用户模型并写入 `model:` 字段。
+
+#### Step 1：获取模型列表
+
+执行 `opencode models`，解析纯文本输出。每行为 `provider/model` 格式的模型 ID。
+
+- 成功 → 按行分割，过滤空行，进入 Step 2
+- 失败（命令不存在、输出为空等）→ 跳过自动配置，在安装报告中输出手动配置指南
+
+#### Step 2：模型分级
+
+按模型 ID 中的关键词自动分级（不区分大小写）：
+
+| 等级 | 匹配关键词 | 对应 Agent |
+|------|-----------|-----------|
+| 低端 | `haiku`, `flash`, `mini`, `nano`, `lite` | chapter-extractor, consistency-checker, story-explorer |
+| 中端 | `sonnet`, `plus` | story-researcher, narrative-writer, character-designer |
+| 高端 | `opus`, `pro`, `ultra`, `max` | story-architect |
+
+- 一个模型可能匹配多个等级的关键词，取最高等级
+- 未匹配任何关键词的模型不参与分级，不显示在候选中；在安装报告中列出未分级模型，提示"可通过自定义输入使用"
+- 同一等级内，如果包含多个模型供应商，优先列出知名供应商（anthropic、openai、google、deepseek）的模型
+
+#### Step 3：逐级交互选择
+
+按 低端 → 中端 → 高端 顺序，每级用 AskUserQuestion 让用户选择。
+
+选项结构（以低端为例）：
+
+```
+问题："为低成本 Agent（chapter-extractor, consistency-checker, story-explorer）选择模型："
+选项：
+  - anthropic/claude-haiku-4-20250514
+  - google/gemini-2.5-flash
+  - openai/gpt-4o-mini
+  - ✏️ 自定义输入（手动输入完整模型 ID）
+  - ⏭️ 跳过，使用主模型（成本可能较高）
+```
+
+规则：
+- 自动匹配的候选最多显示 5 个，超过则截断并提示"更多模型请使用自定义输入"
+- "自定义输入"让用户输入 `provider/model-id` 格式的完整 ID，不做校验
+- "跳过"不写 `model:` 字段，agent 继承主模型
+- 候选数为 0 时：不弹出选择，直接记录警告到安装报告（如"未检测到低成本模型，这 3 个 agent 将使用主模型，成本可能较高"）
+
+#### Step 4：写入 model 字段
+
+对应用户选择的 agent 文件（`.opencode/agents/*.md`，由部署清单第 59 行在此步骤之前已部署），在 frontmatter 的 closing `---` 之前插入 `model:` 行。优先在 `steps:` 行之后插入；如文件中无 `steps:` 字段，则在最后一个 frontmatter 字段之后、`---` 之前插入：
+
+```yaml
+---
+description: ...
+mode: subagent
+permission:
+  read: allow
+  edit: deny
+steps: 12
+model: anthropic/claude-haiku-4-20250514
+---
+```
+
+- 如果 agent 文件已有 `model:` 字段（重新部署场景），替换其值
+- 用户选择"跳过"的等级，不写入 `model:` 字段
+
 ### 2.5 部署 Session State 模板
 
 - 读取 `skills/story-setup/references/templates/上下文.md.tmpl`
@@ -203,6 +269,29 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
    - 列出需要注意的事项（如已有配置已合并）
     - **⚠️ 重启提示（必须醒目输出）**：本次部署写入了 `.claude/agents/`，但这些 custom agent 只在「会话启动」时才会被 Claude Code 注册成 `subagent_type`。**请新开一个 Claude Code 会话再开始写作**，否则当前会话里 story-review / story-long-write 等想 spawn `story-architect`、`narrative-writer` 等时会拿到「subagent_type 不可用」并降级 solo（单视角，失去多 agent 协作）。判断是否生效：新会话里跑 `/story-review`，报告头若是 `Effective Mode: full/lean` 即注册成功；若是 `Fallback: ... -> solo` 说明还在旧会话或未注册。
     - 重启后即可使用 `/story-long-write` 或 `/story-short-write`
+    - 如果执行了 2.4.4 模型配置，输出 Agent 模型配置摘要：
+      ```
+      Agent 模型配置：
+        story-architect          → anthropic/claude-opus-4-20250514
+        narrative-writer         → anthropic/claude-sonnet-4-20250514
+        character-designer       → anthropic/claude-sonnet-4-20250514
+        story-researcher         → anthropic/claude-sonnet-4-20250514
+        chapter-extractor        → anthropic/claude-haiku-4-20250514
+        consistency-checker      → anthropic/claude-haiku-4-20250514
+        story-explorer           → anthropic/claude-haiku-4-20250514
+      ```
+    - 如果自动检测失败（`opencode models` 不可用），输出手动配置指南：
+      ```
+      ⚠️ 无法自动检测模型列表。以下 Agent 未配置模型，将使用主模型，成本可能较高：
+        - chapter-extractor（建议使用低成本模型）
+        - consistency-checker（建议使用低成本模型）
+        - story-explorer（建议使用低成本模型）
+
+      手动配置方法：编辑 .opencode/agents/{agent名}.md，在 frontmatter 中添加：
+        model: provider/model-id
+
+      可用模型列表可通过 opencode models 命令查看。
+      ```
 7. 验证 opencode 部署（仅当 target_cli 含 opencode 时）：
     - 检查 `.opencode/agents/` 下的 7 个 agent 定义文件是否存在，且 frontmatter 包含 `mode: subagent` 和 `permission` 字段
     - 检查 `.opencode/plugins/story-hooks.ts` 是否存在
@@ -210,6 +299,7 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
     - 检查 `skills/story-setup/references/agent-references/` 下 reference 文件完整且数量与源目录一致
     - 检查 `opencode.json` 的 `plugin` 数组是否包含 story-hooks 条目
     - 检查 `.git/hooks/pre-commit` 是否存在且有执行权限（Windows 上跳过执行权限检查）
+    - 检查 `.opencode/agents/` 下的 agent 文件是否包含 `model:` 字段（如有配置）
 8. 验证 Codex 部署（仅当 target_cli 含 codex 时）：
     - 检查 `AGENTS.md` 含 Codex story skill routing sections
     - 检查 `.codex/agents/` 下 7 个 `.toml` agent 定义文件存在并可解析
