@@ -143,7 +143,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 #### Step 2：模型分级
 
-按模型 ID 中的关键词自动分级（不区分大小写）：
+按模型 ID 中**最后一个 `/` 之后的模型名部分**匹配关键词（不区分大小写）。只匹配模型名，不匹配 provider 路径中的单词，避免 `siliconflow-cn/Pro/deepseek-ai/DeepSeek-V4-Flash` 因路径中 `Pro` 被误判为高端。
 
 | 等级 | 匹配关键词 | 对应 Agent |
 |------|-----------|-----------|
