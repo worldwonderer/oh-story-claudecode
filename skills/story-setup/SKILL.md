@@ -136,9 +136,10 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 #### Step 1：获取模型列表
 
-执行 `opencode models`，解析纯文本输出。每行为 `provider/model` 格式的模型 ID。
+执行 `opencode models`，解析纯文本输出。每行为 `provider/model` 格式的模型 ID。使用 60000ms（60 秒）超时，因为首次运行需加载 models.dev 缓存。
 
 - 成功 → 按行分割，过滤空行，进入 Step 2
+- 超时 → 重试一次（缓存可能未预热）；仍然超时则跳过自动配置，在安装报告中输出手动配置指南
 - 失败（命令不存在、输出为空等）→ 跳过自动配置，在安装报告中输出手动配置指南
 
 #### Step 2：模型分级
