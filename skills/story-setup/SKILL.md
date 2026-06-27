@@ -59,7 +59,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | `skills/story-setup/references/templates/上下文.md.tmpl` | `{书名}/追踪/上下文.md` | user state | create only if absent | never overwrite existing writing context |
 | generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir` |
 | `skills/story-setup/references/opencode/AGENTS.md.tmpl` | `AGENTS.md` | user+managed | marker/section merge | contains story skill routing sections | target_cli 含 opencode |
-| `skills/story-setup/references/opencode/agents/` | `.opencode/agents/` | story-setup managed | replace | 7 agent files exist | target_cli 含 opencode |
+| `skills/story-setup/references/opencode/agents/` | `.opencode/agents/` | story-setup managed | replace | 7 agent files exist（replace 前按 2.4.4 Step 0 缓存现有 `model:`，避免覆盖用户已配模型） | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/plugin.ts` | `.opencode/plugins/story-hooks.ts` | story-setup managed | replace | TypeScript plugin file exists | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/commands/` | `.opencode/commands/` | story-setup managed | replace | 13 command files exist | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/opencode.json.patch` | merge into `opencode.json` | user+managed | merge by plugin/permission key | plugin entry registered | target_cli 含 opencode |
@@ -134,17 +134,23 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 > 仅当 `target_cli` 含 `opencode` 时执行。OpenCode 子代理不指定模型时继承主模型，导致低成本 Agent 也消耗主模型额度。此步骤自动检测用户模型并写入 `model:` 字段。
 
+#### Step 0：保留已有模型配置（必须在 `.opencode/agents/` 的 replace 之前执行）
+
+OpenCode agents 部署是 `replace`，会覆盖上次写入的 `model:`。所以在执行该 replace **之前**先扫描现有 `.opencode/agents/*.md`，缓存每个 agent 的 `model:`（agent 名 → 模型 ID）。后续检测失败/超时、或用户跳过某一级时，用缓存值回填，避免把用户上次配好的低成本模型抹成主模型。若 replace 已先发生、缓存为空，则按全新部署处理，并在安装报告中提示"未能保留上次模型配置"。
+
 #### Step 1：获取模型列表
 
-执行 `opencode models`，解析纯文本输出。每行为 `provider/model` 格式的模型 ID。使用 60000ms（60 秒）超时，因为首次运行需加载 models.dev 缓存。
+优先执行 `opencode models --verbose`，它输出含 cost（input/output/cache 单价）、context、capabilities 的 metadata；不可用或解析失败时回退到 `opencode models` 纯文本（每行 `provider/model`）。两者都用 60000ms（60 秒）超时，因为首次运行需加载 models.dev 缓存。
 
-- 成功 → 按行分割，过滤空行，进入 Step 2
-- 超时 → 重试一次（缓存可能未预热）；仍然超时则跳过自动配置，在安装报告中输出手动配置指南
-- 失败（命令不存在、输出为空等）→ 跳过自动配置，在安装报告中输出手动配置指南
+- 成功 → 进入 Step 2
+- 超时 → 重试一次（缓存可能未预热）；仍然超时则按 Step 0 缓存回填已有 `model:`、跳过自动配置，在安装报告中输出手动配置指南
+- 失败（命令不存在、输出为空等）→ 同上：回填 Step 0 缓存、跳过自动配置、输出手动配置指南
 
 #### Step 2：模型分级
 
-按模型 ID 中最后一个 `/` 之后的模型名按 `-`、`.`、`_` 分割为段，逐段精确匹配关键词（不区分大小写）。例如 `minimax-m3` 拆为 `[minimax, m3]`，不匹配 `mini` 也不匹配 `max`；`claude-haiku-4.5` 拆为 `[claude, haiku, 4, 5]`，匹配 `haiku`。
+**优先按成本分级（有 `--verbose` 时）**：按每模型实际 cost 从低到高分档——低端取最便宜/免费档、中端取中价档、高端取最贵或上下文/能力最强档。免费模型按真实 cost=0 归低端，**不按名字里的营销词**（如 `nemotron-3-ultra-free` 名含 `ultra` 但 cost=0，应归低端）。无 cost 数据的模型也据此进入候选，不被丢弃。
+
+**回退按关键词分级（无 `--verbose` 或无 cost 时）**：按模型 ID 中最后一个 `/` 之后的模型名按 `-`、`.`、`_` 分割为段，逐段精确匹配关键词（不区分大小写）。例如 `minimax-m3` 拆为 `[minimax, m3]`，不匹配 `mini` 也不匹配 `max`；`claude-haiku-4.5` 拆为 `[claude, haiku, 4, 5]`，匹配 `haiku`。关键词分级是启发式，安装报告中标注 `分级依据：关键词（heuristic）`。
 
 | 等级 | 匹配关键词 | 对应 Agent |
 |------|-----------|-----------|
@@ -153,7 +159,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | 高端 | `opus`, `pro`, `ultra`, `max` | story-architect |
 
 - 一个模型可能匹配多个等级的关键词，取最高等级
-- 未匹配任何关键词的模型不参与分级，不显示在候选中；在安装报告中列出未分级模型，提示"可通过自定义输入使用"
+- 关键词回退下未匹配任何关键词的模型仍列入候选附加建议（按成本分级则一律纳入），并在安装报告列出，提示"可通过自定义输入使用"
 - 同一等级内，如果包含多个模型供应商，优先列出知名供应商（anthropic、openai、google、deepseek）的模型
 
 #### Step 3：逐级交互选择
@@ -167,8 +173,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 选项：
   - provider/model-id
   - provider/model-id
-  - ✏️ 自定义输入（手动输入完整模型 ID，ID 拼写错误要到运行时才会暴露）
-  - ⏭️ 跳过，使用主模型（成本可能较高）
+  - 自定义输入（手动输入完整模型 ID，ID 拼写错误要到运行时才会暴露）
+  - 跳过，使用主模型（成本可能较高）
 ```
 
 **中端选项结构：**
@@ -178,8 +184,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 选项：
   - provider/model-id
   - provider/model-id
-  - ✏️ 自定义输入（⚠️ 请勿使用低端模型，会影响正文质量；ID 拼写错误要到运行时才会暴露）
-  - ⏭️ 跳过，使用主模型（主模型质量通常足够）
+  - 自定义输入（请勿使用低端模型，会影响正文质量；ID 拼写错误要到运行时才会暴露）
+  - 跳过，使用主模型（主模型质量通常足够）
 ```
 
 **高端选项结构：**
@@ -189,22 +195,23 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 选项：
   - provider/model-id
   - provider/model-id
-  - ✏️ 自定义输入（手动输入完整模型 ID，ID 拼写错误要到运行时才会暴露）
-  - ⏭️ 跳过，使用主模型（成本可能较高）
+  - 自定义输入（手动输入完整模型 ID，ID 拼写错误要到运行时才会暴露）
+  - 跳过，使用主模型（成本可能较高）
 ```
 
 规则：
-- 自动匹配的候选最多显示 5 个，超过则截断并提示"更多模型请使用自定义输入"
-- "自定义输入"让用户输入 `provider/model-id` 格式的完整 ID，不做校验
-- "跳过"不写 `model:` 字段，agent 继承主模型
-- 候选数为 0 时：不弹出选择，直接记录警告到安装报告
-  - 低端候选数为 0 时警告："未检测到低成本模型，这 3 个 agent 将使用主模型，成本可能较高"
-  - 中端候选数为 0 时警告："未检测到匹配 sonnet / plus 关键词的中端模型。narrative-writer、character-designer、story-researcher 将使用主模型。如主模型质量足够，此配置合理；如需降本，请通过自定义输入指定不低于主模型质量的中端模型。"
-  - 高端候选数为 0 时警告："未检测到高端模型，story-architect 将使用主模型"
+- 候选最多显示 5 个，超过则截断并提示"更多模型请使用自定义输入"。**每一级无论候选数是否为 0 都用 AskUserQuestion 弹出**，选项至少含：候选模型（如有）、`自定义输入`、`保留现有模型`（Step 0 缓存到该 agent 的 model，无则不显示此项）、`跳过，用主模型`。候选为 0 时仍弹窗，并在问题说明里给出对应警告 + 列出未分级/未入档模型供参考——不再静默跳过交互（否则用户够不到自定义输入）。
+- `自定义输入`：用户输入 `provider/model-id` 完整 ID；写入前校验为单行、无控制字符、匹配 `^[A-Za-z0-9._-]+/[A-Za-z0-9._:+-]+$`，不符则提示重输或改选跳过。
+- `保留现有模型`：写回 Step 0 缓存的该 agent model（重新部署时保住用户上次配置），不算"跳过"。
+- `跳过，用主模型`：显式清除——不写该 agent 的 `model:`，agent 继承主模型。想保留上次配置请选 `保留现有模型`。
+- 各级候选为 0 时在问题说明里给出提示：
+  - 低端："未检测到低成本模型，这 3 个 agent 将使用主模型，成本可能较高"
+  - 中端："未检测到匹配的中端模型。narrative-writer、character-designer、story-researcher 将使用主模型。如主模型质量足够此配置合理；如需降本，请用自定义输入指定不低于主模型质量的中端模型，或从下方未分级模型里选。"
+  - 高端："未检测到高端模型，story-architect 将使用主模型"
 
 #### Step 4：写入 model 字段
 
-对应用户选择的 agent 文件（`.opencode/agents/*.md`，由部署清单中 OpenCode agents 部署步骤在此步骤之前已部署），在 frontmatter 的 closing `---` 之前插入 `model:` 行。优先在 `steps:` 行之后插入；如文件中无 `steps:` 字段，则在最后一个 frontmatter 字段之后、`---` 之前插入：
+对应用户选择的 agent 文件（`.opencode/agents/*.md`，由部署清单中 OpenCode agents 部署步骤在此步骤之前已部署），在 frontmatter 末尾、closing `---` 之前，以**零缩进的顶层字段**插入 `model:`（不要插进 `permission:` 等多行 map 的缩进块内部）。值含 YAML 特殊字符时加引号，确保不破坏 frontmatter：
 
 ```yaml
 ---
@@ -218,8 +225,10 @@ model: provider/model-id
 ---
 ```
 
-- 如果 agent 文件已有 `model:` 字段（重新部署场景），替换其值
-- 用户选择"跳过"的等级，不写入 `model:` 字段
+- 如果 agent 文件已有 `model:` 字段（重新部署场景），替换该顶层 `model:` 的值，不新增重复键
+- `保留现有模型`：写回 Step 0 缓存的该 agent model
+- `跳过，用主模型`：不写入 `model:` 字段
+- 检测失败/超时、没走到本步骤的等级：用 Step 0 缓存回填 `model:`，避免 replace 抹掉用户上次配置
 
 ### 2.5 部署 Session State 模板
 
@@ -307,7 +316,7 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
       ```
     - 如果自动检测失败（`opencode models` 不可用），输出手动配置指南：
       ```
-      ⚠️ 无法自动检测模型列表。以下 Agent 未配置模型，将使用主模型，成本可能较高：
+      无法自动检测模型列表。以下 Agent 未配置模型，将使用主模型，成本可能较高：
         - chapter-extractor（建议使用低成本模型）
         - consistency-checker（建议使用低成本模型）
         - story-explorer（建议使用低成本模型）
@@ -315,8 +324,8 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
       手动配置方法：编辑 .opencode/agents/{agent名}.md，在 frontmatter 中添加：
         model: provider/model-id
 
-      可用模型列表可通过 opencode models 命令查看。
-      模型性价比排名可参考：https://yyh-001.github.io/llm-value-rankings/
+      可用模型列表与成本可通过 opencode models --verbose 查看（输出含每模型 cost/context）。
+      模型库与定价见 OpenCode 官方模型源 https://models.dev/。
       ```
 7. 验证 opencode 部署（仅当 target_cli 含 opencode 时）：
     - 检查 `.opencode/agents/` 下的 7 个 agent 定义文件是否存在，且 frontmatter 包含 `mode: subagent` 和 `permission` 字段
@@ -325,7 +334,7 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
     - 检查 `skills/story-setup/references/agent-references/` 下 reference 文件完整且数量与源目录一致
     - 检查 `opencode.json` 的 `plugin` 数组是否包含 story-hooks 条目
     - 检查 `.git/hooks/pre-commit` 是否存在且有执行权限（Windows 上跳过执行权限检查）
-    - 检查 `.opencode/agents/` 下的 agent 文件是否包含 `model:` 字段（如有配置）
+    - 检查 `.opencode/agents/` 下 agent 文件 frontmatter 可被 YAML 解析、`model:`（如有配置）是合法顶层标量，而非仅 grep 到 `model:` 子串
 8. 验证 Codex 部署（仅当 target_cli 含 codex 时）：
     - 检查 `AGENTS.md` 含 Codex story skill routing sections
     - 检查 `.codex/agents/` 下 7 个 `.toml` agent 定义文件存在并可解析
