@@ -144,7 +144,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 #### Step 2：模型分级
 
-按模型 ID 中**最后一个 `/` 之后的模型名部分**匹配关键词（不区分大小写）。只匹配模型名，不匹配 provider 路径中的单词，避免 `siliconflow-cn/Pro/deepseek-ai/DeepSeek-V4-Flash` 因路径中 `Pro` 被误判为高端。
+按模型 ID 中最后一个 `/` 之后的模型名按 `-`、`.`、`_` 分割为段，逐段精确匹配关键词（不区分大小写）。例如 `minimax-m3` 拆为 `[minimax, m3]`，不匹配 `mini` 也不匹配 `max`；`claude-haiku-4.5` 拆为 `[claude, haiku, 4, 5]`，匹配 `haiku`。
 
 | 等级 | 匹配关键词 | 对应 Agent |
 |------|-----------|-----------|
@@ -160,15 +160,36 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 按 低端 → 中端 → 高端 顺序，每级用 AskUserQuestion 让用户选择。
 
-选项结构（以低端为例）：
+**低端选项结构：**
 
 ```
 问题："为低成本 Agent（chapter-extractor, consistency-checker, story-explorer）选择模型："
 选项：
-  - anthropic/claude-haiku-4-20250514
-  - google/gemini-2.5-flash
-  - openai/gpt-4o-mini
-  - ✏️ 自定义输入（手动输入完整模型 ID）
+  - provider/model-id
+  - provider/model-id
+  - ✏️ 自定义输入（手动输入完整模型 ID，ID 拼写错误要到运行时才会暴露）
+  - ⏭️ 跳过，使用主模型（成本可能较高）
+```
+
+**中端选项结构：**
+
+```
+问题："为写作质量关键 Agent（narrative-writer, character-designer, story-researcher）选择模型："
+选项：
+  - provider/model-id
+  - provider/model-id
+  - ✏️ 自定义输入（⚠️ 请勿使用低端模型，会影响正文质量；ID 拼写错误要到运行时才会暴露）
+  - ⏭️ 跳过，使用主模型（主模型质量通常足够）
+```
+
+**高端选项结构：**
+
+```
+问题："为总指挥 Agent（story-architect）选择模型："
+选项：
+  - provider/model-id
+  - provider/model-id
+  - ✏️ 自定义输入（手动输入完整模型 ID，ID 拼写错误要到运行时才会暴露）
   - ⏭️ 跳过，使用主模型（成本可能较高）
 ```
 
@@ -176,11 +197,14 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 - 自动匹配的候选最多显示 5 个，超过则截断并提示"更多模型请使用自定义输入"
 - "自定义输入"让用户输入 `provider/model-id` 格式的完整 ID，不做校验
 - "跳过"不写 `model:` 字段，agent 继承主模型
-- 候选数为 0 时：不弹出选择，直接记录警告到安装报告（如"未检测到低成本模型，这 3 个 agent 将使用主模型，成本可能较高"）
+- 候选数为 0 时：不弹出选择，直接记录警告到安装报告
+  - 低端候选数为 0 时警告："未检测到低成本模型，这 3 个 agent 将使用主模型，成本可能较高"
+  - 中端候选数为 0 时警告："未检测到匹配 sonnet / plus 关键词的中端模型。narrative-writer、character-designer、story-researcher 将使用主模型。如主模型质量足够，此配置合理；如需降本，请通过自定义输入指定不低于主模型质量的中端模型。"
+  - 高端候选数为 0 时警告："未检测到高端模型，story-architect 将使用主模型"
 
 #### Step 4：写入 model 字段
 
-对应用户选择的 agent 文件（`.opencode/agents/*.md`，由部署清单第 59 行在此步骤之前已部署），在 frontmatter 的 closing `---` 之前插入 `model:` 行。优先在 `steps:` 行之后插入；如文件中无 `steps:` 字段，则在最后一个 frontmatter 字段之后、`---` 之前插入：
+对应用户选择的 agent 文件（`.opencode/agents/*.md`，由部署清单中 OpenCode agents 部署步骤在此步骤之前已部署），在 frontmatter 的 closing `---` 之前插入 `model:` 行。优先在 `steps:` 行之后插入；如文件中无 `steps:` 字段，则在最后一个 frontmatter 字段之后、`---` 之前插入：
 
 ```yaml
 ---
@@ -190,7 +214,7 @@ permission:
   read: allow
   edit: deny
 steps: 12
-model: anthropic/claude-haiku-4-20250514
+model: provider/model-id
 ---
 ```
 
@@ -273,13 +297,13 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
     - 如果执行了 2.4.4 模型配置，输出 Agent 模型配置摘要：
       ```
       Agent 模型配置：
-        story-architect          → anthropic/claude-opus-4-20250514
-        narrative-writer         → anthropic/claude-sonnet-4-20250514
-        character-designer       → anthropic/claude-sonnet-4-20250514
-        story-researcher         → anthropic/claude-sonnet-4-20250514
-        chapter-extractor        → anthropic/claude-haiku-4-20250514
-        consistency-checker      → anthropic/claude-haiku-4-20250514
-        story-explorer           → anthropic/claude-haiku-4-20250514
+        story-architect          → <高端模型>（provider/model-id）
+        narrative-writer         → <中端模型>（provider/model-id）
+        character-designer       → <中端模型>（provider/model-id）
+        story-researcher         → <中端模型>（provider/model-id）
+        chapter-extractor        → <低端模型>（provider/model-id）
+        consistency-checker      → <低端模型>（provider/model-id）
+        story-explorer           → <低端模型>（provider/model-id）
       ```
     - 如果自动检测失败（`opencode models` 不可用），输出手动配置指南：
       ```
@@ -292,6 +316,7 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
         model: provider/model-id
 
       可用模型列表可通过 opencode models 命令查看。
+      模型性价比排名可参考：https://yyh-001.github.io/llm-value-rankings/
       ```
 7. 验证 opencode 部署（仅当 target_cli 含 opencode 时）：
     - 检查 `.opencode/agents/` 下的 7 个 agent 定义文件是否存在，且 frontmatter 包含 `mode: subagent` 和 `permission` 字段
