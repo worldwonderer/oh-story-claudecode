@@ -31,7 +31,7 @@
 | `test-codex-hooks.sh` | Codex hook 合成 stdin/stdout 契约 | CI（也被 test-story-continuity 调） |
 | `test-charcount-portable.sh` | 跨平台字符统计命令在三平台 + Windows 的正确性 | CI（调 check-python-invocation） |
 | `test-hook-encoding-portable.sh` | 部署 hook 在 Windows 中文系统的编码健壮性 | CI（也被 check-hook-locale-safety 调） |
-| `test-opencode-cli-e2e.sh` | 真实 OpenCode CLI 加载 smoke（repo skills 发现 / 13 commands / 7 agents / plugin） | **本机可选**，需装 opencode，**不在 CI** |
+| `test-opencode-cli-e2e.sh` | 真实 OpenCode CLI 加载 smoke（repo skills 发现 / 14 commands / 7 agents / plugin） | **本机可选**，需装 opencode，**不在 CI** |
 
 ## 代码生成 / 同步
 
