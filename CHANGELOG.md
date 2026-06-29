@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.21
+
+> 短篇写作参考栈瘦身：删掉长篇继承残留，建立短篇专属 format/craft/deslop/题材包体系（#206）
+
+### 改进
+
+- **短篇写作 references 清理（#206）**：`story-short-write` 删除 13 个长篇继承残留参考（角色、长篇结构、通用题材读者、开篇、状态追踪等），避免短篇写作继续被长篇规则误导。新增短篇专属基础层：`short-format.md`（硬格式/段落/标点/正文契约）、`short-craft.md`（短篇叙事姿态、情绪直给+体感焊接、三维度揉进、密度控制）、`short-deslop.md`（短篇去 AI 味，只杀真 AI 腔，不杀情绪烈度）。
+- **题材包接管短篇风格（#206）**：新增 `genre-styles/追妻火葬场.md`、`复仇打脸.md`、`总裁豪门.md`、`宅斗宫斗.md` 四个短篇题材包，把开头模式、爽点密度、对话风格、情绪模式、结尾模式收束到题材本地；冷门题材仍可降级读取 `genre-writing-formulas.md`。
+- **短篇/拆文 AI 规则边界显式化（#206）**：共享 `output-contract.md` 明确拆文报告质量门仍走 `story-short-analyze/references/anti-ai-writing.md`，短篇成稿去 AI 味走 `story-short-write/references/short-deslop.md`，避免两套规则继续靠“本地 AI 腔规则文件”这种隐式短语耦合。
+- **部署模板同步短篇例外（#206）**：`story-setup` 的 narrative-writer Claude/OpenCode/Codex 模板同步短篇题材包例外：短篇需要“情绪词 + 体感/动作焊住”时不强制改成纯动作外化，只清理空泛无体感的 AI 情绪总结。
+
+### 发布准备
+
+- 版本号升级到 `0.6.21`（`.claude-plugin/marketplace.json` + `skills/story/VERSION`）。`.story-deployed` 的 `agents_version` 升级到 `16`、`setup_skill_version` 升级到 `1.2.5`；本版含 deployed narrative-writer 模板与 reference bundle 更新，已部署项目需重新运行 `/story-setup` 并新开会话获取。`UPGRADING.md` 新增 v16 条目，`README` / `README_EN` 更新 v0.6.21 版本说明。
+
 ## v0.6.20
 
 > 长篇大纲补强：对标节奏迁移（激活死链接）+ 章节定位与张弛（破"每章像短篇"）（#198）

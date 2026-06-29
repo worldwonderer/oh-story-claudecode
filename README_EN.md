@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-06-25 -->
+<!-- Last synced with README.md: 2026-06-29 -->
 
 **English** | [中文](README.md)
 
@@ -18,6 +18,8 @@ Professional authors follow a three-step method:
 
 Built around four pillars: reverse-engineering hits · plot modularization · layered state management · human-AI collaboration.
 
+> Starting in v0.6.21: short-form writing reference cleanup — `story-short-write` drops stale long-form inherited references and now uses `short-format` / `short-craft` / `short-deslop` plus four genre packs (wife-chasing crematorium, revenge face-slap, CEO/wealthy family, domestic/palace intrigue) for short-story format, direct emotion, pacing density, and AI-tone cleanup; existing deployed projects should rerun `/story-setup` and start a new session to pick up the updated narrative-writer short-story exception.
+>
 > Starting in v0.6.20: long-form outline reinforcement — benchmark rhythm transfer (reflow a hit book's deconstructed pacing into your volume outline by normalized key points, with a chapter-summary fallback when the rhythm file is absent) and chapter positioning & tension-pacing (fixing "every chapter reads like a standalone short story": chapters are typed by their position in the unit-arc, so relationship/breathing/transition chapters no longer have to manufacture a hook and a payoff while still keeping read-through pull, with a "no emotional-motif clustering" guardrail; positioning is optional and non-quota).
 >
 > Starting in v0.6.19: Codex CLI support (`.agents/skills` repo discovery plus `$story-setup` deployment of `.codex/agents/*.toml` and `.codex/hooks.json`) and OpenClaw compatibility; custom style `设定/文风.md` takes priority over benchmarks; a deterministic post-write backstop (truncation / repetition / engineering-term / sentence-stutter detection); OpenCode subagents auto-assigned cost-tiered models to cut spend; and chapter outlines budgeted by word count to end the under-length rewrite loop.
