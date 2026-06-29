@@ -95,7 +95,7 @@ Stage 6 内容写完后、`stages_completed[6]` append 前，跑三道检查：
 
 ### 7.1 拆文报告 AI 腔自检
 
-扫描 `拆文报告.md` 全文 against `references/banned-words.md` + `references/anti-ai-writing.md`。
+扫描 `拆文报告.md` 全文 against 本地禁用词表 + 本地 AI 腔规则文件。
 命中 → 不写 `stages_completed[6]`，列出位置请用户修订**拆文报告本身**的 AI 腔
 （源文里有 AI 腔不算——这里扫的是分析师写的报告）。
 

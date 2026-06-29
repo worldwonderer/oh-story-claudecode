@@ -25,15 +25,11 @@ fi
 #   header (consumed as a reference standard for source-story evaluation, not a writer
 #   playbook). Writer skills don't get the header. Wholesale-ignored here because their
 #   non-analyst copies have not all been confirmed byte-identical.
-# - female-audience-writing.md: story-short-write's copy is short-story-specific;
-#   story-long-write's copy is adapted for long-form serialized 女频 (卷级感情节奏,
-#   多平台篇幅定位, 长线骨架题材). The two are intentionally divergent — NOT a managed
-#   sync copy (no sync-source frontmatter).
 # - AGENTS.md.tmpl: CLI-specific project instruction templates differ deliberately
 #   across OpenCode/Codex/OpenClaw and are validated by each CLI adapter check.
 IGNORE_NAMES="output-templates.md material-decomposition.md quality-checklist.md \
 genre-catalog.md genre-core-mechanics.md genre-readers.md \
-genre-writing-formulas.md genre-writing-techniques.md female-audience-writing.md \
+genre-writing-formulas.md genre-writing-techniques.md \
 AGENTS.md.tmpl"
 
 # Analyst-divergent (basename): the story-short-analyze copy intentionally prepends the

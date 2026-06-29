@@ -26,7 +26,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 ## 格式规范（最高优先级）
 
-详细规则见 `references/format-and-structure.md`，写作前必须加载。**主会话与 narrative-writer 子代理使用同一套正文格式**：正文只允许保存在 `正文.md`，正文相邻段落之间只允许一个换行符 `\n`（不得出现空行/`\n\n`），对话引号风格按项目/平台约定统一（默认半角双引号，盐言可用「」），短篇小节标记全文统一（默认 `###1.`/`###2.`）。如果子代理输出与主会话格式不一致，按本格式规范重排后再写入文件。
+详细规则见 `references/short-format.md`，写作前必须加载。**主会话与 narrative-writer 子代理使用同一套正文格式**：正文只允许保存在 `正文.md`，正文相邻段落之间只允许一个换行符 `\n`（不得出现空行/`\n\n`），对话引号风格按项目/平台约定统一（默认半角双引号，盐言可用「」），短篇小节标记全文统一（默认 `###1.`/`###2.`）。如果子代理输出与主会话格式不一致，按本格式规范重排后再写入文件。
 
 ---
 
@@ -34,8 +34,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 除了上面的执行规则，构思和写作时遵循：
 
-- **从验证过的模式出发**：有对标书就先拆解，没有就从题材框架（genre-catalog.md）找对应的剧情模式
-- **用模块组装**：铺垫段、升级段、反转段各有成熟写法，不要重新发明。参考 genre-writing-formulas.md 对应题材
+- **从验证过的模式出发**：有对标书就先拆解，没有就从 `genre-styles/{题材}.md`（核心 4 题材）或 `genre-writing-formulas.md`（冷门题材）找对应的短篇剧情模式
+- **定方向就换风格**：题材方向一旦确定（如追妻火葬场），立刻加载 `references/genre-styles/{题材}.md`——正文的腔调、开篇、钩子、情绪烈度、对话金句、招式、收尾全部切到该题材。核心 4 题材（追妻火葬场 / 复仇打脸 / 总裁豪门 / 宅斗宫斗）有专属风格包；冷门题材用 `genre-writing-formulas.md` 的结构骨架兜底，腔调仍按 `short-craft.md` 通用底座
 - **只加载必需信息**：写每节前明确目标情绪和要用的技法，答不出就先回读参考
 
 ---
@@ -91,10 +91,19 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 如果工作目录下存在 `对标/` 或项目根存在 `拆文库/`，或用户提到参考小说：
 
-1. 按上述顺序查找 `拆文报告.md`、`情节节点.md`、`写作手法.md`
-2. 读取核心发现：结构段落、情绪曲线、反转位置、铺垫方式、句式节奏、可借鉴技法
-3. 写入本篇 `设定.md` 的“对标摘要”区，写作时每个场景从中召回 1-2 个相关技法
-4. 如只找到原文、未找到拆文报告，提示用户先运行 `/story-short-analyze`；如用户要求继续，也可只按原文做弱参考
+1. 按上述顺序查找 `拆文报告.md`、`情节节点.md`、`写作手法.md`、`_meta.json`
+2. **读 `_meta.json.genre_detected`，按下表加载对应题材风格包**（analyze 识别的题材 → write 的 genre-styles 包），正文腔调/招式随之切换：
+
+   | analyze 的 `genre_detected` | 加载 `genre-styles/` 包 |
+   |---|---|
+   | 追妻 | `追妻火葬场.md` |
+   | 重生复仇 / 小三 / 世情（现代豪门虐） | `复仇打脸.md` 或 `总裁豪门.md`（按是否豪门联姻虐恋选） |
+   | 世情（古代）/ 宫斗 / 古言重生 | `宅斗宫斗.md` |
+   | 死人文学 / 仙侠 / 通用 | 无专属包 → `short-craft.md` 底座 + `genre-writing-formulas.md` 兜底 |
+
+3. 读取核心发现：结构段落、情绪曲线、反转位置、铺垫方式、句式节奏、可借鉴技法。**把拆文报告里的具体招式对到题材包招式库**：拆文给「这一篇怎么做的」，题材包给「这一类通用怎么做」，两者合用——拆文是当前对标书的实证，题材包是该题材的通法
+4. 写入本篇 `设定.md` 的“对标摘要”区，写作时每个场景从中召回 1-2 个相关技法
+5. 如只找到原文、未找到拆文报告，提示用户先运行 `/story-short-analyze`；如用户要求继续，也可只按原文做弱参考
 
 > **拆文产出格式**：analyze 落盘的完整文件树、`_meta.json` schema、Stage→文件映射，以及「story-short-write 怎么读这些产出」的下游消费规范，见 [references/output-contract.md](references/output-contract.md)。
 
@@ -142,7 +151,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 详细步骤和模板见 `references/writing-workflow.md`。构思时从目标情绪反推剧情，不是从灵感正向构建。按顺序完成：
 
-1. 设计贯穿道具（1-2 个）→ 加载 `writing-craft.md`
+1. 加载题材风格包 → 读 `references/genre-styles/{题材}.md`（核心 4 题材）+ 通用底座 `references/short-craft.md`，从招式库选 2-3 个核心招式（如追妻的白月光触发链 / 信物翻转 / 火葬场预告），写入 设定.md「题材招式」区，全程照此招式与腔调写
 2. 设计反派（如有）→ 加载 `villain-and-reveal.md`
 3. 确定揭露方式 → 同上
 4. 编写 小节大纲.md（格式见 writing-workflow.md）：短篇只做轻量蓝图，每节包含结构段/五段功能、人物/关系变化、因果/逻辑链、结尾承接/钩子，不套长篇完整章节蓝图
@@ -180,11 +189,11 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
   - **多对标书时**：参 `references/cross-book-recall.md`，副对标/参考对标按阶段预算进入"副对标召回摘要"；正文只传摘要，不传副书文风或原文
 - **步骤 2：指令确认**：用一句话概括本场景写作意图（情绪+技法+适配段落），确认后开始写作
 
-**写作指令：按三维度揉进逐场景写作，不照搬大纲腔。每个场景让读者和主角一起经历。三个维度（发生、感知、反应）同时揉进同一段连续正文，不按维度分段，不用"先写发生再补感知"的方式写作。揉进后仍必须按戏剧单元/画面分段：一段承载一个完整动作-信息变化或一条连续推理/氛围/情绪链，不按固定字数强拆。输出前做自然节奏重排：场景/一件事结束才分段；新动作、新线索、新对话、视线切换另起；完整推理、氛围铺陈、情绪变化可保留稍长段。高潮/打脸/反转压短，沉淀/推理/收束允许长一点，爽点 beat 写密、过场 beat 写疏，忌通篇同长度或同一阈值切段（见 writing-craft.md「疏密分配」）。主语节奏：段首或主语重置时可用主角名；同一动作链内优先代词/省略；关键转折再点名强调，避免连续句/段无必要重复主角名。标点节奏：按语气标点谱系执行，避免通篇句号化，也禁止随机堆砌问号/感叹号；质问用问号，爆发处少量感叹；犹豫、未尽、打断或拖长用动作停顿、短句、换行处理，正文产物不使用 `……` / `——` / `—` / `--`。具体字数表达校验：评价台词、题字、信件、念头或弹幕时，只有统计口径明确、已用脚本逐字核对且故事确有必要，才使用“这五个字 / 短短四字 / 三个字一落 / 八个字砸下去”这类具体字数表达；不能确保字数计算正确时，改成“这句话一落”“这一句落下”“那几个字”“这行字”“话音落下”等非具体数字表达。叙述姿态锁深度限知此刻感知，不跳出解释因果/不剧透预告/不替读者总结升华（去说教·上帝感·安排感，见 anti-ai 模式8/Gate G）；情绪宁烈不温，冲突前置、爽点要狠要具体、台词带刺，敢写极端反应不点到为止（以克制为爽感的题材如虐文/世情除外，按 genre-catalog 走克制路线）。**
+**写作指令：按三维度揉进逐场景写作，不照搬大纲腔。每个场景让读者和主角一起经历。三个维度（发生、感知、反应）同时揉进同一段连续正文，不按维度分段，不用"先写发生再补感知"的方式写作。揉进后仍必须按戏剧单元/画面分段：一段承载一个完整动作-信息变化或一条连续推理/氛围/情绪链，不按固定字数强拆。输出前做自然节奏重排：场景/一件事结束才分段；新动作、新线索、新对话、视线切换另起；完整推理、氛围铺陈、情绪变化可保留稍长段。高潮/打脸/反转压短，沉淀/推理/收束允许长一点，爽点 beat 写密、过场 beat 写疏，忌通篇同长度或同一阈值切段（见 short-craft.md「疏密分配」）。主语节奏：段首或主语重置时可用主角名；同一动作链内优先代词/省略；关键转折再点名强调，避免连续句/段无必要重复主角名。标点节奏：按语气标点谱系执行，避免通篇句号化，也禁止随机堆砌问号/感叹号；质问用问号，爆发处少量感叹；犹豫、未尽、打断或拖长用动作停顿、短句、换行处理，正文产物不使用 `……` / `——` / `—` / `--`。具体字数表达校验：评价台词、题字、信件、念头或弹幕时，只有统计口径明确、已用脚本逐字核对且故事确有必要，才使用“这五个字 / 短短四字 / 三个字一落 / 八个字砸下去”这类具体字数表达；不能确保字数计算正确时，改成“这句话一落”“这一句落下”“那几个字”“这行字”“话音落下”等非具体数字表达。叙述姿态用第一人称在场（短篇，非长篇深度限知）：受虐段直白宣泄、反击段冷静审判，允许主角主观审判句、火葬场前瞻预告、剧透勾子（见 short-craft.md 第3节 + 题材包）；只删中立无情绪的作者讲解，不删带主角偏色的审判/预告。情绪外化按 short-craft.md 第2节：允许直写情绪成语（心如死灰/眼泪不争气），但后面接一个场景里特有的动作或物件，只删后面没有任何具体动作的情绪总结句（一丝悲伤涌上心头）。情绪宁烈不温，冲突前置、爽点要狠要具体、台词带刺，敢写极端反应不点到为止（心死/余韵等以克制为爽感的桥段走克制路线）。**
 
 #### Agent 调用：narrative-writer
 
-正文写作阶段默认由主会话按 2-3 节/批分批写正文，主会话输出是短篇正文的标准形态。不要要求单次 agent spawn 完成 8000+ 字全文。每批写完后先更新“已写小节摘要”（3-5 条：已揭示信息、情绪位置、未回收伏笔、下一批衔接句），下一批必须先读取该摘要和 `正文.md` 尾部 300-500 字再续写。只有在用户明确要求子代理、主会话上下文不足，或需要隔离一段试写时，才优先检查 `.claude/agents/` 下的 `narrative-writer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`。存在时 spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：写正文\n输出文件：正文.md\n情绪目标：{从核心框架读取}\n小节大纲：小节大纲.md（读取结构段/五段功能、人物/关系变化、因果/逻辑链、结尾承接/钩子；短篇只用轻量蓝图，不套长篇章节蓝图）\n涉及角色：{从核心框架读取}\n主对标/拆文路径：{本次查找到的主对标 对标/{主对标书}/ 或 拆文库/{主对标书}/，没有则写 无}\n主拆文召回摘要：{本场景最相关的主对标结构/情绪/反转/写作手法模块；按场景相关性压缩，不写固定5条上限；没有则写 无}\n副对标召回摘要：{按 references/cross-book-recall.md 阶段预算筛选后的副对标/参考对标结构化摘要表；可含多本，但只传摘要，不传副书文风/原文；没有则写 无}\n格式硬约束：必须完全遵守 story-short-write/references/format-and-structure.md；全文小节标记统一，默认 ###1.、###2.；正文相邻段落之间只允许一个换行符 `\n`，不得出现空行/`\n\n`；对话独立成行，引号风格按项目/平台约定统一（默认半角双引号，盐言可用「」）；禁止使用 --- 分隔正文片段；禁止把自检/说明/审查报告写入正文.md。\n写作硬约束：禁止先否定再肯定的翻转句式，含省略连接词、跨句或换行变体；按三维度揉进写场景，但仍必须按戏剧单元/画面分段；一段承载一个完整动作-信息变化或一条连续推理/氛围/情绪链，不按固定字数强拆。输出前做自然节奏重排：场景/一件事结束才分段；新动作、新线索、新对话、视线切换另起；完整推理、氛围铺陈、情绪变化可保留稍长段。高潮/打脸/反转压短，沉淀/推理/收束允许长一点，爽点 beat 写密、过场 beat 写疏，忌通篇同长度或同一阈值切段（见 writing-craft.md「疏密分配」）。主语节奏：段首或主语重置时可用主角名；同一动作链内优先代词/省略；关键转折再点名强调，避免连续句/段无必要重复主角名。标点节奏：按语气标点谱系执行，避免通篇句号化，也禁止随机堆砌问号/感叹号；质问用问号，爆发处少量感叹；犹豫、未尽、打断或拖长用动作停顿、短句、换行处理，正文产物不使用 `……` / `——` / `—` / `--`。具体字数表达校验：评价台词、题字、信件、念头或弹幕时，只有统计口径明确、已用脚本逐字核对且故事确有必要，才使用“这五个字 / 短短四字 / 三个字一落 / 八个字砸下去”这类具体字数表达；不能确保字数计算正确时，改成“这句话一落”“这一句落下”“那几个字”“这行字”“话音落下”等非具体数字表达。叙述姿态锁深度限知此刻感知，不跳出解释因果/不剧透预告/不替读者总结升华（去说教·上帝感·安排感，见 anti-ai 模式8/Gate G）；情绪宁烈不温，冲突前置、爽点要狠要具体、台词带刺，敢写极端反应不点到为止（以克制为爽感的题材如虐文/世情除外，按 genre-catalog 走克制路线）。")`。无论由谁写作，最终写入 `正文.md` 前都必须按同一格式规范重排一次，保证主会话与子代理输出格式一致。
+正文写作阶段默认由主会话按 2-3 节/批分批写正文，主会话输出是短篇正文的标准形态。不要要求单次 agent spawn 完成 8000+ 字全文。每批写完后先更新“已写小节摘要”（3-5 条：已揭示信息、情绪位置、未回收伏笔、下一批衔接句），下一批必须先读取该摘要和 `正文.md` 尾部 300-500 字再续写。只有在用户明确要求子代理、主会话上下文不足，或需要隔离一段试写时，才优先检查 `.claude/agents/` 下的 `narrative-writer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`。存在时 spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：写正文\n输出文件：正文.md\n情绪目标：{从核心框架读取}\n题材风格包：references/genre-styles/{题材}.md（腔调/开篇/钩子/情绪烈度/招式/收尾全按此题材；情绪外化按 short-craft.md 第2节：情绪词后面接一个场景里特有的具体动作，别机械替换情绪词）\n小节大纲：小节大纲.md（读取结构段/五段功能、人物/关系变化、因果/逻辑链、结尾承接/钩子；短篇只用轻量蓝图，不套长篇章节蓝图）\n涉及角色：{从核心框架读取}\n主对标/拆文路径：{本次查找到的主对标 对标/{主对标书}/ 或 拆文库/{主对标书}/，没有则写 无}\n主拆文召回摘要：{本场景最相关的主对标结构/情绪/反转/写作手法模块；按场景相关性压缩，不写固定5条上限；没有则写 无}\n副对标召回摘要：{按 references/cross-book-recall.md 阶段预算筛选后的副对标/参考对标结构化摘要表；可含多本，但只传摘要，不传副书文风/原文；没有则写 无}\n格式硬约束：必须完全遵守 story-short-write/references/short-format.md；全文小节标记统一，默认 ###1.、###2.；正文相邻段落之间只允许一个换行符 `\n`，不得出现空行/`\n\n`；对话独立成行，引号风格按项目/平台约定统一（默认半角双引号，盐言可用「」）；禁止使用 --- 分隔正文片段；禁止把自检/说明/审查报告写入正文.md。\n写作硬约束：禁止先否定再肯定的翻转句式，含省略连接词、跨句或换行变体；按三维度揉进写场景，但仍必须按戏剧单元/画面分段；一段承载一个完整动作-信息变化或一条连续推理/氛围/情绪链，不按固定字数强拆。输出前做自然节奏重排：场景/一件事结束才分段；新动作、新线索、新对话、视线切换另起；完整推理、氛围铺陈、情绪变化可保留稍长段。高潮/打脸/反转压短，沉淀/推理/收束允许长一点，爽点 beat 写密、过场 beat 写疏，忌通篇同长度或同一阈值切段（见 short-craft.md「疏密分配」）。主语节奏：段首或主语重置时可用主角名；同一动作链内优先代词/省略；关键转折再点名强调，避免连续句/段无必要重复主角名。标点节奏：按语气标点谱系执行，避免通篇句号化，也禁止随机堆砌问号/感叹号；质问用问号，爆发处少量感叹；犹豫、未尽、打断或拖长用动作停顿、短句、换行处理，正文产物不使用 `……` / `——` / `—` / `--`。具体字数表达校验：评价台词、题字、信件、念头或弹幕时，只有统计口径明确、已用脚本逐字核对且故事确有必要，才使用“这五个字 / 短短四字 / 三个字一落 / 八个字砸下去”这类具体字数表达；不能确保字数计算正确时，改成“这句话一落”“这一句落下”“那几个字”“这行字”“话音落下”等非具体数字表达。叙述姿态用第一人称在场（短篇，非长篇深度限知）：受虐段直白宣泄、反击段冷静审判，允许主角主观审判句、火葬场前瞻预告、剧透勾子（见 short-craft.md 第3节 + 题材包）；只删中立无情绪的作者讲解，不删带主角偏色的审判/预告。情绪外化按 short-craft.md 第2节：允许直写情绪成语（心如死灰/眼泪不争气），但后面接一个场景里特有的动作或物件，只删后面没有任何具体动作的情绪总结句（一丝悲伤涌上心头）。情绪宁烈不温，冲突前置、爽点要狠要具体、台词带刺，敢写极端反应不点到为止（心死/余韵等以克制为爽感的桥段走克制路线）。")`。无论由谁写作，最终写入 `正文.md` 前都必须按同一格式规范重排一次，保证主会话与子代理输出格式一致。
 
 ⚠️ **硬约束：每节 ≥ 800 字 / 50-65 行**。
 题材例外：爽文、打脸、系统流等高信息密度题材可降至 ≥ 500 字/节（见 genre-writing-formulas.md 各题材速查表），但不得低于 500 字。
@@ -198,7 +207,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 1. **写作时**：按三维度揉进写每个子事件——发生、感知、反应揉进同一段连续正文，不按维度分段写
 2. **字数不足时**（逐节统计后）：用以下方法补足（优先级从高到低）：
    - 补充更多子事件（回到小节大纲补充）
-   - 加一轮对话（参考 writing-craft.md 对话权力模式）
+   - 加一轮对话（参考 short-craft.md 第6节 / dialogue-mastery.md 对话权力模式）
    - 加回忆闪回（1-2 句关联记忆）
    - 加环境物件（通过动作带出，不独立成句）
    - **禁止凑字**：每个添加必须推动情绪/铺垫/代入感，不得灌水。禁止用"加感知层""加反应层"的方式在已有动作上叠加描写
@@ -213,7 +222,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 > **节长速算**：平均每行 15 字 × 55 行 ≈ 825 字。写到第 30 行时如果还不到 500 字，说明子事件数量不够，需要补充更多子事件或对话。
 
-每个小节按「三维度揉进」写作（详见 writing-craft.md 第 8 节）：每个子事件将发生、感知、反应三个维度揉进同一段连续正文，子事件合计 ≥150 字。维度揉进不等于按维度分段——禁止"先写发生再补感知再补反应"的堆叠写法；也不等于一段到底，按新动作/新物件/新信息/新对话断段。长度只是诊断，先判断是否完整戏剧单元；混入多个动作/信息才拆，完整推理、氛围或情绪链可以保留稍长段。
+每个小节按「三维度揉进」写作（详见 short-craft.md 第 10 节）：每个子事件将发生、感知、反应三个维度揉进同一段连续正文，子事件合计 ≥150 字。维度揉进不等于按维度分段——禁止"先写发生再补感知再补反应"的堆叠写法；也不等于一段到底，按新动作/新物件/新信息/新对话断段。长度只是诊断，先判断是否完整戏剧单元；混入多个动作/信息才拆，完整推理、氛围或情绪链可以保留稍长段。
 
 **写完后对照 小节大纲.md 检查**：每个子事件三个维度都揉进了？本节情绪到位？伏笔/物件已植入？节长 <800 字 → 补充更多子事件/对话后再写下一节。
 
@@ -261,7 +270,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 - 插入倒计时钩子或代价钩子制造紧迫感
 - 钩子密度提高到每 2 节一个（按题材分级见 genre-writing-formulas.md）
 - 埋入误导信息，让读者猜错反转方向
-- **数字/金额递增作为叙事工具**（具体数字替代模糊描述，见 writing-craft.md）
+- **数字/金额递增作为叙事工具**（具体数字替代模糊描述，见各 genre-styles 招式库「数字承重」）
 - **一动一静交替**：每节有动有静，不连续暴力也不连续安静
 
 #### 第四段：反转（占全文 10-15%）
@@ -355,34 +364,25 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 | 文件 | 何时加载 |
 |------|----------|
-| [references/format-and-structure.md](references/format-and-structure.md) | 写作前必读 |
+| [references/short-format.md](references/short-format.md) | 写作前必读（短篇正文格式，两平台模板） |
+| [references/short-craft.md](references/short-craft.md) | 写作全程参考（短篇通用底座：情绪直接写+后接具体反应、在场叙述、超短章节制） |
+| [references/genre-styles/](references/genre-styles/) | **定方向后必读**：按题材加载对应风格包（追妻火葬场 / 复仇打脸 / 总裁豪门 / 宅斗宫斗…），正文风格随之切换 |
+| [references/short-deslop.md](references/short-deslop.md) | 去AI味时必读（短篇专属，只杀真·AI腔，不杀情绪烈度） |
 | [references/writing-workflow.md](references/writing-workflow.md) | Phase 2 设计任务 + Phase 4 精修 |
-| [references/writing-craft.md](references/writing-craft.md) | 写作全程参考 |
-| [references/anti-ai-writing.md](references/anti-ai-writing.md) | 去AI味时必读 |
-| [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | 核心参考，按题材加载 |
-| [references/genre-writing-techniques.md](references/genre-writing-techniques.md) | 通用写作技法+情绪操控+感情线法则 |
+| [references/genre-writing-formulas.md](references/genre-writing-formulas.md) | 冷门题材结构骨架补充（核心 4 题材直接用 genre-styles/） |
+| [references/genre-writing-techniques.md](references/genre-writing-techniques.md) | 跨题材通用技法（震惊场景/三翻四震/感情线四阶段/喜剧flag） |
 | [references/emotional-methods.md](references/emotional-methods.md) | 设计情感时 |
 | [references/hooks-chapter.md](references/hooks-chapter.md) | 章节钩子设计 |
 | [references/hooks-suspense.md](references/hooks-suspense.md) | 悬念设计 |
 | [references/hooks-paragraph.md](references/hooks-paragraph.md) | 段落钩子技巧 |
 | [references/villain-and-reveal.md](references/villain-and-reveal.md) | Phase 2 设计反派时 |
 | [references/reversal-toolkit.md](references/reversal-toolkit.md) | 设计反转时 |
-| [references/emotional-arc-design.md](references/emotional-arc-design.md) | 设计情绪曲线时 |
 | [references/quality-checklist.md](references/quality-checklist.md) | 精修检查时 |
 | [references/banned-words.md](references/banned-words.md) | 禁用词表 |
 | [scripts/normalize-punctuation.js](scripts/normalize-punctuation.js) | Phase 4 文件模式确定性标点收尾 |
 | [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | Phase 3 完成门槛与 Phase 4 复扫；报告高危 AI 句式 + 破折号/碎句号/长段落 |
 | [scripts/check-degeneration.js](scripts/check-degeneration.js) | Phase 3 完成门槛与 Phase 4 复扫；报告模型退化（复读/截断/工程词泄漏），blocking 需重新生成 |
-| [references/female-audience-writing.md](references/female-audience-writing.md) | 女频写作时 |
-| [references/character-basics.md](references/character-basics.md) | 人物基础设定 |
-| [references/character-design-methods.md](references/character-design-methods.md) | 人设方法 |
-| [references/character-relations.md](references/character-relations.md) | 人物关系设计 |
 | [references/dialogue-mastery.md](references/dialogue-mastery.md) | 写对话时 |
-| [references/opening-design.md](references/opening-design.md) | 设计开头时（短篇用法：「前3章」读作开篇首节~前1/3，七步法按目标字数等比缩放） |
-| [references/genre-catalog.md](references/genre-catalog.md) | 题材框架 |
-| [references/genre-core-mechanics.md](references/genre-core-mechanics.md) | 核心梗设计 |
-| [references/genre-readers.md](references/genre-readers.md) | 读者心理 |
-| [references/state-tracking.md](references/state-tracking.md) | 状态追踪协议（Phase 3 写前准备参考） |
 | [references/output-contract.md](references/output-contract.md) | Phase 2 对标上下文加载时（理解 analyze 产出格式与消费规范） |
 
 ### 按主题快速定位（横切主题）
@@ -391,17 +391,18 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 | 主题 | 权威文件（先读） | 配套文件（按角度补充） |
 |------|-----------------|----------------------|
-| 情绪设计 | **`references/emotional-methods.md`**（情感三板斧 + 拉扯节奏 + 失败模式） | `references/emotional-arc-design.md`（六种弧线 / 前反应-复现-后反应结构）· `references/genre-writing-techniques.md`（情绪操控核心法则） |
+| 情绪外化（怎么写情绪） | **`references/short-craft.md` 第2节**（情绪直接写+后接具体反应、三段对照、改写四步——替代旧机械替换表） | 各 `genre-styles/` 包的「情绪烈度与模式」 |
+| 情绪设计（情感结构） | **`references/emotional-methods.md`**（情感三板斧 + 拉扯节奏 + 失败模式） | `references/genre-writing-techniques.md`（情绪操控核心法则 / 情绪三层次） |
 | 反转 | **`references/reversal-toolkit.md`**（反转类型 / 铺垫 / 有效性自检） | `references/villain-and-reveal.md`（真相揭露机制 / 反转有效性自检） |
 | 反派揭露 | **`references/villain-and-reveal.md`**（反派模板 / 揭露机制 / 报应设计） | `references/reversal-toolkit.md` |
-| 人物 | **`references/character-basics.md`**（主角/配角/反派/动机模板速填） | `references/character-design-methods.md`（三层标签反差/深化）· `references/character-relations.md`（关系/感情线） |
+| 人物 | **各 `genre-styles/{题材}.md` 的「对话风格」「招式库」**（受害者-复仇者主角声线、白月光软刀、施害者道德绑架人设，corpus-grounded） | `references/villain-and-reveal.md`（反派/揭露）· `references/genre-writing-techniques.md`（三层标签反差 / 人设从缺点开始）· `references/dialogue-mastery.md`（声线差异） |
 | 钩子 | **`references/hooks-chapter.md`**（章节/开篇钩子类型） | `references/hooks-paragraph.md`（段落钩子）· `references/hooks-suspense.md`（悬念设计） |
-| 女频写作 | **`references/female-audience-writing.md`**（核心原则 / 文案结构体系 / 感情线写法深化） | `references/genre-writing-techniques.md`（女频读者心理与写作技法 / 感情线四阶段推进法）· `references/genre-readers.md`（读者心理） |
-| 题材公式 | **`references/genre-writing-formulas.md`**（各题材创作公式速查） | `references/genre-catalog.md`（题材框架）· `references/genre-core-mechanics.md`（核心梗设计） |
-| 开头 | **`references/opening-design.md`**（黄金一章 / 三大基点 / 题材开头模板；短篇：「前3章」读作开篇首节~前1/3、七步法按目标字数等比缩放） | `references/hooks-chapter.md`（开篇钩子类型） |
-| 格式与节奏 | **`references/format-and-structure.md`**（正文格式硬规范） | `references/writing-craft.md`（三维度揉进）· `references/writing-workflow.md`（设计/精修工作流） |
-| 对话 | **`references/dialogue-mastery.md`**（对话技法主文件：差异化/潜台词/对话节奏） | `references/writing-craft.md`（对话权力博弈的结构化用法） |
-| 去AI味 | **`references/anti-ai-writing.md`**（AI指纹/核心规则/Show Don't Tell） | `references/banned-words.md`（禁用词扫描）· `scripts/check-ai-patterns.js`（AI句式复扫）· `references/quality-checklist.md`（成稿检查） |
+| 女频写作 | **对应 `genre-styles/{题材}.md`**（追妻火葬场 / 总裁豪门 / 宅斗宫斗的题材声线、虐爽比例、招式） | `references/genre-writing-techniques.md`（女频读者心理与写作技法 / 感情线四阶段推进法）· `references/emotional-methods.md`（情绪拉扯） |
+| 题材风格 | **`references/genre-styles/{题材}.md`**（核心 4 题材的腔调/开篇/钩子/情绪烈度/招式/收尾，corpus-grounded） | `references/genre-writing-formulas.md`（冷门题材结构骨架）· `references/genre-writing-techniques.md`（核心梗 / 卖点 / 通用技法） |
+| 开头 | **各 `genre-styles/{题材}.md` 的「开篇范式」**（关系锚 + 全弧剧透导语 + 火葬场预告，真实开篇范例）+ `short-craft.md` 第12节（开头事件密度） | `references/hooks-chapter.md`（开篇钩子类型）· `references/hooks-paragraph.md`（段钩密度） |
+| 格式与节奏 | **`references/short-format.md`**（短篇正文格式，两平台模板） | `references/short-craft.md`（情绪直接写+后接具体反应/三维度揉进/疏密）· `references/writing-workflow.md`（设计/精修工作流） |
+| 对话 | **`references/dialogue-mastery.md`**（对话技法主文件：差异化/潜台词/对话节奏） | `references/short-craft.md`（三类台词与对话权力博弈）· 各 `genre-styles/` 包的真实金句库 |
+| 去AI味 | **`references/short-deslop.md`**（短篇专属：只杀真·AI腔，不杀情绪烈度/审判句/火葬场预告） | `references/banned-words.md`（禁用词扫描）· `scripts/check-ai-patterns.js`（AI句式复扫）· `references/quality-checklist.md`（成稿检查） |
 
 ---
 

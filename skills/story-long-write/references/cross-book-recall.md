@@ -49,13 +49,13 @@ sync-source: skills/story-long-write/references/cross-book-recall.md
 若副书很多，只输出被本阶段实际召回的条目；未召回的副书不代表被删除，只是本阶段预算未命中。正文阶段可传入本表作为结构/情绪/设定参考，但必须保留“副书不进文风、不进原文锚点”的边界。
 
 ## 拆文字段 → 写作参考
-读 `_meta.json.structure_counts` 时，按此表回查对应写作 reference：
+读 `_meta.json.structure_counts` 时，按此表回查当前 skill 已登记的对应写作 reference。短篇优先走 genre-styles 题材包与 short-craft，长篇优先走长篇同类理论文件；未在当前 skill `参考资料` 表登记的文件不要跨 skill 加载。
 
 | 拆文字段 | 含义 | 写作参考 |
 |---------|------|---------|
-| `beats` | 结构段（开端/发展/高潮/结局） | `genre-catalog.md` 题材结构 |
-| `hooks` | 钩子数 | `hooks-chapter.md` / `hooks-suspense.md` / `opening-design.md` |
+| `beats` | 结构段（开端/发展/高潮/结局） | 当前 skill 的题材结构文件；短篇优先 genre-styles 题材包 / `genre-writing-formulas.md` |
+| `hooks` | 钩子数 | `hooks-chapter.md` / `hooks-suspense.md`；短篇开头密度补 short-craft |
 | `setup_clues` | 反转铺垫线索 | `reversal-toolkit.md` |
-| `character_archetypes` | 反差人物 | `character-design-methods.md` 三层标签反差 |
-| `reusable_structures` | 可复用手法 | `genre-writing-formulas.md` / `writing-craft.md` |
+| `character_archetypes` | 反差人物 | 当前 skill 的人物/题材风格文件；短篇优先 genre-styles 题材包 / genre-writing-techniques |
+| `reusable_structures` | 可复用手法 | `genre-writing-formulas.md`；短篇可补 short-craft |
 | `reversal_type` | 反转类型（7 枚举） | `reversal-toolkit.md` 对应骨架 |

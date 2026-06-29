@@ -204,7 +204,7 @@ function findPeriodStutter(proseLines) {
         column: 1,
         type: 'period-stutter',
         severity: 'advisory',
-        message: `碎句号：连续 ${runLen} 个短句无呼吸；按目标句长把碎句合并成中长句、补回画面与连接（见 writing-craft 句长节奏）。`,
+        message: `碎句号：连续 ${runLen} 个短句无呼吸；按目标句长把碎句合并成中长句、补回画面与连接（见本 skill 句长/疏密节奏规则）。`,
         excerpt: compact(runSample.join(' ')),
       });
     }
