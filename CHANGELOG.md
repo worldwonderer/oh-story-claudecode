@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- **新增 story-long-deep-plan（长篇深层剧情规划）**：独立新增深层规划 skill，用于在长篇开书或卷纲阶段设计复调人物、旁观者男主、象征系统、阶层全景、人物变化链和主题承载结构。贡献原因：长篇写到中后期时，AI 容易出现架构能力不足、剧情越写越偏、人物只剩功能位、后文变单薄并推高弃读风险；单独拆文能提供节奏、爽点和模块，但不能直接保证原创人物丰富度。本 skill 用大纲级深层结构给拆文后的创作提供防偏航锚点，让文章内容更丰富，人物变化更清晰。
+- **路由与多端发现同步**：`story` 路由、README、OpenCode command、Codex/OpenClaw/OpenCode 发现数量锚点同步到 14 个 skill。
+
 ## v0.6.21
 
 > 短篇写作参考栈瘦身：删掉长篇继承残留，建立短篇专属 format/craft/deslop/题材包体系（#206）

@@ -49,6 +49,16 @@
       "skills": ["./skills/story-long-write"]
     },
     {
+      "name": "story-long-deep-plan",
+      "description": "长篇深层剧情规划。设计复调人物、旁观者男主、象征系统、阶层全景和主题承载结构。",
+      "source": "./",
+      "strict": false,
+      "version": "1.0.0",
+      "category": "novel-writing",
+      "keywords": ["long-novel", "deep-planning", "polyphonic", "symbol", "class", "复调", "象征", "阶层", "chinese"],
+      "skills": ["./skills/story-long-deep-plan"]
+    },
+    {
       "name": "story-short-scan",
       "description": "短篇网文扫榜。分析知乎盐言故事、番茄短篇等平台热门短篇数据，捕捉风口题材。",
       "source": "./",

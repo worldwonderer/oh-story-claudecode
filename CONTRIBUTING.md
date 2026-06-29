@@ -9,6 +9,7 @@ skills/
 ├── story/                   # 工具箱路由
 ├── story-setup/             # 环境部署
 ├── story-import/            # 逆向导入
+├── story-long-deep-plan/    # 长篇深层剧情规划
 ├── story-long-write/        # 长篇写作
 ├── story-long-analyze/      # 长篇拆文
 ├── story-long-scan/         # 长篇扫榜
@@ -141,11 +142,11 @@ bash scripts/test-opencode-cli-e2e.sh  # 可选：需要本机已安装 opencode
 1. 将 `templates/agents/` 下的 Claude Code agent 转换为 opencode 格式，写入 `opencode/agents/`
 2. 将 `CLAUDE.md.tmpl` 复制到 `opencode/AGENTS.md.tmpl`，替换 `.claude/` 路径引用
 3. 输出同步结果摘要
-4. 可选真实 CLI smoke 会在临时项目里验证 13 个 slash commands、7 个 agents 与 `story-hooks.ts` 插件能被 OpenCode 解析加载
+4. 可选真实 CLI smoke 会在临时项目里验证 14 个 slash commands、7 个 agents 与 `story-hooks.ts` 插件能被 OpenCode 解析加载
 
 ### CI 检测
 
-PR 中如果修改了 Claude Code 模板文件，CI 会自动检测 opencode 模板是否同步，并额外检查 `opencode.json.patch`、`plugin.ts`、13 个 command 与 7 个 agent 的结构锚点。如果 CI 报错，请在本地运行同步脚本和 `bash scripts/check-opencode-adapter.sh`，再提交结果。
+PR 中如果修改了 Claude Code 模板文件，CI 会自动检测 opencode 模板是否同步，并额外检查 `opencode.json.patch`、`plugin.ts`、14 个 command 与 7 个 agent 的结构锚点。如果 CI 报错，请在本地运行同步脚本和 `bash scripts/check-opencode-adapter.sh`，再提交结果。
 
 ### 手动维护的部分
 
@@ -200,7 +201,7 @@ bash scripts/check-openclaw-skills.sh
 OPENCLAW_REAL_CHECK=1 bash scripts/check-openclaw-skills.sh  # 本机安装 openclaw 时可选
 ```
 
-`OPENCLAW_REAL_CHECK=1` 会用临时 profile + 临时 workspace 创建隔离 agent，确认 OpenClaw CLI 能从 workspace `skills/` 发现 13 个 story skill；脚本结束后清理临时 profile。
+`OPENCLAW_REAL_CHECK=1` 会用临时 profile + 临时 workspace 创建隔离 agent，确认 OpenClaw CLI 能从 workspace `skills/` 发现 14 个 story skill；脚本结束后清理临时 profile。
 
 ### OpenClaw 已知边界
 
