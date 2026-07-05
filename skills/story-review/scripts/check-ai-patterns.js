@@ -12,9 +12,10 @@ Detect high-risk AI-flavor prose patterns that need human rewrite:
   - sentence break + positive flip
   - repeated negative setup followed by positive flip
   - em-dash (按功能改写), 碎句号 (连续短叙述句), 长段落 (按镜头断段)
+  - 微动作复读 (「了X下」式轻量补语高密度，电报体指纹)
 
 Each finding carries severity: blocking (not-is-comparison / em-dash，必须回正文改掉、复扫到 0)
-或 advisory (period-stutter / long-paragraph，是提示，justified 的长推理/氛围段可保留)。
+或 advisory (period-stutter / long-paragraph / micro-action-tic，是提示，justified 的长推理/氛围段可保留)。
 --fail-on=blocking 只在出现 blocking finding 时退出 1；默认 --fail-on=all 有任何 finding 即退出 1。
 
 The script reports findings only. It never rewrites text, because the safe fix is
@@ -34,11 +35,22 @@ const STUTTER_MAX_SENTENCE = 5;
 // 长段落：单段原始字符数超过阈值即提示按镜头断段（手机阅读保守阈值，正常单段远低于此）。
 const LONG_PARAGRAPH_CHARS = 200;
 
+// 微动作复读：「V了一下 / 拍了两下 / 松了半圈」式轻量补语在叙述里高密度复现，是删减过头
+// 的电报体新指纹（真人网文实测 0.2-0.3 处/千字，电报体改稿实测 26+ 处/千字）。
+// 只扫引号外叙述；密度与次数双门槛同时达标才报，单次出现是正常中文。
+const MICRO_TIC_PATTERN = /了[一两三几半][下阵圈道声眼口气会]/g;
+const MICRO_TIC_MIN_HITS = 5;
+const MICRO_TIC_PER_KILO = 6;
+
 // either-or「不是A就是B / 不是A也是B」里紧贴的「是」是连词的一部分，不是肯定项系动词。
 // 含「不」以沿用「不是A，也不是B」第二个否定段不算翻转的旧排除。
 const COMPACT_EITHER_OR_PREV = new Set(['不', '就', '也']);
 // 句尾语气/反问助词；「…，是吗 / 是吧 / 是嘛」是反问尾巴，不是否定后的肯定翻转。
 const TAG_PARTICLES = new Set(['吗', '吧', '嘛']);
+
+// 成对引号（台词/系统播报/弹幕）的字符对，stripQuoted 与 quotedRanges 共用一份来源。
+const QUOTE_PAIRS = [['「', '」'], ['『', '』'], ['【', '】'], ['“', '”'], ['‘', '’'], ['"', '"'], ["'", "'"]];
+const QUOTE_SOURCES = QUOTE_PAIRS.map(([open, close]) => `${open}[^${close}]*${close}`);
 
 const options = {
   json: false,
@@ -188,7 +200,44 @@ function scanProsePatterns(proseLines) {
   }
 
   findings.push(...findPeriodStutter(proseLines));
+  findings.push(...findMicroActionTic(proseLines));
   return findings;
+}
+
+// 微动作复读：统计引号外叙述里「了X量词」轻量补语的密度。次数与每千字密度双门槛，
+// 全文只报一条（这是分布级指纹，不是逐处问题）。
+function findMicroActionTic(proseLines) {
+  let hits = 0;
+  let narrativeChars = 0;
+  let firstLine = null;
+  const samples = [];
+
+  for (const { text, lineNo } of proseLines) {
+    const trimmed = text.trim();
+    if (!trimmed || isDivider(trimmed) || isStructural(trimmed)) continue;
+    const narrative = stripQuoted(trimmed);
+    narrativeChars += visibleLength(narrative);
+    MICRO_TIC_PATTERN.lastIndex = 0;
+    let match;
+    while ((match = MICRO_TIC_PATTERN.exec(narrative)) !== null) {
+      hits += 1;
+      if (firstLine === null) firstLine = lineNo;
+      if (samples.length < 6 && !samples.includes(match[0])) samples.push(match[0]);
+    }
+  }
+
+  if (narrativeChars === 0 || hits < MICRO_TIC_MIN_HITS) return [];
+  const perKilo = (hits / narrativeChars) * 1000;
+  if (perKilo < MICRO_TIC_PER_KILO) return [];
+
+  return [{
+    line: firstLine,
+    column: 1,
+    type: 'micro-action-tic',
+    severity: 'advisory',
+    message: `微动作复读：「了X下」式轻量补语 ${hits} 处（${perKilo.toFixed(1)}/千字，真人网文常态 <1）；同一反应模板高密度复现是新的机械指纹，合并动作 beat、换具体细节，别每个动作都补一个「了一下」。`,
+    excerpt: compact(samples.join(' ')),
+  }];
 }
 
 function findPeriodStutter(proseLines) {
@@ -252,14 +301,24 @@ function isStructural(trimmed) {
 // 去掉成对引号内的片段（台词/系统播报），只留引号外叙述。碎句号判定用：纯对话/弹幕成片短句
 // 是体裁正常形态（豁免），但「叙述 + 引号内物件/短台词」混合行的引号外叙述仍要参与短句计数。
 function stripQuoted(text) {
-  return text
-    .replace(/「[^」]*」/g, '')
-    .replace(/『[^』]*』/g, '')
-    .replace(/【[^】]*】/g, '')
-    .replace(/“[^”]*”/g, '')
-    .replace(/‘[^’]*’/g, '')
-    .replace(/"[^"]*"/g, '')
-    .replace(/'[^']*'/g, '');
+  let out = text;
+  for (const src of QUOTE_SOURCES) out = out.replace(new RegExp(src, 'g'), '');
+  return out;
+}
+
+// 返回引号内片段（含引号本身）的 [start, end) 区间，供 not-is 对比句豁免台词用。
+function quotedRanges(text) {
+  const ranges = [];
+  for (const src of QUOTE_SOURCES) {
+    const re = new RegExp(src, 'g');
+    let match;
+    while ((match = re.exec(text)) !== null) ranges.push([match.index, match.index + match[0].length]);
+  }
+  return ranges;
+}
+
+function insideRanges(pos, ranges) {
+  return ranges.some(([start, end]) => pos >= start && pos < end);
 }
 
 function splitSentences(trimmed) {
@@ -330,11 +389,19 @@ function positionForOffset(lineStarts, offset) {
 
 function findNotIsComparisons(text, getPosition) {
   const findings = [];
+  const quoted = quotedRanges(text);
   let offset = 0;
 
   while (offset < text.length) {
     const start = text.indexOf('不是', offset);
     if (start === -1) break;
+
+    // 引号内是台词/系统播报：口语里「不是A，是B」是自然辩解/反问，不算叙述层 AI 对比句式
+    // （与碎句号一致豁免引号内容）。
+    if (insideRanges(start, quoted)) {
+      offset = start + 2;
+      continue;
+    }
 
     // Avoid the common yes/no question fragment “是不是”.
     if (start > 0 && text[start - 1] === '是') {
@@ -434,12 +501,10 @@ function startsWithAt(text, index, needle) {
   return text.slice(index, index + needle.length) === needle;
 }
 
+// 跳过行内空白与换行（含空行/段落间距），停在下一个实义字符。原实现只吞一个换行，
+// 会漏掉跨空行的「不是A。（空行）是B」这类分段揭示句。
 function skipGap(text, index) {
-  while (index < text.length && isInlineSpace(text[index])) index += 1;
-  if (text[index] === '\n') {
-    index += 1;
-    while (index < text.length && isInlineSpace(text[index])) index += 1;
-  }
+  while (index < text.length && (isInlineSpace(text[index]) || text[index] === '\n')) index += 1;
   return index;
 }
 

@@ -236,3 +236,92 @@ NODE
 [ "$blk_blk" -eq 1 ] || { echo "FAIL: em-dash --fail-on=blocking 应退出 1，实际 $blk_blk" >&2; exit 1; }
 
 echo "Prose pattern (碎句号/长段落/破折号) regression tests passed."
+
+# --- issue #205：跨空行的「不是A。/（空行）/是B」揭示句必须命中（旧 skipGap 只吞一个换行会漏）---
+FIXTURE8="$TMP_DIR/fixture-cross-para.md"
+printf '%s\n' '中年男人消失了。' '' '不是被拖走。' '' '是整个人像被橡皮擦抹掉，全没了。' > "$FIXTURE8"
+set +e
+node "$SCRIPT" --json "$FIXTURE8" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const ni = r.findings.filter((f) => f.type === 'not-is-comparison');
+if (ni.length !== 1) throw new Error('跨空行 不是A。/是B 应命中 1 处 not-is: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}`)));
+if (ni[0].line !== 3) throw new Error('not-is 应定位到「不是」所在行 3，实际 ' + ni[0].line);
+if (ni[0].severity !== 'blocking') throw new Error('not-is 应为 blocking');
+NODE
+
+# 引号内台词「不是A，是B」是口语辩解，不算叙述层 AI 对比句式（与碎句号一致豁免引号内容）。
+FIXTURE9="$TMP_DIR/fixture-dialogue-notis.md"
+printf '%s\n' '“你们看见了啊，不是我要闹，是物业非法限制人身自由。”' > "$FIXTURE9"
+set +e
+dlg_out="$(node "$SCRIPT" "$FIXTURE9" 2>&1)"
+dlg_status=$?
+set -e
+if [ "$dlg_status" -ne 0 ]; then
+  echo "FAIL: 引号内台词 不是A，是B 被误判 not-is (exit $dlg_status):" >&2
+  echo "$dlg_out" >&2
+  exit 1
+fi
+
+# 引号外叙述的翻转句仍必须命中（豁免只针对引号内，别把整行叙述放过）。
+FIXTURE10="$TMP_DIR/fixture-narration-notis.md"
+printf '%s\n' '他冷笑一声。这不是巧合，是有人安排的。' > "$FIXTURE10"
+set +e
+node "$SCRIPT" --json "$FIXTURE10" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const ni = r.findings.filter((f) => f.type === 'not-is-comparison');
+if (ni.length !== 1) throw new Error('引号外叙述翻转句应命中 1 处 not-is: ' + JSON.stringify(r.findings.map((f) => f.type)));
+NODE
+
+echo "issue #205 (跨空行翻转命中 / 引号内台词豁免) regression tests passed."
+
+# --- issue #205：微动作复读（「了X下」式轻量补语高密度=电报体指纹）---
+FIXTURE11="$TMP_DIR/fixture-micro-tic.md"
+printf '%s\n' \
+  '父亲的手停了一下。绳在铁环上松了半圈。' \
+  '他把绳拉紧，在秆子上勒了一道印。' \
+  '他拍了两下，手背上沾了叶子。' \
+  '母亲切了一阵，停了。锅铲刮了一下锅底。' \
+  '他把线头绕了一下，又攥了一下石头。' > "$FIXTURE11"
+set +e
+node "$SCRIPT" --json "$FIXTURE11" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const mt = r.findings.filter((f) => f.type === 'micro-action-tic');
+if (mt.length !== 1) throw new Error('高密度「了X下」应报 1 处 micro-action-tic: ' + JSON.stringify(r.findings.map((f) => f.type)));
+if (mt[0].severity !== 'advisory') throw new Error('micro-action-tic 应为 advisory');
+NODE
+
+# advisory 不触发 --fail-on=blocking（微动作复读是提示，不阻塞收尾流程）。
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE11" > /dev/null 2>&1
+tic_blk=$?
+set -e
+[ "$tic_blk" -eq 0 ] || { echo "FAIL: micro-action-tic --fail-on=blocking 应退出 0，实际 $tic_blk" >&2; exit 1; }
+
+# 低密度（正常中文里偶尔一个「了一下/了一眼」）不报；引号内台词的「了X下」不计入。
+FIXTURE12="$TMP_DIR/fixture-micro-tic-normal.md"
+printf '%s\n' \
+  '他回到家的时候，父亲正在院子里绑架子车上的绳子，车斗里堆着几捆刚掰下来的玉米秆。' \
+  '他说要去北京谈观测站的事，父亲的手停了一下，然后把绳子重新拉紧，没有接话。' \
+  '“你等我一下，我去把鸡圈门修完了一下午也就过去了。”父亲蹲在鸡圈边上，头也没抬。' \
+  '傍晚收拾行李的时候，他把断渠捡回来的那块石头看了一眼，装进了外套口袋里。' \
+  '母亲在厨房里切菜，刀落在案板上的声音比平时快了不少，他站在门口听了一会儿才进去。' > "$FIXTURE12"
+set +e
+node "$SCRIPT" --json "$FIXTURE12" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const mt = r.findings.filter((f) => f.type === 'micro-action-tic');
+if (mt.length !== 0) throw new Error('低密度/引号内「了X下」不应报 micro-action-tic: ' + JSON.stringify(mt));
+NODE
+
+echo "micro-action-tic (电报体微动作复读) regression tests passed."

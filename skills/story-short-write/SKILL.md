@@ -307,7 +307,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 - [ ] 节数 = 小节大纲规划节数（不得合并/省略）
 - [ ] 身体部位同一词全文 ≤ 5 次
 - [ ] 「像」≤ 10 处
-- [ ] `node scripts/check-ai-patterns.js --check 正文.md` 无高危 AI 对比句式与破折号命中（碎句号/长段落按提示处理）
+- [ ] `node scripts/check-ai-patterns.js --check 正文.md` 无高危 AI 对比句式与破折号命中（碎句号/长段落/微动作复读按提示处理）
 - [ ] `node scripts/check-degeneration.js --check 正文.md` 无 blocking 退化命中（复读/截断/工程词泄漏）
 
 **中文文本统计注意事项**：
@@ -324,7 +324,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 ### Phase 4：精修打磨
 
 加载 `references/writing-workflow.md` 中的精修清单完成检查。
-重点：开头钩子、情绪曲线、反转铺垫、每句话价值、格式规范、AI 腔排查。文件模式必须先运行 `node scripts/check-ai-patterns.js --check 正文.md`（报告 AI 对比句式 + 破折号按功能改写 + 碎句号 + 长段落；前两类复扫到 0，后两类按情况改），再运行 `node scripts/normalize-punctuation.js 正文.md` 机械兜底标点。另跑 `node scripts/check-degeneration.js --check 正文.md` 报告模型退化（复读/截断/工程词泄漏）；blocking 命中说明该段要重新生成，不是改写。
+重点：开头钩子、情绪曲线、反转铺垫、每句话价值、格式规范、AI 腔排查。文件模式必须先运行 `node scripts/check-ai-patterns.js --check 正文.md`（报告 AI 对比句式 + 破折号按功能改写 + 碎句号 + 长段落 + 微动作复读；前两类复扫到 0，后三类按情况改），再运行 `node scripts/normalize-punctuation.js 正文.md` 机械兜底标点。另跑 `node scripts/check-degeneration.js --check 正文.md` 报告模型退化（复读/截断/工程词泄漏）；blocking 命中说明该段要重新生成，不是改写。
 
 #### Agent 调用：narrative-writer（去AI味）+ consistency-checker
 
@@ -380,7 +380,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | [references/quality-checklist.md](references/quality-checklist.md) | 精修检查时 |
 | [references/banned-words.md](references/banned-words.md) | 禁用词表 |
 | [scripts/normalize-punctuation.js](scripts/normalize-punctuation.js) | Phase 4 文件模式确定性标点收尾 |
-| [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | Phase 3 完成门槛与 Phase 4 复扫；报告高危 AI 句式 + 破折号/碎句号/长段落 |
+| [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | Phase 3 完成门槛与 Phase 4 复扫；报告高危 AI 句式 + 破折号/碎句号/长段落/微动作复读 |
 | [scripts/check-degeneration.js](scripts/check-degeneration.js) | Phase 3 完成门槛与 Phase 4 复扫；报告模型退化（复读/截断/工程词泄漏），blocking 需重新生成 |
 | [references/dialogue-mastery.md](references/dialogue-mastery.md) | 写对话时 |
 | [references/output-contract.md](references/output-contract.md) | Phase 2 对标上下文加载时（理解 analyze 产出格式与消费规范） |
