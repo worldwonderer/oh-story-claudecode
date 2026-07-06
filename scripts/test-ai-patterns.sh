@@ -391,3 +391,50 @@ if (ast.length !== 0) throw new Error('低密度/引号内抽象总结词不应�
 NODE
 
 echo "abstract-summary-tic (抽象总结复读) regression tests passed."
+
+# --- issue #205：套词密度过高（朱雀实测 cliche-heavy 样本 100% AI，具体化改写降为非 AI）---
+FIXTURE16="$TMP_DIR/fixture-cliche-density.md"
+printf '%s\n' \
+  '夜色静静笼罩着城市，远处霓虹隐约闪烁。' \
+  '林澈心中涌起一股说不清的情绪，仿佛某种预兆正在缓缓靠近。' \
+  '苏晚眼中闪过一丝复杂的神色，嘴角勾起一抹若有若无的笑意。' \
+  '她声音不大，却带着一种不容置疑的力量。' \
+  '林澈深吸一口气，淡淡开口，语气平静无波。' \
+  '苏晚指节泛白，目光锐利，沉默在两人之间蔓延。' > "$FIXTURE16"
+set +e
+node "$SCRIPT" --json "$FIXTURE16" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const cd = r.findings.filter((f) => f.type === 'cliche-density-tic');
+if (cd.length !== 1) throw new Error('高密度 AI 套词应报 1 处 cliche-density-tic: ' + JSON.stringify(r.findings));
+if (cd[0].severity !== 'advisory') throw new Error('cliche-density-tic 应为 advisory');
+if (!cd[0].excerpt.includes('仿佛') || !cd[0].excerpt.includes('眼中闪过')) {
+  throw new Error('cliche-density-tic excerpt 应包含套词样本: ' + JSON.stringify(cd[0]));
+}
+NODE
+
+# advisory 不触发 --fail-on=blocking；低密度题材词/引号内引用不报。
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE16" > /dev/null 2>&1
+cliche_blk=$?
+set -e
+[ "$cliche_blk" -eq 0 ] || { echo "FAIL: cliche-density-tic --fail-on=blocking 应退出 0，实际 $cliche_blk" >&2; exit 1; }
+
+FIXTURE17="$TMP_DIR/fixture-cliche-density-normal.md"
+printf '%s\n' \
+  '她在旧本子上抄了一句“仿佛某种预兆”，旁边画了个叉，提醒自己别这么写。' \
+  '窗外的雨把纸箱泡软了，林澈把最上面的文件抽出来，摊在暖气片旁边。' \
+  '苏晚说话声音不大，办公室太空，反而显得每个字都落得很清楚。' > "$FIXTURE17"
+set +e
+node "$SCRIPT" --json "$FIXTURE17" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const cd = r.findings.filter((f) => f.type === 'cliche-density-tic');
+if (cd.length !== 0) throw new Error('低密度/引号内套词不应报 cliche-density-tic: ' + JSON.stringify(cd));
+NODE
+
+echo "cliche-density-tic (套词密度过高) regression tests passed."

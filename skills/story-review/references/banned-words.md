@@ -1,7 +1,7 @@
 # AI味禁用词与句式表
 
 <!--
-version: 2.1.1
+version: 2.1.2
 sync-source: skills/story-setup/references/agent-references/banned-words.md
 本文件在 6 个 skill 副本间需保持一致：
   story-deslop / story-long-write / story-short-write /
@@ -142,3 +142,5 @@ sync-source: skills/story-setup/references/agent-references/banned-words.md
 | 多余修饰（形容词/定语/量词/指示代词） | 删 | "白色的药片" → "药片"；"手里那截链子" → "链子"；"飞驰的汽车" → "车" |
 
 **替换不复用**：右列是方向示例，不是标准答案。同一禁用词在一章内多次命中时，各处给不同的具体化写法；同一个替换写法反复出现（每次都「垂下眼」、每个动作都补「了一下」），替换产物本身就成为新的模板指纹。
+
+**套词密度优先处理**：`check-ai-patterns.js` 报 `cliche-density-tic` 时，说明禁用词不是零星误用，而是聚成了朱雀实测高 AI 率的模板腔。处理顺序不是同义词替换，而是先删抽象总结，再把情绪/判断落到角色当下可见的动作、物件、对话和具体后果。

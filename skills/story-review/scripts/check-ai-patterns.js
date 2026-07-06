@@ -14,9 +14,10 @@ Detect high-risk AI-flavor prose patterns that need human rewrite:
   - em-dash (按功能改写), 碎句号 (连续短叙述句), 长段落 (按镜头断段)
   - 微动作复读 (「了下/了一下」式轻量补语高密度，电报体指纹)
   - 抽象总结复读 (命运/棋局/这一刻终于明白/才刚刚开始，AI 结尾腔)
+  - 套词密度过高 (仿佛/一丝/深吸一口气/平静无波等禁用词聚集)
 
 Each finding carries severity: blocking (not-is-comparison / em-dash，必须回正文改掉、复扫到 0)
-或 advisory (period-stutter / long-paragraph / micro-action-tic / abstract-summary-tic，是提示，justified 的长推理/氛围段可保留)。
+或 advisory (period-stutter / long-paragraph / micro-action-tic / abstract-summary-tic / cliche-density-tic，是提示，justified 的长推理/氛围段可保留)。
 --fail-on=blocking 只在出现 blocking finding 时退出 1；默认 --fail-on=all 有任何 finding 即退出 1。
 
 The script reports findings only. It never rewrites text, because the safe fix is
@@ -56,6 +57,22 @@ const ABSTRACT_SUMMARY_PATTERNS = [
 ];
 const ABSTRACT_SUMMARY_MIN_HITS = 3;
 const ABSTRACT_SUMMARY_PER_KILO = 4;
+
+// 套词密度：单个「仿佛/一丝」可能是正常中文，高密度聚集才是朱雀实测会判 AI 的模板腔。
+// 词表只收本 repo banned-words 中已明确标为高危的形态，避免把普通功能词一网打尽。
+const CLICHE_PATTERNS = [
+  /仿佛|犹如|宛若|如同/g,
+  /一丝|一抹|些许|几分|隐约/g,
+  /深吸一口气|缓缓|微微|轻轻|淡淡/g,
+  /眼中闪过|嘴角勾起|眸光微微一闪|指节泛白|目光锐利|眼神锐利/g,
+  /心中涌起一股|心头一震|心中一动|心下了然|心中暗道|心中一凛/g,
+  /不容置疑|不容置喙|不易察觉|显而易见|毫无疑问|不可否认/g,
+  /声音不大[，,]?却带着|语气平静无波|平静无波|声音平直|听不出情绪/g,
+  /不知何时|唾手可得|无声翻涌|沉默(?:在[^。！？!?\n]{0,16})?蔓延|难以言说/g,
+  /散发着一股|冰冷的光|格外刺眼|深邃而冰冷/g,
+];
+const CLICHE_DENSITY_MIN_HITS = 8;
+const CLICHE_DENSITY_PER_KILO = 12;
 
 // either-or「不是A就是B / 不是A也是B」里紧贴的「是」是连词的一部分，不是肯定项系动词。
 // 含「不」以沿用「不是A，也不是B」第二个否定段不算翻转的旧排除。
@@ -217,6 +234,7 @@ function scanProsePatterns(proseLines) {
   findings.push(...findPeriodStutter(proseLines));
   findings.push(...findMicroActionTic(proseLines));
   findings.push(...findAbstractSummaryTic(proseLines));
+  findings.push(...findClicheDensityTic(proseLines));
   return findings;
 }
 
@@ -252,6 +270,45 @@ function findMicroActionTic(proseLines) {
     type: 'micro-action-tic',
     severity: 'advisory',
     message: `微动作复读：「了下/了一下」式轻量补语 ${hits} 处（${perKilo.toFixed(1)}/千字，真人网文常态 <1）；同一反应模板高密度复现是新的机械指纹，合并动作 beat、换具体细节，别每个动作都补一个轻反应尾巴。`,
+    excerpt: compact(samples.join(' ')),
+  }];
+}
+
+// 套词密度：统计引号外叙述中的高危禁用词聚集。不是逐词替换器；只在密度高到
+// 形成模板腔时提示，修法是删总结、换具体动作/物件/对话，不是同义词轮换。
+function findClicheDensityTic(proseLines) {
+  let hits = 0;
+  let narrativeChars = 0;
+  let firstLine = null;
+  const samples = [];
+
+  for (const { text, lineNo } of proseLines) {
+    const trimmed = text.trim();
+    if (!trimmed || isDivider(trimmed) || isStructural(trimmed)) continue;
+    const narrative = stripQuoted(trimmed);
+    narrativeChars += visibleLength(narrative);
+
+    for (const pattern of CLICHE_PATTERNS) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(narrative)) !== null) {
+        hits += 1;
+        if (firstLine === null) firstLine = lineNo;
+        if (samples.length < 8 && !samples.includes(match[0])) samples.push(match[0]);
+      }
+    }
+  }
+
+  if (narrativeChars === 0 || hits < CLICHE_DENSITY_MIN_HITS) return [];
+  const perKilo = (hits / narrativeChars) * 1000;
+  if (perKilo < CLICHE_DENSITY_PER_KILO) return [];
+
+  return [{
+    line: firstLine,
+    column: 1,
+    type: 'cliche-density-tic',
+    severity: 'advisory',
+    message: `套词密度过高：高危 AI 套词 ${hits} 处（${perKilo.toFixed(1)}/千字）；不要同义词轮换，改成角色当下可见的动作、物件、对话和具体后果。`,
     excerpt: compact(samples.join(' ')),
   }];
 }
