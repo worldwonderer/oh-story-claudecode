@@ -13,9 +13,10 @@ Detect high-risk AI-flavor prose patterns that need human rewrite:
   - repeated negative setup followed by positive flip
   - em-dash (按功能改写), 碎句号 (连续短叙述句), 长段落 (按镜头断段)
   - 微动作复读 (「了下/了一下」式轻量补语高密度，电报体指纹)
+  - 抽象总结复读 (命运/棋局/这一刻终于明白/才刚刚开始，AI 结尾腔)
 
 Each finding carries severity: blocking (not-is-comparison / em-dash，必须回正文改掉、复扫到 0)
-或 advisory (period-stutter / long-paragraph / micro-action-tic，是提示，justified 的长推理/氛围段可保留)。
+或 advisory (period-stutter / long-paragraph / micro-action-tic / abstract-summary-tic，是提示，justified 的长推理/氛围段可保留)。
 --fail-on=blocking 只在出现 blocking finding 时退出 1；默认 --fail-on=all 有任何 finding 即退出 1。
 
 The script reports findings only. It never rewrites text, because the safe fix is
@@ -41,6 +42,20 @@ const LONG_PARAGRAPH_CHARS = 200;
 const MICRO_TIC_PATTERN = /了(?:[一两三几半])?[下阵圈道声眼口气会]/g;
 const MICRO_TIC_MIN_HITS = 5;
 const MICRO_TIC_PER_KILO = 6;
+
+// 抽象总结复读：朱雀实测中，模板化 AI 段落常把角色当下经历拔成「命运/棋局/
+// 这一刻终于明白/才刚刚开始」的作者总结。单个词可能服务题材；高密度聚集才报。
+const ABSTRACT_SUMMARY_PATTERNS = [
+  /这一刻[，,]?[^\n。！？!?]{0,24}(?:终于|才)(?:明白|意识到)/g,
+  /从这一刻开始/g,
+  /(?:命运|宿命)[^\n。！？!?]{0,28}(?:齿轮|棋局|獠牙|改写|推向|安排)/g,
+  /早已[^\n。！？!?]{0,8}(?:布好|安排好)[^\n。！？!?]{0,8}(?:棋局|局)/g,
+  /前所未有的(?:决意|清醒|勇气|力量|恐惧|平静|信念)/g,
+  /(?:反击|复仇|战争|较量|故事|命运)[^\n。！？!?]{0,12}才刚刚开始/g,
+  /(?:新的开始|全新的开始)/g,
+];
+const ABSTRACT_SUMMARY_MIN_HITS = 3;
+const ABSTRACT_SUMMARY_PER_KILO = 4;
 
 // either-or「不是A就是B / 不是A也是B」里紧贴的「是」是连词的一部分，不是肯定项系动词。
 // 含「不」以沿用「不是A，也不是B」第二个否定段不算翻转的旧排除。
@@ -201,6 +216,7 @@ function scanProsePatterns(proseLines) {
 
   findings.push(...findPeriodStutter(proseLines));
   findings.push(...findMicroActionTic(proseLines));
+  findings.push(...findAbstractSummaryTic(proseLines));
   return findings;
 }
 
@@ -237,6 +253,46 @@ function findMicroActionTic(proseLines) {
     severity: 'advisory',
     message: `微动作复读：「了下/了一下」式轻量补语 ${hits} 处（${perKilo.toFixed(1)}/千字，真人网文常态 <1）；同一反应模板高密度复现是新的机械指纹，合并动作 beat、换具体细节，别每个动作都补一个轻反应尾巴。`,
     excerpt: compact(samples.join(' ')),
+  }];
+}
+
+// 抽象总结复读：统计引号外叙述中的高抽象收束模板。全篇只报一条，提醒回到角色
+// 当下可见的文件、动作、对话或物理后果；不要用命运大词替读者总结。
+function findAbstractSummaryTic(proseLines) {
+  let hits = 0;
+  let narrativeChars = 0;
+  let firstLine = null;
+  const samples = [];
+
+  for (const { text, lineNo } of proseLines) {
+    const trimmed = text.trim();
+    if (!trimmed || isDivider(trimmed) || isStructural(trimmed)) continue;
+    const narrative = stripQuoted(trimmed);
+    narrativeChars += visibleLength(narrative);
+
+    for (const pattern of ABSTRACT_SUMMARY_PATTERNS) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(narrative)) !== null) {
+        hits += 1;
+        if (firstLine === null) firstLine = lineNo;
+        const sample = compact(match[0]);
+        if (samples.length < 6 && !samples.includes(sample)) samples.push(sample);
+      }
+    }
+  }
+
+  if (narrativeChars === 0 || hits < ABSTRACT_SUMMARY_MIN_HITS) return [];
+  const perKilo = (hits / narrativeChars) * 1000;
+  if (perKilo < ABSTRACT_SUMMARY_PER_KILO) return [];
+
+  return [{
+    line: firstLine,
+    column: 1,
+    type: 'abstract-summary-tic',
+    severity: 'advisory',
+    message: `抽象总结复读：命运/棋局/这一刻终于明白/才刚刚开始等作者总结 ${hits} 处（${perKilo.toFixed(1)}/千字）；回到角色当下可见的文件、动作、对话或物理后果，别替读者盖章。`,
+    excerpt: compact(samples.join(' | ')),
   }];
 }
 

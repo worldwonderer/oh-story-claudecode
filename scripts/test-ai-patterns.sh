@@ -346,3 +346,48 @@ if (!mt[0].excerpt.includes('了下') || !mt[0].excerpt.includes('了眼')) {
 NODE
 
 echo "micro-action-tic (电报体微动作复读) regression tests passed."
+
+# --- issue #205：抽象总结复读（命运/棋局/这一刻终于明白/才刚刚开始）---
+FIXTURE14="$TMP_DIR/fixture-abstract-summary.md"
+printf '%s\n' \
+  '从这一刻开始，所有安排都被推到台前。' \
+  '命运像早已布好的棋局，把他推向那扇门。' \
+  '他生出前所未有的决意。' \
+  '属于他的反击，才刚刚开始。' > "$FIXTURE14"
+set +e
+node "$SCRIPT" --json "$FIXTURE14" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const ast = r.findings.filter((f) => f.type === 'abstract-summary-tic');
+if (ast.length !== 1) throw new Error('高密度抽象总结应报 1 处 abstract-summary-tic: ' + JSON.stringify(r.findings));
+if (ast[0].severity !== 'advisory') throw new Error('abstract-summary-tic 应为 advisory');
+if (!ast[0].excerpt.includes('从这一刻开始') || !ast[0].excerpt.includes('才刚刚开始')) {
+  throw new Error('abstract-summary-tic excerpt 应包含总结腔样本: ' + JSON.stringify(ast[0]));
+}
+NODE
+
+# advisory 不触发 --fail-on=blocking；低密度题材词与引号内台词/引用不报。
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE14" > /dev/null 2>&1
+ast_blk=$?
+set -e
+[ "$ast_blk" -eq 0 ] || { echo "FAIL: abstract-summary-tic --fail-on=blocking 应退出 0，实际 $ast_blk" >&2; exit 1; }
+
+FIXTURE15="$TMP_DIR/fixture-abstract-summary-normal.md"
+printf '%s\n' \
+  '她把旧棋盘从柜子里搬出来，棋子少了两枚，只能用纽扣代替。' \
+  '父亲说：“从这一刻开始，你要自己记账。”她点点头，把账本翻到空白页。' \
+  '院外的雨停了，屋檐还在滴水，她先把潮掉的纸拿到窗边晾开。' > "$FIXTURE15"
+set +e
+node "$SCRIPT" --json "$FIXTURE15" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const ast = r.findings.filter((f) => f.type === 'abstract-summary-tic');
+if (ast.length !== 0) throw new Error('低密度/引号内抽象总结词不应报 abstract-summary-tic: ' + JSON.stringify(ast));
+NODE
+
+echo "abstract-summary-tic (抽象总结复读) regression tests passed."
