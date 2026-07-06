@@ -280,7 +280,7 @@ NODE
 
 echo "issue #205 (跨空行翻转命中 / 引号内台词豁免) regression tests passed."
 
-# --- issue #205：微动作复读（「了X下」式轻量补语高密度=电报体指纹）---
+# --- issue #205：微动作复读（「了下/了一下」式轻量补语高密度=电报体指纹）---
 FIXTURE11="$TMP_DIR/fixture-micro-tic.md"
 printf '%s\n' \
   '父亲的手停了一下。绳在铁环上松了半圈。' \
@@ -295,7 +295,7 @@ node - "$OUT" <<'NODE'
 const fs = require('fs');
 const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const mt = r.findings.filter((f) => f.type === 'micro-action-tic');
-if (mt.length !== 1) throw new Error('高密度「了X下」应报 1 处 micro-action-tic: ' + JSON.stringify(r.findings.map((f) => f.type)));
+if (mt.length !== 1) throw new Error('高密度「了下/了一下」应报 1 处 micro-action-tic: ' + JSON.stringify(r.findings.map((f) => f.type)));
 if (mt[0].severity !== 'advisory') throw new Error('micro-action-tic 应为 advisory');
 NODE
 
@@ -306,7 +306,7 @@ tic_blk=$?
 set -e
 [ "$tic_blk" -eq 0 ] || { echo "FAIL: micro-action-tic --fail-on=blocking 应退出 0，实际 $tic_blk" >&2; exit 1; }
 
-# 低密度（正常中文里偶尔一个「了一下/了一眼」）不报；引号内台词的「了X下」不计入。
+# 低密度（正常中文里偶尔一个「了一下/了一眼」）不报；引号内台词的「了下/了一下」不计入。
 FIXTURE12="$TMP_DIR/fixture-micro-tic-normal.md"
 printf '%s\n' \
   '他回到家的时候，父亲正在院子里绑架子车上的绳子，车斗里堆着几捆刚掰下来的玉米秆。' \
@@ -321,7 +321,28 @@ node - "$OUT" <<'NODE'
 const fs = require('fs');
 const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const mt = r.findings.filter((f) => f.type === 'micro-action-tic');
-if (mt.length !== 0) throw new Error('低密度/引号内「了X下」不应报 micro-action-tic: ' + JSON.stringify(mt));
+if (mt.length !== 0) throw new Error('低密度/引号内「了下/了一下」不应报 micro-action-tic: ' + JSON.stringify(mt));
+NODE
+
+# issue #205 三轮：省略「一/两」的短尾巴（了下/了眼/了声）也是电报体反向指纹；
+# PR 文档不能推荐一个 detector 抓不到、反复复用后又会被朱雀判机械的替换模板。
+FIXTURE13="$TMP_DIR/fixture-micro-tic-short-tail.md"
+printf '%s\n' \
+  '他扯了下嘴角，没接那句话。母亲把碗推过去，他看了眼，又挪开。' \
+  '院门响了声，父亲停了下，手里的绳子绕了圈，重新压住秆子。' \
+  '她扫了眼桌上的信封，笑了声，指尖在信纸边缘顿了下。' \
+  '屋里静了会，锅盖颤了下，水汽贴着墙慢慢往上爬。' > "$FIXTURE13"
+set +e
+node "$SCRIPT" --json "$FIXTURE13" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const mt = r.findings.filter((f) => f.type === 'micro-action-tic');
+if (mt.length !== 1) throw new Error('省略量词的「了下/了眼/了声」高密度也应报 micro-action-tic: ' + JSON.stringify(r.findings));
+if (!mt[0].excerpt.includes('了下') || !mt[0].excerpt.includes('了眼')) {
+  throw new Error('micro-action-tic excerpt 应包含短尾巴样本: ' + JSON.stringify(mt[0]));
+}
 NODE
 
 echo "micro-action-tic (电报体微动作复读) regression tests passed."

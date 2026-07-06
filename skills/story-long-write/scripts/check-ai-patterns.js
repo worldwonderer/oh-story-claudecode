@@ -12,7 +12,7 @@ Detect high-risk AI-flavor prose patterns that need human rewrite:
   - sentence break + positive flip
   - repeated negative setup followed by positive flip
   - em-dash (按功能改写), 碎句号 (连续短叙述句), 长段落 (按镜头断段)
-  - 微动作复读 (「了X下」式轻量补语高密度，电报体指纹)
+  - 微动作复读 (「了下/了一下」式轻量补语高密度，电报体指纹)
 
 Each finding carries severity: blocking (not-is-comparison / em-dash，必须回正文改掉、复扫到 0)
 或 advisory (period-stutter / long-paragraph / micro-action-tic，是提示，justified 的长推理/氛围段可保留)。
@@ -35,10 +35,10 @@ const STUTTER_MAX_SENTENCE = 5;
 // 长段落：单段原始字符数超过阈值即提示按镜头断段（手机阅读保守阈值，正常单段远低于此）。
 const LONG_PARAGRAPH_CHARS = 200;
 
-// 微动作复读：「V了一下 / 拍了两下 / 松了半圈」式轻量补语在叙述里高密度复现，是删减过头
-// 的电报体新指纹（真人网文实测 0.2-0.3 处/千字，电报体改稿实测 26+ 处/千字）。
+// 微动作复读：「V了下 / V了一下 / 拍了两下 / 松了半圈」式轻量补语在叙述里高密度复现，
+// 是删减过头的电报体新指纹（真人网文实测 0.2-0.3 处/千字，电报体改稿实测 26+ 处/千字）。
 // 只扫引号外叙述；密度与次数双门槛同时达标才报，单次出现是正常中文。
-const MICRO_TIC_PATTERN = /了[一两三几半][下阵圈道声眼口气会]/g;
+const MICRO_TIC_PATTERN = /了(?:[一两三几半])?[下阵圈道声眼口气会]/g;
 const MICRO_TIC_MIN_HITS = 5;
 const MICRO_TIC_PER_KILO = 6;
 
@@ -235,7 +235,7 @@ function findMicroActionTic(proseLines) {
     column: 1,
     type: 'micro-action-tic',
     severity: 'advisory',
-    message: `微动作复读：「了X下」式轻量补语 ${hits} 处（${perKilo.toFixed(1)}/千字，真人网文常态 <1）；同一反应模板高密度复现是新的机械指纹，合并动作 beat、换具体细节，别每个动作都补一个「了一下」。`,
+    message: `微动作复读：「了下/了一下」式轻量补语 ${hits} 处（${perKilo.toFixed(1)}/千字，真人网文常态 <1）；同一反应模板高密度复现是新的机械指纹，合并动作 beat、换具体细节，别每个动作都补一个轻反应尾巴。`,
     excerpt: compact(samples.join(' ')),
   }];
 }
