@@ -152,7 +152,7 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
    ```
    - 将 `ellipsis`、`double-hyphen`、`markdown-divider` 结果作为 `format` findings 合并进报告。`em-dash` 破折号只采用 `check-ai-patterns.js` 的语义改写建议（见下条）；`normalize-punctuation.js` 报的同一位置 `em-dash` 在合并时去重丢弃，避免同处出现「机械替换」与「按功能改写」两条相互冲突的 finding。另外人工检查标点节奏是否通篇句号化或随机堆砌，脚本不替代语气判断。
    - `check-ai-patterns.js` 的 findings 合并进 `prose`：blocking（`not-is-comparison` / `em-dash`）按 S2，建议删否定铺垫、直接写后项，或按破折号功能改成动作/短句/逗号/冒号。
-   - 其余 prose findings 统一按 S4：只指出读感风险，不替代人工判断；功能性写法标 `[需复核]`，不要为了朱雀结果机械改文。完整类别和修法见 `anti-ai-writing.md`。
+   - 其余 prose findings 统一按 S4：只指出读感风险，不替代人工判断；功能性写法标 `[需复核]` 并保留。完整类别和修法见 `anti-ai-writing.md`。
    - `check-degeneration.js` 报告模型退化（逐字复读/截断/占位符/工程词泄漏），每条带 `severity: blocking|advisory`：blocking（复读/截断/tier1 工程词）作为 S1/S2 `prose` findings，修复建议是「重新生成该段，不是改写」；advisory（tier2 章节/歧义词）作为 S4。
    - `story-review` 不修改文件；需要自动修复时建议转 `/story-deslop`。
    - 默认 `--quote-mode keep`，不把知乎盐言短篇的 `「」` 当作问题；只有项目明确指定引号风格时才检查对应转换建议。
@@ -284,6 +284,7 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
   7. 是否存在删掉无损的任务卡点或流程细节？若只是水/局部节奏问题标 S3；明显拖垮主线推进标 S2。
   8. 身体部位同一词是否超 5 次？
   9. AI味分级（轻度/中度/重度）及证据。
+  10. 去 AI 补充复核：是否有作者解释总结/意义尾巴；是否连续堆精致戏剧反应短语；是否把已有手机/屏幕/公告/规则/证据载体改成叙述者解释；是否把任务卡点当成自然感或凑字数手段；是否机械删除了有功能的生活化/角色化比喻或短篇主观审判句。
 
   输出格式：
   VERDICT: APPROVE / CONCERNS / REJECT

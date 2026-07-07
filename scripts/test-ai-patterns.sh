@@ -346,7 +346,7 @@ if (mt.length !== 0) throw new Error('低密度/引号内「了下/了一下」�
 NODE
 
 # issue #205 三轮：省略「一/两」的短尾巴（了下/了眼/了声）也是电报体反向指纹；
-# PR 文档不能推荐一个 detector 抓不到、反复复用后又会被朱雀判机械的替换模板。
+# PR 文档不能推荐一个脚本抓不到、反复复用后又会显得机械的替换模板。
 FIXTURE13="$TMP_DIR/fixture-micro-tic-short-tail.md"
 printf '%s\n' \
   '他扯了下嘴角，没接那句话。母亲把碗推过去，他看了眼，又挪开。' \
@@ -685,7 +685,7 @@ NODE
 
 echo "system-notice-formality-tic (系统公告公文腔过密) regression tests passed."
 
-# --- issue #205：长文本过度精炼短段（读顺处理提示；不按指标注水）---
+# --- issue #205：长文本过度精炼短段（读顺处理提示；不机械注水）---
 FIXTURE23="$TMP_DIR/fixture-overcompressed-prose.md"
 : > "$FIXTURE23"
 for _ in $(seq 1 60); do
@@ -803,7 +803,7 @@ const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const lc = r.findings.filter((f) => f.type === 'low-connective-density-tic');
 if (lc.length !== 1) throw new Error('低连接密度且缺中长句应报 1 处 low-connective-density-tic: ' + JSON.stringify(r.findings));
 if (lc[0].severity !== 'advisory') throw new Error('low-connective-density-tic 应为 advisory');
-if (!lc[0].message.includes('别按指标注水')) throw new Error('low-connective-density-tic 必须提示禁止按指标注水: ' + JSON.stringify(lc[0]));
+if (!lc[0].message.includes('别机械注水')) throw new Error('low-connective-density-tic 必须提示禁止机械注水: ' + JSON.stringify(lc[0]));
 NODE
 
 set +e
