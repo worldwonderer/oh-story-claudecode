@@ -2,7 +2,7 @@
 
 # oh-story-claudecode
 
-网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 Claude Code、OpenCode、OpenClaw、Codex CLI、workbuddy。
+网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。内置适配 Claude Code、OpenCode、OpenClaw、Codex CLI、workbuddy；能读取项目文件的 Web AI / Agent 环境也可按通用 skills 路径使用。
 
 ## 核心思路
 
@@ -81,7 +81,7 @@ flowchart LR
 
 ## 安装
 
-**方式一** 直接告诉 Claude Code / OpenCode / OpenClaw / Codex：
+**方式一** 直接告诉 Claude Code / OpenCode / OpenClaw / Codex，或其他支持导入 GitHub 仓库/skill 的 Web AI / Agent 平台：
 
 ```
 安装这个 skill https://github.com/worldwonderer/oh-story-claudecode
@@ -103,15 +103,17 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 >
 > **OpenClaw 用户：** 当前支持 skills-only：OpenClaw 可从 workspace `skills/`、`.agents/skills`、`~/.agents/skills`、`~/.openclaw/skills` 等 skill root 发现本项目 13 个 skill；`SKILL.md` 已按 OpenClaw 要求使用单行 `name` / `description` 与单行 JSON `metadata.openclaw`。`story-setup` 选择 `target_cli=openclaw` 时会把 skills 复制到项目 `skills/` 并写入 OpenClaw 版 `AGENTS.md`；agents/hooks 暂不部署，写正文前大纲守卫在 OpenClaw 下是 skill 内软约束。部署后如未显示新 skills，请新开 OpenClaw session 或等待 watcher 刷新。
 >
+> **Web AI / 通用 Agent 用户：** 平台能读取 GitHub 仓库或项目文件时，可让 Agent 读取 `skills/*/SKILL.md` 与对应 `references/`；需要本地副本时，`story-setup` 可选 `target_cli=generic`，只写通用 `AGENTS.md` 和 `skills/`。无本项目 hooks/custom agents 的环境按 skill 内软约束或 solo/direct fallback 执行。
+>
 > 升级后如果项目里已经跑过 `/story-setup`，建议在项目根重跑一次 `/story-setup`，同步 hooks / agents / references。每版变更见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases)。
 
-> **多 agent 协作要先部署再新开会话**：7 个专业 agent（story-architect、narrative-writer、consistency-checker 等）由 `/story-setup` 写入项目 `.claude/agents/`，或由 `$story-setup` 写入 `.codex/agents/*.toml`。Claude Code / Codex 都在会话启动时更稳定地注册 custom agent，所以 **setup 跑完必须 trust 项目配置并新开对应 CLI 会话**，story-review 的多视角对抗审查、写作流程里的 agent 协作才会生效；否则 skill 会拿到「subagent_type 不可用 / Codex unknown agent_type」并降级 solo（单视角）。OpenClaw Phase 1 不部署 agents，默认走 skills + solo fallback。判断是否生效：新会话里跑 `/story-review`，报告头是 `Effective Mode: full/lean` 即注册成功，是 `Fallback: ... -> solo` 说明还在旧会话或当前运行时未暴露该 agent。
+> **多 agent 协作要先部署再新开会话**：7 个专业 agent（story-architect、narrative-writer、consistency-checker 等）由 `/story-setup` 写入项目 `.claude/agents/`，或由 `$story-setup` 写入 `.codex/agents/*.toml`。Claude Code / Codex 都在会话启动时更稳定地注册 custom agent；OpenClaw Phase 1 与 generic 路径默认走 skills + solo fallback。判断是否生效：新会话里跑 `/story-review`，报告头是 `Effective Mode: full/lean` 即注册成功，是 `Fallback: ... -> solo` 说明还在旧会话或当前运行时未暴露该 agent。
 
 ## Skills
 
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
-| `story-setup` | `/story-setup` `$story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md/AGENTS.md 一键部署（已有配置安全合并，支持 Claude Code / OpenCode / Codex / OpenClaw skills-only） |
+| `story-setup` | `/story-setup` `$story-setup` `/准备写书` | 环境部署 · 内置 CLI 适配 + 通用 Web AI/generic skills 路径（已有配置安全合并） |
 | `story` | `/story` `$story` `/网文` | 工具箱路由 · 模糊意图自动分发到对应 skill |
 | `story-long-write` | `/story-long-write` `/写长篇` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |

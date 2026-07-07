@@ -155,8 +155,11 @@ for group in 'templates/hooks/' 'templates/rules' 'templates/agents' 'agent-refe
   assert_grep "$group" "$SKILL_FILE" "deployment manifest missing asset group: $group"
 done
 assert_file "$SKILL_DIR/references/openclaw/AGENTS.md.tmpl"
+assert_file "$SKILL_DIR/references/generic/AGENTS.md.tmpl"
 assert_grep 'references/openclaw/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing OpenClaw AGENTS template"
 assert_grep 'OpenClaw skills-only|target_cli 含 openclaw' "$SKILL_FILE" "story-setup must document OpenClaw skills-only deployment"
+assert_grep 'references/generic/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing generic AGENTS template"
+assert_grep 'target_cli 含 generic|通用 Web AI / 其他 Agent' "$SKILL_FILE" "story-setup must document generic Web AI deployment"
 assert_grep 'references_dir' "$SKILL_FILE" "sentinel references_dir must be documented"
 assert_grep 'resolver_strategy' "$SKILL_FILE" "sentinel resolver_strategy must be documented"
 assert_grep 'target_cli' "$SKILL_FILE" "sentinel target_cli must be documented"

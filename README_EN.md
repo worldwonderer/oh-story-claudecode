@@ -4,7 +4,7 @@
 
 # oh-story-claudecode
 
-A web novel writing skill pack for Claude Code, OpenCode, OpenClaw, Codex CLI, and workbuddy. Covers the full pipeline for long-form and short-form Chinese web novels: trend scanning, deconstruction, writing, AI tone removal, and cover generation.
+A web novel writing skill pack with built-in adapters for Claude Code, OpenCode, OpenClaw, Codex CLI, and workbuddy. Web AI / agent environments that can read project files can use the generic skills path. Covers the full pipeline for long-form and short-form Chinese web novels: trend scanning, deconstruction, writing, AI tone removal, and cover generation.
 
 ## Core Approach
 
@@ -83,7 +83,7 @@ flowchart LR
 
 ## Installation
 
-**Option 1** Tell Claude Code / OpenCode / OpenClaw / Codex directly:
+**Option 1** Tell Claude Code / OpenCode / OpenClaw / Codex, or another Web AI / agent platform that can import a GitHub repo or skill:
 
 ```
 Install this skill https://github.com/worldwonderer/oh-story-claudecode
@@ -106,14 +106,16 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 > **OpenCode users:** After global install, opencode auto-discovers skills from `~/.claude/skills/`; trigger story-setup with natural language on first use (e.g., "use story-setup to deploy the web novel environment"), then **exit and re-enter with `opencode -c`** for slash commands to work. Some hook behaviors differ from Claude Code (session-start / session-end / compact, etc.) — see the OpenCode section in [CONTRIBUTING.md](CONTRIBUTING.md).
 >
 > **OpenClaw users:** Current support is skills-only. OpenClaw can discover the 13 story skills from workspace `skills/`, `.agents/skills`, `~/.agents/skills`, `~/.openclaw/skills`, or configured extra skill roots. `SKILL.md` files use OpenClaw-compatible single-line `name` / `description` plus single-line JSON `metadata.openclaw`. When `story-setup` targets OpenClaw, it copies the skills into project `skills/` and writes an OpenClaw `AGENTS.md`; agents/hooks are intentionally deferred, so outline-before-prose guards are soft skill checks rather than runtime enforcement. If new skills do not appear immediately, open a fresh OpenClaw session or wait for the skills watcher to refresh.
+>
+> **Generic Web AI / agent users:** If your platform can read a GitHub repo or project files, have the agent read `skills/*/SKILL.md` plus the relevant `references/`. For local project copies, run `story-setup` with `target_cli=generic`; it only writes a generic `AGENTS.md` and `skills/`. Without this project's hooks/custom agents, checks run as skill-level soft constraints or solo/direct fallbacks.
 
-> **Multi-agent collaboration needs setup + a fresh session**: the 7 specialist agents (story-architect, narrative-writer, consistency-checker, etc.) are written into your project's `.claude/agents/` by `/story-setup`, or into `.codex/agents/*.toml` by `$story-setup`. Claude Code and Codex register custom agents most reliably **at session start**, so **after setup finishes you must trust the project config and open a fresh matching CLI session** before story-review's multi-perspective review and the agent collaboration in the writing flow take effect; otherwise skills get "subagent_type unavailable / Codex unknown agent_type" and fall back to solo (single perspective). OpenClaw Phase 1 does not deploy agents and defaults to skills + solo fallback. To check Claude/Codex agents: run `/story-review` in the new session — a header of `Effective Mode: full/lean` means agents registered, `Fallback: ... -> solo` means you're still in the old session or the current runtime did not expose that agent.
+> **Multi-agent collaboration needs setup + a fresh session**: the 7 specialist agents (story-architect, narrative-writer, consistency-checker, etc.) are written into your project's `.claude/agents/` by `/story-setup`, or into `.codex/agents/*.toml` by `$story-setup`. Claude Code and Codex register custom agents most reliably at session start; OpenClaw Phase 1 and the generic path default to skills + solo fallback. To check Claude/Codex agents: run `/story-review` in the new session — `Effective Mode: full/lean` means agents registered, `Fallback: ... -> solo` means they are unavailable.
 
 ## Skills
 
 | Skill | Trigger | Description |
 |:------|:--------|:------------|
-| `story-setup` | `/story-setup` / `$story-setup` | Environment setup — deploys hooks/rules/agents/CLAUDE.md/AGENTS.md in one click (safe merge, supports Claude Code / OpenCode / Codex / OpenClaw skills-only) |
+| `story-setup` | `/story-setup` / `$story-setup` | Environment setup — built-in CLI adapters plus a generic Web AI skills path (safe merge) |
 | `story` | `/story` / `$story` | Toolbox router — routes fuzzy intents to the matching skill |
 | `story-long-write` | `/story-long-write` | Long-form writing — outline building, character design, prose output |
 | `story-long-analyze` | `/story-long-analyze` | Long-form deconstruction — Golden First 3 Chapters, payoff design, pacing analysis |
