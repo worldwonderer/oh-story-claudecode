@@ -2,7 +2,7 @@
 
 # oh-story-claudecode
 
-网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 Claude Code、OpenCode、OpenClaw、Codex CLI、workbuddy。
+网文写作 skill 包，覆盖长篇与短篇网络小说的扫榜、拆文、写作、去AI味、封面图全流程。适配 Claude Code、OpenCode、OpenClaw、Codex CLI、workbuddy、TRAE / TRAE CN / TRAE CLI、华为云码道 CodeArts。
 
 ## 核心思路
 
@@ -16,6 +16,8 @@
 
 围绕四条线展开：爆款逆向 · 剧情模块化重组 · 上下文状态分层管理 · 人机协同。
 
+> v0.6.22 起：新增 TRAE / TRAE CN / TRAE CLI / 华为云码道 CodeArts 适配——四端均使用与本仓库相同的 `SKILL.md` 格式（`name` + `description` + 渐进式披露），仓库根新增 `.trae/skills`、`.traecli/skills`、`.codeartsdoer/skills` 三个 symlink（同 Codex 的 `.agents/skills`），四端可就地发现 13 个 skill；`/story-setup` 新增 `target_cli=trae/codearts`（skills-only 部署，分别写入 `.trae/skills/`、`.codeartsdoer/skills/`；TRAE 家族统一记 `trae`，不单独取 `trae-cn`）。四端均无硬 hooks/agents，多 agent 对抗审查与大纲守卫降级 solo + skill 内软约束。
+>
 > v0.6.21 起：短篇写作参考栈瘦身——`story-short-write` 删除长篇继承残留 references，改由 `short-format` / `short-craft` / `short-deslop` + 四个题材包（追妻火葬场、复仇打脸、总裁豪门、宅斗宫斗）承接短篇格式、情绪直给、节奏密度和去 AI 味；已部署项目建议重新运行 `/story-setup` 并新开会话，获取新版 narrative-writer 短篇例外。
 >
 > v0.6.20 起：长篇大纲补强——对标节奏迁移（把爆款拆解的剧情节奏按关键点回流进卷纲，缺节奏文件走章节摘要降级）+ 章节定位与张弛（破「每章像短篇」：按章在一级结构里的位置分高压/推进/关系/低压等定位，低压/关系/过场章不再被迫塞钩子爽点、但保留追读拉力，并加「禁情绪母题扎堆」底线；定位可留空、非硬配额）。
@@ -103,6 +105,10 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 >
 > **OpenClaw 用户：** 当前支持 skills-only：OpenClaw 可从 workspace `skills/`、`.agents/skills`、`~/.agents/skills`、`~/.openclaw/skills` 等 skill root 发现本项目 13 个 skill；`SKILL.md` 已按 OpenClaw 要求使用单行 `name` / `description` 与单行 JSON `metadata.openclaw`。`story-setup` 选择 `target_cli=openclaw` 时会把 skills 复制到项目 `skills/` 并写入 OpenClaw 版 `AGENTS.md`；agents/hooks 暂不部署，写正文前大纲守卫在 OpenClaw 下是 skill 内软约束。部署后如未显示新 skills，请新开 OpenClaw session 或等待 watcher 刷新。
 >
+> **TRAE / TRAE CN / TRAE CLI 用户：** 仓库根已内置 `.trae/skills`（TRAE IDE 与 TRAE CN 国内版项目级目录）与 `.traecli/skills`（TRAE CLI 项目级目录）两个 symlink，指向 `skills/`——clone 后 TRAE 即可就地发现 13 个 skill（Windows 需 git 开 `core.symlinks=true`，否则 symlink 失效，改走下方 `story-setup` 部署）。全局安装用 `npx skills add worldwonderer/oh-story-claudecode -y -g` 后，把 `~/.claude/skills/` 下的 skill 目录软链/复制到 `~/.trae-cn/skills`（TRAE IDE 全局）或 `~/.traecli/skills`（TRAE CLI 全局）。`story-setup` 选 `target_cli=trae` 时会把 skills 复制到项目 `.trae/skills/` 并在 `.traecli/skills/` 建 symlink（TRAE 家族统一记 `trae`，不单独取 `trae-cn`）。三端均 skills-only：创建/修改 Skill 后需重启 TRAE CLI/IDE 才会加载，用 `/skills` 核对；多 agent 对抗审查降级 solo。
+>
+> **华为云码道 CodeArts 用户：** 仓库根已内置 `.codeartsdoer/skills` symlink 指向 `skills/`，clone 后码道 IDE 即可就地发现 13 个 skill（Windows 需 git 开 `core.symlinks=true`，否则 symlink 失效，改走下方 `story-setup` 部署）。也可在「设置 → 技能与规则 → 项目级技能」手动创建或导入含 `SKILL.md` 的 zip 包（压缩包名与技能名一致）。`story-setup` 选 `target_cli=codearts` 时会把 skills 复制到项目 `.codeartsdoer/skills/`。CodeArts 要求 `name` 与目录名一致、1~64 字符、不含中文/空格（本仓库 13 个 skill 已满足）；skills-only，多 agent 对抗审查降级 solo。
+>
 > 升级后如果项目里已经跑过 `/story-setup`，建议在项目根重跑一次 `/story-setup`，同步 hooks / agents / references。每版变更见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases)。
 
 > **多 agent 协作要先部署再新开会话**：7 个专业 agent（story-architect、narrative-writer、consistency-checker 等）由 `/story-setup` 写入项目 `.claude/agents/`，或由 `$story-setup` 写入 `.codex/agents/*.toml`。Claude Code / Codex 都在会话启动时更稳定地注册 custom agent，所以 **setup 跑完必须 trust 项目配置并新开对应 CLI 会话**，story-review 的多视角对抗审查、写作流程里的 agent 协作才会生效；否则 skill 会拿到「subagent_type 不可用 / Codex unknown agent_type」并降级 solo（单视角）。OpenClaw Phase 1 不部署 agents，默认走 skills + solo fallback。判断是否生效：新会话里跑 `/story-review`，报告头是 `Effective Mode: full/lean` 即注册成功，是 `Fallback: ... -> solo` 说明还在旧会话或当前运行时未暴露该 agent。
@@ -111,7 +117,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
-| `story-setup` | `/story-setup` `$story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md/AGENTS.md 一键部署（已有配置安全合并，支持 Claude Code / OpenCode / Codex / OpenClaw skills-only） |
+| `story-setup` | `/story-setup` `$story-setup` `/准备写书` | 环境部署 · hooks/rules/agents/CLAUDE.md/AGENTS.md 一键部署（已有配置安全合并，支持 Claude Code / OpenCode / Codex / OpenClaw / TRAE / CodeArts skills-only） |
 | `story` | `/story` `$story` `/网文` | 工具箱路由 · 模糊意图自动分发到对应 skill |
 | `story-long-write` | `/story-long-write` `/写长篇` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |

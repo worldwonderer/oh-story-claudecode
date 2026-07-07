@@ -1,7 +1,7 @@
 ---
 name: story-setup
-version: 1.2.5
-description: "网文写作工具集基础设施部署。将 hooks/rules/agents/CLAUDE.md/AGENTS.md 等基础设施部署到用户项目目录，支持 Claude Code / OpenCode / Codex / OpenClaw。触发方式：/story-setup、$story-setup、「准备写书」「帮我搭一下环境」「配置写作项目」。"
+version: 1.2.6
+description: "网文写作工具集基础设施部署。将 hooks/rules/agents/CLAUDE.md/AGENTS.md 等基础设施部署到用户项目目录，支持 Claude Code / OpenCode / Codex / OpenClaw / TRAE / TRAE CN / CodeArts。触发方式：/story-setup、$story-setup、「准备写书」「帮我搭一下环境」「配置写作项目」。"
 metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claudecode"}}
 ---
 # story-setup：网文写作工具集基础设施部署
@@ -34,13 +34,20 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 7. 检查 `openclaw.json`、`.openclaw/`、`.agents/skills/`、`AGENTS.md` 中的 OpenClaw 段，或 `skills/*/SKILL.md` 中的 `metadata.openclaw`
    - 存在 → 识别为 OpenClaw 项目，`target_cli = openclaw`
    - 不存在 → 跳过
-8. 如 `.claude/` 或 `CLAUDE.md`、opencode 标记、Codex 标记、OpenClaw 标记同时存在 → 使用 AskUserQuestion 让用户选择目标 CLI（选项：仅 Claude Code / 仅 OpenCode / 仅 Codex / 仅 OpenClaw / 任意组合）
-9. 如四者都不存在（全新项目）→ 使用 AskUserQuestion 让用户选择目标 CLI
-   - 用户选择 opencode → `target_cli = opencode`，部署时创建 `opencode.json` 和 `.opencode/`
-   - 用户选择 claude-code → 按现有逻辑处理
-   - 用户选择 codex → `target_cli = codex`，部署时创建 `.codex/`
-   - 用户选择 openclaw → `target_cli = openclaw`，部署时复制 OpenClaw 兼容 skills 到项目 `skills/`
-   - 用户选择多端 → `target_cli = claude-code,opencode,codex,openclaw`（仅包含用户选择的端）
+8. 检查 TRAE / CodeArts 标记（均为 skills-only 部署）。此步仅标记检测到的平台，`target_cli` 最终取值由第 9/10 步用户选择决定；TRAE 家族（TRAE IDE / TRAE CN 国内版 / TRAE CLI）统一记为 `trae`，不单独取值 `trae-cn`：
+   - `.trae/skills/`（TRAE IDE 项目级，TRAE CN 国内版同样使用此目录）→ 标记 TRAE 端
+   - `.traecli/skills/`（TRAE CLI 项目级，兼容 TRAE IDE 的 Skill）→ 标记 TRAE 端
+   - `.codeartsdoer/skills/`（华为云码道 CodeArts 项目级）→ `target_cli = codearts`
+   - 不存在 → 跳过
+9. 如上述任一 CLI 标记同时存在 → 使用 AskUserQuestion 让用户选择目标 CLI（选项：仅 Claude Code / 仅 OpenCode / 仅 Codex / 仅 OpenClaw / 仅 TRAE（含 TRAE CN/TRAE CLI）/ 仅 CodeArts / 任意组合）
+10. 如全部都不存在（全新项目）→ 使用 AskUserQuestion 让用户选择目标 CLI
+    - 用户选择 opencode → `target_cli = opencode`，部署时创建 `opencode.json` 和 `.opencode/`
+    - 用户选择 claude-code → 按现有逻辑处理
+    - 用户选择 codex → `target_cli = codex`，部署时创建 `.codex/`
+    - 用户选择 openclaw → `target_cli = openclaw`，部署时复制 OpenClaw 兼容 skills 到项目 `skills/`
+    - 用户选择 trae（TRAE 家族，含 TRAE CN/TRAE CLI）→ `target_cli = trae`，部署时复制 skills 到 `.trae/skills/`（TRAE IDE 与 TRAE CN 共用此目录；TRAE CLI 另需 `.traecli/skills/`，一并创建）
+    - 用户选择 codearts → `target_cli = codearts`，部署时复制 skills 到 `.codeartsdoer/skills/`
+    - 用户选择多端 → `target_cli = claude-code,opencode,codex,openclaw,trae,codearts`（仅包含用户选择的端）
 
 ## Phase 2：部署基础设施
 
@@ -73,6 +80,11 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | `skills/story-setup/references/openclaw/AGENTS.md.tmpl` | `AGENTS.md` | user+managed | marker/section merge | contains OpenClaw story skill routing sections | target_cli 含 openclaw |
 | repository `skills/{browser-cdp,story*}/` | `skills/{browser-cdp,story*}/` | story-setup managed for known skill names | replace known skill dirs only | 13 `SKILL.md` files exist; OpenClaw-compatible frontmatter | target_cli 含 openclaw |
 | `skills/story-setup/references/agent-references/` | `skills/story-setup/references/agent-references/` | story-setup managed | replace via full skill copy | every reference resolves | target_cli 含 openclaw |
+| repository `skills/{browser-cdp,story*}/` | `.trae/skills/{browser-cdp,story*}/` | story-setup managed for known skill names | replace known skill dirs only | 13 `SKILL.md` files exist; `name` 全小写字母/数字/连字符，`description` 单行 | target_cli 含 trae |
+| repository `skills/{browser-cdp,story*}/` | `.traecli/skills/{browser-cdp,story*}/` | story-setup managed for known skill names | replace known skill dirs only | symlink 指向 `.trae/skills/`（或 Windows 退化为完整复制）；13 `SKILL.md` files exist（TRAE CLI 与 TRAE IDE 共用同一份 `SKILL.md`，仅目录不同） | target_cli 含 trae |
+| `skills/story-setup/references/agent-references/` | `.trae/skills/story-setup/references/agent-references/` | story-setup managed | replace via full skill copy | every reference resolves | target_cli 含 trae |
+| repository `skills/{browser-cdp,story*}/` | `.codeartsdoer/skills/{browser-cdp,story*}/` | story-setup managed for known skill names | replace known skill dirs only | 13 `SKILL.md` files exist；`name` 与目录名一致、长度 1~64、不含中文/空格 | target_cli 含 codearts |
+| `skills/story-setup/references/agent-references/` | `.codeartsdoer/skills/story-setup/references/agent-references/` | story-setup managed | replace via full skill copy | every reference resolves | target_cli 含 codearts |
 
 ### opencode.json 合并算法
 
@@ -267,6 +279,21 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
 6. 安装报告必须提示：OpenClaw 会在 session 启动时 snapshot eligible skills；部署后如果命令/skills 未出现，需新开 OpenClaw session 或等待 skills watcher 刷新。
 7. 安装报告必须提示：OpenClaw Phase 1 没有硬 hooks/agents；写正文前大纲守卫、commit 提醒、session/compact 自动注入只作为 skill 内软约束，不是运行时强制拦截。
 
+## TRAE / TRAE CN / CodeArts skills-only 部署算法（target_cli 含 trae/codearts 时）
+
+TRAE IDE、TRAE CN（国内版）、TRAE CLI、华为云码道 CodeArts 都使用与本仓库相同的 `SKILL.md` 格式（YAML frontmatter `name` + `description` + 可选 reference/scripts，渐进式披露），且都只识别 skills，不部署 agents/hooks。四端均为 skills-only。
+
+1. 读取仓库当前 `skills/` 下所有包含 `SKILL.md` 的 story skill 目录（13 个：`browser-cdp` 与 `story*`）。复用 OpenClaw 的「仅替换 story-setup 管理的已知 skill 目录、保留用户其他目录」规则。
+2. `target_cli` 含 `trae`：写入目标项目 `.trae/skills/{skill-name}/`（TRAE IDE 与 TRAE CN 国内版共用 `.trae/skills/`，TRAE 家族统一记为 `trae`，不单独取值 `trae-cn`）。**TRAE CLI 额外需要 `.traecli/skills/`**——为避免双份拷贝漂移，优先在 `.traecli/skills/` 创建指向 `.trae/skills/` 的相对 symlink（`ln -s ../.trae/skills .traecli/skills`）；Windows 不支持 symlink 时退化为完整复制一份，并在安装报告中提示开启 git `core.symlinks=true`。
+3. `target_cli` 含 `codearts`：写入目标项目 `.codeartsdoer/skills/{skill-name}/`。
+4. 每个 `SKILL.md` 必须满足各平台 frontmatter 约束：
+   - TRAE CLI：`name` 仅小写字母/数字/连字符（**不含中文**，TRAE IDE 容忍中文但 CLI 不容忍，统一禁中文）；`description` 单行清晰描述触发场景。
+   - CodeArts：`name` 与目录名一致、1~64 字符、开头/结尾非连字符、连字符不连续；`description` 长度 ≤1024 字符。
+   - 本仓库 13 个 skill 的 `name`（`browser-cdp`、`story`、`story-setup`、`story-long-write` 等）已全部满足各端约束，部署时按原样复制即可，不得改写 `metadata.openclaw` 等额外字段（实测各端对未知 frontmatter 字段不报错；部署后建议在目标 IDE/CLI 实际触发一次 skill 核对加载正常，若某端拒绝加载则精简 frontmatter 至该端已知字段）。
+5. `.story-deployed` 的 `target_cli` 写入 `trae`/`codearts` 或多端组合（`trae-cn` 不作为独立取值，TRAE 家族统一记 `trae`）；`references_dir` 分别写 `.trae/skills/story-setup/references/agent-references`、`.codeartsdoer/skills/story-setup/references/agent-references`；多端用逗号分隔。
+6. 安装报告必须提示：四端均在创建/修改 Skill 后需要**重启对应 CLI/IDE** 才会加载最新 Skill；TRAE CLI 用 `/skills` 命令核对，CodeArts 在「设置 → 技能与规则 → 项目级技能」核对。
+7. 安装报告必须提示：四端均无硬 hooks/agents；多 agent 对抗审查（story-review 的 full/lean）与写正文前大纲守卫在四端下均降级为 solo + skill 内软约束，不是运行时强制拦截。要恢复多 agent 协作需在同一项目额外部署 Claude Code/Codex/OpenCode 端。
+
 ### 2.7 创建部署标记
 
 - 创建 `.story-deployed` 文件（sentinel file）
@@ -274,10 +301,10 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
   ```
   deployed_at: <date -u +"%Y-%m-%dT%H:%M:%SZ">
   agents_version: 16
-  setup_skill_version: 1.2.5
-  target_cli: claude-code（或 opencode、codex、openclaw，或 claude-code,opencode,codex,openclaw 等组合）
+  setup_skill_version: 1.2.6
+  target_cli: claude-code（或 opencode、codex、openclaw、trae、codearts，或 claude-code,opencode,codex,openclaw,trae,codearts 等组合）
   resolver_strategy: project-local-skill-reference
-  references_dir: .claude/skills/story-setup/references/agent-references（Codex 可写 .codex/skills/story-setup/references/agent-references；OpenClaw 可写 skills/story-setup/references/agent-references；多端用逗号分隔）
+  references_dir: .claude/skills/story-setup/references/agent-references（Codex 可写 .codex/skills/story-setup/references/agent-references；OpenClaw 可写 skills/story-setup/references/agent-references；TRAE 可写 .trae/skills/story-setup/references/agent-references；CodeArts 可写 .codeartsdoer/skills/story-setup/references/agent-references；多端用逗号分隔）
   ```
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
 - 同时创建一次性标记文件 `.claude/.agents-pending-restart`（空文件即可）。session-start.sh 在下一个会话启动时据此确认 agents 已随新会话注册，并自动删除该标记——用来向用户确认「重启已生效」。
@@ -297,7 +324,7 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
    - 检查 `.claude/skills/story-setup/references/agent-references/` 下 reference 文件完整
    - 检查所有 `story-setup/references/agent-references/<file>.md` 都能解析到 deployed bundle
 5. 验证部署标记：
-   - 检查 `.story-deployed` 是否存在且包含时间戳、`agents_version: 16`、`setup_skill_version: 1.2.5`、`target_cli`、`resolver_strategy`、`references_dir`
+   - 检查 `.story-deployed` 是否存在且包含时间戳、`agents_version: 16`、`setup_skill_version: 1.2.6`、`target_cli`、`resolver_strategy`、`references_dir`
 6. 输出安装报告：
    - 列出所有已部署的文件
    - 列出需要注意的事项（如已有配置已合并）
@@ -347,6 +374,15 @@ OpenClaw Phase 1 只部署 skills，不部署 OpenClaw agents/hooks/plugin。
     - 检查 `skills/` 下 13 个 story skill 目录存在，且每个 `SKILL.md` 包含单行 `name`、单行 `description`、单行 JSON `metadata.openclaw`
     - 检查 `skills/story-setup/references/agent-references/` 下 reference 文件完整且数量与源目录一致
     - 安装报告必须提示：OpenClaw Phase 1 是 skills-only；未部署 OpenClaw agents/hooks，运行时硬拦截不可用；部署后新开 OpenClaw session 或等待 watcher 刷新
+10. 验证 TRAE / TRAE CN 部署（仅当 target_cli 含 trae 时）：
+    - 检查 `.trae/skills/` 下 13 个 story skill 目录存在，每个 `SKILL.md` 含 `name`（小写字母/数字/连字符、不含中文）与单行 `description`
+    - 检查 `.traecli/skills/` 存在（symlink 指向 `.trae/skills/` 或独立复制），TRAE CLI 能发现 skills
+    - 检查 `.trae/skills/story-setup/references/agent-references/` 下 reference 文件完整
+    - 安装报告必须提示：TRAE/TRAE CN/CLI 均为 skills-only；创建或修改 Skill 后需重启 TRAE CLI/IDE 才会加载；TRAE CLI 用 `/skills` 核对
+11. 验证 CodeArts 部署（仅当 target_cli 含 codearts 时）：
+    - 检查 `.codeartsdoer/skills/` 下 13 个 story skill 目录存在，每个 `SKILL.md` 含 `name`（与目录名一致、1~64 字符、开头/结尾非连字符、连字符不连续）与 `description`（≤1024 字符）
+    - 检查 `.codeartsdoer/skills/story-setup/references/agent-references/` 下 reference 文件完整
+    - 安装报告必须提示：CodeArts 为 skills-only；可在「设置 → 技能与规则 → 项目级技能」核对；多 agent 对抗审查降级 solo
 
 ---
 
@@ -425,6 +461,6 @@ hooks 注册合并按 command 字段去重：
 
 | 时机 | 跳转到 | 命令 |
 |---|---|---|
-| 部署完成，开始写作 | story-long-write / story-short-write | `/story-long-write` 或 `/story-short-write`；Codex 中也可用 `$story-long-write` / `$story-short-write`；OpenClaw 中可用 `/skill story-long-write` |
-| 导入已有小说做拆解 | story-import | `/story-import`；Codex 中也可用 `$story-import`；OpenClaw 中可用 `/skill story-import` |
-| 需要浏览器登录态（扫榜/拆文取原文） | browser-cdp | `/browser-cdp`；Codex 中也可用 `$browser-cdp`；OpenClaw 中可用 `/skill browser-cdp` |
+| 部署完成，开始写作 | story-long-write / story-short-write | `/story-long-write` 或 `/story-short-write`；Codex 中也可用 `$story-long-write` / `$story-short-write`；OpenClaw 中可用 `/skill story-long-write`；TRAE/TRAE CN/CodeArts 中用自然语言点名 skill（如「用 story-long-write 写下一章」）或对应平台的 skill 触发方式 |
+| 导入已有小说做拆解 | story-import | `/story-import`；Codex 中也可用 `$story-import`；OpenClaw 中可用 `/skill story-import`；TRAE/CodeArts 中用自然语言点名 |
+| 需要浏览器登录态（扫榜/拆文取原文） | browser-cdp | `/browser-cdp`；Codex 中也可用 `$browser-cdp`；OpenClaw 中可用 `/skill browser-cdp`；TRAE/CodeArts 中用自然语言点名 |

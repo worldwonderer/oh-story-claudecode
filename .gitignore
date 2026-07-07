@@ -3,6 +3,12 @@
 .claude/
 .agents/*
 !.agents/skills
+.trae/*
+!.trae/skills
+.traecli/*
+!.traecli/skills
+.codeartsdoer/*
+!.codeartsdoer/skills
 .codebuddy/
 AGENTS.md
 CLAUDE.md

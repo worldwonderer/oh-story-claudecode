@@ -9,7 +9,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 ## 路由表
 
-> Codex CLI 中优先使用 `$story-*` 或 `/skills` 触发；Claude Code / OpenCode 继续使用 `/story-*`；OpenClaw 可用 `/skill story-*` 或自然语言点名 skill。下表以 slash command 展示，Codex 可将 `/story-long-write` 等价替换为 `$story-long-write`，OpenClaw 可将其等价替换为 `/skill story-long-write`。
+> Codex CLI 中优先使用 `$story-*` 或 `/skills` 触发；Claude Code / OpenCode 继续使用 `/story-*`；OpenClaw 可用 `/skill story-*` 或自然语言点名 skill；TRAE / TRAE CN / TRAE CLI / CodeArts（华为云码道）按各自平台的 skill 触发方式（TRAE CLI 用 `/skills`，CodeArts 在「设置 → 技能与规则 → 项目级技能」），或直接自然语言点名 skill（如「用 story-long-write 写下一章」）。下表以 slash command 展示，Codex 可将 `/story-long-write` 等价替换为 `$story-long-write`，OpenClaw 可将其等价替换为 `/skill story-long-write`。
 
 | 用户意图 | 关键词示例 | 路由到 |
 |---|---|---|
@@ -34,7 +34,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 1. 分析用户请求，提取意图关键词
 2. 匹配上表，找到对应的 skill
-3. 如果能明确匹配，直接调用对应 skill（Claude/OpenCode 可用 `Skill("skill-name")` 或 slash command；Codex 用 `$skill-name` / `/skills`；OpenClaw 用 `/skill skill-name` 或自然语言点名）
+3. 如果能明确匹配，直接调用对应 skill（Claude/OpenCode 可用 `Skill("skill-name")` 或 slash command；Codex 用 `$skill-name` / `/skills`；OpenClaw 用 `/skill skill-name` 或自然语言点名；TRAE / TRAE CN / TRAE CLI / CodeArts 用平台 skill 触发方式或自然语言点名）
 4. 如果无法匹配，询问用户想做什么（从上表中选择）
 5. 如果用户说"我想写小说"但未指定长篇/短篇，询问篇幅类型后再路由
 

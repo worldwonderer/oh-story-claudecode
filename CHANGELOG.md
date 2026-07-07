@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.22
+
+> TRAE / TRAE CN / TRAE CLI / 华为云码道 CodeArts 适配（skills-only）
+
+### 新增
+
+- **TRAE / TRAE CN / TRAE CLI / CodeArts 适配**：四端均使用与本仓库相同的 `SKILL.md` 格式（YAML frontmatter `name` + `description` + 可选 reference/scripts，渐进式披露），本仓库 13 个 skill 的 `name`（`browser-cdp`、`story`、`story-setup` 等，全小写字母/数字/连字符、不含中文）已满足 TRAE CLI（禁中文 `name`）与 CodeArts（`name` 与目录名一致、1~64 字符、开头/结尾非连字符、连字符不连续）的 frontmatter 约束，无需改写即可被四端识别。
+- **就地发现 symlink**：仓库根新增 `.trae/skills`（TRAE IDE 与 TRAE CN 国内版项目级目录）、`.traecli/skills`（TRAE CLI 项目级目录）、`.codeartsdoer/skills`（CodeArts 项目级目录）三个 symlink，均指向 `skills/`，与 Codex 的 `.agents/skills` 同型——clone 后四端可就地发现 13 个 skill（Windows 需 git 开 `core.symlinks=true`）。`.gitignore` 同步放行这三个 symlink。
+- **`/story-setup` 新增 `target_cli=trae/codearts`**：四端均为 skills-only 部署（同 OpenClaw Phase 1），分别写入 `.trae/skills/`（TRAE CLI 另在 `.traecli/skills/` 建指向 `.trae/skills/` 的 symlink，避免双份拷贝漂移；Windows 退化完整复制）与 `.codeartsdoer/skills/`；TRAE 家族统一记 `trae`，不单独取 `trae-cn`。Phase 1 检测新增四端标记识别；Phase 2 部署清单新增对应行；新增「TRAE / TRAE CN / CodeArts skills-only 部署算法」段；Phase 3 新增第 10/11 步验证；`.story-deployed` 的 `target_cli` / `references_dir` 字段扩展支持四端。
+
+### 改进
+
+- **路由/部署文档同步**：`story` 与 `story-setup` 的 SKILL.md 路由说明、`README` / `README_EN` 安装与平台说明同步新增 TRAE/TRAE CN/TRAE CLI/CodeArts 的就地发现、全局安装、`target_cli` 部署与重启核对指引；明确四端均无硬 hooks/agents，多 agent 对抗审查（story-review 的 full/lean）与写正文前大纲守卫降级 solo + skill 内软约束，要恢复多 agent 协作需在同一项目额外部署 Claude Code/Codex/OpenCode 端。
+
+### 发布准备
+
+- 版本号升级到 `0.6.22`（`.claude-plugin/marketplace.json` + `skills/story/VERSION`）。`setup_skill_version` 升级到 `1.2.6`（story-setup SKILL.md 变更）；未 bump `agents_version`（本版无 hooks/agents/agent 模板结构变更，现有部署无需为四端适配重部署，仅在用户要部署到 TRAE/CodeArts 时才用到新 `target_cli`）。`README` / `README_EN` 更新 v0.6.22 版本说明。
+
 ## v0.6.21
 
 > 短篇写作参考栈瘦身：删掉长篇继承残留，建立短篇专属 format/craft/deslop/题材包体系（#206）

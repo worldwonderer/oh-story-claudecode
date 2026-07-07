@@ -4,7 +4,7 @@
 
 # oh-story-claudecode
 
-A web novel writing skill pack for Claude Code, OpenCode, OpenClaw, Codex CLI, and workbuddy. Covers the full pipeline for long-form and short-form Chinese web novels: trend scanning, deconstruction, writing, AI tone removal, and cover generation.
+A web novel writing skill pack for Claude Code, OpenCode, OpenClaw, Codex CLI, workbuddy, TRAE / TRAE CN / TRAE CLI, and Huawei Cloud CodeArts. Covers the full pipeline for long-form and short-form Chinese web novels: trend scanning, deconstruction, writing, AI tone removal, and cover generation.
 
 ## Core Approach
 
@@ -18,6 +18,8 @@ Professional authors follow a three-step method:
 
 Built around four pillars: reverse-engineering hits · plot modularization · layered state management · human-AI collaboration.
 
+> Starting in v0.6.22: TRAE / TRAE CN / TRAE CLI / Huawei Cloud CodeArts support — all four use the same `SKILL.md` format as this repo (`name` + `description` + progressive disclosure). The repo root now ships `.trae/skills`, `.traecli/skills`, and `.codeartsdoer/skills` symlinks (mirroring Codex's `.agents/skills`) so each platform discovers the 13 skills in-place; `/story-setup` gains `target_cli=trae/codearts` (skills-only deploy into `.trae/skills/` and `.codeartsdoer/skills/` respectively; the TRAE family is stored as `trae`, never `trae-cn`). All four are skills-only with no hard hooks/agents, so multi-agent adversarial review and the outline-before-prose guard fall back to solo + soft skill checks.
+>
 > Starting in v0.6.21: short-form writing reference cleanup — `story-short-write` drops stale long-form inherited references and now uses `short-format` / `short-craft` / `short-deslop` plus four genre packs (wife-chasing crematorium, revenge face-slap, CEO/wealthy family, domestic/palace intrigue) for short-story format, direct emotion, pacing density, and AI-tone cleanup; existing deployed projects should rerun `/story-setup` and start a new session to pick up the updated narrative-writer short-story exception.
 >
 > Starting in v0.6.20: long-form outline reinforcement — benchmark rhythm transfer (reflow a hit book's deconstructed pacing into your volume outline by normalized key points, with a chapter-summary fallback when the rhythm file is absent) and chapter positioning & tension-pacing (fixing "every chapter reads like a standalone short story": chapters are typed by their position in the unit-arc, so relationship/breathing/transition chapters no longer have to manufacture a hook and a payoff while still keeping read-through pull, with a "no emotional-motif clustering" guardrail; positioning is optional and non-quota).
@@ -106,6 +108,10 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 > **OpenCode users:** After global install, opencode auto-discovers skills from `~/.claude/skills/`; trigger story-setup with natural language on first use (e.g., "use story-setup to deploy the web novel environment"), then **exit and re-enter with `opencode -c`** for slash commands to work. Some hook behaviors differ from Claude Code (session-start / session-end / compact, etc.) — see the OpenCode section in [CONTRIBUTING.md](CONTRIBUTING.md).
 >
 > **OpenClaw users:** Current support is skills-only. OpenClaw can discover the 13 story skills from workspace `skills/`, `.agents/skills`, `~/.agents/skills`, `~/.openclaw/skills`, or configured extra skill roots. `SKILL.md` files use OpenClaw-compatible single-line `name` / `description` plus single-line JSON `metadata.openclaw`. When `story-setup` targets OpenClaw, it copies the skills into project `skills/` and writes an OpenClaw `AGENTS.md`; agents/hooks are intentionally deferred, so outline-before-prose guards are soft skill checks rather than runtime enforcement. If new skills do not appear immediately, open a fresh OpenClaw session or wait for the skills watcher to refresh.
+>
+> **TRAE / TRAE CN / TRAE CLI users:** The repo root ships `.trae/skills` (TRAE IDE & TRAE CN project-level dir) and `.traecli/skills` (TRAE CLI project-level dir) symlinks pointing to `skills/` — after `git clone`, TRAE discovers all 13 skills in-place (on Windows enable git `core.symlinks=true`, or the symlink breaks and you fall back to `story-setup` deployment below). For global install, run `npx skills add worldwonderer/oh-story-claudecode -y -g`, then symlink/copy the skill dirs from `~/.claude/skills/` into `~/.trae-cn/skills` (TRAE IDE global) or `~/.traecli/skills` (TRAE CLI global). `story-setup` with `target_cli=trae` copies skills into project `.trae/skills/` and creates a `.traecli/skills/` symlink (the TRAE family is stored as `trae`, never `trae-cn`). All three are skills-only: restart TRAE CLI/IDE after creating or editing a Skill so it loads; verify with `/skills`. Multi-agent adversarial review falls back to solo.
+>
+> **Huawei Cloud CodeArts users:** The repo root ships a `.codeartsdoer/skills` symlink pointing to `skills/`, so the CodeArts IDE discovers all 13 skills in-place after clone (on Windows enable git `core.symlinks=true`, or the symlink breaks and you fall back to `story-setup` deployment below). You can also manually create or import a zip containing `SKILL.md` via "Settings → Skills & Rules → Project-level skills" (the zip name must match the skill name). `story-setup` with `target_cli=codearts` copies skills into project `.codeartsdoer/skills/`. CodeArts requires `name` to match the directory name, be 1–64 chars, and contain no Chinese/spaces (all 13 skills already comply). Skills-only; multi-agent adversarial review falls back to solo.
 
 > **Multi-agent collaboration needs setup + a fresh session**: the 7 specialist agents (story-architect, narrative-writer, consistency-checker, etc.) are written into your project's `.claude/agents/` by `/story-setup`, or into `.codex/agents/*.toml` by `$story-setup`. Claude Code and Codex register custom agents most reliably **at session start**, so **after setup finishes you must trust the project config and open a fresh matching CLI session** before story-review's multi-perspective review and the agent collaboration in the writing flow take effect; otherwise skills get "subagent_type unavailable / Codex unknown agent_type" and fall back to solo (single perspective). OpenClaw Phase 1 does not deploy agents and defaults to skills + solo fallback. To check Claude/Codex agents: run `/story-review` in the new session — a header of `Effective Mode: full/lean` means agents registered, `Fallback: ... -> solo` means you're still in the old session or the current runtime did not expose that agent.
 
@@ -113,7 +119,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 | Skill | Trigger | Description |
 |:------|:--------|:------------|
-| `story-setup` | `/story-setup` / `$story-setup` | Environment setup — deploys hooks/rules/agents/CLAUDE.md/AGENTS.md in one click (safe merge, supports Claude Code / OpenCode / Codex / OpenClaw skills-only) |
+| `story-setup` | `/story-setup` / `$story-setup` | Environment setup — deploys hooks/rules/agents/CLAUDE.md/AGENTS.md in one click (safe merge, supports Claude Code / OpenCode / Codex / OpenClaw / TRAE / CodeArts skills-only) |
 | `story` | `/story` / `$story` | Toolbox router — routes fuzzy intents to the matching skill |
 | `story-long-write` | `/story-long-write` | Long-form writing — outline building, character design, prose output |
 | `story-long-analyze` | `/story-long-analyze` | Long-form deconstruction — Golden First 3 Chapters, payoff design, pacing analysis |
