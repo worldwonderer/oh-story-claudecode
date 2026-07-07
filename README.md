@@ -125,6 +125,8 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 | `story-cover` | `/story-cover` `/封面` | 封面生成 · 书名题材分析 + GPT-Image-2 出图 |
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
 
+> `story-deslop` 的本地检查是写作 lint：blocking 只限确定性句式/标点问题，其他提示按读感判断；朱雀等外部检测只作自测参考，不替代人工读感。
+
 自然语言同样触发：
 - 「帮我开书」→ `story-long-write`
 - 「这篇太 AI 了」→ `story-deslop`
