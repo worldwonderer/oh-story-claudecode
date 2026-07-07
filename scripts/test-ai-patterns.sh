@@ -9,6 +9,19 @@ if [ -z "$REPO_ROOT" ]; then
 fi
 
 SCRIPT="$REPO_ROOT/skills/story-deslop/scripts/check-ai-patterns.js"
+DETECTOR_COPIES=(
+  "$REPO_ROOT/skills/story-deslop/scripts/check-ai-patterns.js"
+  "$REPO_ROOT/skills/story-long-write/scripts/check-ai-patterns.js"
+  "$REPO_ROOT/skills/story-review/scripts/check-ai-patterns.js"
+  "$REPO_ROOT/skills/story-short-write/scripts/check-ai-patterns.js"
+)
+for detector_copy in "${DETECTOR_COPIES[@]}"; do
+  node --check "$detector_copy" >/dev/null
+  cmp -s "$SCRIPT" "$detector_copy" || {
+    echo "FAIL: detector copy drifted from story-deslop source: $detector_copy" >&2
+    exit 1
+  }
+done
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -41,6 +54,11 @@ title: 不是A，而是B
 他不是傻子。是吗？
 他不是傻子，是吧。
 不是这样，是嘛。
+他不是第一次来。
+
+是的，他还记得门口那盏灯。
+他不是没听见。是啊，他只是没回头。
+他不是不想答应，是呢，话到嘴边又咽回去。
 ```
 他不是冷漠，而是绝望。
 ```
@@ -88,6 +106,9 @@ const forbidden = [
   '是吗',
   '是吧',
   '是嘛',
+  '是的',
+  '是啊',
+  '是呢',
 ];
 
 if (report.findings.length !== expected.length) {
@@ -392,7 +413,7 @@ NODE
 
 echo "abstract-summary-tic (抽象总结复读) regression tests passed."
 
-# --- issue #205：套词密度过高（朱雀实测 cliche-heavy 样本 100% AI，具体化改写降为非 AI）---
+# --- issue #205：套词密度过高（高危套词聚集，具体化改写方向）---
 FIXTURE16="$TMP_DIR/fixture-cliche-density.md"
 printf '%s\n' \
   '夜色静静笼罩着城市，远处霓虹隐约闪烁。' \
@@ -438,3 +459,372 @@ if (cd.length !== 0) throw new Error('低密度/引号内套词不应报 cliche-
 NODE
 
 echo "cliche-density-tic (套词密度过高) regression tests passed."
+
+# --- issue #205：解释链密度过高（读感像逻辑报告时的读顺处理提示）---
+FIXTURE18="$TMP_DIR/fixture-reasoning-chain.md"
+cat > "$FIXTURE18" <<'TEXT'
+周砚站在门岗亭前，看着群消息一行行跳出来。他知道眼下最重要的任务是稳住人群，避免恐慌继续扩大。他也明白，如果业主继续围在北门，公共区域秩序会很快失控。这意味着每一句广播都必须谨慎，因为错误指令可能带来新的死亡。
+
+真正的问题在于，他没有完整规则，却必须在规则惩罚之前做出判断。在这种情况下，任何安慰都可能变成误导，任何沉默也可能被理解成默认。他需要先确认谁还在外面，再确认哪些楼栋还能进门。只有这样，他才有可能把混乱压回可控范围。
+
+周砚看着胸牌上的蓝光，心里不断分析当前局面。系统给出的任务是让所有存活业主回家，限制条件是零点之前，风险来源是红线之外和错误指令。按照这个逻辑，他应该先减少移动中的人，再建立单元门口的临时秩序，最后逐个核对门牌。
+
+他清楚自己只是实习物业，但现在系统把责任交给了他。也就是说，他必须承担一个原本不该由他承担的结果。他需要保持冷静，需要筛选信息，需要判断每个人的风险等级。想到这里，他终于意识到，今晚考验的是信息不足时的决策能力，也是他能不能承担公共秩序的开始。
+TEXT
+set +e
+node "$SCRIPT" --json "$FIXTURE18" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const rc = r.findings.filter((f) => f.type === 'reasoning-chain-tic');
+if (rc.length !== 1) throw new Error('高密度解释链应报 1 处 reasoning-chain-tic: ' + JSON.stringify(r.findings));
+if (rc[0].severity !== 'advisory') throw new Error('reasoning-chain-tic 应为 advisory');
+if (!rc[0].excerpt.includes('他知道') || !rc[0].excerpt.includes('这意味着')) {
+  throw new Error('reasoning-chain-tic excerpt 应包含解释链样本: ' + JSON.stringify(rc[0]));
+}
+NODE
+
+# advisory 不触发 --fail-on=blocking；动作化改写/引号内引用不报。
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE18" > /dev/null 2>&1
+reason_blk=$?
+set -e
+[ "$reason_blk" -eq 0 ] || { echo "FAIL: reasoning-chain-tic --fail-on=blocking 应退出 0，实际 $reason_blk" >&2; exit 1; }
+
+FIXTURE19="$TMP_DIR/fixture-reasoning-chain-normal.md"
+cat > "$FIXTURE19" <<'TEXT'
+周砚站在门岗亭前，群消息还在往上跳。
+
+“周砚你说话！”
+
+“北门到底怎么回事？”
+
+他把广播键按住，又松开。门口还有十几个人没走，抱猫粮的女人蹲在地上，手一直在抖；遛狗的大爷把狗绳缠在腕子上，眼睛盯着红线外那串钥匙。
+
+周砚翻开物业值班表，用指甲在纸上划了三下。北门，三号楼，儿童区。他先把还在外面的名字圈出来，又拿笔把能看见的楼栋写在旁边。
+
+他在本子边上写了一句“这意味着责任”，又立刻划掉，换成三号楼三个门牌号。
+
+“所有人离北门十米。”他说，“三号楼业主先回单元门口，不进电梯。家里有人没回来的，把门牌号发群里，不要刷屏。”
+TEXT
+set +e
+node "$SCRIPT" --json "$FIXTURE19" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const rc = r.findings.filter((f) => f.type === 'reasoning-chain-tic');
+if (rc.length !== 0) throw new Error('动作化改写/引号内解释链不应报 reasoning-chain-tic: ' + JSON.stringify(rc));
+NODE
+
+FIXTURE20="$TMP_DIR/fixture-reasoning-chain-domain-words.md"
+cat > "$FIXTURE20" <<'TEXT'
+门口的规则牌被风刮歪了，周砚伸手扶正。责任区三个字露在雨水里，下面贴着旧表格，风险提示已经掉了一角。
+
+保安把秩序线往前挪了半米，绳子蹭过地砖，留下两道泥印。周砚拿起笔，在登记本上补了一行责任人，又把规则牌下面的钉子按回去。
+
+三号楼的人还堵在门口。有人指着风险提示骂，有人拽着秩序线不放。周砚没解释，只把扩音器递给老保安，自己弯腰去捡掉在水里的门禁卡。
+
+雨越下越大，纸上的责任栏洇开了，规则两个字糊成一团。秩序线那头，小孩把伞举歪，鞋尖踩进水坑里。
+TEXT
+set +e
+node "$SCRIPT" --json "$FIXTURE20" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const rc = r.findings.filter((f) => f.type === 'reasoning-chain-tic');
+if (rc.length !== 0) throw new Error('规则/责任/风险等领域名词密集但无推理连接词时不应报 reasoning-chain-tic: ' + JSON.stringify(rc));
+NODE
+
+FIXTURE20B="$TMP_DIR/fixture-reasoning-chain-negated.md"
+cat > "$FIXTURE20B" <<'TEXT'
+周砚不知道规则后面还有什么，也不明白责任到底怎么分。他还不清楚风险来自哪一条线，不需要判断结果，也不需要确认谁承担。
+
+门岗亭里的旧表格被雨水洇开，任务栏、条件栏、责任栏糊在一起。老保安问他要不要广播，他摇头，只把那张纸夹回文件夹里。
+
+他不知道三号楼的人为什么还不走，也不明白秩序线怎么突然松了半截。孩子的伞骨翻起来，鞋尖踩进水坑，门禁卡贴在地砖上。
+
+周砚不清楚这些规则是不是还算数，也不需要分析每个人的风险来源。他把扩音器放回桌上，先去把北门的雨棚往外拽了一点。
+TEXT
+set +e
+node "$SCRIPT" --json "$FIXTURE20B" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const rc = r.findings.filter((f) => f.type === 'reasoning-chain-tic');
+if (rc.length !== 0) throw new Error('不知道/不明白/不需要等否定认知不应被当作解释链核心命中: ' + JSON.stringify(rc));
+NODE
+
+echo "reasoning-chain-tic (解释链密度过高) regression tests passed."
+
+# --- issue #205：系统公告公文腔过密（方括号规则行硬词过密）---
+FIXTURE21="$TMP_DIR/fixture-notice-formality.md"
+cat > "$FIXTURE21" <<'TEXT'
+【夜间不得离开本区域。】
+
+【零点前，所有人员必须返回登记住所。】
+
+【管理人员必须维持公共区域秩序。公共区域失控，管理人员承担优先惩罚。】
+
+【本公告不可撤回，不可转发，不可截图。】
+
+【当前区域：一号楼。】
+
+【当前安全等级：0。】
+
+【当前公共区域秩序：混乱。】
+
+【第一夜任务：务必在零点前，使所有人员返回登记住所。】
+
+【任务失败：管理人员优先承担惩罚。】
+
+【提示：管理人员发言将被视为公共秩序指令。错误指令造成的死亡，同样计入管理人员责任。】
+TEXT
+set +e
+node "$SCRIPT" --json "$FIXTURE21" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const nf = r.findings.filter((f) => f.type === 'system-notice-formality-tic');
+if (nf.length !== 1) throw new Error('成片硬规则公告应报 1 处 system-notice-formality-tic: ' + JSON.stringify(r.findings));
+if (nf[0].severity !== 'advisory') throw new Error('system-notice-formality-tic 应为 advisory');
+if (!nf[0].excerpt.includes('不得') || !nf[0].excerpt.includes('必须')) {
+  throw new Error('system-notice-formality-tic excerpt 应包含硬规则词样本: ' + JSON.stringify(nf[0]));
+}
+NODE
+
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE21" > /dev/null 2>&1
+notice_blk=$?
+set -e
+[ "$notice_blk" -eq 0 ] || { echo "FAIL: system-notice-formality-tic --fail-on=blocking 应退出 0，实际 $notice_blk" >&2; exit 1; }
+
+FIXTURE22="$TMP_DIR/fixture-notice-natural.md"
+cat > "$FIXTURE22" <<'TEXT'
+【夜间不能离开本区域。】
+
+【零点之前，所有人员都要返回登记住所。】
+
+【管理人员要维护好公共区域的秩序。公共区域出现混乱的时候，管理人员要先受到处罚。】
+
+【本公告不能撤回，不能转发，不能截图。】
+
+【现在的区域是一号楼。】
+
+【目前的安全等级为0。】
+
+【目前公共区域的秩序很乱。】
+
+【夜间任务是在零点之前让所有人员返回登记住所。】
+
+【任务失败后，管理人员先承担惩罚。】
+
+【提示：管理人员发出的指令就是公共秩序指令。造成死亡的错误指令也要算在管理人员的责任之内。】
+TEXT
+set +e
+node "$SCRIPT" --json "$FIXTURE22" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const nf = r.findings.filter((f) => f.type === 'system-notice-formality-tic');
+if (nf.length !== 0) throw new Error('白话化规则公告不应报 system-notice-formality-tic: ' + JSON.stringify(nf));
+NODE
+
+echo "system-notice-formality-tic (系统公告公文腔过密) regression tests passed."
+
+# --- issue #205：长文本过度精炼短段（读顺处理提示；不按指标注水）---
+FIXTURE23="$TMP_DIR/fixture-overcompressed-prose.md"
+: > "$FIXTURE23"
+for _ in $(seq 1 60); do
+  cat >> "$FIXTURE23" <<'TEXT'
+周砚抬头。
+
+TEXT
+done
+for _ in $(seq 1 40); do
+  cat >> "$FIXTURE23" <<'TEXT'
+灰雾贴住红线外侧，北门灯光晃成一团冷斑，脚步声压回门岗亭前。
+
+TEXT
+done
+set +e
+node "$SCRIPT" --json "$FIXTURE23" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const oc = r.findings.filter((f) => f.type === 'overcompressed-prose-tic');
+if (oc.length !== 1) throw new Error('长文本短段过密且自然连接偏少应报 overcompressed-prose-tic: ' + JSON.stringify(r.findings));
+if (oc[0].severity !== 'advisory') throw new Error('overcompressed-prose-tic 应为 advisory');
+NODE
+
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE23" > /dev/null 2>&1
+overcompressed_blk=$?
+set -e
+[ "$overcompressed_blk" -eq 0 ] || { echo "FAIL: overcompressed-prose-tic --fail-on=blocking 应退出 0，实际 $overcompressed_blk" >&2; exit 1; }
+
+FIXTURE24="$TMP_DIR/fixture-overcompressed-prose-natural.md"
+: > "$FIXTURE24"
+for _ in $(seq 1 40); do
+  cat >> "$FIXTURE24" <<'TEXT'
+周砚抬头。
+
+TEXT
+done
+for _ in $(seq 1 40); do
+  cat >> "$FIXTURE24" <<'TEXT'
+灰雾还贴在红线外面，北门的灯光已经晃成了一团冷斑，脚步声也被压回了门岗亭前。
+
+TEXT
+done
+set +e
+node "$SCRIPT" --json "$FIXTURE24" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const oc = r.findings.filter((f) => f.type === 'overcompressed-prose-tic');
+if (oc.length !== 0) throw new Error('短段占比未过阈值/自然连接足够时不应报 overcompressed-prose-tic: ' + JSON.stringify(oc));
+NODE
+
+FIXTURE25="$TMP_DIR/fixture-overcompressed-prose-fast-natural.md"
+: > "$FIXTURE25"
+for _ in $(seq 1 60); do
+  cat >> "$FIXTURE25" <<'TEXT'
+他就停了一秒。
+
+TEXT
+done
+for _ in $(seq 1 40); do
+  cat >> "$FIXTURE25" <<'TEXT'
+雨还在门口落着，灯光也被水汽糊住了，大家都往后退了一点。
+
+TEXT
+done
+set +e
+node "$SCRIPT" --json "$FIXTURE25" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const oc = r.findings.filter((f) => f.type === 'overcompressed-prose-tic');
+if (oc.length !== 0) throw new Error('快节奏但自然连接充足的短段不应报 overcompressed-prose-tic: ' + JSON.stringify(oc));
+NODE
+
+FIXTURE26="$TMP_DIR/fixture-overcompressed-prose-repaired-beats.md"
+: > "$FIXTURE26"
+for _ in $(seq 1 50); do
+  cat >> "$FIXTURE26" <<'TEXT'
+周砚抬头时，北门外那条马路已经看不见了。更怪的是声音也跟着没了，业主群里刷屏的问号停了三秒。
+
+TEXT
+done
+set +e
+node "$SCRIPT" --json "$FIXTURE26" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const oc = r.findings.filter((f) => f.type === 'overcompressed-prose-tic');
+if (oc.length !== 0) throw new Error('读顺后的同一镜头短拍不应报 overcompressed-prose-tic: ' + JSON.stringify(oc));
+NODE
+
+echo "overcompressed-prose-tic (过度精炼短段) regression tests passed."
+
+# --- issue #205：低连接密度 + 缺中长句（R10 保守 advisory，单低连接不够）---
+FIXTURE27="$TMP_DIR/fixture-low-connective-density.md"
+: > "$FIXTURE27"
+for _ in $(seq 1 50); do
+  cat >> "$FIXTURE27" <<'TEXT'
+周砚抬头。红点跳高。北门灯冷。手机黑屏。脚步停住。
+
+TEXT
+done
+set +e
+node "$SCRIPT" --json "$FIXTURE27" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const lc = r.findings.filter((f) => f.type === 'low-connective-density-tic');
+if (lc.length !== 1) throw new Error('低连接密度且缺中长句应报 1 处 low-connective-density-tic: ' + JSON.stringify(r.findings));
+if (lc[0].severity !== 'advisory') throw new Error('low-connective-density-tic 应为 advisory');
+if (!lc[0].message.includes('别按指标注水')) throw new Error('low-connective-density-tic 必须提示禁止按指标注水: ' + JSON.stringify(lc[0]));
+NODE
+
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE27" > /dev/null 2>&1
+low_connective_blk=$?
+set -e
+[ "$low_connective_blk" -eq 0 ] || { echo "FAIL: low-connective-density-tic --fail-on=blocking 应退出 0，实际 $low_connective_blk" >&2; exit 1; }
+
+# 引号内台词/弹幕/系统播报天然短促，不参与低连接密度统计；否则会把体裁特征误当电报体。
+FIXTURE27B="$TMP_DIR/fixture-low-connective-quoted-stream.md"
+: > "$FIXTURE27B"
+for _ in $(seq 1 80); do
+  cat >> "$FIXTURE27B" <<'TEXT'
+“红点跳高。北门灯冷。手机黑屏。脚步停住。”
+
+TEXT
+done
+cat >> "$FIXTURE27B" <<'TEXT'
+周砚把群消息往上翻。门岗亭里只剩下空调声，他没有马上开口。
+TEXT
+set +e
+node "$SCRIPT" --json "$FIXTURE27B" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const lc = r.findings.filter((f) => f.type === 'low-connective-density-tic');
+if (lc.length !== 0) throw new Error('引号内短促台词/弹幕流不应触发 low-connective-density-tic: ' + JSON.stringify(lc));
+NODE
+
+# 所有配置过的中英文引号都应从“引号外叙述”统计中剥离；引号内含 regex 元字符也不能影响剥离。
+FIXTURE27C="$TMP_DIR/fixture-low-connective-all-quote-pairs.md"
+: > "$FIXTURE27C"
+for _ in $(seq 1 35); do
+  cat >> "$FIXTURE27C" <<'TEXT'
+「红点[跳高]*。北门灯冷+。手机黑屏?。」『红点[跳高]*。北门灯冷+。手机黑屏?。』【红点[跳高]*。北门灯冷+。手机黑屏?。】“红点[跳高]*。北门灯冷+。手机黑屏?。”‘红点[跳高]*。北门灯冷+。手机黑屏?。’"红点[跳高]*。北门灯冷+。手机黑屏?。"'红点[跳高]*。北门灯冷+。手机黑屏?。'
+
+TEXT
+done
+cat >> "$FIXTURE27C" <<'TEXT'
+周砚把群消息往上翻。门岗亭里只剩下空调声，他没有马上开口。
+TEXT
+set +e
+node "$SCRIPT" --json "$FIXTURE27C" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const lc = r.findings.filter((f) => f.type === 'low-connective-density-tic');
+if (lc.length !== 0) throw new Error('全部引号对都应剥离，不应触发 low-connective-density-tic: ' + JSON.stringify(lc));
+NODE
+
+# 单纯功能词/白话连接偏低，但中长承接句充足时不报；这是《盘龙》人工窗口误报反例的保护条件。
+FIXTURE28="$TMP_DIR/fixture-low-connective-long-sentences.md"
+: > "$FIXTURE28"
+for _ in $(seq 1 30); do
+  cat >> "$FIXTURE28" <<'TEXT'
+周砚把红点截图发回群里，北门冷灯贴着灰雾晃成一片，脚步声压在门岗亭前不动。
+
+TEXT
+done
+set +e
+node "$SCRIPT" --json "$FIXTURE28" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const lc = r.findings.filter((f) => f.type === 'low-connective-density-tic');
+if (lc.length !== 0) throw new Error('低连接但中长句充足时不应报 low-connective-density-tic: ' + JSON.stringify(lc));
+NODE
+
+echo "low-connective-density-tic (低连接密度 + 缺中长句) regression tests passed."

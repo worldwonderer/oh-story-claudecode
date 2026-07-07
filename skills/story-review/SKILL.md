@@ -147,11 +147,12 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
 6. **确定性预检（只报告，不修改）**：当审查范围包含本地正文文件路径时，运行本 skill 自带脚本：
    ```bash
    node scripts/normalize-punctuation.js --check <正文文件...>
-   node scripts/check-ai-patterns.js --check <正文文件...>
+   node scripts/check-ai-patterns.js --check --fail-on=blocking <正文文件...>
    node scripts/check-degeneration.js --check <正文文件...>
    ```
    - 将 `ellipsis`、`double-hyphen`、`markdown-divider` 结果作为 `format` findings 合并进报告。`em-dash` 破折号只采用 `check-ai-patterns.js` 的语义改写建议（见下条）；`normalize-punctuation.js` 报的同一位置 `em-dash` 在合并时去重丢弃，避免同处出现「机械替换」与「按功能改写」两条相互冲突的 finding。另外人工检查标点节奏是否通篇句号化或随机堆砌，脚本不替代语气判断。
-   - 将 `not-is-comparison` 结果作为 `prose` findings 合并进报告，修复建议写成：删否定铺垫，直接写后项，或改为动作/细节呈现。`check-ai-patterns.js` 是 `em-dash` 的归口来源：破折号按功能改写（打断→动作 beat/短句，拖长音→省略或动作，插入说明→逗号/冒号，**不要一律改句号**）；它另报告 `period-stutter`（碎句号→按目标句长合并成中长句）、`long-paragraph`（>200 字→按镜头/动作/视线断段）、`micro-action-tic`（「了下/了一下」式微动作复读→合并动作、换具体细节）、`abstract-summary-tic`（命运/棋局/这一刻终于明白/才刚刚开始→回到角色当下证据）、`cliche-density-tic`（仿佛/一丝/深吸一口气/平静无波等套词密度过高→具体化，禁止同义词轮换），一并并入 `prose` findings。脚本对每条 finding 标 `severity`：`blocking`（not-is-comparison/em-dash）建议按 S2、`advisory`（碎句号/长段落/微动作复读/抽象总结复读/套词密度）按 S4 处理。
+   - `check-ai-patterns.js` 的 findings 合并进 `prose`：blocking（`not-is-comparison` / `em-dash`）按 S2，建议删否定铺垫、直接写后项，或按破折号功能改成动作/短句/逗号/冒号。
+   - 其余 prose findings 统一按 S4：只指出读感风险，不替代人工判断；功能性写法标 `[需复核]`，不要为了朱雀结果机械改文。完整类别和修法见 `anti-ai-writing.md`。
    - `check-degeneration.js` 报告模型退化（逐字复读/截断/占位符/工程词泄漏），每条带 `severity: blocking|advisory`：blocking（复读/截断/tier1 工程词）作为 S1/S2 `prose` findings，修复建议是「重新生成该段，不是改写」；advisory（tier2 章节/歧义词）作为 S4。
    - `story-review` 不修改文件；需要自动修复时建议转 `/story-deslop`。
    - 默认 `--quote-mode keep`，不把知乎盐言短篇的 `「」` 当作问题；只有项目明确指定引号风格时才检查对应转换建议。
