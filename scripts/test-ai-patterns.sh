@@ -460,6 +460,54 @@ NODE
 
 echo "cliche-density-tic (套词密度过高) regression tests passed."
 
+# --- issue #205：比喻密度过高（像字比喻成片复现，回到具体画面）---
+FIXTURE_METAPHOR="$TMP_DIR/fixture-metaphor-density.md"
+printf '%s\n' \
+  '门口的雨还没停。路灯像泡在脏水里的眼珠，光晕晃得人心里发毛。' \
+  '保安室的玻璃好像蒙了一层油，谁的脸贴上去都发灰。' \
+  '人群挤在台阶下，仿佛一团被水浇透的纸。' \
+  '周砚的声音像是老旧电梯里的报站声，卡在喉咙口。' \
+  '公告牌上的红字如同钉子，一颗一颗往墙上扎。' \
+  '孩子的哭声像从楼缝里漏出来的风，细得让人背后发凉。' \
+  '胸牌亮起来，像一块透明的旧手机屏。' > "$FIXTURE_METAPHOR"
+set +e
+node "$SCRIPT" --json "$FIXTURE_METAPHOR" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const md = r.findings.filter((f) => f.type === 'metaphor-density-tic');
+if (md.length !== 1) throw new Error('高密度比喻应报 1 处 metaphor-density-tic: ' + JSON.stringify(r.findings));
+if (md[0].severity !== 'advisory') throw new Error('metaphor-density-tic 应为 advisory');
+if (!md[0].excerpt.includes('路灯像') || !md[0].excerpt.includes('玻璃好像')) {
+  throw new Error('metaphor-density-tic excerpt 应包含比喻样本: ' + JSON.stringify(md[0]));
+}
+NODE
+
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE_METAPHOR" > /dev/null 2>&1
+metaphor_blk=$?
+set -e
+[ "$metaphor_blk" -eq 0 ] || { echo "FAIL: metaphor-density-tic --fail-on=blocking 应退出 0，实际 $metaphor_blk" >&2; exit 1; }
+
+FIXTURE_METAPHOR_NORMAL="$TMP_DIR/fixture-metaphor-density-normal.md"
+printf '%s\n' \
+  '群头像换成了黑底白字，周砚盯着看了两秒。' \
+  '她在本子上写下“像水一样”四个字，又拿红笔划掉。' \
+  '雨声从棚顶漏下来，像有人在慢慢倒豆子。' \
+  '他把收据塞进口袋，转身去敲 3 单元的门。' > "$FIXTURE_METAPHOR_NORMAL"
+set +e
+node "$SCRIPT" --json "$FIXTURE_METAPHOR_NORMAL" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const md = r.findings.filter((f) => f.type === 'metaphor-density-tic');
+if (md.length !== 0) throw new Error('低密度/引号内/头像不应报 metaphor-density-tic: ' + JSON.stringify(md));
+NODE
+
+echo "metaphor-density-tic (比喻密度过高) regression tests passed."
+
 # --- issue #205：解释链密度过高（读感像逻辑报告时的读顺处理提示）---
 FIXTURE18="$TMP_DIR/fixture-reasoning-chain.md"
 cat > "$FIXTURE18" <<'TEXT'
