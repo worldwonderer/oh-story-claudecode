@@ -25,7 +25,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 1. **确定请求模式**：解析用户输入中的 `full`、`lean`、`solo`；未指定时目标模式为 `full`。
 2. **确认是否允许 spawn**：如果当前已经在子代理/Agent 内执行，不再递归 spawn，直接降级为 `solo`。
-3. **检查核心 Agent 部署状态**（检查项目内 agents，同时兼容 Claude Code、OpenCode 和 Codex）：
+3. **检查核心 Agent 部署状态**（检查项目内 agents，同时兼容 Claude Code、OpenCode 和 Codex；OpenClaw / TRAE / TRAE CN / TRAE CLI / CodeArts 为 skills-only，无 agent 部署，直接降级 `solo`）：
    - 优先检查 `.claude/agents/`，其次检查 `.opencode/agents/`，再检查 `.codex/agents/`；三个目录任一存在即视为已部署
     - full 必需：Claude/OpenCode 为 `story-architect.md`、`character-designer.md`、`narrative-writer.md`、`consistency-checker.md`；Codex 为同名 `.toml`
     - lean 必需：Claude/OpenCode 为 `story-architect.md`、`consistency-checker.md`；Codex 为同名 `.toml`
@@ -64,8 +64,10 @@ Rubric Source: file | embedded fallback
 1. `{项目根}/.claude/skills/{规范路径}`（Claude Code 项目内安装）
 2. `{项目根}/.opencode/skills/{规范路径}`（OpenCode 项目内安装）
 3. `{项目根}/.codex/skills/{规范路径}`（Codex 项目内安装）
-4. `{项目根}/skills/{规范路径}`（本仓库开发环境）
-5. 工具自身可访问的全局 skill 搜索路径中同名 `{skill-name}/...` 目录
+4. `{项目根}/.trae/skills/{规范路径}`（TRAE / TRAE CN / TRAE CLI 项目内安装）
+5. `{项目根}/.codeartsdoer/skills/{规范路径}`（CodeArts 项目内安装）
+6. `{项目根}/skills/{规范路径}`（本仓库开发环境 / OpenClaw 项目内安装）
+7. 工具自身可访问的全局 skill 搜索路径中同名 `{skill-name}/...` 目录
 
 规范路径如下；禁止只写裸文件名，禁止跨 skill 误读其他 skill 的 references：
 
