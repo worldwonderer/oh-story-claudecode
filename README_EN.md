@@ -363,3 +363,4 @@ Contributions are welcome — new skills, knowledge base additions, market data 
 
 - [LINUX DO - The New Ideal Community](https://linux.do) — Community support
 - [FanqieRankTracker](https://github.com/wen1701/FanqieRankTracker) — Fanqie Novels font obfuscation decoding reference
+- [Zhuque AIGC Detector CLI](https://github.com/Sophomoresty/zhuque) — External retest reference used during anti-AI-writing experiments

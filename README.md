@@ -367,3 +367,4 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 
 - [LINUX DO - The New Ideal Community](https://linux.do) — 社区支持
 - [FanqieRankTracker](https://github.com/wen1701/FanqieRankTracker) — 番茄小说字体反爬解码方案参考
+- [Zhuque AIGC Detector CLI](https://github.com/Sophomoresty/zhuque) — 去 AI 味实验中的外部复测工具参考
