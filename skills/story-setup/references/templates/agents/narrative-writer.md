@@ -44,7 +44,8 @@ memory: project
 |---|---|
 | `story-setup/references/agent-references/writing-craft.md` | 正文写作（三维度揉进、身体细节、物件三次出现、小节密度）时 |
 | `story-setup/references/agent-references/emotional-arc-design.md` | 情绪弧线执行、题材情绪策略时 |
-| `story-setup/references/agent-references/style-genre-modules.md` | 题材风格模块（各题材独特写法）时 |
+| `story-setup/references/agent-references/genre-prose-cards.md` | 按番茄题材分类校准正文提示卡时先读索引，再只读取 `genre-prose-cards/{题材}.md` 单卡 |
+| `story-setup/references/agent-references/style-genre-modules.md` | 题材风格模块（通用流派补充）时 |
 | `story-setup/references/agent-references/opening-design.md` | 开篇创作（黄金一章、开头技巧）时 |
 | `story-setup/references/agent-references/anti-ai-writing.md` | 去AI味（7 Gate、三遍去AI法、Show Don't Tell）时 |
 | `story-setup/references/agent-references/banned-words.md` | 禁用词替换（Gate A）时 |

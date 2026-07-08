@@ -128,6 +128,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 完成核心设定后，创建以下 artifact（加载 [references/artifact-protocols.md](references/artifact-protocols.md) 中对应模板）：
 - **设定/关系.md**：角色关系映射（参考 character-relations.md「四种关系类型」）
 - **设定/题材定位.md**：题材核心梗三分法+对标分析（参考 genre-core-mechanics.md「核心梗解析」）。对标分析表保留 2-3 行摘要，详细数据见 `对标/` 目录
+- **设定/题材正文提示卡.md**：从 `设定/题材定位.md` + `references/genre-prose-cards.md`（索引）+ `references/genre-prose-cards/`（单题材正文卡目录，按题材分类优先）+ `references/style-genre-modules.md`（通用流派补充）抽取本书正文层题材卡，只写题材边界、核心逻辑、读者期待、核心爽点/情绪、正文落点、前中后期打法、节奏密度、场景颗粒、禁止漂移；不写通用格式规则，不覆盖 `设定/文风.md`
 
 > **多对标书时**：参 `references/cross-book-recall.md`，副对标 anchor 入「对标分析」表附录
 
@@ -271,7 +272,8 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 │   │   ├── 天机阁.md          # 每个势力/组织一个文件
 │   │   └── ...
 │   ├── 关系.md                # 角色关系映射
-│   └── 题材定位.md            # 题材核心梗+对标分析
+│   ├── 题材定位.md            # 题材核心梗+对标分析
+│   └── 题材正文提示卡.md       # 题材正文核心：边界/期待/爽点/节奏/禁漂移
 ├── 大纲/
 │   ├── 大纲.md                # 全书卷级结构
 │   ├── 卷纲_第一卷.md         # 每卷一个：对标结构坐标+爽点节奏+情绪弧线(含章节定位)+人物弧线+伏笔+反转
@@ -314,7 +316,8 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 | 文件 | 粒度 | 创建阶段 | 读取时机 |
 |------|------|---------|---------|
 | 设定/关系.md | 全书 | Phase 2 | 按需：story-explorer relationship 查询、story-review 查设定（不在每章写作回路里逐章读） |
-| 设定/题材定位.md（含 `主对标书` 字段，多对标时必填） | 全书 | Phase 2 | Phase 3 大纲、每卷开始前、Phase 4 文风召回 |
+| 设定/题材定位.md（含 `主对标书` 字段，多对标时必填） | 全书 | Phase 2 | Phase 3 大纲、每卷开始前、Phase 4 写前召回 |
+| 设定/题材正文提示卡.md | 全书/题材 | Phase 2（缺失则 Phase 4 写前即时生成） | Phase 4 每章写作前：按 `genre-prose-cards.md` 索引匹配后读取 `genre-prose-cards/` 目录对应单题材卡优先、`style-genre-modules.md` 通用模块兜底，与通用正文要求、情绪/节奏召回和文风一起组装 prompt |
 | 设定/角色/{角色名}.md、设定/势力/{名}.md | 角色/势力 | Phase 3 细纲后增量补全（首批含主角/主要角色） | Phase 4 状态筛选/写作 |
 | 设定/文风.md（自定义文风·优先级最高） | 本书 | 用户自写（Claude Code 可代写）；导入/拆解不覆盖 | Phase 4 每章写作前：含实质内容则取代对标文风作权威风格基 |
 | 对标/{书名}/文风.md | 对标书 | analyze Stage 6 输出 → story-import 同步 | Phase 4 每章写作前（文风召回；有自定义文风时降为参考/句长兜底） |
@@ -339,6 +342,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 5. **legacy 拆文库缺 `剧情/节奏.md`** → 写作继续；关键信息推进、情绪触动点和爆发节奏依次回退到 `拆文报告.md` 节奏摘要、匹配章摘要、`剧情/故事线.md`。记录 `legacy_deconstruction: true` + `rhythm_missing`。
 6. **有对标书但 `文风.md` 缺失** → 若有 `设定/文风.md`（含实质内容）走自定义文风模式继续；否则日更文风召回 fail-fast，提示先运行 `/story-long-analyze` Stage 6 并 `/story-import` 同步。**完全无对标项目**则跳过文风召回、不阻塞（有 `设定/文风.md` 时用它写作）。情绪/节奏轴（`missing_primary_contract`）独立，自定义文风模式不豁免其 fail-fast。
 7. **伏笔/时间线文件缺失** → 不检查，相关信息在卷纲或大纲中体现即可。
+8. **`设定/题材正文提示卡.md` 缺失** → 不阻塞；写前从 `设定/题材定位.md` 精确匹配 `references/genre-prose-cards.md` 索引，并只读取 `references/genre-prose-cards/` 中对应题材单卡（高/中/低置信照原卡标注），无命中再用 `references/style-genre-modules.md` 通用流派模块即时生成短 `genre_prose_card`。只有 `设定/题材定位.md` 也缺失时，退回细纲和目标平台做低置信题材卡，并在意图确认写明。
 
 **对标分析权威优先级（canonical read order）**：
 1. `剧情/情绪模块.md` 是读者需求 / 情绪引擎、爽文套路框架、可复现模块和重组指南的权威来源。
@@ -374,16 +378,18 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
    - (11) 对标书路径下 `设定/世界观/*.md`（glob，按对标书路径查找）— 从拆文产出的设定中获取参考。**回退顺序**：① glob `设定/世界观/*.md`；② 若 `设定/世界观/` 子目录不存在则读单文件 `设定/世界观.md`（早期拆文库格式）；③ 若也无则读 `设定/金手指.md` 当作最低限度参考；④ 都没有则跳过本步骤（缺失不阻塞）
    - (12) 对标书路径下 `剧情/情绪模块.md`（按对标书路径查找）— 读者需求 / 情绪引擎、爽文套路框架、可复现模块；缺失按上方「缺失文件回退」规则（v12 停下修复，仅 legacy 回退）
    - (13) 对标书路径下 `剧情/节奏.md`（按对标书路径查找）— 关键信息推进、情绪触动点、爆发节奏；缺失按上方「缺失文件回退」规则（v12 停下修复，仅 legacy 回退）
+   - (14) `设定/题材正文提示卡.md`（如存在）— 本书正文层题材卡；缺失时从 `设定/题材定位.md` + `references/genre-prose-cards.md` 索引 + `references/genre-prose-cards/` 单题材卡目录（按题材分类优先）+ `references/style-genre-modules.md`（兜底）即时生成 `genre_prose_card`，不阻塞写作
 3. **写前准备**（下面的 3 步是核心方法在单章写作中的落地：筛选状态 → 召回模块 → 确认意图）：
    - 3.1 **状态筛选**：从 `追踪/角色状态.md` 中筛选本章涉及角色的当前状态，从 `追踪/伏笔.md` 中筛选本章需要回收/推进的伏笔。输出本节速记（参考 state-tracking.md）。如果角色状态文件不存在，从角色设定和前文推断
-   - 3.2 **模块召回与文风召回**：
+   - 3.2 **模块召回、题材卡与文风召回**：
      - ① 本章目标情绪词？② 借鉴哪个参考文件的哪个技法？③ 用在哪些段落？答不出 → 先回读参考再动笔
      - (a) **情绪模块召回**：按「对标书路径查找」规则优先读 `{对标书路径}/剧情/情绪模块.md`，选出 1 个与本章目标情绪最贴近的 `selected_emotion_module`（读者需求、触发器、戏剧单元、可替换要素、反抄袭提醒）。v12 新契约缺失时停下提示重跑拆文/导入；仅 legacy 拆文库可依次回退 `拆文报告.md` 读者需求 / 情绪引擎摘要、`文风.md` 可借鉴技巧、匹配章摘要，并记录 `legacy_deconstruction: true` + `module_missing`
      - (b) **节奏召回**：优先读 `{对标书路径}/剧情/节奏.md`，选出 1 条 `rhythm_reference`（关键信息 → 扩写技法 → 情绪触动点 → 爆发/冷却）。v12 新契约缺失时停下提示重跑拆文/导入；仅 legacy 拆文库可依次回退 `拆文报告.md` 节奏摘要、匹配章摘要、`剧情/故事线.md`，并记录 `legacy_deconstruction: true` + `rhythm_missing`
-     - (c) **文风召回**：先直接读 `设定/文风.md`（不经 explorer）：含实质内容（去空白 ≥200 字，或含 句长 / 标点 / 对话 / 锚点 / 笔调 小节且小节内有可执行约束：比例 / 例句 / 禁止或偏好描述）则置 `custom_style=true`、进入「自定义文风模式」，它作权威风格基（句长 / 软标点 / 潜台词 / 情绪交替），对标 / 拆文 `文风.md` 降为参考（锚点 + 句长兜底）；空 / 仅空白 / 仅标题 / 占位 stub（待办 / 待补充 / ___）视为不存在。否则按「对标书路径查找」规则读 `{对标书路径}/文风.md`（路径优先 `{项目}/对标/{书名}/`，回退 `拆文库/{书名}/`）；多本对标书时从 `设定/题材定位.md` 读 `主对标书` 字段。**未进入自定义文风模式且**文风文件不存在 → **fail-fast 报错**：「对标书 X 缺少 文风.md。请用 `/story-long-analyze` 跑 Stage 6 生成文风，再 `/story-import` 同步。」不 inline 生成（自定义文风模式则不 fail-fast；情绪 / 节奏轴 `missing_primary_contract` 仍独立阻塞）
-     - (d) **匹配章节挑选**：从 `{对标书路径}/章节/*_摘要.md` grep `基调：(紧张|轻松|悲伤|热血|爽|甜|温馨|恐怖|压抑|其他)`（全角冒号），按本章目标情绪挑章 K——多章同基调时选择规则：先看爽点类型是否接近，再看情节点数量/原文章节估算字数是否接近本章目标字数，最后取章节号最小者；必读 `{对标书路径}/章节/第K章_摘要.md`，若同章存在 `第K章_深度拆解.md` 则加读，否则回退黄金三章深度拆解/文风文件里的可借鉴技巧，不因非黄金三章缺少深度拆解而失败
-     - (e) **结构化模块召回**：从对标的结构化子目录（角色/剧情/设定）中按本章情节检索相关模块；若与 `剧情/情绪模块.md` / `剧情/节奏.md` 冲突，权威文件优先，记录 `conflict`
-     - (f) 输出"主对标召回摘要 + 副对标召回摘要 + selected_emotion_module + rhythm_reference + 文风召回指令 + 原文锚点片段引用"，作为 narrative-writer 的输入。**多对标书时**参 `references/cross-book-recall.md`：主对标提供文风、原文锚点与 selected_emotion_module / rhythm_reference；副对标/参考对标按阶段预算提供结构化摘要，不限制登记书目，不读取副书 `文风.md` / 原文，超过预算时裁条目不裁书目记录。
+     - (c) **题材正文提示卡召回**：优先读 `设定/题材正文提示卡.md`；缺失则先读 `设定/题材定位.md` + `references/genre-prose-cards.md` 索引，按主题材精确匹配后只读取 `references/genre-prose-cards/` 中对应单题材卡（如 都市脑洞 / 豪门总裁 / 年代 / 双男主；低置信卡必须在意图确认标注低置信，并要求同题材对标校准），无命中再读 `references/style-genre-modules.md` 通用流派模块。跨题材时主题材抽 3-5 条、辅题材抽 1-2 条，生成短 `genre_prose_card`（题材边界、核心逻辑、读者期待、核心爽点/情绪、正文落点、前中后期打法、节奏密度、场景颗粒、禁止漂移、本章取舍、卡片置信度）。题材卡只约束正文层题材味，不改细纲剧情、不覆盖 `selected_emotion_module` / `rhythm_reference` / `设定/文风.md`
+     - (d) **文风召回**：先直接读 `设定/文风.md`（不经 explorer）：含实质内容（去空白 ≥200 字，或含 句长 / 标点 / 对话 / 锚点 / 笔调 小节且小节内有可执行约束：比例 / 例句 / 禁止或偏好描述）则置 `custom_style=true`、进入「自定义文风模式」，它作权威风格基（句长 / 软标点 / 潜台词 / 情绪交替），对标 / 拆文 `文风.md` 降为参考（锚点 + 句长兜底）；空 / 仅空白 / 仅标题 / 占位 stub（待办 / 待补充 / ___）视为不存在。否则按「对标书路径查找」规则读 `{对标书路径}/文风.md`（路径优先 `{项目}/对标/{书名}/`，回退 `拆文库/{书名}/`）；多本对标书时从 `设定/题材定位.md` 读 `主对标书` 字段。**未进入自定义文风模式且**文风文件不存在 → **fail-fast 报错**：「对标书 X 缺少 文风.md。请用 `/story-long-analyze` 跑 Stage 6 生成文风，再 `/story-import` 同步。」不 inline 生成（自定义文风模式则不 fail-fast；情绪 / 节奏轴 `missing_primary_contract` 仍独立阻塞）
+     - (e) **匹配章节挑选**：从 `{对标书路径}/章节/*_摘要.md` grep `基调：(紧张|轻松|悲伤|热血|爽|甜|温馨|恐怖|压抑|其他)`（全角冒号），按本章目标情绪挑章 K——多章同基调时选择规则：先看爽点类型是否接近，再看情节点数量/原文章节估算字数是否接近本章目标字数，最后取章节号最小者；必读 `{对标书路径}/章节/第K章_摘要.md`，若同章存在 `第K章_深度拆解.md` 则加读，否则回退黄金三章深度拆解/文风文件里的可借鉴技巧，不因非黄金三章缺少深度拆解而失败
+     - (f) **结构化模块召回**：从对标的结构化子目录（角色/剧情/设定）中按本章情节检索相关模块；若与 `剧情/情绪模块.md` / `剧情/节奏.md` 冲突，权威文件优先，记录 `conflict`
+     - (g) 输出"主对标召回摘要 + 副对标召回摘要 + selected_emotion_module + rhythm_reference + genre_prose_card + 文风召回指令 + 原文锚点片段引用"，作为 narrative-writer 的输入。**多对标书时**参 `references/cross-book-recall.md`：主对标提供文风、原文锚点与 selected_emotion_module / rhythm_reference；副对标/参考对标按阶段预算提供结构化摘要，不限制登记书目，不读取副书 `文风.md` / 原文，超过预算时裁条目不裁书目记录。
      - **快捷路径**：项目已部署 story-explorer agent 时，可一次性召回文风/模块材料。
        - 检查顺序：`.claude/agents/story-explorer.md` → `.opencode/agents/` → `.codex/agents/`。
        - 查询类型：`benchmark_style_load`；传入项目目录、章节号、目标基调/字数和爽点类型。
@@ -409,6 +415,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
      - 写前准备输出：本节速记、情绪目标、涉及角色、参考技法。
      - 主对标/拆文路径、主/副对标召回摘要。
      - `selected_emotion_module`、`rhythm_reference` 及来源路径。
+     - `genre_prose_card`（题材正文提示卡摘要，只含本章相关条目）。
      - 文风路径、文风召回指令、原文锚点片段。
      - 字数目标、情节点预算、格式硬约束。
    - 不把本文件整套规则复制进 prompt；细节以已加载 references 和 narrative-writer 模板为准。
@@ -546,7 +553,7 @@ advisory 只提示可疑处，先看脚本给出的例外；故事内系统/界�
 | 章节钩子 | `references/hooks-chapter.md` |
 | 悬念设计 | `references/hooks-suspense.md` |
 | 段落级钩子 | `references/hooks-paragraph.md` |
-| 题材风格 | `references/style-genre-modules.md` |
+| 题材正文提示卡 / 题材分类卡 | `references/genre-prose-cards.md` 索引 + `references/genre-prose-cards/` 单题材卡目录（按题材分类优先） + `references/style-genre-modules.md`（通用流派补充） |
 | 打斗/装逼 | `references/style-combat-face.md` |
 | 写作技法 | `references/style-craft.md` |
 | 商业创作核心方法 | `references/commercial-core-methods.md` |
