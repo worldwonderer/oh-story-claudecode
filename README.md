@@ -51,6 +51,7 @@ flowchart LR
         direction TB
         analyze_l["长篇拆文"]:::phase
         analyze_s["短篇拆文"]:::phase
+        import_l["已有小说导入"]:::phase
     end
 
     subgraph S3 ["  落笔创作"]
@@ -73,8 +74,9 @@ flowchart LR
     analyze_s --> write_s
     entry_r -.->|跳过准备| write_l
     entry_r -.->|跳过准备| write_s
-    entry_i -.->|导入已有小说| setup
-    setup -.->|逆向导入| write_l
+    entry_i -.->|推荐先部署| setup
+    setup -.->|逆向导入| import_l
+    import_l -.->|续写| write_l
     write_l --> deslop
     write_s --> deslop
 ```
@@ -108,6 +110,8 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 > 升级后如果项目里已经跑过 `/story-setup`，建议在项目根重跑一次 `/story-setup`，同步 hooks / agents / references。每版变更见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases)。
 
 > **多 agent 协作要先部署再新开会话**：7 个专业 agent（story-architect、narrative-writer、consistency-checker 等）由 `/story-setup` 写入项目 `.claude/agents/`，或由 `$story-setup` 写入 `.codex/agents/*.toml`。Claude Code / Codex 都在会话启动时更稳定地注册 custom agent；OpenClaw Phase 1 与 generic 路径默认走 skills + solo fallback。判断是否生效：新会话里跑 `/story-review`，报告头是 `Effective Mode: full/lean` 即注册成功，是 `Fallback: ... -> solo` 说明还在旧会话或当前运行时未暴露该 agent。
+
+> **导入续写顺序：** 推荐先在写作项目根运行 `/story-setup`（部署 hooks/agents/AGENTS），新开/刷新会话后运行 `/story-import` 导入已有小说，再用 `/story-long-write 日更` 或 `/story-long-write 写第N章` 续写。也可以直接运行 `/story-import`；它会先检测是否已 setup，未部署时让你选择先去 setup 或继续串行导入。
 
 ## Skills
 
@@ -201,7 +205,7 @@ demo/拆文库-曾将爱意私藏/
 <details>
 <summary>导入 demo — 让你管账号，你高燃混剪炸全网（长篇续写工程）</summary>
 
-使用 `/story-import` 把作者已发布的前 20 章（约 3.7 万字）逆向重建为可续写的写作工程，接 `/story-long-write` 日更续写第 21 章：
+推荐先 `/story-setup` 部署写作项目，再使用 `/story-import` 把作者已发布的前 20 章（约 3.7 万字）逆向重建为可续写的写作工程，最后接 `/story-long-write 日更` 或 `/story-long-write 写第21章` 续写：
 
 ```
 demo/让你管账号，你高燃混剪炸全网/

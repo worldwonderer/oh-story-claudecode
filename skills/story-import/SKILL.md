@@ -30,9 +30,19 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 ## Phase 1：确认导入源
 
+### 1.0 导入续写入口顺序（先答用户的流程问题）
+
+当用户问"导入续写先走 story-setup 还是 story-import"、"已有小说怎么续写"、"导入流程"这类流程问题时，先直接给出结论，再继续收集原文：
+
+1. **推荐顺序**：先 `/story-setup`（部署 hooks/agents/AGENTS），新开/刷新会话后运行 `/story-import`，最后用 `/story-long-write 日更/写第N章` 续写。
+2. **也可以直接 `/story-import`**：本 skill 会在进入深度分析前检测 `.story-deployed` 与专业 agent；未部署时会给出"先去 setup"或"继续导入（串行降级）"两种选择。
+3. **已导入过的项目**：不要重复跑完整导入；直接进入书名目录，确认 `.active-book`/`追踪/上下文.md` 指向正确书目，再用 `/story-long-write 日更` 或 `/story-long-write 写第N章`。
+
+这段结论必须出现在任何导入源追问之前，避免用户只想确认流程却被直接要求贴原文。
+
 问用户：**「你要导入哪本书？请提供文件路径或直接贴文本。」**
 
-### 1.0 确认意图（写作工程 vs 仅拆文库）
+### 1.1 确认意图（写作工程 vs 仅拆文库）
 
 默认目标是**完整写作工程**（可续写）。若用户意图不明确——是要可续写的工程，还是只要一份拆文库分析——**主动询问**，不要默认：
 
