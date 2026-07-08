@@ -20,9 +20,10 @@ Detect high-risk AI-flavor prose patterns that need human rewrite:
   - 系统公告公文腔过密 (方括号系统/规则行里硬规则词聚集)
   - 过度精炼短段 (长文本里短叙述段过密且自然连接偏少)
   - 低连接密度 (引号外叙述功能词/白话连接偏少且中长句不足，像提纲/电报体)
+  - 监控摄像头式动作清单 (同段连续摆放动作动词，缺少视角温度/情绪缓冲)
 
 Each finding carries severity: blocking by default for generation/deslop cleanup (not-is-comparison / em-dash). This is a local style/readability gate, not an AIGC detector score; functional human text can be marked for review instead of hard-edited for a detector.
-或 advisory (period-stutter / long-paragraph / micro-action-tic / abstract-summary-tic / cliche-density-tic / metaphor-density-tic / reasoning-chain-tic / system-notice-formality-tic / overcompressed-prose-tic / low-connective-density-tic，是提示，justified 的长推理/氛围段可保留)。
+或 advisory (period-stutter / long-paragraph / micro-action-tic / action-list-tic / abstract-summary-tic / cliche-density-tic / metaphor-density-tic / reasoning-chain-tic / system-notice-formality-tic / overcompressed-prose-tic / low-connective-density-tic，是提示，justified 的长推理/氛围段可保留)。
 --fail-on=blocking 只在出现 blocking finding 时退出 1；默认 --fail-on=all 有任何 finding 即退出 1。
 
 The script reports findings only. It never rewrites text, because the safe fix is
@@ -48,6 +49,13 @@ const LONG_PARAGRAPH_CHARS = 200;
 const MICRO_TIC_PATTERN = /了(?:[一两三几半])?[下阵圈道声眼口气会]/g;
 const MICRO_TIC_MIN_HITS = 5;
 const MICRO_TIC_PER_KILO = 6;
+
+// 监控摄像头式动作清单：同一段连续堆叠通用动作动词（伸手/拿起/取过/挑开/放下/转身等），
+// 且用逗号/顿号串联成步骤表时，读感像无视角温度的监控记录。只做 advisory；
+// 打斗/追逐等功能性动作编排可保留或人工复核。
+const ACTION_LIST_VERB_PATTERN = /伸手|抬手|探手|拿起|拿过|取出|取过|掏出|摸出|抓起|攥住|握住|捏住|按住|推开|拉开|打开|关上|放下|递给|挑开|掀开|扯开|拧开|倒出|端起|转身|回头|抬头|低头|弯腰|俯身|走到|走向|坐下|站起|看向|看着|盯着|扫过/g;
+const ACTION_LIST_MIN_HITS = 5;
+const ACTION_LIST_MIN_SEPARATORS = 4;
 
 // 抽象总结复读：模板化段落常把角色当下经历拔成「命运/棋局/
 // 这一刻终于明白/才刚刚开始」的作者总结。单个词可能服务题材；高密度聚集才报。
@@ -304,6 +312,7 @@ function scanProsePatterns(proseLines) {
 
   findings.push(...findPeriodStutter(proseLines));
   findings.push(...findMicroActionTic(proseLines));
+  findings.push(...findActionListTic(proseLines));
   findings.push(...findAbstractSummaryTic(proseLines));
   findings.push(...findClicheDensityTic(proseLines));
   findings.push(...findMetaphorDensityTic(proseLines));
@@ -348,6 +357,39 @@ function findMicroActionTic(proseLines) {
     message: `微动作复读：「了下/了一下」式轻量补语 ${hits} 处（${perKilo.toFixed(1)}/千字）；同一反应模板高密度复现是机械指纹，合并动作 beat、换具体细节，别每个动作都补一个轻反应尾巴。`,
     excerpt: compact(samples.join(' ')),
   }];
+}
+
+function findActionListTic(proseLines) {
+  const findings = [];
+
+  for (const { text, lineNo } of proseLines) {
+    const trimmed = text.trim();
+    if (!trimmed || isDivider(trimmed) || isStructural(trimmed)) continue;
+    const narrative = stripQuoted(trimmed).trim();
+    if (!narrative) continue;
+
+    ACTION_LIST_VERB_PATTERN.lastIndex = 0;
+    const verbs = [];
+    let match;
+    while ((match = ACTION_LIST_VERB_PATTERN.exec(narrative)) !== null) {
+      verbs.push(match[0]);
+    }
+
+    if (verbs.length < ACTION_LIST_MIN_HITS) continue;
+    const separators = (narrative.match(/[，、；;]/g) || []).length;
+    if (separators < ACTION_LIST_MIN_SEPARATORS) continue;
+
+    findings.push({
+      line: lineNo,
+      column: 1,
+      type: 'action-list-tic',
+      severity: 'advisory',
+      message: `监控摄像头式动作清单：同段连续动作动词 ${verbs.length} 个、分隔符 ${separators} 个；合并琐碎步骤，只保留有情绪/情节功能的动作，必要时用角色犹豫、误判或环境反馈做缓冲。`,
+      excerpt: compact(verbs.slice(0, 8).join(' ')),
+    });
+  }
+
+  return findings;
 }
 
 // 套词密度：统计引号外叙述中的高危禁用词聚集。不是逐词替换器；只在密度高到
