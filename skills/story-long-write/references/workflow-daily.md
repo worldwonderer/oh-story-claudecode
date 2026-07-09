@@ -13,7 +13,7 @@
 >
 > 对标书路径查找：先 `{项目}/对标/{书名}/`，回退 `拆文库/{书名}/`。
 >
-> **题材正文提示卡**：优先读 `设定/题材正文提示卡.md`；缺失时不阻塞，先从 `设定/题材定位.md` 精确匹配 `references/genre-prose-cards.md` 索引，并只读取 `references/genre-prose-cards/{题材}.md` 题材单卡（高/中/低置信照原卡标注），无命中再从 `references/style-genre-modules.md` 抽取通用流派短 `genre_prose_card`。题材卡只管题材味和正文取舍，不改细纲、不覆盖情绪/节奏权威文件，也不接管句长/标点等文风细节。
+> **题材正文提示卡**：优先读 `设定/题材正文提示卡.md`；缺失时不阻塞，先从 `设定/题材定位.md` 精确匹配 `references/genre-prose-cards.md` 索引，并只读取 `references/genre-prose-cards/{题材}.md` 题材单卡（高/中/低置信照原卡标注），无命中再从 `references/style-genre-modules.md` 抽取通用流派短 `genre_prose_card`。题材卡只管题材味和正文取舍，不改细纲、不覆盖情绪/节奏权威文件，也不接管句长/标点等文风细节。题材卡只在写手心里校准取舍，卡名/题材标签/置信度/条目/合规自评一律不写进正文。
 >
 > **自定义文风（`设定/文风.md`，优先级最高）**：主会话每章写作前直接读 `设定/文风.md`（不经 story-explorer——它只看 `对标/文风.md`）。存在且含实质内容（去空白 ≥200 字，或含「句长 / 标点 / 对话 / 锚点 / 笔调」风格小节且小节内有可执行约束：比例 / 例句 / 禁止或偏好描述）即进入「自定义文风模式」：它是本书既定笔调的**权威**风格基，narrative-writer 的句长带 / 标点节奏 / 对话潜台词 / 情绪交替以它为准；对标 / 拆文 `文风.md` 降级为「**参考**」——只供原文锚点范例与句长分布数值兜底，不再是被遵循的最终文风。空 / 仅空白 / 仅标题 / 占位 stub（待办 / 待补充 / ___）视为不存在。仅接管风格，**不覆盖** `剧情/情绪模块.md` / `剧情/节奏.md` 的情绪与节奏意图（同下「冲突规则」）。**硬门禁不让位**：`设定/文风.md` 里命中硬安全线的写法（`……`、破折号 `——`/`—`、段间空行、三五字碎句）仍按 narrative-writer 归一为句号 / 逗号 / 动作 beat / 单 `\n`；自定义文风只接管句长 / 软标点节奏 / 潜台词 / 情绪交替（要让这些标记原样进正文须放宽题材硬门禁，本期不做）。
 >
@@ -109,7 +109,7 @@
    - **2.2 状态筛选**：每章开始前必须确认以下来源已经在本轮 workflow 中读取或刚更新：本章细纲、上一章正文（或上一章刚写入的正文）、`追踪/上下文.md`、`追踪/伏笔.md`、`追踪/时间线.md`；涉及角色时，还必须确认 `追踪/角色状态.md` 或对应 `设定/角色/{角色名}.md` 的来源。"已加载"只指本轮 workflow 内实际读取/更新过的文件，不得用未标明来源的聊天记忆替代。角色最新状态优先从 `追踪/角色状态.md` 筛选（如不存在则从角色设定推断），待回收/推进伏笔从 `追踪/伏笔.md` 筛选；细纲不存在时仍按下方补建流程处理，不允许直接写正文
    - **2.3 对标模块/节奏/题材卡/文风召回**：
      - 调 story-explorer 的 `benchmark_style_load` query_type（输入：项目目录 + 本章目标情绪 + 本章爽点类型 + 本章目标字数）一次性拿到：`{style_profile_path, style_profile_summary, selected_emotion_module, rhythm_reference, module_source_path, rhythm_source_path, matched_chapter_K, matched_chapter_techniques, anchor_excerpts, gaps}`
-     - **题材正文提示卡召回**：主会话优先读 `设定/题材正文提示卡.md`；缺失则先读 `设定/题材定位.md` + `references/genre-prose-cards.md` 索引，按主题材精确匹配后只读取 `references/genre-prose-cards/{题材}.md` 单卡（如 都市脑洞 / 豪门总裁 / 年代 / 双男主；低置信卡必须在意图确认标注低置信，并要求同题材对标校准），无命中再读 `references/style-genre-modules.md` 通用流派模块。跨题材时主题材抽 3-5 条、辅题材抽 1-2 条，生成 `genre_prose_card`（题材边界、核心逻辑、读者期待、核心爽点/情绪、节奏密度、场景颗粒、禁止漂移、本章取舍、卡片置信度）。题材卡必须进入 narrative-writer prompt，但只传短摘要
+     - **题材正文提示卡召回**：主会话优先读 `设定/题材正文提示卡.md`；缺失则先读 `设定/题材定位.md` + `references/genre-prose-cards.md` 索引，按主题材精确匹配后只读取 `references/genre-prose-cards/{题材}.md` 单卡（如 都市脑洞 / 豪门总裁 / 年代 / 双男主；低置信卡必须在意图确认标注低置信，并要求同题材对标校准），无命中再读 `references/style-genre-modules.md` 通用流派模块。跨题材时主题材抽 3-5 条、辅题材抽 1-2 条，生成 `genre_prose_card`（题材边界、核心逻辑、读者期待、核心爽点/情绪、节奏密度、场景颗粒、禁止漂移、本章取舍、卡片置信度）。题材卡必须进入 narrative-writer prompt，但只传短摘要，并说明卡片只供内部题材校准、正文里不得出现卡片文字或合规自评
      - **自定义文风覆盖（先于下列 gaps 判定）**：主会话直接读 `设定/文风.md`（不经 explorer），含实质内容（去空白 ≥200 字，或含 句长 / 标点 / 对话 / 锚点 / 笔调 小节且小节内有可执行约束：比例 / 例句 / 禁止或偏好描述）则置 `custom_style=true`——它作权威风格基**取代** `style_profile_path` 喂给 narrative-writer（句长 / 标点 / 潜台词 / 情绪交替），对标 / 拆文 `style_profile_path` 降级为参考（原文锚点 + 句长分布数值兜底）。空 / 仅空白 / 仅标题 / 占位 stub（待办 / 待补充 / ___）视为不存在。仅接管风格，**不豁免情绪 / 节奏轴**。
      - 若 `gaps.no_benchmark: true` → `custom_style` 为真则进入「自定义文风模式」（用 `设定/文风.md` 写作；无对标可召回，情绪 / 节奏目标改从本书细纲「目标情绪」、卷纲、`设定/题材定位.md` 等内部材料取，`selected_emotion_module` / `rhythm_reference` 记为「无」，不声称从对标召回）；否则跳过文风召回，在 2.4 意图确认标记"无对标参考"
      - 若 `gaps.missing_primary_contract: true` → 停止本章准备，按 `repair_action` 提示重跑 `/story-long-analyze` Stage 3+ 或重新 `/story-import`；不得进入 narrative-writer（情绪 / 节奏轴独立于文风轴，**自定义文风模式不豁免此停止**——补 `剧情/情绪模块.md` / `剧情/节奏.md`，而非写 `设定/文风.md`）
