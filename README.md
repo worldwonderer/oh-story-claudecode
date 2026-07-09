@@ -131,7 +131,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 | `story-cover` | `/story-cover` `/封面` | 封面生成 · 书名题材分析 + GPT-Image-2 出图 |
 | `browser-cdp` | `/browser-cdp` | 浏览器操控 · CDP 协议复用登录态抓取数据 |
 
-> `story-deslop` 的本地检查是写作 lint：blocking 只限确定性句式/标点问题，其他提示按读感判断。
+> `story-deslop` 的本地检查是写作 lint：blocking 只限确定性句式/标点问题，其他提示按读感判断；朱雀等外部检测只作自测参考，不替代人工读感。
 
 自然语言同样触发：
 - 「帮我开书」→ `story-long-write`
@@ -375,3 +375,4 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 
 - [LINUX DO - The New Ideal Community](https://linux.do) — 社区支持
 - [FanqieRankTracker](https://github.com/wen1701/FanqieRankTracker) — 番茄小说字体反爬解码方案参考
+- [Zhuque AIGC Detector CLI](https://github.com/Sophomoresty/zhuque) — 去 AI 味实验中的外部复测工具参考
