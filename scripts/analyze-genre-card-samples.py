@@ -46,30 +46,6 @@ HITS: list[tuple[str, str]] = [
 ]
 HIT_REGEX = [(name, re.compile(pat)) for name, pat in HITS]
 
-HIT_PURPOSE = {
-    "危险/异常": "危险、事故、案件",
-    "家庭/关系": "亲友、婚恋关系",
-    "系统/面板": "任务、面板提示",
-    "钱/契约": "钱、账、合同",
-    "手机/社交": "消息/公开舆论",
-    "事业/职场": "工作/项目场合",
-    "校园/青春": "校园/同学场合",
-    "修炼/超凡": "修炼资源",
-    "身份/转折": "身份反转",
-    "公开围观": "围观见证",
-    "制度/礼法": "规矩、制度",
-}
-
-GENRE_TRANSLATION_NOTES = {
-    "游戏体育": "把常见场面换成赛点风险、名次收益、队伍合约和直播/榜单反馈。",
-    "西方奇幻": "把钱、账、关系和危险换成佣兵契约、领地税、魔法资源和怪物/神权压力。",
-    "东方仙侠": "把关系、钱和账、危险换成师门规矩、灵石丹药、劫难和因果选择。",
-    "玄幻脑洞": "把家庭、制度、钱和账换成旧修炼秩序、宗门资格、资源分配和脑洞规则落地。",
-    "都市高武": "把危险、钱和账换成战力测试、武考名额、补给资源和公开排名。",
-    "科幻末世": "把关系和钱和账换成队伍信任、物资消耗、避难点秩序和感染风险。",
-    "悬疑脑洞": "把关系、钱和账、制度换成规则代价、监控物证、身份档案和亲近者异常。",
-}
-
 GENRE_LANDING_POINTS = {
     "东方仙侠": "开场落到门规、试炼、洞府异动或师徒命令；冲突落到境界瓶颈、宗门资格和道义选择；结尾落到命牌、剑痕、劫兆或强敌拜山。",
     "传统玄幻": "开场落到演武场、测试、资源被夺或秘境入口；冲突落到境界压制和资源缺口；结尾落到新试炼、秘境资格、仇人到场或长老改口。",
@@ -463,24 +439,6 @@ def fmt_pct(x: float | None) -> str:
     return f"{round(x * 100)}%"
 
 
-def phase_terms(hits: list[str], limit: int = 2) -> str:
-    terms = [HIT_PURPOSE.get(h, h) for h in hits[:limit]]
-    return "、".join(terms) if terms else "核心场面"
-
-
-def build_phase_conclusion(r: dict[str, Any]) -> str:
-    phase_hits = r.get("phase_hits") or {}
-    early = phase_terms(phase_hits.get("前期") or [])
-    middle = phase_terms(phase_hits.get("中期") or [])
-    late = phase_terms(phase_hits.get("后期") or [])
-    return (
-        "前中后常见写法：\n"
-        f"- 前期：常用{early}摆出开局麻烦、缺口和首个目标。\n"
-        f"- 中期：转向{middle}制造阻碍、误判和站队。\n"
-        f"- 后期：用{late}把代价抬起来，接当场结果或下一章钩子。"
-    )
-
-
 def build_summary(r: dict[str, Any]) -> str:
     phase_counts = r.get("windows_by_phase") or {}
     phase_count_text = "/".join(str(phase_counts.get(p, 0)) for p in ["前期", "中期", "后期"])
@@ -497,12 +455,10 @@ def build_summary(r: dict[str, Any]) -> str:
         prefix = "本地同题材长篇样本（样本偏少）"
     elif r.get("confidence_from_sample") == "medium":
         prefix = "本地同题材长篇样本（样本量中等）"
-    note = GENRE_TRANSLATION_NOTES.get(r.get("genre"), "")
-    note_text = f"落笔换法：{note}" if note else "使用提醒：只作题材参考，帮你抓常见场面和前中后写法；本书设定与同题材对标仍优先。"
+    note_text = "使用提醒：只作题材参考，帮你抓常见场面和前中后写法；本书设定与同题材对标仍优先。"
     return (
         f"样本说明：{prefix}，可用 {r['books_available']} 本；抽样 {r['books_sampled']} 本，"
         f"前/中/后章节段 {phase_count_text}，共 {r['windows_total']} 个。\n"
-        f"{build_phase_conclusion(r)}\n"
         f"正文参考：{stats_text}。\n"
         f"{note_text}"
     )
