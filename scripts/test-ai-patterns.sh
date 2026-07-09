@@ -413,6 +413,45 @@ NODE
 
 echo "abstract-summary-tic (抽象总结复读) regression tests passed."
 
+
+# --- prompt-corpus：监控摄像头式动作清单（番茄高分样本中该分布为 0，作为 advisory 提醒）---
+FIXTURE_ACTION_LIST="$TMP_DIR/fixture-action-list.md"
+printf '%s\n' \
+  '她伸手拿起桌上的杯子，取过旁边的药瓶，拧开瓶盖，倒出两片药，端起水杯，仰头咽下去，放下杯子，推开椅子，转身走到门口。' > "$FIXTURE_ACTION_LIST"
+set +e
+node "$SCRIPT" --json "$FIXTURE_ACTION_LIST" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const al = r.findings.filter((f) => f.type === 'action-list-tic');
+if (al.length !== 1) throw new Error('连续通用动作清单应报 1 处 action-list-tic: ' + JSON.stringify(r.findings));
+if (al[0].severity !== 'advisory') throw new Error('action-list-tic 应为 advisory');
+if (!al[0].message.includes('监控摄像头式动作清单')) throw new Error('action-list-tic message 应说明动作清单问题: ' + JSON.stringify(al[0]));
+NODE
+
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE_ACTION_LIST" > /dev/null 2>&1
+action_list_blk=$?
+set -e
+[ "$action_list_blk" -eq 0 ] || { echo "FAIL: action-list-tic --fail-on=blocking 应退出 0，实际 $action_list_blk" >&2; exit 1; }
+
+FIXTURE_ACTION_LIST_NORMAL="$TMP_DIR/fixture-action-list-normal.md"
+printf '%s\n' \
+  '她把药瓶攥在手里。门外又喊了一遍名字，椅子腿在地砖上拖出刺耳的一声。' \
+  '她站起来，又坐回去，半天才把水杯推远。' > "$FIXTURE_ACTION_LIST_NORMAL"
+set +e
+node "$SCRIPT" --json "$FIXTURE_ACTION_LIST_NORMAL" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const al = r.findings.filter((f) => f.type === 'action-list-tic');
+if (al.length !== 0) throw new Error('有心理/环境缓冲的动作段不应报 action-list-tic: ' + JSON.stringify(al));
+NODE
+
+echo "action-list-tic (监控摄像头式动作清单) regression tests passed."
+
 # --- issue #205：套词密度过高（高危套词聚集，具体化改写方向）---
 FIXTURE16="$TMP_DIR/fixture-cliche-density.md"
 printf '%s\n' \
