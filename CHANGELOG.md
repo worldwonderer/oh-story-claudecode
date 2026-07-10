@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.22
+
+> 长篇题材正文提示卡 + 短篇投稿层 + 全套件文档瘦身（#226 / #227 / #228）
+
+### 新增
+
+- **题材正文提示卡（#226，合并 #222/#223/#224）**：`story-long-write` 新增 `genre-prose-cards/` 32 张番茄题材腔调卡 + 索引召回规范；写作时按 `设定/题材定位.md` 匹配召回单卡进写手，anti-leak 硬约束保证卡名/题材标签/置信度/条目/合规自评一律不进正文；narrative-writer 三端模板同步接入召回与按题材细化的文风指纹/Gate G 规则，chapter-extractor 模板新增 `chapter_formula` 逐章写法公式产物。
+- **短篇投稿层（#227）**：`story-short-write` 新增 `submission-craft.md`——知乎盐选/小程序/番茄三路平台基调矩阵（视角、矛盾演进、章末钩子、结局质感）、导语门面单独打磨（四维骨架+黄金三角，150-220 字）、付费点卡脖子断点与反推法排细纲；`story-short-analyze` 拆解时顺带记录投稿层进拆文报告。合并前盲评 A/B 四维全胜（register +0.55、structure +0.58）。
+- **deslop 任务卡点与比喻密度（#218）**：任务卡点只在改变信息/情绪/关系/代价/选择压力/伏笔/钩子承接时使用；新增 `metaphor-density-tic` advisory（像/仿佛/如同高密度堆叠检测）；朱雀定位为辅助信号，去 AI 味不越剧情边界。
+- **generic Web AI 部署（#216）**：story-setup 新增 `target_cli=generic` 文件模式（复制 `skills/` + 通用 `AGENTS.md`，不声明平台原生 hooks/custom agents）；`story-long-write` 补通用环境 solo/direct fallback。
+
+### 改进
+
+- **长篇工作流防失控（#225）**：裸调用 `story-long-write` 不再自动进入正文/日更模式；开书流程默认停在大纲；日更批量有界；narrative-writer 只扩写细纲计划内情节点，不足时返回 `outline_underfilled` 欠账报告交主会话补纲；理顺 setup → import → long-write 的续写工程顺序。
+- **全套件文档瘦身（#228）**：13 个 skill 系统审计后删除可证行为不变的冗余——逐字/同义重复、过期目录、失效行号锚、维护性注释、跨体裁死段、悬空指针，53 文件净 −32.9KB；同名副本组全部字节同步；Σ 字数预算契约、anti-leak、hook 锚点零触碰。
+- **deslop 防检测器博弈（#220 / #221）**：吸收社区反 AI 思路但不做讨好检测器的硬规则；新增 `action-list-tic` advisory（监控镜头式动作链）；外部检测器明确为自检参考、不替代人工通读；恢复朱雀 AIGC 检测 CLI 致谢。
+
+### 发布准备
+
+- 版本号升级到 `0.6.22`（`.claude-plugin/marketplace.json` + `skills/story/VERSION`）。`.story-deployed` 的 `agents_version` 升级到 `17`、`setup_skill_version` 升级到 `1.2.6`；本版含 narrative-writer / chapter-extractor 部署模板更新（题材卡召回 + anti-leak + 大纲边界与 chapter_formula），已部署项目需重新运行 `/story-setup` 并新开会话获取。`UPGRADING.md` 新增 v17 条目，`README` / `README_EN` 版本说明收敛为最近 3 版（更早见 CHANGELOG）。
+
 ## v0.6.21
 
 > 短篇写作参考栈瘦身：删掉长篇继承残留，建立短篇专属 format/craft/deslop/题材包体系（#206）
