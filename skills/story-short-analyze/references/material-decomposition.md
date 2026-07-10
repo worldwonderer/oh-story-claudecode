@@ -165,13 +165,7 @@
 
 #### C. 期待感分析
 
-逐节追踪读者的期待状态：
-
-| 节 | 制造的期待 | 满足/升级/悬置 | 剩余期待 |
-|----|-----------|---------------|---------|
-| 1 | {期待A} | {制造} | {A} |
-| 2 | {期待B} | {升级A} | {A+, B} |
-| ... | | | |
+逐节追踪期待状态，表模板见 output-templates.md Stage 3C。
 
 规则：不超过两节不制造新期待，不超过一节不推进核心期待。
 
@@ -688,20 +682,4 @@
 - **quality-checklist.md** = 短篇拆书的质量自检清单（评估**源文**质量时用，数值引用本文件）
 - **anti-ai-writing.md + banned-words.md** = 拆文报告**本身**的 AI 腔守门员（Phase 7.1 调用扫描 `拆文报告.md`，不是源文滤镜）
 
-**对照标尺类 references**（Stage 拆解时按需作为「这篇是否合标」的标准模式对照）：
-
-- **题材公式表**（`genre-writing-formulas.md`）= 拆 Stage 6「可复用结构」时作为对照标尺；21 大题材的标准 beat sheet
-- **人物方法库**（`character-design-methods.md` L22-46 三层标签反差人设法）= 拆 Stage 5「人物内在矛盾」时作为对照标尺；拆文报告里写人物反差段时直接引用这套
-- **题材读者画像**（`genre-readers.md`）= 拆 Stage 6「共鸣分析」时作为读者期待对照
-- **题材核心机制**（`genre-core-mechanics.md`）= 拆题材是否合标时的机制对照
-- **通用写作技法**（`genre-writing-techniques.md`）= 拆「可复用结构」的 `fail_mode` 字段时引用 L329「禁忌」列；通用情绪操控/感情线/震惊/喜剧机制
-- **3 个 hooks references**（`hooks-paragraph.md` / `hooks-chapter.md` / `hooks-suspense.md`）= 拆钩子类型时的分类对照；拆文报告里标注钩子类型时直接引用这套
-
-各文件协同工作：
-1. SKILL.md 决定执行哪个 Stage 并跑 Phase 7 检查验收
-2. 本文件告诉"怎么分析"（Stage 2-6 的方法论），并定义所有质量阈值数值
-3. output-templates.md 告诉"怎么输出"（Stage 2-6 的格式模板 + 质量检查 BLOCK/WARN 清单 + Stage 6 `_meta.json.structure_counts` 产出模板）
-4. output-contract.md 是输出契约 SSOT（schema 定义 / Stage→文件映射 / 下游消费规范）
-5. quality-checklist.md 提供拆书完成后**对源文**的质量自检清单
-6. anti-ai-writing.md + banned-words.md 守门**拆文报告本身**的写作质量
-7. 题材/人物/钩子 references 作为「拆文标尺」按需加载
+对照标尺类文件的加载时机见 SKILL.md「参考资料」。

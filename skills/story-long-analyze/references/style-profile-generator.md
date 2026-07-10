@@ -145,7 +145,7 @@ PYEOF
 
 **不修改 chapter-extractor**。文风直接从既有字段（基调/主题标签/可借鉴要素）整理生成即可。
 
-句长 / 标点密度由 Step 4 的跨平台 Python 1-liner 在 Stage 6 主线程直接算出，不依赖 chapter-extractor。若将来需要章级精细分布（如「第 N 章 短句占比」），再考虑给 chapter-extractor 加 `punctuation_density` / `sentence_length_distribution` 字段——但**不在本次范围内**。
+句长 / 标点密度由 Step 4 的跨平台 Python 1-liner 在 Stage 6 主线程直接算出，不依赖 chapter-extractor。
 
 ## 与写作端的关系
 
@@ -155,7 +155,4 @@ PYEOF
 
 ## 重生策略（旧拆文库无文风）
 
-旧 `拆文库/{书名}/` 没有文风文件时：
-
-- **完整重跑** `/story-long-analyze`：开销大，会重跑 Stage 0-5（不必要）
-- **仅跑 Stage 6**：用户直接说 "为对标书 X 生成文风" 或 "重生 文风"，主会话/agent 直接按本 SOP 跑 6 步，无需重做拆文。这是推荐路径
+旧拆文库无文风时，直接按本 SOP 跑 6 步（仅 Stage 6），无需重跑 Stage 0-5。触发：用户直接说 "为对标书 X 生成文风" 或 "重生 文风"。
