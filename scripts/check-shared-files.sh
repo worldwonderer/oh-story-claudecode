@@ -38,6 +38,13 @@ AGENTS.md.tmpl"
 # than a wholesale ignore — it still guards writer↔writer drift.
 ANALYST_DIVERGENT_NAMES="character-basics.md character-design-methods.md character-relations.md"
 
+# Genre-style-divergent (basename): the story-short-write copy under references/genre-styles/
+# is a short-form writer style pack, a different artifact from the long-form
+# references/genre-prose-cards/ card of the same basename (story-long-write + its story-setup
+# deployment mirror). Drop the genre-styles copy from the comparison; the prose-card copies
+# must still stay byte-identical. Stricter than a wholesale ignore.
+GENRE_STYLE_DIVERGENT_NAMES="双男主.md"
+
 mismatches=0
 checked=0
 
@@ -74,6 +81,22 @@ for base in $dup_names; do
       for p in ${paths[@]+"${paths[@]}"}; do
         case "$p" in
           */story-short-analyze/*) ;;
+          *) filtered+=("$p") ;;
+        esac
+      done
+      paths=(${filtered[@]+"${filtered[@]}"})
+      ;;
+  esac
+
+  # Genre-style-divergent basenames: drop the short-form references/genre-styles/ copy
+  # (a different artifact from the long-form genre-prose-cards/ card); the remaining
+  # prose-card copies must still be byte-identical.
+  case " $GENRE_STYLE_DIVERGENT_NAMES " in
+    *" $base "*)
+      filtered=()
+      for p in ${paths[@]+"${paths[@]}"}; do
+        case "$p" in
+          */genre-styles/*) ;;
           *) filtered+=("$p") ;;
         esac
       done

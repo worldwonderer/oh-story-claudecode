@@ -54,7 +54,7 @@
 
 - 必读：`short-format.md`（正文格式）+ `short-craft.md`（通用底座）
 - 必读：`short-deslop.md`（写作时自检 AI 腔）
-- 按题材加载 1 个：`genre-styles/{题材}.md`（核心 4 题材）或 `genre-writing-formulas.md`（冷门题材速查表）
+- 按题材加载 1 个：`genre-styles/{题材}.md`（核心 10 题材）或 `genre-writing-formulas.md`（冷门题材速查表）
 - 按需加载：`villain-and-reveal.md` / `emotional-methods.md`
 
 ### 工作目录结构
