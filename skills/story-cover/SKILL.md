@@ -24,8 +24,6 @@ metadata: {"openclaw":{"requires":{"env":["GPT_IMAGE_API_KEY"],"bins":["curl","j
 | `BOOK_DIR` | ✅ | — | 输出目录，建议 `./covers/<书名>` |
 | `REF_IMAGE` | | — | 参考图本地路径或 URL；设置后走 `images/edits` 图生图 |
 
-> 备注：`gpt-image-2` 始终返回 base64，请求体不要带 `response_format`（旧 DALL-E 参数，gpt-image 系列不支持）。
-
 ---
 
 ## 生成流程
@@ -141,7 +139,7 @@ Professional book cover, high detail digital painting, portrait [平台比例：
 
 ### Step 3：调用 API 并保存
 
-`gpt-image-2` 始终返回 base64，请求体不要带 `response_format`。`$PROMPT` 为 Step 2 拼出的完整提示词。
+`gpt-image-2` 始终返回 base64，请求体不要带 `response_format`（旧 DALL-E 参数，gpt-image 系列不支持）。`$PROMPT` 为 Step 2 拼出的完整提示词。
 
 两种调用方式二选一：未设置 `REF_IMAGE` → 走「文生图」；设置了 → 走「图生图」。
 

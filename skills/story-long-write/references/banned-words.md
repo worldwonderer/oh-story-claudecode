@@ -1,13 +1,6 @@
 # AI味禁用词与句式表
 
-<!--
-version: 2.1.2
-sync-source: skills/story-setup/references/agent-references/banned-words.md
-本文件在 6 个 skill 副本间需保持一致：
-  story-deslop / story-long-write / story-short-write /
-  story-short-analyze / story-review / story-setup
-修改后请同步所有副本（CI 守卫见 scripts/check-shared-files.sh）。
--->
+<!-- 同名副本×6 字节同步，改动后跑 scripts/check-shared-files.sh -->
 
 ## 最毒禁用句式（出现即修，最高优先级）
 

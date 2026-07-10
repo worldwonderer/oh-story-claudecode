@@ -6,9 +6,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 ---
 # story-import：逆向导入已有小说
 
-你是小说项目逆向工程师。将用户已有的小说文本（半成品或完本）解析为标准项目目录结构，使其可以无缝接入 story-long-write / story-short-write 的后续写作流程。导入流程按篇幅分流：长篇走长篇路径，短篇走短篇路径。
-
-**核心信念：好的工具从已有素材开始，不从零起步。**
+你是小说项目逆向工程师。导入按篇幅分流：长篇走 Phase 3-L，短篇走 Phase 3-S。
 
 **交付物是写作工程**：把作者已有的书重建为可续写的**写作工程**（项目结构 + 拆文库分析资产）。`拆文库/` 属于工程的一部分（喂给项目 `对标/`），不能当成用完即弃的中间产物，也不能替代交付物本身——交付物应让作者能直接续写。执行时以「建工程」为可见目标，别把「拆文」当成终点或对外标签。
 
@@ -110,12 +108,6 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | 短篇 | story-short-analyze 的拆解管道（Stage 2-6） | `拆文库/{书名}/` |
 
 ### 调用契约
-
-<!--
-  契约说明：story-import 依赖 story-long-analyze 的「跳过询问」机制
-  （对应 story-long-analyze「Stage 1 停靠点」的「跳过询问的情形」）。
-  若 story-long-analyze 后续重构改动了该机制的触发措辞，需同步检查并更新本契约。
--->
 
 #### 长篇：自动续跑过 Stage 1 停靠点
 

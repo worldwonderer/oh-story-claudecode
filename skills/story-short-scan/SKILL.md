@@ -53,7 +53,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 #### browser-cdp 采集模式
 
-使用 `/browser-cdp` 启动 Chrome，直接抓取平台页面的结构化数据。
+使用 `/browser-cdp` 启动 Chrome，直接抓取平台页面的结构化数据。适用于需要登录才能看到的数据（知乎个人中心、番茄书架等）。
 
 **点众采集目标**：
 
@@ -83,12 +83,6 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 **内置知识操作指引：**
 - 加载 `references/real-market-data.md`（跨平台写作差异对照）
 - 明确标注：「以下分析基于历史趋势数据；未完成实时榜单校验前只能作为候选假设。」并列出需要复扫的平台页面。
-
-**浏览器操控（高级模式）：**
-- 如果可用 agent-browser CLI，通过 CDP 连接 Chrome 获取平台数据
-- 示例：`agent-browser --cdp 9222 open "https://www.ishugui.com/browse"`
-- 可复用用户已登录的 Chrome session，获取完整榜单数据
-- 适用于需要登录才能看到的数据（知乎个人中心、番茄书架等）
 
 ---
 

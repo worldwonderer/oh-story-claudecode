@@ -10,21 +10,6 @@
 优先使用 `scripts/qidian-rank-scraper.js` 的默认 `--mode auto`。脚本先读取 `https://m.qidian.com` 移动端 SSR pageContext JSON，规避 PC 站风控页；移动端不可用时才回退到 CDP/PC 页面。输出头部会标注 `抓取方式：mobile-ssr` 或 `cdp-pc`。
 
 
-### 榜单URL
-
-| 榜单 | URL |
-|------|-----|
-| 新人签约新书榜 | qidian.com/rank/newsign/ |
-| 签约作者新书榜 | qidian.com/rank/signnewbook/ |
-| 公众作者新书榜 | qidian.com/rank/pubnewbook/ |
-| 新人作者新书榜 | qidian.com/rank/newauthor/ |
-| 三江推荐 | qidian.com/sanjiang/ （非/rank/路径，按周分组） |
-| 月票榜 | qidian.com/rank/yuepiao/ |
-| 畅销榜 | qidian.com/rank/hotsales/ |
-| 阅读指数榜 | qidian.com/rank/readindex/ |
-| 收藏榜 | qidian.com/rank/collect/ |
-| 原创推荐榜 | qidian.com/rank/recom/ |
-
 ### 字段
 
 排名 | 书名 | 作者 | 题材 | 状态 | 签约 | 收费模式 | 字数(万字) | 总推荐 | 标签(详情页) | 最新更新(详情页) | 作品页链接 | 简介(详情页，截断100字)
@@ -57,10 +42,6 @@
 ---
 
 ## 番茄小说
-
-### 榜单URL格式
-
-`/rank/{channel}_{type}_{cat_id}` — channel 0=女频/1=男频，type 1=新书榜/2=阅读榜
 
 ### 题材cat_id
 
@@ -109,7 +90,7 @@
 **故障排查（书名全是 `bookId:xxx` / `（标题待解析）`）**：
 - 看文件头 `数据质量`：标 `[标题解析异常]` 说明详情页解码失败率高。
 - 多为详情页结构变动或被登录/验证页拦截。在已登录的 Chrome 里手动打开任一 `https://fanqienovel.com/page/{bookId}` 确认页面正常、非验证页。
-- 控制台若报 `CDP 无响应`，说明 Chrome/CDP 没起来或端口不对，按 browser-cdp skill 重新启动。
+- 控制台若报 `CDP 无响应`，说明 Chrome/CDP 没起来或端口不对，按 browser-cdp skill 重新启动。确认正常后重采。
 
 ---
 
@@ -210,21 +191,6 @@
 最低采集量：主流平台15条，小平台10条。低于底线标`[数据稀疏]`。
 
 ---
-
-## browser-cdp流程
-
-1. 启动browser-cdp打开目标榜单
-2. 等待列表元素出现
-3. 提取列表页数据
-4. 判断翻页（起点通常单页50-100条，番茄按题材逐页cap≈20）
-5. 逐条进详情页获取补充数据（标签/简介/最新更新）
-6. 汇总写入Markdown
-
----
-
-## 文件命名
-
-`{平台}{榜单名称}_{日期}.md`
 
 ## 批量采集
 

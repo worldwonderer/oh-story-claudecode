@@ -425,8 +425,8 @@ node scripts/normalize-punctuation.js <正文文件...>
 | [references/banned-words.md](references/banned-words.md) | 检测和替换禁用词时 |
 | [references/anti-ai-writing.md](references/anti-ai-writing.md) | **去AI味完整指南**：预防+三遍法+范例 |
 | [scripts/normalize-punctuation.js](scripts/normalize-punctuation.js) | 文件模式落盘后做确定性标点收尾；默认保留引号风格 |
-| [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | 文件模式 Phase 1 预检与 Phase 3.5 复扫；报告高危 AI 句式 + 破折号/碎句号/长段落/微动作复读/抽象总结/套词密度/比喻密度/解释链/公告公文腔/过度精炼短段/低连接密度（只看引号外叙述），只报告不改写 |
-| [scripts/check-degeneration.js](scripts/check-degeneration.js) | 文件模式 Phase 3.5 复扫；报告模型退化（复读/截断/占位符/工程词泄漏），blocking 需重新生成，只报告不改写 |
+| [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | 文件模式 Phase 1 预检与 Phase 3.5 复扫（只看引号外叙述），只报告不改写 |
+| [scripts/check-degeneration.js](scripts/check-degeneration.js) | 文件模式 Phase 3.5 复扫，只报告不改写 |
 
 ---
 
