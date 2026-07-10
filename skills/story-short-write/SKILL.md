@@ -36,6 +36,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 - **从验证过的模式出发**：有对标书就先拆解，没有就从 `genre-styles/{题材}.md`（核心 4 题材）或 `genre-writing-formulas.md`（冷门题材）找对应的短篇剧情模式
 - **定方向就换风格**：题材方向一旦确定（如追妻火葬场），立刻加载 `references/genre-styles/{题材}.md`——正文的腔调、开篇、钩子、情绪烈度、对话金句、招式、收尾全部切到该题材。核心 4 题材（追妻火葬场 / 复仇打脸 / 总裁豪门 / 宅斗宫斗）有专属风格包；冷门题材用 `genre-writing-formulas.md` 的结构骨架兜底，腔调仍按 `short-craft.md` 通用底座
+- **定平台基调 + 打磨导语 + 卡付费点**：投稿前先按平台（知乎/小程序/番茄）定基调，正文视角、矛盾烈度、章末落点随之切换；导语单独当门面打磨（导语不行，正文再好也被编辑一眼刷掉）；付费点卡在章末卡脖子断点上。见 `references/submission-craft.md`
 - **只加载必需信息**：写每节前明确目标情绪和要用的技法，答不出就先回读参考
 
 ---
@@ -151,10 +152,10 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 详细步骤和模板见 `references/writing-workflow.md`。构思时从目标情绪反推剧情，不是从灵感正向构建。按顺序完成：
 
-1. 加载题材风格包 → 读 `references/genre-styles/{题材}.md`（核心 4 题材）+ 通用底座 `references/short-craft.md`，从招式库选 2-3 个核心招式（如追妻的白月光触发链 / 信物翻转 / 火葬场预告），写入 设定.md「题材招式」区，全程照此招式与腔调写
+1. 定平台基调 + 加载题材风格包 → 先读 `references/submission-craft.md` 定投稿平台（知乎/小程序/番茄），正文视角、矛盾烈度、章末落点随之切换；再读 `references/genre-styles/{题材}.md`（核心 4 题材）+ 通用底座 `references/short-craft.md`，从招式库选 2-3 个核心招式（如追妻的白月光触发链 / 信物翻转 / 火葬场预告），写入 设定.md「题材招式」区，全程照此招式与腔调写
 2. 设计反派（如有）→ 加载 `villain-and-reveal.md`
 3. 确定揭露方式 → 同上
-4. 编写 小节大纲.md（格式见 writing-workflow.md）：短篇只做轻量蓝图，每节包含结构段/五段功能、人物/关系变化、因果/逻辑链、结尾承接/钩子，不套长篇完整章节蓝图。每节可选一个任务卡点，但必须服务情绪升级、证据推进、关系撕裂、反转铺垫或反击动作；没有就不强补
+4. 编写 小节大纲.md（格式见 writing-workflow.md）：短篇只做轻量蓝图，每节包含结构段/五段功能、人物/关系变化、因果/逻辑链、结尾承接/钩子，不套长篇完整章节蓝图。**标出付费点卡在哪一节章末**（见 `submission-craft.md`「付费点」：卡脖子断点、付费点前每章 2-3 剧情点、付费点后每章多 1-2）；用反推法先想透付费点那一节，再倒排前后。每节可选一个任务卡点，但必须服务情绪升级、证据推进、关系撕裂、反转铺垫或反击动作；没有就不强补
 5. 反转信息差验证（公式见 writing-workflow.md）
 6. 伏笔回查清单（标准见 writing-workflow.md）
 
@@ -235,6 +236,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 #### 第一段：开头（前 300-500 字）
 
 **目标**：3 句话内抓住读者。**必须包含一个开篇钩子**（从 hooks-chapter.md 选择类型）。
+
+**先写导语**：正文开头前先按 `references/submission-craft.md`「导语」写一条 150-220 字导语——四维骨架（起因+核心冲突+人设底色+情绪反转）配黄金三角（具体物件+信息差+留白钩子），一句一段（完整句各自独立成段，不是拆成三字碎句）。它就是正文开头的头几段，写好顺势往下接、不重写，所以首句同样守下面的开头零环境和前 100 字事件密度≥3（首句是事件/动作/信息炸弹，不是背景或弧线概括），剧透钩子放导语后半。
 
 **技法指令**：前 100 字事件密度 ≥ 3，不做背景铺垫，直接上事件链。
 
@@ -368,6 +371,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | 文件 | 何时加载 |
 |------|----------|
 | [references/short-format.md](references/short-format.md) | 写作前必读（短篇正文格式，两平台模板） |
+| [references/submission-craft.md](references/submission-craft.md) | 投稿前必读（平台基调 知乎/小程序/番茄 · 导语门面 · 付费点断点） |
 | [references/short-craft.md](references/short-craft.md) | 写作全程参考（短篇通用底座：情绪直接写+后接具体反应、在场叙述、超短章节制） |
 | [references/genre-styles/](references/genre-styles/) | **定方向后必读**：按题材加载对应风格包（追妻火葬场 / 复仇打脸 / 总裁豪门 / 宅斗宫斗…），正文风格随之切换 |
 | [references/short-deslop.md](references/short-deslop.md) | 去AI味时必读（短篇专属，只杀真·AI腔，不杀情绪烈度） |
