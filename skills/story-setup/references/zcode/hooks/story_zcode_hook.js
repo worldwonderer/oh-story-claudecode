@@ -247,7 +247,7 @@ function extractProseTargets(command) {
   for (const raw of command.split(/[;&|\n]/)) {
     const segment = raw.split(/\d*[<>]/)[0]
     const words = segment.trim().split(/\s+/).filter(Boolean)
-    if (words.length >= 3 && (words[0] === "cp" || words[0] === "mv")) {
+    if (words.length >= 2 && (words[0] === "cp" || words[0] === "mv")) {
       const positional = words.slice(1).filter((word) => !word.startsWith("-"))
       const destination = positional[positional.length - 1]
       if (destination && destination.includes("正文")) targets.push(destination.replace(/^["']|["']$/g, ""))
@@ -340,10 +340,14 @@ function shellWords(segment) {
 
 function isGitCommitCommand(command) {
   const valueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--super-prefix", "--config-env"])
-  for (const rawSegment of String(command).replace(/\r/g, "").split(/[;&|\n]+/)) {
-    const words = shellWords(rawSegment.replace(/^[\s({]+/, ""))
+  // Flatten subshell/brace grouping to spaces so `(git commit)` / `{ git commit; }` still expose
+  // the git verb; split on separators; skip leading shell wrappers and control words
+  // (then/do/else/elif) so a commit inside if/for/while is detected. Mirrors the Claude bash
+  // oracle validate-story-commit.sh and codex is_git_commit_command.
+  for (const rawSegment of String(command).replace(/\r/g, "").replace(/[(){}]/g, " ").split(/[;&|\n]+/)) {
+    const words = shellWords(rawSegment)
     let i = 0
-    while (i < words.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i]) || ["command", "noglob"].includes(words[i]))) i++
+    while (i < words.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i]) || ["command", "noglob", "then", "do", "else", "elif"].includes(words[i]))) i++
     if (words[i] === "env") {
       i++
       while (i < words.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i]) || ["-i", "--ignore-environment"].includes(words[i]))) i++
@@ -365,7 +369,7 @@ function isGitCommitCommand(command) {
 function stagedMarkdownWarnings(root) {
   let output
   try {
-    output = spawnSync("git", ["-C", root, "-c", "core.quotepath=false", "diff", "--cached", "--name-only", "--diff-filter=ACM", "-z", "--", "."], {
+    output = spawnSync("git", ["-C", root, "-c", "core.quotepath=false", "diff", "--cached", "--relative", "--name-only", "--diff-filter=ACM", "-z", "--", "."], {
       encoding: "buffer",
       stdio: ["ignore", "pipe", "ignore"],
     })
@@ -465,7 +469,9 @@ function isProsePath(absolute) {
   if (base === "正文.md") return fs.existsSync(path.join(path.dirname(absolute), "设定.md"))
   if (parent !== "正文" || !/^第.*章.*\.md$/.test(base)) return false
   const book = path.dirname(path.dirname(absolute))
-  return ["大纲", "追踪", "设定", "设定.md"].some((name) => fs.existsSync(path.join(book, name)))
+  // 大纲/追踪/设定 must be directories; 设定.md a file — matches the bash oracle
+  // check-prose-after-write.sh (`[ -d 大纲 ] || … || [ -f 设定.md ]`).
+  return ["大纲", "追踪", "设定"].some((name) => existingDir(path.join(book, name))) || fs.existsSync(path.join(book, "设定.md"))
 }
 
 function wordcountFinding(absolute, text) {
@@ -555,4 +561,4 @@ function main() {
 
 if (require.main === module) main()
 
-module.exports = { continuityFindings, proseNetFindings }
+module.exports = { continuityFindings, proseNetFindings, extractProseTargets, extractPatchTargets, isGitCommitCommand }

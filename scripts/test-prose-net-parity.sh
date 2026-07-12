@@ -2,11 +2,13 @@
 # test-prose-net-parity.sh — 正文兜底「轻量确定性网」四端 parity 守卫
 # 网在四处各有实现：① Claude check-prose-after-write.sh 内嵌 python；② Codex
 # story_codex_hook.py；③ OpenCode plugin.ts；④ ZCode story_zcode_hook.js。
-# 三份必须同检同放。本测试两层保证：
-#   A. 规范串一致（CI 安全、零运行时依赖）：每条 net 正则/常量/阈值的规范文本必须在三份里都出现，
+# 四份必须同检同放。本测试三层保证：
+#   A. 规范串一致（CI 安全、零运行时依赖）：每条 net 正则/常量/阈值的规范文本必须在四份里都出现，
 #      改一处漏改另一处即 fail——直接锚定漂移（参照 check-hook-regex-sync.sh 的做法）。
-#   B. 功能 parity（best-effort，无 TS 运行时则自跳过）：codex python 网与 opencode TS 网在同一
-#      组 fixture 上逐字相等。
+#   B. 功能 parity（best-effort，无 TS 运行时则自跳过）：codex python 网、opencode TS 网、
+#      zcode JS 网在同一组 fixture 上逐字相等。
+#   C. 命令函数 parity（CI 硬保证）：正文目标抽取、apply-patch 目标、git commit 侦测三个纯函数
+#      在 codex python 与 zcode JS 间逐字相等——锁住此前无守卫、已漂移的手抄逻辑。
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
@@ -132,6 +134,66 @@ JS
   return 0
 }
 
+# ── C. 命令函数 parity（codex python vs zcode JS），CI 硬保证 ─────────────────
+# 正文目标抽取（重定向/tee/touch/cp·mv）、apply-patch 目标、git commit 侦测三个纯函数
+# （命令串 → 值）在下列 fixture 上逐字相等。此前只在 py/js 手抄、无守卫，已漂移（cp·mv
+# 元数、git 控制词 then/do/else/elif、子 shell 括号）。node+python3 在 CI 全平台都在，故为硬门。
+# 注：fixture 取两端已收敛的子集；引号内分隔符（echo "a; git commit"）与命令替换（$(git commit)）
+# 两端本就不等（py 用 shlex 尊重引号，js 裸拆），非本网职责，且只影响 advisory 不影响拦截。
+run_cmd_parity() {
+  command -v node >/dev/null 2>&1 || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  local tmp; tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+  cat > "$tmp/cmd.json" <<'EOF'
+{
+  "redirect": "echo x > book/正文/第1章.md",
+  "append": "cat a >> 正文.md",
+  "tee": "echo x | tee book/正文/第2章.md",
+  "tee_a": "printf y | tee -a 正文.md",
+  "touch": "touch book/正文/第3章.md",
+  "cp": "cp src.md book/正文/第4章.md",
+  "mv2": "mv 正文.md",
+  "cp_flag": "cp -f a.md 正文.md",
+  "mention": "grep -n book/正文/第1章.md notes.md",
+  "patch_add": "*** Begin Patch\n*** Add File: book/正文/第5章.md\n+正文\n*** End Patch",
+  "commit_plain": "git commit -m x",
+  "commit_chain": "git add . && git commit -m x",
+  "commit_if": "if true; then git commit -m x; fi",
+  "commit_for": "for f in *; do git commit -am x; done",
+  "commit_subshell": "(cd sub && git commit)",
+  "commit_env": "FOO=1 git commit",
+  "commit_config": "git -c user.name=x commit",
+  "commit_C": "git -C sub commit -m y",
+  "noncommit_echo": "echo git commit docs",
+  "noncommit_status": "git status && echo done"
+}
+EOF
+  python3 - "$CODEX" "$tmp/cmd.json" > "$tmp/cpy.txt" <<'PY'
+import importlib.util, sys, json
+spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+fx = json.load(open(sys.argv[2], encoding='utf-8'))
+for k in sorted(fx):
+    c = fx[k]
+    line = f"{k} :: pros=[{'|'.join(m.extract_prose_targets_from_command(c))}] patch=[{'|'.join(m.extract_apply_patch_targets(c))}] commit={'1' if m.is_git_commit_command(c) else '0'}"
+    sys.stdout.buffer.write((line + "\n").encode("utf-8"))
+PY
+  node - "$ZCODE" "$tmp/cmd.json" > "$tmp/cjs.txt" <<'JS'
+const h = require(process.argv[2])
+const fx = require(process.argv[3])
+for (const k of Object.keys(fx).sort()) {
+  const c = fx[k]
+  console.log(`${k} :: pros=[${h.extractProseTargets(c).join("|")}] patch=[${h.extractPatchTargets(c).join("|")}] commit=${h.isGitCommitCommand(c) ? "1" : "0"}`)
+}
+JS
+  if ! diff "$tmp/cpy.txt" "$tmp/cjs.txt" >/dev/null; then
+    echo "FAIL: 命令函数 parity 不一致（codex python vs zcode JS）：" >&2
+    diff "$tmp/cpy.txt" "$tmp/cjs.txt" >&2 || true
+    return 3
+  fi
+  return 0
+}
+
 set +e
 run_functional
 rc=$?
@@ -139,6 +201,16 @@ set -e
 case "$rc" in
   0) echo "功能 parity：codex python 网 == opencode TS 网 == zcode JS 网（9 fixtures 逐字相等）。" ;;
   2) echo "功能 parity：跳过（无 TS 运行时；规范串检查已给 CI 安全保证）。" ;;
+  *) fails=$((fails + 1)) ;;
+esac
+
+set +e
+run_cmd_parity
+rc_cmd=$?
+set -e
+case "$rc_cmd" in
+  0) echo "命令函数 parity：codex python == zcode JS（20 fixtures：正文抽取/apply-patch/git commit 侦测逐字相等）。" ;;
+  1) echo "命令函数 parity：跳过（无 node/python3 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac
 
