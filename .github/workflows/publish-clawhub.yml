@@ -4,7 +4,8 @@ name: Publish skills to ClawHub
 #   - pushing a version tag (v*)
 #   - publishing a GitHub Release
 #   - manual "Run workflow" button (with optional dry-run / bump / changelog)
-#   - PRs that edit THIS file → runs auth + a dry-run only (never publishes), as a self-test
+#   - PRs that edit THIS file → secretless workflow/skill validation only
+# Pull requests never enter the authenticated job, including same-repo branches.
 # story and browser-cdp are published manually and excluded here.
 on:
   push:
@@ -38,16 +39,41 @@ permissions:
   contents: read
 
 jobs:
-  publish:
-    # Only the canonical repo may publish; skip on forks.
-    if: github.repository == 'worldwonderer/oh-story-claudecode'
+  pr-validation:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Current clawhub declares engines.node >=22.
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install ClawHub CLI
+        run: npm install -g clawhub
+      - name: Validate secretless PR surface
+        run: |
+          clawhub --help >/dev/null
+          bash scripts/check-openclaw-skills.sh
+
+  publish:
+    # Never expose CLAWHUB_TOKEN to pull-request-controlled code, even when the
+    # branch lives in the canonical repository.
+    if: >-
+      github.repository == 'worldwonderer/oh-story-claudecode' &&
+      github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Current clawhub declares engines.node >=22.
+          node-version: 24
 
       - name: Install ClawHub CLI
         run: npm install -g clawhub
@@ -79,8 +105,7 @@ jobs:
         run: clawhub --no-input sync --dry-run --bump "${{ github.event.inputs.bump || 'patch' }}"
 
       - name: Publish changed skills
-        # Never publishes on pull_request events — those only run the dry-run above.
-        if: github.event_name != 'pull_request' && github.event.inputs.dry_run != 'true'
+        if: github.event.inputs.dry_run != 'true'
         run: |
           clawhub --no-input sync --all \
             --bump "${{ github.event.inputs.bump || 'patch' }}" \

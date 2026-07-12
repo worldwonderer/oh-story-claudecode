@@ -5,8 +5,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ROOT="$REPO_ROOT/skills/story-setup/references/opencode"
-SYNC_LOG="$(mktemp)"
-trap 'rm -f "$SYNC_LOG"' EXIT
+TMP_DIR="$(mktemp -d)"
+SYNC_LOG="$TMP_DIR/sync.log"
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 assert_file() { [ -f "$1" ] || fail "required file missing: $1"; }
@@ -40,16 +41,57 @@ PY
 
 echo "  OK config patch"
 
-python3 scripts/sync-opencode.py >"$SYNC_LOG" 2>&1
-if [ -n "$(git status --porcelain skills/story-setup/references/opencode/)" ]; then
+# Snapshot the generated surface so --check itself is held to its read-only contract,
+# including when a developer already has unrelated worktree changes.
+cp -R "$ROOT" "$TMP_DIR/opencode-before"
+if ! python3 scripts/sync-opencode.py --check >"$SYNC_LOG" 2>&1; then
   cat "$SYNC_LOG" >&2 || true
   echo "::error::OpenCode templates are out of sync with Claude Code templates." >&2
   echo "::error::Run 'python3 scripts/sync-opencode.py' locally and commit the changes." >&2
-  git diff -- skills/story-setup/references/opencode/ >&2 || true
   exit 1
 fi
+diff -qr "$TMP_DIR/opencode-before" "$ROOT" >/dev/null \
+  || fail "sync-opencode.py --check modified generated files"
 
-echo "  OK generated OpenCode templates are in sync"
+echo "  OK generated OpenCode templates are in sync (--check stayed read-only)"
+
+python3 - "scripts/sync-opencode.py" "$TMP_DIR" <<'PY'
+import importlib.util
+import sys
+from pathlib import Path
+
+script_path = Path(sys.argv[1]).resolve()
+tmp = Path(sys.argv[2]) / "opencode-transaction"
+spec = importlib.util.spec_from_file_location("sync_opencode", script_path)
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+
+src = tmp / "skills/story-setup/references/templates/agents"
+dst = tmp / "skills/story-setup/references/opencode/agents"
+src.mkdir(parents=True)
+dst.mkdir(parents=True)
+(src / "a.md").write_text(
+    "---\nname: a\ndescription: valid first fixture\ntools: [Read]\n---\nbody\n",
+    encoding="utf-8",
+)
+(src / "b.md").write_text("missing frontmatter\n", encoding="utf-8")
+(dst / "a.md").write_text("keep old a\n", encoding="utf-8")
+(dst / "sentinel.md").write_text("keep sentinel\n", encoding="utf-8")
+before = {path.name: path.read_bytes() for path in dst.iterdir()}
+module.ROOT = tmp
+try:
+    module.sync_agents(check=False)
+except ValueError:
+    pass
+else:
+    raise SystemExit("sync-opencode must reject malformed agent source")
+after = {path.name: path.read_bytes() for path in dst.iterdir()}
+if after != before:
+    raise SystemExit("sync-opencode modified destination before validating all sources")
+PY
+
+echo "  OK malformed source cannot partially update generated agents"
 
 python3 - <<'PY'
 from pathlib import Path

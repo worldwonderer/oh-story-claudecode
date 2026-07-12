@@ -63,29 +63,48 @@ PR 自动运行 `.github/workflows/cross-platform.yml`。static-check job 跑以
 - `scripts/check-hook-regex-sync.sh` — hook 伏笔状态检测行为
 - `scripts/check-shared-files.sh` — 跨 skill 同名副本字节一致性
 - `scripts/check-story-setup-deployment.sh` — story-setup 部署完整性
+- `scripts/check-claude-adapter.sh` — Claude marketplace 与 skill 映射检查
 - `scripts/check-opencode-adapter.sh` — OpenCode adapter 同步、commands/agents/plugin/config 锚点检查
 - `scripts/check-openclaw-skills.sh` — OpenClaw 单行 frontmatter、`metadata.openclaw` 与可选真实 CLI 发现检查
 - `scripts/check-codex-adapter.sh` — Codex repo skills symlink、custom-agent TOML（schema + 生成确定性）与 hooks 锚点检查
 - `scripts/test-codex-hooks.sh` — Codex hooks 合成事件测试
 - 采集脚本 `node --check` 语法校验
 
-以上为代表性列举；**强制清单按 `.github/workflows/cross-platform.yml` 为准**，每个脚本的用途与触发时机见 [scripts/README.md](scripts/README.md)。`scripts/test-opencode-cli-e2e.sh` 需本机安装 opencode，**不在 CI**，只在本地可选运行（见下）。
+以上为代表性列举；**强制清单按 `.github/workflows/cross-platform.yml` 为准**，每个脚本的用途与触发时机见 [scripts/README.md](scripts/README.md)。另有 `.github/workflows/cli-compat.yml` 在相关 PR、每周定时和手动触发时安装官方当前版本，真实运行 Claude Code、Codex、OpenCode、OpenClaw 的无鉴权 smoke。
 
 另有 windows / macos job 验证 cdp-utils 加载与 setup 脚本 dry-run。
 
-提交前建议本地全部跑一遍：
+提交前建议按 Linux CI 的强制清单本地跑一遍：
 
 ```bash
 bash scripts/static-check.sh
 bash scripts/check-hook-regex-sync.sh
 bash scripts/check-shared-files.sh
+bash scripts/test-ai-patterns.sh
+bash scripts/test-degeneration.sh
+bash scripts/test-prose-backstop-hook.sh
+bash scripts/test-prose-net-parity.sh
+bash scripts/test-story-continuity.sh
 bash scripts/check-story-setup-deployment.sh
-bash scripts/check-opencode-adapter.sh
-bash scripts/test-opencode-cli-e2e.sh  # 可选：本机已安装 opencode 时运行
-bash scripts/check-openclaw-skills.sh
+bash scripts/check-claude-adapter.sh
 bash scripts/check-codex-adapter.sh
+bash scripts/check-opencode-adapter.sh
+bash scripts/check-openclaw-skills.sh
 bash scripts/test-codex-hooks.sh
+bash scripts/check-python-invocation.sh
+bash scripts/check-hook-locale-safety.sh
+bash scripts/test-hook-encoding-portable.sh
+bash scripts/test-charcount-portable.sh
+bash scripts/test-charcount-portable.sh --stub
+
+# 可选真实 CLI smoke（需分别安装对应 CLI）
+CLAUDE_REAL_CHECK=1 bash scripts/check-claude-adapter.sh
+bash scripts/test-codex-cli-e2e.sh
+bash scripts/test-opencode-cli-e2e.sh
+OPENCLAW_REAL_CHECK=1 bash scripts/check-openclaw-skills.sh
 ```
+
+涉及 agent/skill/plugin/hook 协议的断言必须先核对对应项目官方文档，再以真实 CLI 输出复核；不要从其他 agent 的相似字段推断。
 
 ## 共享文件规范
 
@@ -132,7 +151,8 @@ fork → branch → commit → PR → review → merge
 ### 同步步骤
 
 ```bash
-python scripts/sync-opencode.py
+python3 scripts/sync-opencode.py
+python3 scripts/sync-opencode.py --check  # 可选：只校验，不改文件
 bash scripts/check-opencode-adapter.sh
 bash scripts/test-opencode-cli-e2e.sh  # 可选：需要本机已安装 opencode
 ```

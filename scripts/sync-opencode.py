@@ -4,7 +4,7 @@
 Scans templates/agents/*.md, converts frontmatter to opencode format,
 and writes to opencode/agents/. Also syncs CLAUDE.md.tmpl -> AGENTS.md.tmpl.
 """
-import os
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -156,6 +156,11 @@ def fix_path_rules_section(body: str) -> str:
     2-step opencode path resolution (skills/ first, .opencode/skills/ fallback).
     This is idempotent — running multiple times produces the same output.
     """
+    # Some agents do not read reference files and intentionally have no such
+    # section. Only warn when the section marker exists but its shape drifted.
+    if "参考文件路径规则" not in body:
+        return body
+
     pattern = r'(## 参考文件路径规则\s*\*\*确定项目根目录：\*\*.*?\s*)读取参考文件时.*?(?=\s*禁止只读|\r?\n## )'
 
     replacement = (
@@ -173,65 +178,120 @@ def fix_path_rules_section(body: str) -> str:
     return new_body
 
 
-def sync_agents():
+def sync_file(dst: Path, output: str, check: bool) -> tuple[str, bool]:
+    """Write one generated file, or compare it without mutating in check mode."""
+    old_content = dst.read_text(encoding="utf-8") if dst.exists() else None
+    if old_content == output:
+        return "unchanged", False
+    if check:
+        return "missing" if old_content is None else "stale", True
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(output, encoding="utf-8", newline="\n")
+    return "created" if old_content is None else "updated", True
+
+
+def sync_agents(check: bool = False) -> tuple[list[str], bool]:
     """Sync all agent files from templates to opencode format."""
     src_dir = ROOT / "skills/story-setup/references/templates/agents"
     dst_dir = ROOT / "skills/story-setup/references/opencode/agents"
-    dst_dir.mkdir(parents=True, exist_ok=True)
+    sources = sorted(src_dir.glob("*.md"))
+    if not sources:
+        raise RuntimeError(f"no agent markdown files found in {src_dir}")
+    if not check:
+        dst_dir.mkdir(parents=True, exist_ok=True)
 
     results = []
-    for md_file in sorted(src_dir.glob("*.md")):
+    changed = False
+    expected_names = {path.name for path in sources}
+    prepared: list[tuple[Path, str]] = []
+    for md_file in sources:
         content = md_file.read_text(encoding="utf-8")
         fm, body = parse_frontmatter(content)
+        name = str(fm.get("name", "")).strip()
+        description = str(fm.get("description", "")).strip()
+        if not name:
+            raise ValueError(f"{md_file}: missing agent name")
+        if name != md_file.stem:
+            raise ValueError(
+                f"{md_file}: agent name {name!r} must match filename {md_file.stem!r}"
+            )
+        if not description:
+            raise ValueError(f"{md_file}: missing agent description")
         new_fm = convert_claude_to_opencode(fm)
         new_body = replace_claude_paths(body)
         new_body = fix_path_rules_section(new_body)  # 覆盖路径规则段的错误替换
         output = format_frontmatter(new_fm) + new_body
         output = output.rstrip("\n") + "\n"  # 规范行尾为单个换行，避免 EOF 空行
+        prepared.append((dst_dir / md_file.name, output))
 
-        dst_file = dst_dir / md_file.name
-        old_content = dst_file.read_text(encoding="utf-8") if dst_file.exists() else ""
-        dst_file.write_text(output, encoding="utf-8", newline="\n")
+    # Validate/render every source before the first write so a malformed later
+    # template cannot leave a partially synchronized destination.
+    for dst_file, output in prepared:
+        status, file_changed = sync_file(dst_file, output, check)
+        changed = changed or file_changed
+        results.append(f"  [{status}] {dst_file.name}")
 
-        status = "updated" if old_content and old_content != output else "created" if not old_content else "unchanged"
-        results.append(f"  [{status}] {md_file.name}")
+    for stale in sorted(dst_dir.glob("*.md")):
+        if stale.name in expected_names:
+            continue
+        changed = True
+        if check:
+            results.append(f"  [extra] {stale.name}")
+        else:
+            stale.unlink()
+            results.append(f"  [deleted] {stale.name}")
 
-    return results
+    return results, changed
 
 
-def sync_agents_md():
+def sync_agents_md(check: bool = False) -> tuple[str, bool]:
     """Sync CLAUDE.md.tmpl to opencode/AGENTS.md.tmpl."""
     src = ROOT / "skills/story-setup/references/templates/CLAUDE.md.tmpl"
     dst = ROOT / "skills/story-setup/references/opencode/AGENTS.md.tmpl"
-    dst.parent.mkdir(parents=True, exist_ok=True)
+    if not src.is_file():
+        raise RuntimeError(f"source template not found: {src}")
 
     content = src.read_text(encoding="utf-8")
     new_content = replace_claude_paths(content)
     new_content = new_content.rstrip("\n") + "\n"  # 规范行尾为单个换行，避免 EOF 空行
 
-    old_content = dst.read_text(encoding="utf-8") if dst.exists() else ""
-    dst.write_text(new_content, encoding="utf-8", newline="\n")
-
-    status = "updated" if old_content and old_content != new_content else "created" if not old_content else "unchanged"
-    return f"  [{status}] AGENTS.md.tmpl"
+    status, changed = sync_file(dst, new_content, check)
+    return f"  [{status}] AGENTS.md.tmpl", changed
 
 
-def main():
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="verify generated files without modifying the working tree",
+    )
+    args = parser.parse_args()
+
     print("=== opencode sync script ===\n")
     print("1. Syncing agents...")
-    agent_results = sync_agents()
+    agent_results, agents_changed = sync_agents(check=args.check)
     for r in agent_results:
         print(r)
 
     print("\n2. Syncing AGENTS.md.tmpl...")
-    print(sync_agents_md())
+    agents_md_result, agents_md_changed = sync_agents_md(check=args.check)
+    print(agents_md_result)
+
+    if args.check:
+        if agents_changed or agents_md_changed:
+            print("\nERROR: generated OpenCode templates are out of sync.", file=sys.stderr)
+            return 1
+        print("\nOK: generated OpenCode templates are in sync.")
+        return 0
 
     print("\n3. Manual maintenance required:")
     print("  - skills/story-setup/references/opencode/plugin.ts (hooks logic)")
     print("  - skills/story-setup/references/opencode/commands/ (slash commands)")
     print("  - skills/story-setup/references/opencode/opencode.json.patch (config fragment)")
     print("\nDone.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

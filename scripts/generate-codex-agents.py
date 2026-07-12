@@ -11,6 +11,7 @@ import argparse
 import re
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 READ_ONLY_AGENTS = {"chapter-extractor", "consistency-checker", "story-explorer"}
 NICKNAMES = {
     "chapter-extractor": ["Chapter Extractor", "Scene Splitter"],
@@ -107,7 +108,8 @@ def adapt_body_for_codex(body: str, name: str) -> str:
     )
 
 
-def convert_file(src: Path, dst_dir: Path) -> Path:
+def render_file(src: Path) -> tuple[str, str]:
+    """Validate and render one source without touching the destination."""
     text = src.read_text(encoding="utf-8")
     meta, body = parse_frontmatter(text)
     name = meta.get("name") or src.stem
@@ -123,28 +125,46 @@ def convert_file(src: Path, dst_dir: Path) -> Path:
     if name in READ_ONLY_AGENTS:
         out.append('sandbox_mode = "read-only"')
     out.append(f"developer_instructions = {toml_basic_string(instructions)}")
-    dst = dst_dir / f"{name}.toml"
-    dst.write_text("\n".join(out) + "\n", encoding="utf-8")
-    return dst
+    return f"{name}.toml", "\n".join(out) + "\n"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--source",
-        default="skills/story-setup/references/templates/agents",
+        type=Path,
+        default=REPO_ROOT / "skills/story-setup/references/templates/agents",
         help="Claude agent template directory",
     )
     parser.add_argument(
         "--dest",
-        default="skills/story-setup/references/codex/agents",
+        type=Path,
+        default=REPO_ROOT / "skills/story-setup/references/codex/agents",
         help="Codex TOML output directory",
     )
     args = parser.parse_args()
-    src_dir = Path(args.source)
-    dst_dir = Path(args.dest)
+    src_dir = args.source
+    dst_dir = args.dest
+    if not src_dir.is_dir():
+        parser.error(f"source directory does not exist: {src_dir}")
+    sources = sorted(src_dir.glob("*.md"))
+    if not sources:
+        parser.error(f"source directory contains no agent markdown files: {src_dir}")
+    # Render every source before the first destination write. A malformed later
+    # template must not leave a half-updated generated directory.
+    rendered: dict[str, str] = {}
+    for path in sources:
+        filename, output = render_file(path)
+        if filename in rendered:
+            raise ValueError(f"duplicate generated agent filename: {filename}")
+        rendered[filename] = output
+
     dst_dir.mkdir(parents=True, exist_ok=True)
-    generated = [convert_file(path, dst_dir) for path in sorted(src_dir.glob("*.md"))]
+    generated = []
+    for filename, output in rendered.items():
+        dst = dst_dir / filename
+        dst.write_text(output, encoding="utf-8")
+        generated.append(dst)
     for stale in dst_dir.glob("*.toml"):
         if stale not in generated:
             stale.unlink()

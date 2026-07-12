@@ -51,8 +51,42 @@ checked=0
 echo "Shared File Consistency Check"
 echo "=============================="
 
+# Only inspect repository content plus non-ignored additions. Runtime state such
+# as **/.omc/ may live below references/ on a developer machine, but it is not a
+# skill asset and must not make this guard disagree with a clean CI checkout.
+list_asset_files() {
+  local asset_dir="$1"
+  git -C "$REPO_ROOT" ls-files -z --cached --others --exclude-standard -- skills |
+    while IFS= read -r -d '' rel_path; do
+      [ -f "$REPO_ROOT/$rel_path" ] || continue
+      case "$rel_path" in
+        skills/*/"$asset_dir"/*) printf '%s\n' "$REPO_ROOT/$rel_path" ;;
+      esac
+    done
+}
+
+REFERENCE_FILES="$(list_asset_files references)"
+SCRIPT_FILES="$(list_asset_files scripts)"
+
+list_reference_basenames() {
+  local path
+  while IFS= read -r path; do
+    case "$path" in
+      */.gitkeep|*/opencode/*) ;;
+      *) printf '%s\n' "${path##*/}" ;;
+    esac
+  done <<< "$REFERENCE_FILES"
+}
+
+list_script_basenames() {
+  local path
+  while IFS= read -r path; do
+    [ "${path##*/}" = .gitkeep ] || printf '%s\n' "${path##*/}"
+  done <<< "$SCRIPT_FILES"
+}
+
 # Find all reference basenames that appear in 2+ skills
-dup_names="$(find "$SKILLS_DIR" -type f -path '*/references/*' ! -name '.gitkeep' ! -path '*/opencode/*' -exec basename {} \; 2>/dev/null | sort | uniq -d)"
+dup_names="$(list_reference_basenames | sort | uniq -d)"
 
 for base in $dup_names; do
   # Skip known intentional differences
@@ -70,8 +104,8 @@ for base in $dup_names; do
   paths=()
   while IFS= read -r fpath; do
     [ -z "$fpath" ] && continue
-    paths+=("$fpath")
-  done < <(find "$SKILLS_DIR" -type f -path '*/references/*' -name "$base" 2>/dev/null)
+    [ "${fpath##*/}" = "$base" ] && paths+=("$fpath")
+  done <<< "$REFERENCE_FILES"
 
   # Analyst-divergent basenames: drop the story-short-analyze copy (intentional
   # analyst-lens fork); the remaining copies must still be byte-identical.
@@ -131,14 +165,14 @@ done
 # Script copies are also skill-local assets. If two skills carry the same script
 # basename, treat them as managed copies and require byte identity. This avoids
 # cross-skill file references while still catching drift between duplicated tools.
-script_dup_names="$(find "$SKILLS_DIR" -type f -path '*/scripts/*' ! -name '.gitkeep' -exec basename {} \; 2>/dev/null | sort | uniq -d)"
+script_dup_names="$(list_script_basenames | sort | uniq -d)"
 
 for base in $script_dup_names; do
   paths=()
   while IFS= read -r fpath; do
     [ -z "$fpath" ] && continue
-    paths+=("$fpath")
-  done < <(find "$SKILLS_DIR" -type f -path '*/scripts/*' -name "$base" 2>/dev/null)
+    [ "${fpath##*/}" = "$base" ] && paths+=("$fpath")
+  done <<< "$SCRIPT_FILES"
 
   if [ ${#paths[@]} -lt 2 ]; then
     continue

@@ -87,6 +87,38 @@ python3 scripts/generate-codex-agents.py --dest "$TMP_DIR/agents" >/dev/null
 diff -qr "$TMP_DIR/agents" "$CODEX_DIR/agents" >/dev/null \
   || fail "generated Codex agents are stale; run scripts/generate-codex-agents.py"
 
+# A missing/empty source must fail before touching the destination. Otherwise a
+# typo in --source silently prunes every generated TOML while returning success.
+mkdir -p "$TMP_DIR/empty-source" "$TMP_DIR/safe-dest"
+printf 'keep\n' > "$TMP_DIR/safe-dest/sentinel.toml"
+if python3 scripts/generate-codex-agents.py \
+  --source "$TMP_DIR/empty-source" --dest "$TMP_DIR/safe-dest" >/dev/null 2>&1; then
+  fail "Codex generator must reject an empty source directory"
+fi
+assert_file "$TMP_DIR/safe-dest/sentinel.toml"
+
+# A malformed later source must also fail before any earlier valid source is
+# written. This locks the generator's validate-all-then-write behavior.
+mkdir -p "$TMP_DIR/malformed-source" "$TMP_DIR/transactional-dest"
+cat >"$TMP_DIR/malformed-source/a.md" <<'EOF'
+---
+name: a
+description: valid first fixture
+---
+body
+EOF
+printf 'missing frontmatter\n' >"$TMP_DIR/malformed-source/b.md"
+printf 'keep old a\n' >"$TMP_DIR/transactional-dest/a.toml"
+printf 'keep sentinel\n' >"$TMP_DIR/transactional-dest/sentinel.toml"
+cp -R "$TMP_DIR/transactional-dest" "$TMP_DIR/transactional-before"
+if python3 scripts/generate-codex-agents.py \
+  --source "$TMP_DIR/malformed-source" \
+  --dest "$TMP_DIR/transactional-dest" >/dev/null 2>&1; then
+  fail "Codex generator must reject malformed agent source"
+fi
+diff -qr "$TMP_DIR/transactional-before" "$TMP_DIR/transactional-dest" >/dev/null \
+  || fail "Codex generator modified destination before validating all sources"
+
 python3 - <<'PY'
 import tomllib
 from pathlib import Path

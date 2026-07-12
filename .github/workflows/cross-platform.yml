@@ -1,14 +1,20 @@
 name: Cross-platform smoke test
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   static-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22.6+ lets test-prose-net-parity execute plugin.ts directly
+          # instead of silently falling back to string-anchor checks only.
+          node-version: 22
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
@@ -30,6 +36,8 @@ jobs:
         run: bash scripts/test-story-continuity.sh
       - name: Check story-setup deployment
         run: bash scripts/check-story-setup-deployment.sh
+      - name: Check Claude Code adapter
+        run: bash scripts/check-claude-adapter.sh
       - name: Check Codex adapter
         run: bash scripts/check-codex-adapter.sh
       - name: Check OpenCode adapter
@@ -61,6 +69,7 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -112,6 +121,7 @@ jobs:
 
   macos:
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -130,6 +140,8 @@ jobs:
         run: bash scripts/test-prose-net-parity.sh
       - name: Story continuity backstop regression
         run: bash scripts/test-story-continuity.sh
+      - name: Check shared-file consistency (macOS Bash 3)
+        run: bash scripts/check-shared-files.sh
       - name: Check Codex adapter
         run: bash scripts/check-codex-adapter.sh
       - name: Test Codex hook adapter
