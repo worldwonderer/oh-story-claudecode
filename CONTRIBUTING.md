@@ -228,7 +228,7 @@ bash scripts/test-zcode-hooks.sh
 bash scripts/test-prose-net-parity.sh
 ```
 
-更新正文轻量确定性网时，必须同步 Claude、OpenCode、Codex、ZCode 四端，并让 parity 测试通过。平台规范和 3.3.4 能力边界的证据见 [`docs/research/issue-211-zcode.md`](docs/research/issue-211-zcode.md)。
+更新正文轻量确定性网时，必须同步 Claude、OpenCode、Codex、ZCode 四端，并让 parity 测试通过。
 
 ## Codex 适配维护
 
