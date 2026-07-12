@@ -133,11 +133,18 @@ if [ "${OPENCLAW_REAL_CHECK:-0}" = "1" ]; then
   TMP_DIR="$(mktemp -d)"
   PROFILE="ohstory-check-$$"
   cleanup() {
-    rm -rf "$TMP_DIR" "$HOME/.openclaw-$PROFILE"
+    rm -rf "$TMP_DIR"
   }
   trap cleanup EXIT
 
+  # Official OpenClaw path overrides keep profiles, config, credentials, and
+  # sessions inside the disposable test root instead of the caller's HOME.
+  export OPENCLAW_HOME="$TMP_DIR/home"
+  export OPENCLAW_STATE_DIR="$TMP_DIR/state"
+  export OPENCLAW_CONFIG_PATH="$TMP_DIR/state/openclaw.json"
+
   mkdir -p "$TMP_DIR/workspace"
+  echo "  OpenClaw: $(openclaw --version)"
   cp -R "$SKILLS_DIR" "$TMP_DIR/workspace/skills"
   # Exercise the documented top-level metadata.openclaw.os gate with a platform
   # that intentionally excludes the current runner.

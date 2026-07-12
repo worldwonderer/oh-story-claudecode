@@ -16,20 +16,44 @@ command -v codex >/dev/null 2>&1 \
   || fail "codex CLI not found on PATH. Install with: npm install -g @openai/codex"
 
 mkdir -p "$TMP_ROOT/home/.codex"
+WORKSPACE="$TMP_ROOT/workspace"
+mkdir -p "$WORKSPACE/.agents" "$WORKSPACE/.codex/agents" "$WORKSPACE/.codex/hooks"
+cp -R "$REPO_ROOT/skills" "$WORKSPACE/skills"
+ln -s ../skills "$WORKSPACE/.agents/skills"
+cp "$REPO_ROOT"/skills/story-setup/references/codex/agents/*.toml \
+  "$WORKSPACE/.codex/agents/"
+cp "$REPO_ROOT/skills/story-setup/references/codex/hooks/hooks.json" \
+  "$WORKSPACE/.codex/hooks.json"
+cp "$REPO_ROOT/skills/story-setup/references/codex/hooks/story_codex_hook.py" \
+  "$WORKSPACE/.codex/hooks/"
+cp "$REPO_ROOT/skills/story-setup/references/codex/AGENTS.md.tmpl" \
+  "$WORKSPACE/AGENTS.md"
+git -C "$WORKSPACE" init -q
+python3 - "$TMP_ROOT/home/.codex/config.toml" "$WORKSPACE" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+Path(sys.argv[1]).write_text(
+    f"[projects.{json.dumps(sys.argv[2])}]\ntrust_level = \"trusted\"\n",
+    encoding="utf-8",
+)
+PY
 
 echo "Codex CLI E2E"
 echo "============="
 echo "Repo: $REPO_ROOT"
 echo "Codex: $(command -v codex) ($(codex --version))"
-echo "  Checking isolated repo-local skill discovery"
+echo "  Checking isolated deployed project (skills + agents + hooks)"
 
 HOME="$TMP_ROOT/home" CODEX_HOME="$TMP_ROOT/home/.codex" \
-  codex -C "$REPO_ROOT" debug prompt-input >"$TMP_ROOT/prompt-input.json"
+  codex -C "$WORKSPACE" debug prompt-input >"$TMP_ROOT/prompt-input.json"
 
-python3 - "$TMP_ROOT/prompt-input.json" "$REPO_ROOT" "$EXPECTED_COUNT" <<'PY'
+python3 - "$TMP_ROOT/prompt-input.json" "$WORKSPACE" "$EXPECTED_COUNT" <<'PY'
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 output_path = Path(sys.argv[1])
@@ -70,7 +94,20 @@ extra = sorted(discovered - set(expected))
 if extra:
     raise SystemExit(f"Codex discovered unexpected repository skills: {extra}")
 
+agents = sorted((repo_root / ".codex/agents").glob("*.toml"))
+if len(agents) != 7:
+    raise SystemExit(f"deployed fixture error: expected 7 custom agents, found {len(agents)}")
+for path in agents:
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    for key in ("name", "description", "developer_instructions"):
+        if not data.get(key):
+            raise SystemExit(f"{path}: missing required custom-agent field {key}")
+hooks = json.loads((repo_root / ".codex/hooks.json").read_text(encoding="utf-8"))
+if not hooks.get("hooks"):
+    raise SystemExit("deployed fixture error: .codex/hooks.json has no hooks")
+
 print(f"    OK Codex discovered all {len(expected)} repository skills")
+print(f"    OK isolated fixture includes {len(agents)} custom agents and hook configuration")
 PY
 
 echo "OK: Codex CLI E2E passed"
