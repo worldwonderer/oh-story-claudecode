@@ -10,7 +10,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 ---
 
-> 运行环境兼容性：Claude Code / OpenCode / Codex / OpenClaw 是内置适配目标；NarraFork、Web AI、自定义 Agent 等能读取项目文件的环境，可按本 skill 执行长篇流程。检查专业 agent 时按 `.claude/agents/{agent}.md` → `.opencode/agents/{agent}.md` → `.codex/agents/{agent}.toml` 查找；找不到、或 Codex 返回 `unknown agent_type` 时，直接 solo/direct 执行并报告 fallback。
+> 运行环境兼容性：Claude Code / OpenCode / Codex / ZCode / OpenClaw 是内置适配目标；NarraFork、Web AI、自定义 Agent 等能读取项目文件的环境，可按本 skill 执行长篇流程。检查专业 agent 时按 `.claude/agents/{agent}.md` → `.opencode/agents/{agent}.md` → `.codex/agents/{agent}.toml` 查找；找不到、Codex 返回 `unknown agent_type`，或检测到 `.zcode/`（ZCode 3.3.4 不执行项目 custom agents）时，直接 solo/direct 执行并报告 fallback。
 
 ## 核心方法
 

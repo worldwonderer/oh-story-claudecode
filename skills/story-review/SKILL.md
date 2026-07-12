@@ -27,7 +27,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 1. **确定请求模式**：解析用户输入中的 `full`、`lean`、`solo`；未指定时目标模式为 `full`。
 2. **确认是否允许 spawn**：如果当前已经在子代理/Agent 内执行，不再递归 spawn，直接降级为 `solo`。
-3. **检查核心 Agent 部署状态**（检查项目内 agents，同时兼容 Claude Code、OpenCode 和 Codex）：
+3. **识别 ZCode 能力边界**：如果当前运行于 ZCode 且项目使用 `.zcode/`，ZCode 3.3.4 不执行项目/plugin custom agents；不要因为磁盘上存在其他端的 agent 文件就尝试同名 spawn，直接降级 `solo` 并报告 `Fallback: project custom agents unavailable -> solo`。
+4. **检查核心 Agent 部署状态**（检查项目内 agents，同时兼容 Claude Code、OpenCode 和 Codex）：
    - 优先检查 `.claude/agents/`，其次检查 `.opencode/agents/`，再检查 `.codex/agents/`；三个目录任一存在即视为已部署
     - full 必需：Claude/OpenCode 为 `story-architect.md`、`character-designer.md`、`narrative-writer.md`、`consistency-checker.md`；Codex 为同名 `.toml`
     - lean 必需：Claude/OpenCode 为 `story-architect.md`、`consistency-checker.md`；Codex 为同名 `.toml`
@@ -37,10 +38,10 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
       - **Codex agent（`.codex/agents/`）**：文件名为 `{agent}.toml`，TOML 必须可解析，且包含 `name`、`description`、`developer_instructions`；`name` 必须与目标 agent 完全一致。
     - 如果 `.story-deployed` 存在且 `agents_version` 缺失或小于 `17`，视为 stale deployment；不要 spawn，降级 `solo`，建议用户重新运行 `/story-setup`。
    - 如果目标模式所需任一文件缺失或 malformed，**不要尝试 spawn 缺失/异常 Agent**；自动降级为 `solo`，并在报告开头写明：`Fallback: missing agents -> solo` 或 `Fallback: malformed agents -> solo`，列出问题文件，建议用户运行 `/story-setup`。
-4. **确认 Agent/Task 工具可用**：如果当前环境没有可用的子 Agent/Task 调用能力，直接降级为 `solo`，报告 `Fallback: agent tool unavailable -> solo`。
-5. **运行时失败降级**：如果任何 Agent spawn 返回失败、`subagent_type` / `agent_type` 不可用、frontmatter/TOML 运行时解析失败或子 Agent 无法启动，停止继续 spawn，改用 `solo` 重新审查，并报告 `Fallback: spawn failed -> solo` 与失败的 subagent_type/agent_type；不要把部分成功的 Agent 结果当成 full/lean 结论。
-6. **确定实际模式**：报告中必须同时列出 `Requested Mode` 与 `Effective Mode`。
-7. **禁止把 `.active-book` 当作平台来源**：`.active-book` 只表示当前书名/目录名，不代表目标平台。
+5. **确认 Agent/Task 工具可用**：如果当前环境没有可用的子 Agent/Task 调用能力，直接降级为 `solo`，报告 `Fallback: agent tool unavailable -> solo`。
+6. **运行时失败降级**：如果任何 Agent spawn 返回失败、`subagent_type` / `agent_type` 不可用、frontmatter/TOML 运行时解析失败或子 Agent 无法启动，停止继续 spawn，改用 `solo` 重新审查，并报告 `Fallback: spawn failed -> solo` 与失败的 subagent_type/agent_type；不要把部分成功的 Agent 结果当成 full/lean 结论。
+7. **确定实际模式**：报告中必须同时列出 `Requested Mode` 与 `Effective Mode`。
+8. **禁止把 `.active-book` 当作平台来源**：`.active-book` 只表示当前书名/目录名，不代表目标平台。
 
 ---
 
@@ -55,7 +56,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 ```md
 Requested Mode: full | lean | solo
 Effective Mode: full | lean | solo
-Fallback: none | missing agents -> solo | malformed agents -> solo | stale agents -> solo | agent tool unavailable -> solo | spawn failed -> solo | subagent recursion guard -> solo
+Fallback: none | project custom agents unavailable -> solo | missing agents -> solo | malformed agents -> solo | stale agents -> solo | agent tool unavailable -> solo | spawn failed -> solo | subagent recursion guard -> solo
 Rubric: fanqie | qidian | zhihu | generic web-fiction
 Rubric Source: file | embedded fallback
 ```
@@ -66,8 +67,9 @@ Rubric Source: file | embedded fallback
 1. `{项目根}/.claude/skills/{规范路径}`（Claude Code 项目内安装）
 2. `{项目根}/.opencode/skills/{规范路径}`（OpenCode 项目内安装）
 3. `{项目根}/.codex/skills/{规范路径}`（Codex 项目内安装）
-4. `{项目根}/skills/{规范路径}`（本仓库开发环境）
-5. 工具自身可访问的全局 skill 搜索路径中同名 `{skill-name}/...` 目录
+4. `{项目根}/.zcode/skills/{规范路径}`（ZCode 项目内安装）
+5. `{项目根}/skills/{规范路径}`（本仓库开发环境）
+6. 工具自身可访问的全局 skill 搜索路径中同名 `{skill-name}/...` 目录
 
 规范路径如下；禁止只写裸文件名，禁止跨 skill 误读其他 skill 的 references：
 

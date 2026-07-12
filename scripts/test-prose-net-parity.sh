@@ -1,7 +1,7 @@
 #!/bin/bash
-# test-prose-net-parity.sh — 正文兜底「轻量确定性网」三端 parity 守卫
-# 网在三处各有实现：① Claude check-prose-after-write.sh 内嵌 python；② Codex
-# story_codex_hook.py 的 prose_net_findings；③ OpenCode plugin.ts 的 proseNetFindings。
+# test-prose-net-parity.sh — 正文兜底「轻量确定性网」四端 parity 守卫
+# 网在四处各有实现：① Claude check-prose-after-write.sh 内嵌 python；② Codex
+# story_codex_hook.py；③ OpenCode plugin.ts；④ ZCode story_zcode_hook.js。
 # 三份必须同检同放。本测试两层保证：
 #   A. 规范串一致（CI 安全、零运行时依赖）：每条 net 正则/常量/阈值的规范文本必须在三份里都出现，
 #      改一处漏改另一处即 fail——直接锚定漂移（参照 check-hook-regex-sync.sh 的做法）。
@@ -15,7 +15,8 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 CLAUDE="$ROOT/skills/story-setup/references/templates/hooks/check-prose-after-write.sh"
 CODEX="$ROOT/skills/story-setup/references/codex/hooks/story_codex_hook.py"
 OPENCODE="$ROOT/skills/story-setup/references/opencode/plugin.ts"
-for f in "$CLAUDE" "$CODEX" "$OPENCODE"; do
+ZCODE="$ROOT/skills/story-setup/references/zcode/hooks/story_zcode_hook.js"
+for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE"; do
   [ -f "$f" ] || { echo "FAIL: missing impl: $f" >&2; exit 1; }
 done
 
@@ -40,7 +41,7 @@ CANON=(
   '字数目标[^0-9]{0,6}(\d{3,6})'
 )
 for needle in "${CANON[@]}"; do
-  for f in "$CLAUDE" "$CODEX" "$OPENCODE"; do
+  for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE"; do
     if ! grep -Fq "$needle" "$f"; then
       echo "FAIL: net 规范串缺失/漂移 — 「${needle}」未出现在 $(basename "$f")" >&2
       fails=$((fails + 1))
@@ -83,6 +84,19 @@ for k in sorted(fx):
     sys.stdout.buffer.write((line + "\n").encode("utf-8"))
 PY
 
+  node - "$ZCODE" "$tmp/fixtures.json" > "$tmp/zcode.txt" <<'JS'
+const hook = require(process.argv[2])
+const fx = require(process.argv[3])
+for (const k of Object.keys(fx).sort()) {
+  console.log(k, "|", hook.proseNetFindings(fx[k]).join(" ;; "))
+}
+JS
+  if ! diff "$tmp/py.txt" "$tmp/zcode.txt" >/dev/null; then
+    echo "FAIL: 功能 parity 不一致（codex python 网 vs zcode JS 网）：" >&2
+    diff "$tmp/py.txt" "$tmp/zcode.txt" >&2 || true
+    return 3
+  fi
+
   # 转译 TS：擦除类型即可（net 函数只用 RegExp/String/Set/Array）。优先 node 原生类型擦除
   # （node ≥ 22.6 的 --experimental-strip-types），否则用本机已装的 esbuild 二进制。
   # 不走 `npx --yes esbuild`：CI 全平台 node 20，逐次联网下载既慢又脆——B 是开发期确认，
@@ -123,7 +137,7 @@ run_functional
 rc=$?
 set -e
 case "$rc" in
-  0) echo "功能 parity：codex python 网 == opencode TS 网（9 fixtures 逐字相等）。" ;;
+  0) echo "功能 parity：codex python 网 == opencode TS 网 == zcode JS 网（9 fixtures 逐字相等）。" ;;
   2) echo "功能 parity：跳过（无 TS 运行时；规范串检查已给 CI 安全保证）。" ;;
   *) fails=$((fails + 1)) ;;
 esac

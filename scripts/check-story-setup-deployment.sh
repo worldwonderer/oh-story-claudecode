@@ -62,7 +62,7 @@ write_sentinel() {
   cat > "$root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
 agents_version: 17
-setup_skill_version: 1.2.6
+setup_skill_version: 1.2.7
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
@@ -156,10 +156,18 @@ for group in 'templates/hooks/' 'templates/rules' 'templates/agents' 'agent-refe
 done
 assert_file "$SKILL_DIR/references/openclaw/AGENTS.md.tmpl"
 assert_file "$SKILL_DIR/references/generic/AGENTS.md.tmpl"
+assert_file "$SKILL_DIR/references/zcode/AGENTS.md.tmpl"
+assert_file "$SKILL_DIR/references/zcode/config.json.patch"
+assert_file "$SKILL_DIR/references/zcode/hooks/hooks.json"
+assert_file "$SKILL_DIR/references/zcode/hooks/story_zcode_hook.js"
 assert_grep 'references/openclaw/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing OpenClaw AGENTS template"
 assert_grep 'OpenClaw skills-only|target_cli 含 openclaw' "$SKILL_FILE" "story-setup must document OpenClaw skills-only deployment"
 assert_grep 'references/generic/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing generic AGENTS template"
 assert_grep 'target_cli 含 generic|通用 Web AI / 其他 Agent' "$SKILL_FILE" "story-setup must document generic Web AI deployment"
+assert_grep 'references/zcode/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing ZCode AGENTS template"
+assert_grep 'target_cli 含 zcode|target_cli = zcode' "$SKILL_FILE" "story-setup must document ZCode deployment"
+assert_grep '\.zcode/config\.json' "$SKILL_FILE" "story-setup must document ZCode config merge"
+assert_grep '不部署.*\.zcode/agents|不创建.*\.zcode/agents' "$SKILL_FILE" "story-setup must document ZCode agent boundary"
 assert_grep 'references_dir' "$SKILL_FILE" "sentinel references_dir must be documented"
 assert_grep 'resolver_strategy' "$SKILL_FILE" "sentinel resolver_strategy must be documented"
 assert_grep 'target_cli' "$SKILL_FILE" "sentinel target_cli must be documented"
@@ -254,7 +262,7 @@ copy_hooks "$bad_sentinel_root"
 cat > "$bad_sentinel_root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
 agents_version: 17
-setup_skill_version: 1.2.6
+setup_skill_version: 1.2.7
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
@@ -367,6 +375,7 @@ echo "  OK TS9 settings JSON"
 assert_grep 'agents_version: 13|`agents_version: 13`|agents_version`.*13' "$UPGRADING_FILE" "UPGRADING.md must retain agents_version 13 history"
 assert_grep 'agents_version: 17|`agents_version: 17`|agents_version`.*17' "$UPGRADING_FILE" "UPGRADING.md must document agents_version 17"
 assert_grep 'setup_skill_version.*1\.2\.5' "$UPGRADING_FILE" "UPGRADING.md must document setup_skill_version 1.2.5"
+assert_grep 'setup_skill_version.*1\.2\.7|setup 1\.2\.7' "$UPGRADING_FILE" "UPGRADING.md must document ZCode setup_skill_version 1.2.7"
 assert_grep 'AGENTS_VERSION.*-lt 17|AGENTS_VERSION" -lt 17' "$HOOKS_DIR/session-start.sh" "session-start must warn for agents_version 16 under v17 deployment"
 assert_grep 'agents_version.*< 17|版本 < 17' "$SKILL_DIR/SKILL.md" "story-setup redeploy branch must treat agents_version 16 as stale"
 assert_grep 'agents_version.*小于 `17`|小于 .17' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must treat agents_version 16 as stale"
