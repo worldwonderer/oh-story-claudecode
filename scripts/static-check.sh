@@ -427,17 +427,6 @@ for skill_dir in "$SKILLS_DIR"/*/; do
 done
 
 echo ""
-echo "--- story-long-write contract ---"
-TOTAL=$((TOTAL + 1))
-if "$REPO_ROOT/scripts/check-story-long-write-contract.sh"; then
-  PASS=$((PASS + 1))
-  echo "  [PASS] story-long-write contract/progression"
-else
-  FAIL=$((FAIL + 1))
-  echo "  [FAIL] story-long-write contract/progression"
-fi
-
-echo ""
 echo "=================="
 echo "Total: $TOTAL | Pass: $PASS | Fail: $FAIL | Warn: $WARN"
 

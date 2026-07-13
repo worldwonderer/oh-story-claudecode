@@ -27,10 +27,14 @@ fi
 #   non-analyst copies have not all been confirmed byte-identical.
 # - AGENTS.md.tmpl: CLI-specific project instruction templates differ deliberately
 #   across OpenCode/Codex/OpenClaw and are validated by each CLI adapter check.
+# - emotional-methods.md: story-long-write's copy carries a long-form-only section
+#   (长篇循环情绪引擎) that references reader-contract-and-progression.md, which exists
+#   only under story-long-write; syncing it to the short-write / agent-references copies
+#   would create a dangling reference, so the long-form copy is intentionally divergent.
 IGNORE_NAMES="output-templates.md material-decomposition.md quality-checklist.md \
 genre-catalog.md genre-core-mechanics.md genre-readers.md \
 genre-writing-formulas.md genre-writing-techniques.md \
-AGENTS.md.tmpl"
+emotional-methods.md AGENTS.md.tmpl"
 
 # Analyst-divergent (basename): the story-short-analyze copy intentionally prepends the
 # "## 用作拆文标尺时" analyst-lens header, so it is dropped from the comparison set; all
