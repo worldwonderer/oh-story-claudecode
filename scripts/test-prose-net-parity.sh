@@ -11,9 +11,9 @@
 #   C. 命令函数 parity（CI 硬保证）：正文目标抽取、apply-patch 目标、git commit 侦测三个纯函数
 #      在 codex python 与 zcode JS 间逐字相等——锁住此前无守卫、已漂移的手抄逻辑。
 #   D. Claude 内嵌 python parity（CI 硬保证）：把 Claude bash hook 里的 heredoc python 抽出来，
-#      is_git_commit_command / prose_net_findings / 字数欠账 与 codex python 逐字相等——此前唯一
-#      没被 functional 跑过的那份手抄（含三重重复的 git commit tokenizer）。codex 已由 B/C 锁到
-#      zcode/opencode，故 claude==codex 即四端闭环。
+#      is_git_commit_command / prose_net_findings / 字数欠账 / 跨批连续性 与 codex python 逐字相等
+#      ——此前唯一没被 functional 跑过的那份手抄（含三重重复的 git commit tokenizer）。codex 已由
+#      B/C 锁到 zcode/opencode，故 claude==codex 即四端闭环。
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
@@ -26,7 +26,8 @@ ZCODE="$ROOT/skills/story-setup/references/zcode/hooks/story_zcode_hook.js"
 ZCODE_CORE="$ROOT/skills/story-setup/references/zcode/hooks/story_hook_core.js"
 OPENCODE_CORE="$ROOT/skills/story-setup/references/opencode/story_hook_core.js"
 CLAUDE_COMMIT="$ROOT/skills/story-setup/references/templates/hooks/validate-story-commit.sh"
-for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE" "$OPENCODE_CORE" "$CLAUDE_COMMIT"; do
+CLAUDE_GAPS="$ROOT/skills/story-setup/references/templates/hooks/detect-story-gaps.sh"
+for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE" "$OPENCODE_CORE" "$CLAUDE_COMMIT" "$CLAUDE_GAPS"; do
   [ -f "$f" ] || { echo "FAIL: missing impl: $f" >&2; exit 1; }
 done
 
@@ -222,15 +223,15 @@ JS
 # 只被 Part A 规范串锚定、无 functional 守卫，是三份手抄里唯一没被跑过的一份（已知 is_git_commit
 # 三重重复）。这里把 heredoc python 抽出来当模块跑，与 codex 同实现逐字比对。codex 本身已被
 # Part B/C 锁到 zcode/opencode，故 claude==codex 即闭环。纯 python（CI 全平台都有），故为硬门。
-# 注：跨批连续性（detect-story-gaps.sh 的 continuity）措辞与 codex 存在既有分歧（[WARN] vs
-# [continuity]、句尾不同），属需单独决策的 oracle 漂移，不在本 functional 门内。
+# 跨批连续性（detect-story-gaps.sh 的 continuity heredoc）也纳入：staleness 用固定 mtime
+# 制造，与 codex continuity_findings 逐字比对（此前 Claude 用 [WARN]、句尾不同，已统一到 codex）。
 run_claude_parity() {
   command -v python3 >/dev/null 2>&1 || return 1
-  python3 - "$CODEX" "$CLAUDE_COMMIT" "$CLAUDE" <<'PY'
+  python3 - "$CODEX" "$CLAUDE_COMMIT" "$CLAUDE" "$CLAUDE_GAPS" <<'PY'
 import importlib.util, sys, os, subprocess, tempfile
 from pathlib import Path
 
-codex_path, commit_sh, net_sh = sys.argv[1:4]
+codex_path, commit_sh, net_sh, gaps_sh = sys.argv[1:5]
 spec = importlib.util.spec_from_file_location("ch", codex_path); cx = importlib.util.module_from_spec(spec); spec.loader.exec_module(cx)
 
 def extract_py_block(path, must_contain):
@@ -247,6 +248,7 @@ def extract_py_block(path, must_contain):
 tmp = tempfile.mkdtemp()
 commit_py = os.path.join(tmp, "claude_commit.py"); open(commit_py, "w", encoding="utf-8").write(extract_py_block(commit_sh, "punctuation_chars"))
 net_py = os.path.join(tmp, "claude_net.py"); open(net_py, "w", encoding="utf-8").write(extract_py_block(net_sh, "def prose_net_findings"))
+cont_py = os.path.join(tmp, "claude_cont.py"); open(cont_py, "w", encoding="utf-8").write(extract_py_block(gaps_sh, "def discover_books"))
 
 CMDS = {
     "commit_plain": "git commit -m x", "commit_chain": "git add . && git commit -m x",
@@ -297,6 +299,20 @@ codex_lines.append("wc=" + " ;; ".join(list(cx.prose_net_findings(short)) + ([wc
 r = subprocess.run([sys.executable, net_py, cf, "第1章.md", "正文"], capture_output=True)
 claude_lines.append("wc=" + r.stdout.decode("utf-8").replace("\n", " ;; "))
 
+# 跨批连续性: 固定 mtime 制造 staleness（章新于上下文）+ 撞名，与 codex continuity_findings 比对
+cont_root = os.path.join(tmp, "cont"); book = os.path.join(cont_root, "书")
+os.makedirs(os.path.join(book, "正文")); os.makedirs(os.path.join(book, "追踪"))
+open(os.path.join(book, "追踪", "上下文.md"), "w", encoding="utf-8").write("ctx\n")
+for ch in ("第1章_甲.md", "第2章_甲.md"):
+    open(os.path.join(book, "正文", ch), "w", encoding="utf-8").write("x\n")
+os.utime(os.path.join(book, "追踪", "上下文.md"), (1000000000, 1000000000))
+os.utime(os.path.join(book, "正文", "第1章_甲.md"), (2000000000, 2000000000))
+os.utime(os.path.join(book, "正文", "第2章_甲.md"), (2000000001, 2000000001))  # unambiguously newest
+codex_lines.append("cont=" + " ;; ".join(cx.continuity_findings(Path(cont_root))))
+r = subprocess.run([sys.executable, cont_py, cont_root], capture_output=True)
+claude_cont = [ln for ln in r.stdout.decode("utf-8").split("\n") if ln.startswith("[continuity]")]
+claude_lines.append("cont=" + " ;; ".join(claude_cont))
+
 if codex_lines != claude_lines:
     sys.stderr.write("FAIL: Claude 内嵌 python 与 codex python 漂移：\n")
     for a, b in zip(codex_lines, claude_lines):
@@ -331,7 +347,7 @@ run_claude_parity
 rc_claude=$?
 set -e
 case "$rc_claude" in
-  0) echo "Claude 内嵌 python parity：claude-embedded == codex python（is_git_commit_command 13 + prose_net 9 + 字数欠账，逐字相等）。" ;;
+  0) echo "Claude 内嵌 python parity：claude-embedded == codex python（is_git_commit_command 13 + prose_net 9 + 字数欠账 + 跨批连续性，逐字相等）。" ;;
   1) echo "Claude 内嵌 python parity：跳过（无 python3 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac

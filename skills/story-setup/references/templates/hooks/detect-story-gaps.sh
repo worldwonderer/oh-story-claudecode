@@ -150,8 +150,8 @@ for book in discover_books(root):
             ctx_m = 0
         if newest > ctx_m + 1:
             latest = os.path.basename(max(chapters, key=os.path.getmtime))
-            out.append(f"[WARN] {rel_book}：正文已更新到「{latest}」但 追踪/上下文.md 更早，"
-                       f"续写会断线——续写前先补更 上下文.md/伏笔.md。")
+            out.append(f"[continuity] {rel_book}：正文已更新到「{latest}」但 追踪/上下文.md 更早，"
+                       f"续写会断线——补更 上下文.md/伏笔.md 再继续。")
     # ② 标题去重（按文件名 第N章_标题 的标题部分）
     titles = {}
     for c in chapters:
@@ -161,7 +161,7 @@ for book in discover_books(root):
     for title, files in titles.items():
         if len(files) > 1:
             joined = '、'.join(files)
-            out.append(f"[WARN] {rel_book}：{len(files)} 章标题重复「{title}」（{joined[:60]}），建议改名。")
+            out.append(f"[continuity] {rel_book}：{len(files)} 章标题重复「{title}」（{joined[:60]}），建议改名。")
 
 if out:
     sys.stdout.buffer.write(('\n'.join(out) + '\n').encode('utf-8'))
