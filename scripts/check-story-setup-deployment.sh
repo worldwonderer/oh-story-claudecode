@@ -160,6 +160,10 @@ assert_file "$SKILL_DIR/references/zcode/config.json.patch"
 assert_file "$SKILL_DIR/references/zcode/hooks/hooks.json"
 assert_file "$SKILL_DIR/references/zcode/hooks/story_zcode_hook.js"
 assert_file "$SKILL_DIR/references/zcode/hooks/story_hook_core.js"
+# OpenCode shares the same prose-guard core (byte-identity guarded by check-opencode-adapter.sh);
+# it deploys alongside plugin.ts as .opencode/plugins/story_hook_core.js.
+assert_file "$SKILL_DIR/references/opencode/story_hook_core.js"
+assert_grep 'opencode/story_hook_core\.js' "$SKILL_FILE" "deployment manifest missing OpenCode shared prose-guard core"
 assert_grep 'references/openclaw/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing OpenClaw AGENTS template"
 assert_grep 'OpenClaw skills-only|target_cli 含 openclaw' "$SKILL_FILE" "story-setup must document OpenClaw skills-only deployment"
 assert_grep 'references/generic/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing generic AGENTS template"

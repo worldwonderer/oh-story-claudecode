@@ -19,7 +19,8 @@ CODEX="$ROOT/skills/story-setup/references/codex/hooks/story_codex_hook.py"
 OPENCODE="$ROOT/skills/story-setup/references/opencode/plugin.ts"
 ZCODE="$ROOT/skills/story-setup/references/zcode/hooks/story_zcode_hook.js"
 ZCODE_CORE="$ROOT/skills/story-setup/references/zcode/hooks/story_hook_core.js"
-for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE"; do
+OPENCODE_CORE="$ROOT/skills/story-setup/references/opencode/story_hook_core.js"
+for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE" "$OPENCODE_CORE"; do
   [ -f "$f" ] || { echo "FAIL: missing impl: $f" >&2; exit 1; }
 done
 
@@ -51,6 +52,11 @@ for needle in "${CANON[@]}"; do
     # ZCode's net constants/patterns live in the shared story_hook_core.js companion
     # that story_zcode_hook.js requires; accept a hit there as satisfying this file.
     if [ "$f" = "$ZCODE" ] && grep -Fq "$needle" "$ZCODE_CORE"; then
+      continue
+    fi
+    # OpenCode's plugin.ts likewise imports the net from its own shared story_hook_core.js
+    # companion (byte-identical to ZCode's); accept a hit there as satisfying plugin.ts.
+    if [ "$f" = "$OPENCODE" ] && grep -Fq "$needle" "$OPENCODE_CORE"; then
       continue
     fi
     echo "FAIL: net 规范串缺失/漂移 — 「${needle}」未出现在 $(basename "$f")" >&2
@@ -111,7 +117,10 @@ JS
   # 不走 `npx --yes esbuild`：CI 全平台 node 20，逐次联网下载既慢又脆——B 是开发期确认，
   # CI 的确定性保证由 A（规范串三端一致）承担，无 TS 运行时则 B 自跳过。
   cp "$OPENCODE" "$tmp/p.ts"
-  printf '\nexport { proseNetFindings as _net }\n' >> "$tmp/p.ts"
+  cp "$OPENCODE_CORE" "$tmp/story_hook_core.js"
+  # plugin.ts imports the net from ./story_hook_core.js; re-export it from that companion
+  # so the type-stripped module exposes the exact function OpenCode runs at deploy time.
+  printf "\nexport { proseNetFindings as _net } from './story_hook_core.js'\n" >> "$tmp/p.ts"
   local ran=0
   if node --experimental-strip-types -e '' >/dev/null 2>&1; then
     node --experimental-strip-types --input-type=module -e "
