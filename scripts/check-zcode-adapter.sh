@@ -12,6 +12,7 @@ assert_grep() { grep -Eq "$1" "$2" || fail "$3 ($2)"; }
 
 ROOT="skills/story-setup/references/zcode"
 HOOK="$ROOT/hooks/story_zcode_hook.js"
+HOOK_CORE="$ROOT/hooks/story_hook_core.js"
 
 echo "ZCode adapter check"
 echo "==================="
@@ -23,7 +24,8 @@ for file in \
   "$ROOT/AGENTS.md.tmpl" \
   "$ROOT/config.json.patch" \
   "$ROOT/hooks/hooks.json" \
-  "$HOOK"; do
+  "$HOOK" \
+  "$HOOK_CORE"; do
   assert_file "$file"
 done
 
@@ -31,6 +33,7 @@ for file in .zcode-plugin/plugin.json marketplace.json "$ROOT/config.json.patch"
   python3 -m json.tool "$file" >/dev/null
 done
 node --check "$HOOK"
+node --check "$HOOK_CORE"
 echo "  OK JSON/JavaScript syntax"
 
 python3 - <<'PY'

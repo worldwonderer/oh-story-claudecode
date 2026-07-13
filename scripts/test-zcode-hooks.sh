@@ -10,10 +10,12 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 SOURCE="$REPO_ROOT/skills/story-setup/references/zcode/hooks/story_zcode_hook.js"
+SOURCE_CORE="$REPO_ROOT/skills/story-setup/references/zcode/hooks/story_hook_core.js"
 ROOT="$TMP_DIR/project"
 HOOK="$ROOT/.zcode/hooks/story_zcode_hook.js"
 mkdir -p "$ROOT/.zcode/hooks"
 cp "$SOURCE" "$HOOK"
+cp "$SOURCE_CORE" "$ROOT/.zcode/hooks/story_hook_core.js"
 
 run_hook() {
   local event="$1" payload="$2"

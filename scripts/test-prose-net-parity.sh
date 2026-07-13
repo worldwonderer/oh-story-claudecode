@@ -18,7 +18,8 @@ CLAUDE="$ROOT/skills/story-setup/references/templates/hooks/check-prose-after-wr
 CODEX="$ROOT/skills/story-setup/references/codex/hooks/story_codex_hook.py"
 OPENCODE="$ROOT/skills/story-setup/references/opencode/plugin.ts"
 ZCODE="$ROOT/skills/story-setup/references/zcode/hooks/story_zcode_hook.js"
-for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE"; do
+ZCODE_CORE="$ROOT/skills/story-setup/references/zcode/hooks/story_hook_core.js"
+for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE"; do
   [ -f "$f" ] || { echo "FAIL: missing impl: $f" >&2; exit 1; }
 done
 
@@ -44,10 +45,16 @@ CANON=(
 )
 for needle in "${CANON[@]}"; do
   for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE"; do
-    if ! grep -Fq "$needle" "$f"; then
-      echo "FAIL: net 规范串缺失/漂移 — 「${needle}」未出现在 $(basename "$f")" >&2
-      fails=$((fails + 1))
+    if grep -Fq "$needle" "$f"; then
+      continue
     fi
+    # ZCode's net constants/patterns live in the shared story_hook_core.js companion
+    # that story_zcode_hook.js requires; accept a hit there as satisfying this file.
+    if [ "$f" = "$ZCODE" ] && grep -Fq "$needle" "$ZCODE_CORE"; then
+      continue
+    fi
+    echo "FAIL: net 规范串缺失/漂移 — 「${needle}」未出现在 $(basename "$f")" >&2
+    fails=$((fails + 1))
   done
 done
 # 复读阈值在 JS 里写作 `sa.length >= 8`，python 里 `len(sa) >= 8`；上面的 '>= 8' 已覆盖两者。
