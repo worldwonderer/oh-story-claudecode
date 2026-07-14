@@ -12,12 +12,10 @@ set -euo pipefail
 source "$(dirname "$0")/lib/common.sh"
 
 # 全程走字节稳定区域：本 hook 在中文路径上做 bash 通配（中间目录是中文书名时
-# 细纲_第*章*.md 在 GBK 区域会 NOMATCH）、sed 提章号、case 匹配，还内嵌 python 抽取
-# 中文路径。Windows 中文系统若导出 GBK/GB2312 区域设置，这些都会按多字节错误解码 UTF-8
-# 而失效。强制 C 区域走字节匹配（UTF-8 字面量 vs UTF-8 字节相等）才稳定（issue #164）。
-# 必须在内嵌 python 之前 export：LC_ALL=C 下 python 在 Windows 走 Unicode 环境 API、在
-# 新版 python 会把 C 强转 UTF-8，都能正确解码中文输入；反而是用户的 GBK 区域会把 python
-# 读到的 UTF-8 环境变量解成乱码。输出已用 sys.stdout.buffer 直写 UTF-8 字节、与区域无关。
+# 细纲_第*章*.md 在 GBK 区域会 NOMATCH）、sed 提章号、case 匹配。Windows 中文系统若导出
+# GBK/GB2312 区域设置，这些都会按多字节错误解码 UTF-8 而失效。强制 C 区域走字节匹配（UTF-8
+# 字面量 vs UTF-8 字节相等）才稳定（issue #164）。路径抽取走 node 共享核，node 自身按 UTF-8
+# 处理、与 bash 区域无关；拦截判定全在下方 bash，不受影响。
 export LC_ALL=C
 
 HOOK_INPUT="${CLAUDE_TOOL_INPUT:-}"
@@ -26,49 +24,13 @@ if [ -z "$HOOK_INPUT" ] && [ ! -t 0 ]; then
 fi
 export HOOK_INPUT
 
-# 从 tool 输入 JSON 提取目标文件路径。探测真正可用的解释器：Windows 上
-# `command -v python3` 会命中 Microsoft Store 占位程序（exit 49），所以实跑
-# 一次 -c "" 而非只查 PATH。
-# 输出走 sys.stdout.buffer 直写 UTF-8 字节：Windows 中文系统 python stdout 默认
-# cp936，文本模式输出会把中文路径编成 GBK，和脚本里的 UTF-8 字面量（"正文"、第N章）
-# 字节不一致，导致每个比较恒假、守卫静默放行（issue #164）。
-extract_target_path() {
-  local PYBIN=""
-  for c in python3 python py; do
-    if "$c" -c "" >/dev/null 2>&1; then PYBIN="$c"; break; fi
-  done
-  [ -z "$PYBIN" ] && return 1
-  "$PYBIN" - <<'PY'
-import json, os, sys
+# 探测 node（Claude Code 自身即 node 应用，正常必有；探测不到就静默放行）。
+node -e "" >/dev/null 2>&1 || exit 0
+CLI="$(dirname "$0")/story_hook_cli.js"
+[ -f "$CLI" ] || exit 0
 
-raw = os.environ.get("HOOK_INPUT", "")
-if not raw:
-    sys.exit(1)
-try:
-    obj = json.loads(raw)
-except Exception:
-    sys.exit(1)
-
-def dig(value):
-    if isinstance(value, dict):
-        for k in ("file_path", "path", "filePath"):
-            v = value.get(k)
-            if isinstance(v, str) and v:
-                return v
-        for k in ("tool_input", "input", "parameters", "args"):
-            found = dig(value.get(k))
-            if found:
-                return found
-    return ""
-
-p = dig(obj)
-if not p:
-    sys.exit(1)
-sys.stdout.buffer.write(p.encode("utf-8"))
-PY
-}
-
-TARGET="$(extract_target_path 2>/dev/null || true)"
+# 从 tool 输入 JSON（HOOK_INPUT 环境变量）提取目标文件路径，node 按 UTF-8 写回。
+TARGET="$(node "$CLI" extract-target 2>/dev/null || true)"
 # 解析不到路径 → 放行
 [ -z "$TARGET" ] && exit 0
 

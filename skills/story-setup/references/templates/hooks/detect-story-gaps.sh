@@ -98,78 +98,21 @@ if [ -n "$GLOBAL_PROGRESS_OUTPUT" ]; then
   HAS_WARNINGS=true
 fi
 
-# 6. 跨批连续性兜底（追踪 staleness + 章节标题去重）——与 codex story_codex_hook.py 的
-# continuity_findings 同触发条件。会话起点提醒：续写前发现「写了章但 上下文.md 没跟上」
-# 或「两章撞名」。模型无关；无问题静默。探测真正可用的解释器（Windows Store 占位 exit 49）。
-# 扫描范围 repo-wide（与本文件上方的缺口检测一致），多书项目里非活跃书也会提醒——有意为之
-# （切书前也想知道断线），不按 .active-book 收窄。staleness 用 mtime 比较（+1 秒容差防同秒误报），
-# 是启发式 advisory：git checkout / 带 -p 的拷贝改 mtime 时可能偏差，只提醒不阻塞。
-CONT_PYBIN=""
-for c in python3 python py; do
-  if "$c" -c "" >/dev/null 2>&1; then CONT_PYBIN="$c"; break; fi
-done
-if [ -n "$CONT_PYBIN" ]; then
-  CONTINUITY_OUTPUT="$("$CONT_PYBIN" - "$ROOT" <<'PY' 2>/dev/null || true
-import os, re, sys
-
-root = sys.argv[1]
-out = []
-
-def discover_books(root):
-    books, seen = [], set()
-    for dirpath, dirnames, filenames in os.walk(root):
-        rel = os.path.relpath(dirpath, root)
-        if rel != '.' and any(p.startswith('.') for p in rel.split(os.sep)):
-            dirnames[:] = [d for d in dirnames if not d.startswith('.')]
-            continue
-        depth = 0 if rel == '.' else rel.count(os.sep) + 1
-        if depth > 4:
-            dirnames[:] = []
-            continue
-        base = os.path.basename(dirpath)
-        if base in ('追踪', '正文') or '正文.md' in filenames:
-            book = os.path.dirname(dirpath) if base in ('追踪', '正文') else dirpath
-            if book not in seen:
-                seen.add(book); books.append(book)
-    return books
-
-for book in discover_books(root):
-    rel_book = os.path.relpath(book, root)
-    body = os.path.join(book, '正文')
-    chapters = []
-    if os.path.isdir(body):
-        chapters = sorted(os.path.join(body, f) for f in os.listdir(body)
-                          if re.match(r'^第.*章.*\.md$', f))
-    # ① 追踪 staleness（仅长篇：有 追踪/上下文.md）
-    ctx = os.path.join(book, '追踪', '上下文.md')
-    if chapters and os.path.exists(ctx):
-        newest = max((os.path.getmtime(c) for c in chapters), default=0)
-        try:
-            ctx_m = os.path.getmtime(ctx)
-        except OSError:
-            ctx_m = 0
-        if newest > ctx_m + 1:
-            latest = os.path.basename(max(chapters, key=os.path.getmtime))
-            out.append(f"[continuity] {rel_book}：正文已更新到「{latest}」但 追踪/上下文.md 更早，"
-                       f"续写会断线——补更 上下文.md/伏笔.md 再继续。")
-    # ② 标题去重（按文件名 第N章_标题 的标题部分）
-    titles = {}
-    for c in chapters:
-        mt = re.match(r'^第0*\d+章[_\- 　]+(.+)$', os.path.basename(c)[:-3])
-        if mt and mt.group(1).strip():
-            titles.setdefault(mt.group(1).strip(), []).append(os.path.basename(c))
-    for title, files in titles.items():
-        if len(files) > 1:
-            joined = '、'.join(files)
-            out.append(f"[continuity] {rel_book}：{len(files)} 章标题重复「{title}」（{joined[:60]}），建议改名。")
-
-if out:
-    sys.stdout.buffer.write(('\n'.join(out) + '\n').encode('utf-8'))
-PY
-)"
-  if [ -n "$CONTINUITY_OUTPUT" ]; then
-    OUTPUT+="$CONTINUITY_OUTPUT"
-    HAS_WARNINGS=true
+# 6. 跨批连续性兜底（追踪 staleness + 章节标题去重）——走 node 共享核 continuityFindings，
+# 与 Codex/OpenCode/ZCode 同一份实现。会话起点提醒：续写前发现「写了章但 上下文.md 没跟上」
+# 或「两章撞名」。消息串与旧实现逐字一致；多书/并列去重的排序按 js 语义（已文档化，仅影响
+# advisory 顺序，不影响是否报）。扫描范围 repo-wide（与上方缺口检测一致），多书项目里非活跃书
+# 也会提醒——有意为之（切书前也想知道断线），不按 .active-book 收窄。staleness 用 mtime 比较
+# （+1 秒容差防同秒误报），是启发式 advisory：git checkout / 带 -p 的拷贝改 mtime 时可能偏差，
+# 只提醒不阻塞。node 探测不到静默跳过（core.js 由 bash hook 目录内 story_hook_cli.js 加载）。
+if node -e "" >/dev/null 2>&1; then
+  CONT_CLI="$(dirname "$0")/story_hook_cli.js"
+  if [ -f "$CONT_CLI" ]; then
+    CONTINUITY_OUTPUT="$(node "$CONT_CLI" continuity "$ROOT" 2>/dev/null || true)"
+    if [ -n "$CONTINUITY_OUTPUT" ]; then
+      OUTPUT+="$CONTINUITY_OUTPUT"
+      HAS_WARNINGS=true
+    fi
   fi
 fi
 

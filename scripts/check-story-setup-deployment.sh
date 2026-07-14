@@ -129,6 +129,15 @@ while IFS= read -r src; do
       ;;
   esac
 done < <(grep -RhoE '^source[[:space:]]+"[^"]+"' "$HOOKS_DIR"/*.sh | sed -E 's/^source[[:space:]]+"//;s/"$//' | sort -u)
+# node 共享核 + CLI 桥：正文网/字数/大纲守卫/连续性/commit 侦测的单一实现，被 bash hook 经
+# `node "$(dirname "$0")/story_hook_cli.js"` 调用。这两条不是 source 依赖，上面的 grep 抓不到，
+# 显式断言存在 + 语法有效，否则 hook 静默退化（node 缺失时 hook 自身 exit 0，此处按开发机有 node 校验）。
+assert_file "$HOOKS_DIR/story_hook_core.js"
+assert_file "$HOOKS_DIR/story_hook_cli.js"
+if command -v node >/dev/null 2>&1; then
+  node --check "$HOOKS_DIR/story_hook_core.js" || fail "story_hook_core.js node syntax invalid"
+  node --check "$HOOKS_DIR/story_hook_cli.js" || fail "story_hook_cli.js node syntax invalid"
+fi
 assert_grep '递归复制完整目录树|recursive' "$SKILL_FILE" "SKILL.md must require recursive hook deployment"
 assert_grep 'lib/common\.sh' "$SKILL_FILE" "SKILL.md must mention hooks/lib/common.sh"
 assert_grep 'lib/sentinel\.sh' "$SKILL_FILE" "SKILL.md must mention hooks/lib/sentinel.sh"
