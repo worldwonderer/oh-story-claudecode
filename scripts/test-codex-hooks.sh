@@ -233,7 +233,8 @@ from pathlib import Path
 root = Path(os.environ["NON_GIT"])
 hooks = json.loads((root / ".codex/hooks.json").read_text(encoding="utf-8"))["hooks"]
 command = hooks["PreToolUse"][0]["hooks"][0]["commandWindows"]
-payload = b'{"tool_name":"Write","tool_input":{"file_path":"book/正文/第004章_非Git.md","content":"正文"}}'
+# bytes literals must be ASCII (b'中文' is a SyntaxError); build the str, then encode to UTF-8.
+payload = '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第004章_非Git.md","content":"正文"}}'.encode("utf-8")
 completed = subprocess.run(
     command,
     cwd=root / "nested/a/b",
