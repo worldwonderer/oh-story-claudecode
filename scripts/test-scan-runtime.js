@@ -34,20 +34,14 @@ if (process.env.AGENT_BROWSER_EXIT) {
   if (process.platform === "win32") {
     const program = path.join(tmpDir, "fake-agent-browser.js");
     fs.writeFileSync(program, fakeProgram, "utf8");
-    // `npm install -g` always writes BOTH a .cmd and a .ps1 launcher (plus an
-    // extensionless bash shim). PowerShell's `&` resolves the ExternalScript
-    // (.ps1) ahead of the Application (.cmd), and the .ps1 forwards $args
-    // in-process to node — no cmd.exe %* re-tokenization. A .cmd-only fixture is
-    // a layout npm never produces; model the real one so the test exercises the
-    // path real users hit.
+    // `npm install -g agent-browser` writes an agent-browser.cmd whose `%*` line
+    // forwards to the real target (the native .exe, or here the Node wrapper).
+    // cdp-utils reads that shim and execs the target directly, so the argv array
+    // is passed verbatim instead of collapsing through cmd.exe `%*` or a
+    // PowerShell splat.
     fs.writeFileSync(
       path.join(tmpDir, "agent-browser.cmd"),
       `@echo off\r\n"${process.execPath}" "%~dp0fake-agent-browser.js" %*\r\n`,
-      "utf8"
-    );
-    fs.writeFileSync(
-      path.join(tmpDir, "agent-browser.ps1"),
-      `& "${process.execPath}" "$PSScriptRoot\\fake-agent-browser.js" $args\r\nexit $LASTEXITCODE\r\n`,
       "utf8"
     );
     return path.join(tmpDir, "agent-browser.cmd");
@@ -175,50 +169,42 @@ function testCdpUtils(modulePath) {
 function testWindowsInvocationBuilder(modulePath) {
   const utils = loadFresh(modulePath);
   assert.strictEqual(typeof utils.buildAgentBrowserInvocation, "function");
-  const shellLikeArg = '& calc.exe | echo "unsafe"';
-  const unicodeSpecialArg = `中文参数 / 空 格 & | ^ ! $() ; [] {} = ' " \\`;
-  const invocation = utils.buildAgentBrowserInvocation(
-    9222,
-    ["eval", shellLikeArg, "space arg", unicodeSpecialArg],
-    "win32"
-  );
-  assert.strictEqual(invocation.file, "powershell.exe");
-  assert.deepStrictEqual(JSON.parse(invocation.input), [
-    "--cdp",
-    "9222",
-    "eval",
-    shellLikeArg,
-    "space arg",
-    unicodeSpecialArg,
-  ]);
-  const encodedIndex = invocation.args.indexOf("-EncodedCommand") + 1;
-  assert(encodedIndex > 0, "Windows invocation must use a fixed encoded command");
-  const script = Buffer.from(invocation.args[encodedIndex], "base64").toString(
-    "utf16le"
-  );
-  assert.match(script, /\[System\.Text\.UTF8Encoding\]::new\(\$false\)/);
-  assert.match(script, /\[Console\]::InputEncoding = \$utf8NoBom/);
-  assert.match(script, /\[Console\]::OutputEncoding = \$utf8NoBom/);
-  assert.match(script, /\$OutputEncoding = \$utf8NoBom/);
-  assert.match(script, /ConvertFrom-Json/);
-  assert.match(script, /& agent-browser @abArgs/);
-  const inputEncodingIndex = script.indexOf("[Console]::InputEncoding");
-  const outputEncodingIndex = script.indexOf("[Console]::OutputEncoding");
-  const pipelineEncodingIndex = script.indexOf("$OutputEncoding");
-  const readIndex = script.indexOf("[Console]::In.ReadToEnd()");
-  const agentBrowserIndex = script.indexOf("& agent-browser @abArgs");
-  assert(
-    inputEncodingIndex < readIndex &&
-      outputEncodingIndex < readIndex &&
-      pipelineEncodingIndex < readIndex &&
-      readIndex < agentBrowserIndex,
-    "UTF-8 encodings must be configured before stdin is read and agent-browser runs"
-  );
-  assert.strictEqual(
-    script.includes(shellLikeArg),
-    false,
-    "untrusted arguments must travel through stdin, not PowerShell source"
-  );
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "story-scan-win-"));
+  const oldPath = process.env.PATH;
+  try {
+    // npm's Windows shim: the `%*` line points to the real target (here the
+    // native binary). buildAgentBrowserInvocation must resolve the shim to that
+    // target and hand every argument to it as a distinct array element — never a
+    // shell, never a space-joined string.
+    fs.writeFileSync(
+      path.join(tmpDir, "agent-browser.cmd"),
+      `@ECHO off\r\n"%~dp0node_modules\\agent-browser\\bin\\agent-browser-win32-x64.exe" %*\r\n`,
+      "utf8"
+    );
+    process.env.PATH = `${tmpDir}${path.delimiter}${oldPath}`;
+    const shellLikeArg = '& calc.exe | echo "unsafe"';
+    const unicodeSpecialArg = `中文参数 / 空 格 & | ^ ! $() ; [] {} = ' " \\`;
+    const invocation = utils.buildAgentBrowserInvocation(
+      9222,
+      ["eval", shellLikeArg, "space arg", unicodeSpecialArg],
+      "win32"
+    );
+    // Resolves to the native binary (Node refuses the .cmd; PowerShell collapses
+    // the array) with every argument a distinct element — nothing shell-evaluated
+    // or space-joined.
+    assert.match(invocation.file, /agent-browser-win32-x64\.exe$/);
+    assert.deepStrictEqual(invocation.args, [
+      "--cdp",
+      "9222",
+      "eval",
+      shellLikeArg,
+      "space arg",
+      unicodeSpecialArg,
+    ]);
+  } finally {
+    process.env.PATH = oldPath;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 function testScraperImports() {

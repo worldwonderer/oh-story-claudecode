@@ -9,43 +9,67 @@
  */
 
 const { execFileSync } = require("child_process");
-
-const WINDOWS_AGENT_BROWSER_SCRIPT = [
-  "$ErrorActionPreference = 'Stop'",
-  "$utf8NoBom = [System.Text.UTF8Encoding]::new($false)",
-  "[Console]::InputEncoding = $utf8NoBom",
-  "[Console]::OutputEncoding = $utf8NoBom",
-  "$OutputEncoding = $utf8NoBom",
-  "$payload = [Console]::In.ReadToEnd()",
-  "$abArgs = @(ConvertFrom-Json -InputObject $payload)",
-  "& agent-browser @abArgs",
-  "if ($null -eq $LASTEXITCODE) { exit 1 }",
-  "exit $LASTEXITCODE",
-].join("; ");
+const fs = require("fs");
+const path = require("path");
 
 /**
- * Build a shell-free invocation on POSIX. Windows npm executables are `.cmd`
- * shims, so a fixed PowerShell program reads the argument array as JSON from
- * stdin and splats it without evaluating user-controlled command text.
+ * On Windows `agent-browser` is an npm shim (agent-browser.cmd/.ps1) that
+ * forwards to the real target — the native agent-browser-win32-*.exe or a
+ * bundled Node CLI. Node refuses to execFile the `.cmd` without a shell
+ * (CVE-2024-27980), and routing the argv array through a shell mangles it: the
+ * `.cmd`'s `%*` is re-tokenized by cmd.exe (splitting on spaces, breaking on
+ * & | ^), and calling the shim by bare name from powershell.exe collapses the
+ * whole array into a single space-joined argument. The exact locus differs by
+ * runtime, so instead of hardening any one shell path we bypass shells entirely:
+ * read the `.cmd` shim, recover the real program plus its fixed leading args,
+ * and execFile that target directly with the argv array — verbatim, no shell.
+ */
+function resolveWindowsAgentBrowser(argv) {
+  const dirs = String(process.env.PATH || "").split(path.delimiter);
+  let cmdPath = null;
+  for (const dir of dirs) {
+    if (!dir) continue;
+    const candidate = path.join(dir, "agent-browser.cmd");
+    if (fs.existsSync(candidate)) {
+      cmdPath = candidate;
+      break;
+    }
+  }
+  if (!cmdPath) return { file: "agent-browser", args: argv };
+  const dir = path.dirname(cmdPath);
+  const forwardLine =
+    fs
+      .readFileSync(cmdPath, "utf8")
+      .split(/\r?\n/)
+      .find((line) => line.includes("%*")) || "";
+  const tokens = [...forwardLine.matchAll(/"([^"]*)"/g)]
+    .map((m) => m[1])
+    .map((t) =>
+      t
+        .replace(/%~dp0/gi, () => dir + path.sep)
+        .replace(/%dp0%/gi, () => dir + path.sep)
+    );
+  const jsIndex = tokens.findIndex((t) => /\.[cm]?js$/i.test(t));
+  if (jsIndex >= 0) {
+    return { file: process.execPath, args: [...tokens.slice(jsIndex), ...argv] };
+  }
+  if (tokens.length > 0) {
+    return { file: tokens[0], args: [...tokens.slice(1), ...argv] };
+  }
+  return { file: "agent-browser", args: argv };
+}
+
+/**
+ * Build a shell-free invocation. POSIX runs the native `agent-browser` binary
+ * directly; Windows resolves the npm `.cmd` shim to that native target so the
+ * argument array is passed verbatim, never routed through cmd.exe/PowerShell.
  */
 function buildAgentBrowserInvocation(port, args, platform = process.platform) {
   const argv = ["--cdp", String(port), ...args.map(String)];
   if (platform !== "win32") {
     return { file: "agent-browser", args: argv };
   }
-  return {
-    file: "powershell.exe",
-    args: [
-      "-NoLogo",
-      "-NoProfile",
-      "-NonInteractive",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-EncodedCommand",
-      Buffer.from(WINDOWS_AGENT_BROWSER_SCRIPT, "utf16le").toString("base64"),
-    ],
-    input: JSON.stringify(argv),
-  };
+  return resolveWindowsAgentBrowser(argv);
 }
 
 // ---------------------------------------------------------------------------
@@ -66,7 +90,6 @@ function ab(port, ...args) {
       invocation.args,
       {
         encoding: "utf-8",
-        input: invocation.input,
         timeout: 20000,
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,
