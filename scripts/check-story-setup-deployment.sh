@@ -1,7 +1,7 @@
 #!/bin/bash
 # check-story-setup-deployment.sh — story-setup deployment/runtime regression checks
 # Covers hook lib deployment, reference bundle integrity, root-aware hooks,
-# short-project non-mutation, commit-hook self-gating, and upgrade docs.
+# short-project non-mutation, commit-hook self-gating, and deployed-behavior anchors.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -10,7 +10,6 @@ SKILL_DIR="$REPO_ROOT/skills/story-setup"
 HOOKS_DIR="$SKILL_DIR/references/templates/hooks"
 AGENT_REFS_DIR="$SKILL_DIR/references/agent-references"
 SKILL_FILE="$SKILL_DIR/SKILL.md"
-UPGRADING_FILE="$SKILL_DIR/UPGRADING.md"
 SETTINGS_FILE="$SKILL_DIR/references/templates/settings-hooks.json"
 TMP_DIR="$(mktemp -d)"
 
@@ -191,12 +190,6 @@ while IFS= read -r ref; do
 done < <(grep -RhoE 'story-setup/references/agent-references/[A-Za-z0-9_-]+\.md' \
   "$SKILL_DIR/references/templates/agents" "$AGENT_REFS_DIR" "$SKILL_DIR/references/templates/rules" 2>/dev/null \
   | sed 's|.*/||' | sort -u)
-for name in "${historical_missing[@]}"; do
-  if [ "$name" != "output-templates.md" ]; then
-    assert_grep "$name" "$UPGRADING_FILE" "UPGRADING.md must record canonicalization for $name"
-  fi
-done
-assert_grep 'output-templates\.md' "$UPGRADING_FILE" "UPGRADING.md must record removal/rewrite for output-templates.md"
 echo "  OK TS3 agent reference integrity"
 
 # TS4 — Hook root resolution from nested cwd
@@ -371,32 +364,19 @@ echo "  OK TS8 multi-book gap detection"
 python3 -m json.tool "$SETTINGS_FILE" >/dev/null
 echo "  OK TS9 settings JSON"
 
-# TS10 — Upgrade notes completeness
-assert_grep 'agents_version: 13|`agents_version: 13`|agents_version`.*13' "$UPGRADING_FILE" "UPGRADING.md must retain agents_version 13 history"
-assert_grep 'agents_version: 17|`agents_version: 17`|agents_version`.*17' "$UPGRADING_FILE" "UPGRADING.md must document agents_version 17"
-assert_grep 'setup_skill_version.*1\.2\.5' "$UPGRADING_FILE" "UPGRADING.md must document setup_skill_version 1.2.5"
-assert_grep 'setup_skill_version.*1\.2\.7|setup 1\.2\.7' "$UPGRADING_FILE" "UPGRADING.md must document ZCode setup_skill_version 1.2.7"
+# TS10 — Version threshold + deployed-behavior anchors
+# 只锚定「跑起来会坏」的东西：agents_version 阈值要跨文件对齐，部署到用户手里的
+# agent 模板要带住关键行为规则。原先还夹着一批「UPGRADING.md/README 必须写到某句话」
+# 的文档完整性断言——那种改一个词就红、测的是措辞不是行为，已随 check-story-long-write-contract.sh
+# 一并去掉，发版是否补 UPGRADING 由发版清单和人把关，不靠 CI 钉死措辞。
 assert_grep 'AGENTS_VERSION.*-lt 17|AGENTS_VERSION" -lt 17' "$HOOKS_DIR/session-start.sh" "session-start must warn for agents_version 16 under v17 deployment"
 assert_grep 'agents_version.*< 17|版本 < 17' "$SKILL_DIR/SKILL.md" "story-setup redeploy branch must treat agents_version 16 as stale"
 assert_grep 'agents_version.*小于 `17`|小于 .17' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must treat agents_version 16 as stale"
-assert_grep '/story-setup' "$UPGRADING_FILE" "UPGRADING.md must tell users to rerun /story-setup"
-assert_grep 'hook.*lib|lib/common\.sh|lib/sentinel\.sh' "$UPGRADING_FILE" "UPGRADING.md must document hook lib repair"
-assert_grep 'reference bundle|Agent Reference|agent-references' "$UPGRADING_FILE" "UPGRADING.md must document reference bundle repair"
-assert_grep '新版写作 Agent|写作 Agent|对标文风' "$UPGRADING_FILE" "UPGRADING.md must briefly document the v10 writing-agent refresh"
-assert_grep '关键信息与扩写技法' "$UPGRADING_FILE" "UPGRADING.md must document v12 key-information expansion"
-assert_grep '剧情/节奏\.md|`剧情/节奏\.md`|节奏\.md' "$UPGRADING_FILE" "UPGRADING.md must document v12 rhythm artifact"
-assert_grep '剧情/情绪模块\.md|`剧情/情绪模块\.md`|情绪模块\.md' "$UPGRADING_FILE" "UPGRADING.md must document v12 emotion module artifact"
-assert_grep 'selected_emotion_module' "$UPGRADING_FILE" "UPGRADING.md must document story-explorer selected_emotion_module"
-assert_grep 'rhythm_reference' "$UPGRADING_FILE" "UPGRADING.md must document story-explorer rhythm_reference"
 assert_grep 'contract_version.*v12|gaps\.contract_version == "v12"' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must classify v12 benchmark contracts before fallback"
 assert_grep 'contract_version.*legacy|legacy_deconstruction: true|legacy_deconstruction": true' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must classify legacy benchmark fallback explicitly"
 assert_grep 'missing_primary_contract: true|missing_primary_contract": true' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must emit missing_primary_contract for broken v12 canonical artifacts"
 assert_grep 'repair_action.*Stage 3|Stage 3.*repair_action|重跑 /story-long-analyze Stage 3' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must provide a v12 repair action instead of silent fallback"
 assert_grep 'legacy_deconstruction: true|missing_primary_contract' "$REPO_ROOT/skills/story-long-write/SKILL.md" "story-long-write must not silently fallback for v12 primary contract gaps"
-assert_grep '章节蓝图|内容概括|情节安排|人物关系和出场顺序|结尾设定和钩子' "$UPGRADING_FILE" "UPGRADING.md must document v13 chapter blueprint"
-assert_grep '语气标点谱系' "$UPGRADING_FILE" "UPGRADING.md must document v13 tone punctuation"
-assert_grep '不用.*……|不使用.*……|不保留.*……|不残留.*……' "$UPGRADING_FILE" "UPGRADING.md must document no ellipsis pause punctuation"
-assert_grep '不用.*——|不使用.*——|不保留.*——|不残留.*——' "$UPGRADING_FILE" "UPGRADING.md must document no dialogue dash exception"
 assert_grep '内容概括（五段式）|情节安排（多线）|人物关系和出场顺序|结尾设定和钩子' "$SKILL_DIR/references/templates/agents/story-architect.md" "story-architect must output v13 chapter blueprint fields"
 assert_grep '逻辑线|人物关系变化|代价兑现 / 收益兑现|结尾设定' "$SKILL_DIR/references/templates/agents/consistency-checker.md" "consistency-checker must consume v13 outline blueprint fields"
 assert_grep '语气标点谱系' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must enforce v13 tone punctuation"
@@ -405,9 +385,6 @@ assert_grep '不用.*——|不使用.*——|不保留.*——|不残留.*—�
 assert_grep '语气标点谱系' "$AGENT_REFS_DIR/format-and-structure.md" "agent references must include v13 tone punctuation format rules"
 assert_grep '不用.*……|不使用.*……|不保留.*……|不残留.*……' "$AGENT_REFS_DIR/format-and-structure.md" "agent references must forbid ellipsis pause punctuation"
 assert_grep '不用.*——|不使用.*——|不保留.*——|不残留.*——|正文和对话都禁止.*——' "$AGENT_REFS_DIR/format-and-structure.md" "agent references must forbid dialogue dash exception"
-assert_grep 'AI 句式硬门槛.*issue #166|issue #166.*AI 句式硬门槛' "$UPGRADING_FILE" "UPGRADING.md must document v14 AI sentence gate and issue #166"
-assert_grep '先否定再肯定' "$UPGRADING_FILE" "UPGRADING.md must document the forbidden not-then-is flip"
-assert_grep 'check-ai-patterns\.js.*blocking.*复扫.*0|blocking.*复扫.*0.*check-ai-patterns\.js|check-ai-patterns\.js.*复扫到 0|复扫到 0.*check-ai-patterns\.js' "$UPGRADING_FILE" "UPGRADING.md must document detector blocking rescan to zero"
 assert_grep '禁止先否定再肯定翻转句式' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must hard-ban not-then-is flips"
 assert_grep 'check-ai-patterns\.js --check' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must require detector rescan handoff"
 assert_grep '裸调用.*不得自动进入正文写作|不得自动进入正文写作.*裸调用' "$REPO_ROOT/skills/story-long-write/SKILL.md" "story-long-write bare invocation must not auto-write prose"
@@ -418,8 +395,7 @@ assert_grep '细纲边界|outline_underfilled|不得自造剧情' "$SKILL_DIR/re
 assert_grep 'outline_underfilled' "$SKILL_DIR/references/opencode/agents/narrative-writer.md" "opencode narrative-writer must inherit outline_underfilled boundary"
 assert_grep 'outline_underfilled' "$SKILL_DIR/references/codex/agents/narrative-writer.toml" "codex narrative-writer must inherit outline_underfilled boundary"
 assert_grep '导入续写入口顺序|推荐顺序.*story-setup' "$REPO_ROOT/skills/story-import/SKILL.md" "story-import must answer setup-vs-import order before asking for source"
-assert_grep '导入续写顺序|推荐先.*story-setup.*story-import' "$REPO_ROOT/README.md" "README must document import continuation order"
-echo "  OK TS10 upgrade notes"
+echo "  OK TS10 version + behavior anchors"
 
 # TS11 — Outline-before-prose write guard (BLOCKING PreToolUse hook)
 guard_root="$TMP_DIR/outline-guard"

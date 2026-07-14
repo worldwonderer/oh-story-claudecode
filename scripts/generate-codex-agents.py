@@ -5,12 +5,17 @@ The Claude/OpenCode agent markdown remains the source of truth for role text.
 Codex expects standalone TOML files with at least name, description, and
 `developer_instructions`; this script performs a deterministic conversion.
 """
+
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import shutil
+import tempfile
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 READ_ONLY_AGENTS = {"chapter-extractor", "consistency-checker", "story-explorer"}
 NICKNAMES = {
     "chapter-extractor": ["Chapter Extractor", "Scene Splitter"],
@@ -62,7 +67,7 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 def toml_basic_string(value: str) -> str:
     # Use a multi-line basic string so Chinese instructions and Markdown remain readable.
-    escaped = value.replace('\\', '\\\\').replace('"""', '\\\"\\\"\\\"')
+    escaped = value.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
     return f'"""\n{escaped.rstrip()}\n"""'
 
 
@@ -99,7 +104,7 @@ def adapt_body_for_codex(body: str, name: str) -> str:
         adapted.rstrip()
         + "\n\n---\n\n"
         + "Codex adaptation notes:\n"
-        + f"- Codex callers should request this custom agent with `agent_type: \"{name}\"` when the current runtime exposes project-local custom agents.\n"
+        + f'- Codex callers should request this custom agent with `agent_type: "{name}"` when the current runtime exposes project-local custom agents.\n'
         + "- If Codex reports `unknown agent_type` or the custom-agent registry is unavailable, the parent workflow must fall back to solo/direct execution and report the fallback instead of failing.\n"
         + "- Stay within this agent's role boundary; escalate adjacent work back to the parent agent.\n"
         + "- Use project-local story references first: `.codex/skills/story-setup/references/agent-references/`, then `.claude/skills/`, `.opencode/skills/`, then repository `skills/`.\n"
@@ -107,47 +112,131 @@ def adapt_body_for_codex(body: str, name: str) -> str:
     )
 
 
-def convert_file(src: Path, dst_dir: Path) -> Path:
+def render_file(src: Path) -> tuple[str, str]:
+    """Validate and render one source without touching the destination."""
     text = src.read_text(encoding="utf-8")
     meta, body = parse_frontmatter(text)
     name = meta.get("name") or src.stem
+    if name != src.stem or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", name) is None:
+        raise ValueError(
+            f"{src}: agent name {name!r} must match its safe filename stem {src.stem!r}"
+        )
     description = meta.get("description", "").strip()
     if not description:
         raise ValueError(f"{src}: missing description")
     instructions = adapt_body_for_codex(body, name)
     out = [
-        f"name = \"{name}\"",
+        f'name = "{name}"',
         f"description = {toml_basic_string(description)}",
         f"nickname_candidates = {toml_list(NICKNAMES.get(name, [name]))}",
     ]
     if name in READ_ONLY_AGENTS:
         out.append('sandbox_mode = "read-only"')
     out.append(f"developer_instructions = {toml_basic_string(instructions)}")
-    dst = dst_dir / f"{name}.toml"
-    dst.write_text("\n".join(out) + "\n", encoding="utf-8")
-    return dst
+    return f"{name}.toml", "\n".join(out) + "\n"
+
+
+def publish_rendered(rendered: dict[str, str], dst_dir: Path) -> list[Path]:
+    """Publish generated files with rollback while leaving the directory present."""
+    if dst_dir.is_symlink():
+        raise ValueError(f"destination directory must not be a symlink: {dst_dir}")
+    if dst_dir.exists() and not dst_dir.is_dir():
+        raise ValueError(f"destination is not a directory: {dst_dir}")
+
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    staging = Path(
+        tempfile.mkdtemp(prefix=f".{dst_dir.name}.staging-", dir=dst_dir.parent)
+    )
+    backup = Path(
+        tempfile.mkdtemp(prefix=f".{dst_dir.name}.backup-", dir=dst_dir.parent)
+    )
+    try:
+        for filename, output in rendered.items():
+            (staging / filename).write_text(output, encoding="utf-8", newline="\n")
+
+        existing = sorted(dst_dir.glob("*.toml"))
+        for path in existing:
+            if path.is_dir() and not path.is_symlink():
+                raise IsADirectoryError(f"generated target is a directory: {path}")
+            if path.is_symlink():
+                (backup / path.name).symlink_to(os.readlink(path))
+            else:
+                shutil.copy2(path, backup / path.name)
+
+        try:
+            for filename in rendered:
+                os.replace(staging / filename, dst_dir / filename)
+            for stale in existing:
+                if stale.name not in rendered:
+                    stale.unlink()
+        except BaseException:
+            # Best-effort rollback: a single un-removable file (immutable flag,
+            # lock, read-only mount) must not abort the restore and strand a
+            # partial commit. Files present in the backup are overwritten in
+            # place; only outputs that were absent before the commit are removed.
+            restore_names = {path.name for path in backup.iterdir()}
+            for current in list(dst_dir.glob("*.toml")):
+                if current.is_dir() and not current.is_symlink():
+                    continue
+                if current.name in restore_names:
+                    continue
+                try:
+                    current.unlink()
+                except OSError:
+                    pass
+            for original in backup.iterdir():
+                target = dst_dir / original.name
+                try:
+                    if original.is_symlink():
+                        if target.is_symlink() or target.exists():
+                            target.unlink()
+                        target.symlink_to(os.readlink(original))
+                    else:
+                        # target is provably a regular file (a commit only
+                        # os.replace's regular staged outputs), so copy2 safely
+                        # overwrites it in place.
+                        shutil.copy2(original, target)
+                except OSError:
+                    pass
+            raise
+        return [dst_dir / filename for filename in rendered]
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+        shutil.rmtree(backup, ignore_errors=True)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--source",
-        default="skills/story-setup/references/templates/agents",
+        type=Path,
+        default=REPO_ROOT / "skills/story-setup/references/templates/agents",
         help="Claude agent template directory",
     )
     parser.add_argument(
         "--dest",
-        default="skills/story-setup/references/codex/agents",
+        type=Path,
+        default=REPO_ROOT / "skills/story-setup/references/codex/agents",
         help="Codex TOML output directory",
     )
     args = parser.parse_args()
-    src_dir = Path(args.source)
-    dst_dir = Path(args.dest)
-    dst_dir.mkdir(parents=True, exist_ok=True)
-    generated = [convert_file(path, dst_dir) for path in sorted(src_dir.glob("*.md"))]
-    for stale in dst_dir.glob("*.toml"):
-        if stale not in generated:
-            stale.unlink()
+    src_dir = args.source
+    dst_dir = args.dest
+    if not src_dir.is_dir():
+        parser.error(f"source directory does not exist: {src_dir}")
+    sources = sorted(src_dir.glob("*.md"))
+    if not sources:
+        parser.error(f"source directory contains no agent markdown files: {src_dir}")
+    # Render every source before the first destination write. A malformed later
+    # template must not leave a half-updated generated directory.
+    rendered: dict[str, str] = {}
+    for path in sources:
+        filename, output = render_file(path)
+        if filename in rendered:
+            raise ValueError(f"duplicate generated agent filename: {filename}")
+        rendered[filename] = output
+
+    generated = publish_rendered(rendered, dst_dir)
     print(f"Generated {len(generated)} Codex agent files in {dst_dir}")
     for path in generated:
         print(f"- {path}")

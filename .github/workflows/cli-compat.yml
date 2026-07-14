@@ -1,0 +1,98 @@
+name: Agent CLI compatibility
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.agents/**'
+      - '.claude-plugin/**'
+      - '.github/workflows/cli-compat.yml'
+      - 'scripts/**'
+      - 'skills/**'
+  pull_request:
+    paths:
+      - '.agents/**'
+      - '.claude-plugin/**'
+      - '.github/workflows/cli-compat.yml'
+      - 'scripts/**'
+      - 'skills/**'
+  schedule:
+    - cron: '23 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-compat-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  claude-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install current Claude Code CLI
+        run: npm install --global @anthropic-ai/claude-code@latest
+      - name: Run real Claude Code adapter check
+        env:
+          CLAUDE_REAL_CHECK: '1'
+        run: bash scripts/check-claude-adapter.sh
+
+  codex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install current Codex CLI
+        run: npm install --global @openai/codex@latest
+      - name: Run real Codex CLI discovery test
+        run: bash scripts/test-codex-cli-e2e.sh
+
+  opencode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install current OpenCode CLI
+        run: npm install --global opencode-ai@latest
+      - name: Run real OpenCode CLI adapter test
+        run: bash scripts/test-opencode-cli-e2e.sh
+
+  openclaw:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # OpenClaw requires Node 22.19+, 23.11+, or 24+; Node 24 is its default target.
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install current OpenClaw CLI
+        run: npm install --global openclaw@latest
+      - name: Run real OpenClaw skill discovery test
+        env:
+          OPENCLAW_REAL_CHECK: '1'
+        run: bash scripts/check-openclaw-skills.sh

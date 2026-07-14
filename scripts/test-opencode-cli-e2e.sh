@@ -7,6 +7,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ROOT="$REPO_ROOT/skills/story-setup/references/opencode"
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ohstory-opencode-e2e.XXXXXX")"
 trap 'rm -rf "$TMP_ROOT"' EXIT
+CLI_HOME="$TMP_ROOT/home"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -14,16 +15,27 @@ if ! command -v opencode >/dev/null 2>&1; then
   fail "opencode CLI not found on PATH. Install with: npm install -g opencode-ai"
 fi
 
+run_opencode() {
+  HOME="$CLI_HOME" \
+    XDG_CONFIG_HOME="$CLI_HOME/.config" \
+    XDG_DATA_HOME="$CLI_HOME/.local/share" \
+    XDG_CACHE_HOME="$CLI_HOME/.cache" \
+    XDG_STATE_HOME="$CLI_HOME/.local/state" \
+    command opencode "$@"
+}
+
+mkdir -p "$CLI_HOME"
+
 echo "OpenCode CLI E2E"
 echo "================"
 echo "Repo: $REPO_ROOT"
-echo "OpenCode: $(command -v opencode) ($(opencode --version))"
+echo "OpenCode: $(command -v opencode) ($(run_opencode --version))"
 
 cd "$REPO_ROOT"
 
 echo "  Checking repo-local skill discovery"
-opencode debug skill >"$TMP_ROOT/repo-skills.json"
-python3 - "$TMP_ROOT/repo-skills.json" <<'PY'
+run_opencode debug skill >"$TMP_ROOT/repo-skills.json"
+python3 - "$TMP_ROOT/repo-skills.json" "$REPO_ROOT" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -45,10 +57,24 @@ expected = {
 }
 
 data = json.loads(Path(sys.argv[1]).read_text())
-names = {item.get("name") or item.get("id") for item in data if isinstance(item, dict)}
+repo_root = Path(sys.argv[2]).resolve()
+items = {
+    item.get("name") or item.get("id"): item
+    for item in data
+    if isinstance(item, dict)
+}
+names = set(items)
 missing = sorted(expected - names)
 if missing:
     raise SystemExit(f"missing OpenCode-discovered story skills: {missing}")
+for name in expected:
+    location = items[name].get("location")
+    if not isinstance(location, str):
+        raise SystemExit(f"{name}: OpenCode output omitted skill location")
+    actual = Path(location).resolve()
+    wanted = (repo_root / "skills" / name / "SKILL.md").resolve()
+    if actual != wanted:
+        raise SystemExit(f"{name}: expected location {wanted}, got {actual}")
 print(f"    OK {len(expected)} story skills discovered")
 PY
 
@@ -70,17 +96,15 @@ cp -R "$REPO_ROOT/skills/story-setup/references/agent-references" \
 echo "  Checking deployed project config/agents/commands/plugin"
 (
   cd "$PROJECT"
-  opencode debug config >"$TMP_ROOT/project-config.json"
-  opencode debug agent story-explorer >"$TMP_ROOT/story-explorer.json"
+  run_opencode debug config >"$TMP_ROOT/project-config.json"
 )
 
-python3 - "$TMP_ROOT/project-config.json" "$TMP_ROOT/story-explorer.json" <<'PY'
+python3 - "$TMP_ROOT/project-config.json" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-config_path, agent_path = map(Path, sys.argv[1:])
-cfg = json.loads(config_path.read_text())
+cfg = json.loads(Path(sys.argv[1]).read_text())
 
 expected_commands = {
     "browser-cdp",
@@ -120,10 +144,10 @@ if missing_commands:
 if missing_agents:
     raise SystemExit(f"missing OpenCode agents: {missing_agents}")
 
-agent = json.loads(agent_path.read_text())
+agent = (cfg.get("agent") or {}).get("story-explorer") or {}
 agent_name = agent.get("name") or agent.get("id")
-if agent_name != "story-explorer":
-    raise SystemExit(f"debug agent returned wrong name/id: {agent_name!r}")
+if agent_name not in (None, "story-explorer"):
+    raise SystemExit(f"resolved story-explorer returned wrong name/id: {agent_name!r}")
 if agent.get("mode") != "subagent":
     raise SystemExit(f"story-explorer mode should be subagent, got {agent.get('mode')!r}")
 if "小说" not in json.dumps(agent, ensure_ascii=False) and "story" not in json.dumps(agent).lower():
