@@ -102,9 +102,14 @@ function parseJSONResult(raw) {
   }
 }
 
-/** 在浏览器内执行短 JS，并解析 JSON 返回值。 */
+/**
+ * 在浏览器内执行 JS，并解析 JSON 返回值。
+ * 一律走 base64（-b）：正文提取用的 JS 常含引号、反斜杠等，作为命令行参数时在 Windows 上
+ * 无法逐字透传（.cmd 的 %* 与 PowerShell 都会二次解析）。base64 让参数只含 [A-Za-z0-9+/=]，
+ * 和各采集脚本已在用的 evalJSONBase64 走同一条安全通道。
+ */
 function evalJSON(port, js) {
-  return parseJSONResult(ab(port, "eval", String(js)));
+  return evalJSONBase64(port, js);
 }
 
 /**

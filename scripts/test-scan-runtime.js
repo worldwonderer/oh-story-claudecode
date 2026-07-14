@@ -33,14 +33,24 @@ if (process.env.AGENT_BROWSER_EXIT) {
 `;
   if (process.platform === "win32") {
     const program = path.join(tmpDir, "fake-agent-browser.js");
-    const shim = path.join(tmpDir, "agent-browser.cmd");
     fs.writeFileSync(program, fakeProgram, "utf8");
+    // `npm install -g` always writes BOTH a .cmd and a .ps1 launcher (plus an
+    // extensionless bash shim). PowerShell's `&` resolves the ExternalScript
+    // (.ps1) ahead of the Application (.cmd), and the .ps1 forwards $args
+    // in-process to node — no cmd.exe %* re-tokenization. A .cmd-only fixture is
+    // a layout npm never produces; model the real one so the test exercises the
+    // path real users hit.
     fs.writeFileSync(
-      shim,
+      path.join(tmpDir, "agent-browser.cmd"),
       `@echo off\r\n"${process.execPath}" "%~dp0fake-agent-browser.js" %*\r\n`,
       "utf8"
     );
-    return shim;
+    fs.writeFileSync(
+      path.join(tmpDir, "agent-browser.ps1"),
+      `& "${process.execPath}" "$PSScriptRoot\\fake-agent-browser.js" $args\r\nexit $LASTEXITCODE\r\n`,
+      "utf8"
+    );
+    return path.join(tmpDir, "agent-browser.cmd");
   }
 
   const bin = path.join(tmpDir, "agent-browser");
@@ -91,14 +101,19 @@ function testCdpUtils(modulePath) {
     const utils = loadFresh(modulePath);
     assert.strictEqual(typeof utils.evalJSONBase64, "function");
 
+    // argv 合约：① 注入安全——参数绝不进 shell 求值；② 逐字透传真实参数里会出现的元字符
+    // ——空格、& | ^ ; $()、中文，以及 URL 里的 & 和 =。裸双引号/反斜杠不在合约内：带引号的
+    // eval 载荷一律经 base64 下发（evalJSONBase64 / evalJSON），命令行参数只会是 base64 串、
+    // URL 和这类无引号 token，Windows 的 .cmd/PowerShell 无法逐字透传裸双引号。
     const shellLikeArg = `$(touch ${injected})`;
-    const unicodeSpecialArg = `中文参数 / 空 格 & | ^ ! $() ; [] {} = ' " \\`;
+    const urlLikeArg = "https://x.example/rank?a=1&b=2&c=d#top";
+    const unicodeSpecialArg = `中文参数 / 空 格 & | ^ ! $() ; [] {} = '`;
     assert.strictEqual(
       utils.ab(
         9222,
         "eval",
         shellLikeArg,
-        'quote"arg',
+        urlLikeArg,
         "space arg",
         unicodeSpecialArg
       ),
@@ -110,7 +125,7 @@ function testCdpUtils(modulePath) {
       "9222",
       "eval",
       shellLikeArg,
-      'quote"arg',
+      urlLikeArg,
       "space arg",
       unicodeSpecialArg,
     ]);
