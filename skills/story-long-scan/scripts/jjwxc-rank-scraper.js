@@ -24,7 +24,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ab, sleep, getArg } = require("./cdp-utils");
+const { ab, sleep, evalJSONBase64, getArg, runCli } = require("./cdp-utils");
 
 const BASE_URL = "https://www.jjwxc.net/topten.php";
 
@@ -40,28 +40,9 @@ const RANK_TYPES = [
 // 详情请求批大小（async fetch 并发，整批控制在 ab() 20s 超时内）
 const DETAIL_CHUNK = 6;
 
-// ---------------------------------------------------------------------------
-// eval 封装：统一走 base64，规避复杂 JS 的 shell 转义问题（与 fanqie 一致）
-// ---------------------------------------------------------------------------
-
-function evalJSON(port, js) {
-  const b64 = Buffer.from(String(js), "utf-8").toString("base64");
-  const raw = ab(port, "eval", "-b", b64);
-  if (!raw || raw === "ERR") return null;
-  try {
-    let parsed = JSON.parse(raw);
-    if (typeof parsed === "string") {
-      try { parsed = JSON.parse(parsed); } catch {}
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 /** 连通性 + 页面就绪自检 */
 function probePage(port) {
-  return evalJSON(
+  return evalJSONBase64(
     port,
     "JSON.stringify({host:location.host,len:(document.body&&document.body.innerText||'').length})"
   );
@@ -122,7 +103,7 @@ function extractRankData(port) {
     "}" +
     "return result" +
     "})())";
-  return evalJSON(port, js);
+  return evalJSONBase64(port, js);
 }
 
 // ---------------------------------------------------------------------------
@@ -151,7 +132,7 @@ function fetchDetails(port, ids) {
   const map = {};
   for (let i = 0; i < ids.length; i += DETAIL_CHUNK) {
     const chunk = ids.slice(i, i + DETAIL_CHUNK);
-    const part = evalJSON(port, buildDetailJS(chunk)) || {};
+    const part = evalJSONBase64(port, buildDetailJS(chunk)) || {};
     Object.assign(map, part);
     sleep(400);
   }
@@ -318,6 +299,7 @@ function scrapeRank(port, rankTypeId, channelId) {
 function main() {
   const rankTypes = RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
   const channels = [CHANNEL]; // 晋江频道 ID 需从页面获取，默认全站
+  let written = 0;
 
   for (const rt of rankTypes) {
     for (const ch of channels) {
@@ -331,18 +313,15 @@ function main() {
       fs.mkdirSync(OUTDIR, { recursive: true });
       const filepath = path.join(OUTDIR, filename);
       fs.writeFileSync(filepath, content, "utf-8");
+      written++;
       console.log(`  ✓ 已保存: ${filepath}`);
     }
   }
+  return written;
 }
 
 if (require.main === module) {
-  try {
-    main();
-  } catch (e) {
-    console.error(`晋江采集失败: ${e && e.message ? e.message : e}`);
-    process.exit(1);
-  }
+  runCli(main, "晋江采集");
 }
 
 module.exports = { buildDetailJS, fmtWan };

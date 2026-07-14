@@ -3,10 +3,10 @@
 > 拆文输出时加载。先看决策路由选 Stage，再按模板填写。方法论细节见 material-decomposition.md。
 >
 > **输出契约 SSOT**：Stage→文件映射、`_meta.json` 字段（含 `structure_counts`）、
-> 下游消费规范、Phase 7 检查均在 [output-contract.md](output-contract.md) 中权威定义。
+> 下游消费规范、验收检查均在 [output-contract.md](output-contract.md) 中权威定义。
 > 本文件填的模板内容最终落到 `拆文报告.md` 等 markdown 文件，对应去向见每个 Stage
 > 末尾的 HTML 注释标注。质量检查必填字段段末加注 `[BLOCK]` / `[WARN]`：BLOCK
-> 不通过 → Phase 7.3 阻断；WARN 不通过 → 写入「待补」清单不阻断。
+> 不通过 → 「BLOCK 项扫描」阻断；WARN 不通过 → 写入「待补」清单不阻断。
 
 ## 决策路由
 
@@ -419,7 +419,7 @@ N2 **自我认知**：类型{转折} | 情绪{心酸}{-5} | 涉及{沈暮月}
 
 ### _meta.json.structure_counts 产出模板
 
-> Stage 6 完成时，把这一节的结构计数写入 `_meta.json.structure_counts`，作为 Phase 7.2
+> Stage 6 完成时，把这一节的结构计数写入 `_meta.json.structure_counts`，作为「structure_counts 数值校验」
 > 数值检查的依据。分析叙事正文写到 `拆文报告.md` 的对应段，不要重复在 JSON 里再讲一遍。
 > 字段定义与阈值见 [output-contract.md](output-contract.md)。
 
@@ -507,7 +507,7 @@ Stage 完成前逐项检查，缺一即不完整。**数值阈值（节点密度
 
 **标注约定**：
 
-- `[BLOCK]`：量化或必备产物，缺失 → Phase 7.3 阻断，不写 `_meta.json.stages_completed[6]`，提示用户回到对应 Stage 补足。
+- `[BLOCK]`：量化或必备产物，缺失 → 「BLOCK 项扫描」阻断，不写 `_meta.json.stages_completed[6]`，提示用户回到对应 Stage 补足。
 - `[WARN]`：质性或辅助项，缺失 → 写入 `拆文报告.md` 末尾「待补」清单，**不阻断**进入下一阶段。
 
 **Stage 2（结构+情节节点）**：
@@ -555,7 +555,7 @@ Stage 完成前逐项检查，缺一即不完整。**数值阈值（节点密度
 - [ ] 共鸣分析至少 3 层 `[BLOCK]`
 - [ ] 至少 3 条可复用结构，每条含适用场景 `[BLOCK]`
 - [ ] 同类型写作动作是具体行动 `[WARN]`
-- [ ] `_meta.json.structure_counts` 已写入且各字段达 Phase 7.2 阈值（详见 [output-contract.md](output-contract.md) 「Phase 7.2」表） `[BLOCK]`
+- [ ] `_meta.json.structure_counts` 已写入且各字段达「structure_counts 数值校验」阈值（详见 [output-contract.md](output-contract.md) 同名表） `[BLOCK]`
 
-**Phase 7 接入**：以上 `[BLOCK]` 项与 [output-contract.md](output-contract.md) 「字段最小计数」表共同构成 Phase 7.3 阻断扫描的检查清单。SKILL.md `Phase 7：检查验收` 段在 Stage 6 内容写完后、`stages_completed[6]` append 前调用本节。
+**验收接入**：以上 `[BLOCK]` 项与 [output-contract.md](output-contract.md) 「字段最小计数」表共同构成「BLOCK 项扫描」的检查清单。SKILL.md「验收」段在 Stage 6 内容写完后、`stages_completed[6]` append 前调用本节。
 - [ ] 节奏速报已包含

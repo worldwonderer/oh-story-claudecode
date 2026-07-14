@@ -75,31 +75,20 @@ def toml_list(values: list[str]) -> str:
     return "[" + ", ".join(repr(v).replace("'", '"') for v in values) + "]"
 
 
-# The Claude/OpenCode templates tell the agent to read references strictly in the order
-# .claude/skills -> .opencode/skills -> skills/. For Codex, story-setup deploys the bundle
-# to .codex/skills/..., so the agent must try that first; otherwise it reads non-existent
-# paths and the appended Codex note (which says ".codex/skills first") contradicts the body.
-_REF_BLOCK_RE = re.compile(
-    r"1\. `\{项目根\}/\.claude/skills/story-setup/references/agent-references/([^`]+)`\n"
-    r"2\. `\{项目根\}/\.opencode/skills/story-setup/references/agent-references/[^`]+`\n"
-    r"3\. `\{项目根\}/skills/story-setup/references/agent-references/[^`]+`"
-)
-
-
-def _codex_reference_order(match: "re.Match[str]") -> str:
-    fn = match.group(1)  # the {文件名} placeholder (or a concrete filename)
-    return (
-        f"1. `{{项目根}}/.codex/skills/story-setup/references/agent-references/{fn}`\n"
-        f"2. `{{项目根}}/.claude/skills/story-setup/references/agent-references/{fn}`\n"
-        f"3. `{{项目根}}/.opencode/skills/story-setup/references/agent-references/{fn}`\n"
-        f"4. `{{项目根}}/skills/story-setup/references/agent-references/{fn}`"
-    )
-
-
 def adapt_body_for_codex(body: str, name: str) -> str:
     """Translate Claude/OpenCode caller terminology to Codex custom-agent wording."""
     adapted = body.replace("subagent_type", "agent_type")
-    adapted = _REF_BLOCK_RE.sub(_codex_reference_order, adapted)
+    adapted = adapted.replace(
+        ".claude/skills/story-setup/references/agent-references/",
+        ".codex/skills/story-setup/references/agent-references/",
+    )
+    adapted = adapted.replace("当前 Claude 部署", "当前 Codex 部署")
+    adapted = re.sub(
+        r"(?<![A-Za-z0-9_])/(story(?:-[a-z0-9]+)*)",
+        lambda match: "$" + match.group(1),
+        adapted,
+    )
+    adapted = adapted.replace("Claude Code subagent", "Codex custom agent")
     return (
         adapted.rstrip()
         + "\n\n---\n\n"
@@ -107,7 +96,7 @@ def adapt_body_for_codex(body: str, name: str) -> str:
         + f'- Codex callers should request this custom agent with `agent_type: "{name}"` when the current runtime exposes project-local custom agents.\n'
         + "- If Codex reports `unknown agent_type` or the custom-agent registry is unavailable, the parent workflow must fall back to solo/direct execution and report the fallback instead of failing.\n"
         + "- Stay within this agent's role boundary; escalate adjacent work back to the parent agent.\n"
-        + "- Use project-local story references first: `.codex/skills/story-setup/references/agent-references/`, then `.claude/skills/`, `.opencode/skills/`, then repository `skills/`.\n"
+        + "- Use the deployed Codex reference path only: `.codex/skills/story-setup/references/agent-references/`. If it is missing, report the missing deployment instead of probing other CLI directories.\n"
         + "- Do not assume Claude-only tool names or frontmatter fields exist in Codex.\n"
     )
 

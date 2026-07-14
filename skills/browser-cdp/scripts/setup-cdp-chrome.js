@@ -239,32 +239,17 @@ function copyFileSafe(src, dest) {
 
 /** 递归复制目录 */
 function copyDirRecursive(src, dest) {
-  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) {
-      copyDirRecursive(srcPath, destPath);
-    } else if (entry.isFile()) {
-      copyFileSafe(srcPath, destPath);
-    }
-  }
+  fs.cpSync(src, dest, { recursive: true, force: true });
 }
 
-/** 递归删除目录（兼容老版本 Node 的 fs.rmSync 缺失场景） */
+/** 递归删除目录 */
 function rmDirSafe(dir) {
-  if (!fs.existsSync(dir)) return;
-  if (fs.rmSync) {
-    fs.rmSync(dir, { recursive: true, force: true });
-  } else {
-    fs.rmdirSync(dir, { recursive: true });
-  }
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 /**
  * 刷新登录态相关文件（在 debugProfile 已存在的"增量"路径上使用）。
- * 同时尝试老路径（Default/Cookies）和新路径（Default/Network/Cookies），
+ * 同时尝试 Chrome 当前可能存在的 Default/Cookies 与 Default/Network/Cookies，
  * 包含各类 -journal / -wal / -shm 旁路文件，以及 Google 账号登录数据。
  */
 function refreshAuthFiles(srcDefault, destDefault) {

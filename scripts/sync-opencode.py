@@ -156,8 +156,8 @@ def replace_claude_paths(body: str) -> str:
 def fix_path_rules_section(body: str) -> str:
     """Replace the reference file path rules section with correct opencode paths.
 
-    Detects the "参考文件路径规则" section and replaces it with a canonical
-    2-step opencode path resolution (skills/ first, .opencode/skills/ fallback).
+    Detects the "参考文件路径规则" section and replaces it with the one
+    canonical path that story-setup deploys for OpenCode.
     This is idempotent — running multiple times produces the same output.
     """
     # Some agents do not read reference files and intentionally have no such
@@ -169,11 +169,10 @@ def fix_path_rules_section(body: str) -> str:
 
     replacement = (
         r"\1"
-        r"读取参考文件时，**严格按以下顺序直接 Read，禁止先用 Glob/Grep 搜索**：\n"
+        r"读取参考文件时，直接 Read 当前 OpenCode 部署的 canonical 路径，禁止先用 Glob/Grep 搜索：\n"
         r"1. `{项目根}/skills/story-setup/references/agent-references/{文件名}`\n"
-        r"2. `{项目根}/.opencode/skills/story-setup/references/agent-references/{文件名}`\n"
         r"\n"
-        r"以上两步全部文件不存在时，才使用 Glob/Grep 全局搜索 `**/story-setup/references/agent-references/{文件名}`。"
+        r"文件不存在时返回缺失事实，由父流程提示重新运行 `/story-setup`；不要探测其他 CLI 的目录。"
     )
 
     new_body, count = re.subn(pattern, replacement, body, flags=re.DOTALL)

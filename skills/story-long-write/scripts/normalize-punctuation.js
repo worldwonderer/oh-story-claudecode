@@ -102,7 +102,7 @@ function normalizeDocument(input, quoteMode) {
 
   const findings = [];
   const outputLines = [];
-  let inFence = false;
+  let fence = null;
   let inFrontMatter = hasYamlFrontMatter(lines);
   let quoteOpen = false;
 
@@ -111,19 +111,21 @@ function normalizeDocument(input, quoteMode) {
     let line = lines[index];
     const trimmed = line.trim();
 
-    if (trimmed.startsWith('```')) {
-      inFence = !inFence;
-      outputLines.push(line);
-      continue;
-    }
-
     if (inFrontMatter) {
       outputLines.push(line);
       if (index > 0 && trimmed === '---') inFrontMatter = false;
       continue;
     }
 
-    if (inFence) {
+    if (fence) {
+      outputLines.push(line);
+      if (isClosingFence(line, fence)) fence = null;
+      continue;
+    }
+
+    const openingFence = parseOpeningFence(line);
+    if (openingFence) {
+      fence = openingFence;
       outputLines.push(line);
       continue;
     }
@@ -154,6 +156,23 @@ function normalizeDocument(input, quoteMode) {
     output: outputLines.join(newline) + (trailingNewline ? newline : ''),
     findings,
   };
+}
+
+function parseOpeningFence(line) {
+  const match = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+  if (!match) return null;
+
+  const marker = match[1];
+  const rest = match[2];
+  if (marker[0] === '`' && rest.includes('`')) return null;
+
+  return { marker: marker[0], minimumLength: marker.length };
+}
+
+function isClosingFence(line, fence) {
+  const marker = fence.marker === '`' ? '`' : '~';
+  const match = line.match(new RegExp(`^ {0,3}(${marker}{3,})[\\t ]*$`));
+  return Boolean(match && match[1].length >= fence.minimumLength);
 }
 
 function normalizePausePunctuation(line, lineNo) {

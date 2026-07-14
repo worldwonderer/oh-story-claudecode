@@ -24,11 +24,10 @@ steps: 25
 
 **确定项目根目录：** 执行 `git rev-parse --show-toplevel`，失败则用当前工作目录。以下所有路径均为项目根下的绝对路径。
 
-读取参考文件时，**严格按以下顺序直接 Read，禁止先用 Glob/Grep 搜索**：
+读取参考文件时，直接 Read 当前 OpenCode 部署的 canonical 路径，禁止先用 Glob/Grep 搜索：
 1. `{项目根}/skills/story-setup/references/agent-references/{文件名}`
-2. `{项目根}/.opencode/skills/story-setup/references/agent-references/{文件名}`
 
-以上两步全部文件不存在时，才使用 Glob/Grep 全局搜索 `**/story-setup/references/agent-references/{文件名}`。
+文件不存在时返回缺失事实，由父流程提示重新运行 `/story-setup`；不要探测其他 CLI 的目录。
 
 禁止只读裸文件名、禁止跳级、禁止跨 skill 读其他 skill 的 references。
 

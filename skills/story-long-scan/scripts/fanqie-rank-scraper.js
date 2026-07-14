@@ -20,31 +20,11 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ab, sleep, scrollLoad, getArg } = require("./cdp-utils");
+const { ab, sleep, evalJSONBase64, scrollLoad, getArg, runCli } = require("./cdp-utils");
 
 // 一次详情请求的并发批大小。番茄详情页用同步 XHR 拉取，批太大会撞上
-// cdp-utils 里 ab() 的 20s 超时，导致整批返回空 → 书名全部回退成 bookId。
+// cdp-utils 里 ab() 的 20s 超时；超时会显式失败，这里分批是为了避免整个题材被中断。
 const DETAIL_CHUNK = 5;
-
-// ---------------------------------------------------------------------------
-// eval 封装：统一走 base64，规避复杂 JS（正则/引号/反斜杠）的 shell 转义问题
-// ---------------------------------------------------------------------------
-
-/** 在浏览器内执行 JS（base64 传参）并解析 JSON 返回值 */
-function evalJSON(port, js) {
-  const b64 = Buffer.from(String(js), "utf-8").toString("base64");
-  const raw = ab(port, "eval", "-b", b64);
-  if (!raw || raw === "ERR") return null;
-  try {
-    let parsed = JSON.parse(raw);
-    if (typeof parsed === "string") {
-      try { parsed = JSON.parse(parsed); } catch {}
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // 页面提取
@@ -52,7 +32,7 @@ function evalJSON(port, js) {
 
 /** 连通性 + 页面就绪自检 */
 function probePage(port) {
-  return evalJSON(
+  return evalJSONBase64(
     port,
     "JSON.stringify({host:location.host,hasState:!!window.__INITIAL_STATE__})"
   );
@@ -78,7 +58,7 @@ function buildCategoriesJS(prefix) {
 /** 提取侧边菜单品类链接 */
 function extractCategories(port, channel, type) {
   const prefix = `/rank/${channel}_${type}_`;
-  return evalJSON(port, buildCategoriesJS(prefix)) || [];
+  return evalJSONBase64(port, buildCategoriesJS(prefix)) || [];
 }
 
 /**
@@ -118,7 +98,7 @@ function buildBookListJS() {
 }
 
 function extractBookList(port) {
-  const list = evalJSON(port, buildBookListJS());
+  const list = evalJSONBase64(port, buildBookListJS());
   return Array.isArray(list) ? list : [];
 }
 
@@ -179,7 +159,7 @@ function buildDetailJS(ids) {
 }
 
 function fetchDetailsChunk(port, ids) {
-  return evalJSON(port, buildDetailJS(ids)) || {};
+  return evalJSONBase64(port, buildDetailJS(ids)) || {};
 }
 
 /** 分批解码，避免单次 eval 超时；返回合并后的 map */
@@ -408,6 +388,7 @@ function scrapeChannel(ch, type) {
 function main() {
   const channels = CHANNEL === "all" ? ["1", "0"] : [CHANNEL];
   const types = TYPE === "all" ? ["2", "1"] : [TYPE];
+  let written = 0;
 
   for (const ch of channels) {
     for (const ty of types) {
@@ -420,6 +401,7 @@ function main() {
         fs.mkdirSync(OUTDIR, { recursive: true });
         const filepath = path.join(OUTDIR, filename);
         fs.writeFileSync(filepath, content, "utf-8");
+        written++;
         console.log(`  ✓ 已保存: ${filepath}`);
       } catch (chErr) {
         console.error(
@@ -428,15 +410,11 @@ function main() {
       }
     }
   }
+  return written;
 }
 
 if (require.main === module) {
-  try {
-    main();
-  } catch (e) {
-    console.error(`番茄采集失败: ${e && e.message ? e.message : e}`);
-    process.exit(1);
-  }
+  runCli(main, "番茄采集");
 }
 
 // 导出纯函数/JS 构建器，供测试在 sandbox 内验证解析逻辑

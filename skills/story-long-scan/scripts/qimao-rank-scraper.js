@@ -17,29 +17,13 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ab, sleep, safeStr, scrollLoad, getArg } = require("./cdp-utils");
+const { ab, sleep, evalJSONBase64, safeStr, scrollLoad, getArg, runCli } = require("./cdp-utils");
 
 const RANK_URL = "https://www.qimao.com/paihang";
 
-// eval 统一走 base64，规避复杂 JS 的 shell 转义问题（与 fanqie 一致）
-function evalJSON(port, js) {
-  const b64 = Buffer.from(String(js), "utf-8").toString("base64");
-  const raw = ab(port, "eval", "-b", b64);
-  if (!raw || raw === "ERR") return null;
-  try {
-    let parsed = JSON.parse(raw);
-    if (typeof parsed === "string") {
-      try { parsed = JSON.parse(parsed); } catch {}
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 /** 连通性 + 页面就绪自检 */
 function probePage(port) {
-  return evalJSON(
+  return evalJSONBase64(
     port,
     "JSON.stringify({host:location.host,len:(document.body&&document.body.innerText||'').length})"
   );
@@ -73,7 +57,7 @@ function clickTab(port, text) {
     "});" +
     "if(el){el.click();return true}return false" +
     "})())";
-  return evalJSON(port, js);
+  return evalJSONBase64(port, js);
 }
 
 /** 点 tab，失败后等一拍重试一次（tab 异步渲染可能滞后） */
@@ -103,7 +87,7 @@ function extractBookUrls(port) {
     });
     return order.map(function(id){return {bookId:id,title:byId[id],url:'https://www.qimao.com/shuku/'+id+'/'};});
   })())`;
-  return evalJSON(port, js) || [];
+  return evalJSONBase64(port, js) || [];
 }
 
 /**
@@ -152,7 +136,7 @@ function extractBooksFromText(port) {
     "if(cur&&cur.title)books.push(cur);" +
     "return books" +
     "})())";
-  return evalJSON(port, js) || [];
+  return evalJSONBase64(port, js) || [];
 }
 
 // ---------------------------------------------------------------------------
@@ -290,6 +274,7 @@ function scrapeRank(port, channelId, rankTypeId) {
 function main() {
   const channels = CHANNEL === "all" ? CHANNELS.map((c) => c.id) : [CHANNEL];
   const rankTypes = RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
+  let written = 0;
 
   for (const ch of channels) {
     for (const rt of rankTypes) {
@@ -303,14 +288,15 @@ function main() {
       fs.mkdirSync(OUTDIR, { recursive: true });
       const filepath = path.join(OUTDIR, filename);
       fs.writeFileSync(filepath, content, "utf-8");
+      written++;
       console.log(`  ✓ 已保存: ${filepath}`);
     }
   }
+  return written;
 }
 
-try {
-  main();
-} catch (e) {
-  console.error(`七猫采集失败: ${e && e.message ? e.message : e}`);
-  process.exit(1);
+if (require.main === module) {
+  runCli(main, "七猫采集");
 }
+
+module.exports = { extractBooksFromText };

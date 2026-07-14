@@ -355,8 +355,9 @@ for p in sorted(base.glob('*.md')):
     else:
         assert 'edit: allow' in fm, f'{p}: write-capable agent must allow edit'
     assert '.claude/skills/story-setup/references/agent-references/' not in text, f'{p}: leaked Claude reference path'
+    assert '.opencode/skills/story-setup/references/agent-references/' not in text, f'{p}: stale hidden OpenCode reference fallback'
     if p.stem in {'character-designer', 'consistency-checker', 'narrative-writer', 'story-architect'}:
-        assert '.opencode/skills/story-setup/references/agent-references/' in text, f'{p}: missing OpenCode reference path'
+        assert '{项目根}/skills/story-setup/references/agent-references/' in text, f'{p}: missing canonical OpenCode reference path'
 PY
 
 echo "  OK agent templates"
@@ -376,17 +377,11 @@ PY
 
 echo "  OK slash command templates"
 
-assert_grep 'experimental\.session\.compacting' "$ROOT/plugin.ts" "OpenCode plugin must inject pre-compact context"
-assert_grep 'tool\.execute\.before' "$ROOT/plugin.ts" "OpenCode plugin must guard tool writes"
-assert_grep 'proseBlockReason' "$ROOT/plugin.ts" "OpenCode plugin must keep outline-before-prose guard"
-assert_grep 'tool\.execute\.after' "$ROOT/plugin.ts" "OpenCode plugin must run the prose backstop after writes"
-assert_grep 'proseNetFindings' "$ROOT/plugin.ts" "OpenCode plugin must carry the light prose net (parity with codex/claude)"
-assert_grep 'proseAfterWriteNote' "$ROOT/plugin.ts" "OpenCode plugin must surface backstop findings on the write result"
-assert_grep '正文' "$ROOT/plugin.ts" "OpenCode plugin must inspect prose targets"
 assert_grep '@opencode-ai/plugin' "$ROOT/plugin.ts" "OpenCode plugin must import OpenCode plugin types"
+node --experimental-strip-types scripts/test-opencode-plugin.mjs
 assert_grep 'AGENTS\.md|OpenCode' "$ROOT/AGENTS.md.tmpl" "OpenCode AGENTS template must be present"
 assert_grep 'story-long-write|story-short-write|story-review' "$ROOT/AGENTS.md.tmpl" "OpenCode AGENTS template must mention story skill routing"
 
-echo "  OK plugin and instruction anchors"
+echo "  OK plugin behavior and instruction anchors"
 echo ""
 echo "OK: OpenCode adapter checks passed"

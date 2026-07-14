@@ -29,12 +29,25 @@ mkdir -p "$BOOK_DIR"
 printf '%s' '中文字数测试ABC123' > "$BOOK_DIR/正文.md"
 EXPECT=12
 
+# 先记住一个真正可用的解释器。stub 必须自给自足，不假设当前机器
+# 同时安装了 python3 和 python/py（某些 macOS 环境只有 python3）。
+REAL_PYTHON=""
+for candidate in python3 python py; do
+  if "$candidate" -c "" >/dev/null 2>&1; then
+    REAL_PYTHON="$(command -v "$candidate")"
+    break
+  fi
+done
+[ -n "$REAL_PYTHON" ] || { echo "FAIL: no working Python interpreter" >&2; exit 1; }
+
 if [ "$STUB" -eq 1 ]; then
   # 塞一个永远 exit 49 的假 python3 到 PATH 最前面，复现 Windows Store 占位程序
   FAKEBIN="$WORK/fakebin"
   mkdir -p "$FAKEBIN"
   printf '#!/bin/sh\nexit 49\n' > "$FAKEBIN/python3"
+  printf '#!/bin/sh\nexec "%s" "$@"\n' "$REAL_PYTHON" > "$FAKEBIN/python"
   chmod +x "$FAKEBIN/python3"
+  chmod +x "$FAKEBIN/python"
   PATH="$FAKEBIN:$PATH"
   export PATH
   echo "[stub] python3 现在固定 exit 49（模拟 Microsoft Store 占位程序）"

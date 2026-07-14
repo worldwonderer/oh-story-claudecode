@@ -19,7 +19,7 @@
  *   node qidian-rank-scraper.js --type sanjiang                 # 三江推荐（/sanjiang/，非 /rank/ 路径）
  *   node qidian-rank-scraper.js --type all                     # 全部榜单
  *   node qidian-rank-scraper.js --type hotsales --mode mobile  # 仅使用移动端 SSR
- *   node qidian-rank-scraper.js --type hotsales --mode cdp     # 仅使用旧版 CDP/PC 页面
+ *   node qidian-rank-scraper.js --type hotsales --mode cdp     # 仅使用备用 CDP/PC 页面
  *
  * 前置：
  *   默认 mobile/auto 模式不需要 Chrome。
@@ -29,7 +29,7 @@
 const fs = require("fs");
 const https = require("https");
 const path = require("path");
-const { ab, sleep, evalJSON, scrollLoad, getArg } = require("./cdp-utils");
+const { ab, sleep, evalJSON, scrollLoad, getArg, runCli } = require("./cdp-utils");
 
 const PC_BASE_URL = "https://www.qidian.com/rank";
 const MOBILE_BASE_URL = "https://m.qidian.com";
@@ -478,6 +478,7 @@ async function scrapeRank(rankTypeId) {
 
 async function main() {
   const rankTypes = RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
+  let written = 0;
 
   for (const rt of rankTypes) {
     const content = await scrapeRank(rt);
@@ -489,11 +490,20 @@ async function main() {
     fs.mkdirSync(OUTDIR, { recursive: true });
     const filepath = path.join(OUTDIR, filename);
     fs.writeFileSync(filepath, content, "utf-8");
+    written++;
     console.log(`  ✓ 已保存: ${filepath}`);
   }
+  return written;
 }
 
-main().catch((e) => {
-  console.error(`起点采集失败: ${e.message}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  runCli(main, "起点采集");
+}
+
+module.exports = {
+  extractBookList,
+  mobileUrl,
+  extractMobilePageContext,
+  normalizeMobileBook,
+  renderMarkdown,
+};

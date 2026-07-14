@@ -19,7 +19,7 @@ skills/
 ├── story-review/            # 多视角审查
 ├── story-cover/             # 封面生成
 └── browser-cdp/             # 浏览器操控
-scripts/                       # 开发守卫 / 测试 / 代码生成（20 个脚本的完整索引见 scripts/README.md）
+scripts/                       # 开发守卫 / 测试 / 代码生成（完整索引见 scripts/README.md）
 ```
 
 每个 skill 由一个 `SKILL.md`（入口）和 `references/` 目录（知识库）组成。
@@ -59,14 +59,17 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 PR 自动运行 `.github/workflows/cross-platform.yml`。static-check job 跑以下检查（全部强制）：
 
-- `scripts/static-check.sh` — frontmatter、引用路径、死文件、references 交叉引用
+- `scripts/static-check.sh` — 结构化解析 frontmatter、精确 Markdown 路径/锚点、Agent 引用与 references 可达性；除基础组件 `browser-cdp` 外禁止跨 Skill 文件引用
+- `python3 scripts/skill-numbering.py check` — 工作流编号连续性、引用可绑定性及小数标签守卫
+- `scripts/check-current-skill-contracts.sh` — 按 `scripts/current-contract.json` 校验当前版本 / Phase / schema / 主产物 / 细纲契约，并拦截历史路径与静默兼容分支
+- `python3 scripts/test-current-skill-contracts.py` — current-contract manifest 与主产物 fail-fast 语义回归
 - `scripts/check-hook-regex-sync.sh` — hook 伏笔状态检测行为
-- `scripts/check-shared-files.sh` — 跨 skill 同名副本字节一致性
+- `scripts/check-shared-files.sh` — 共享 runtime 资产清单 + 跨 skill reference 副本一致性
 - `scripts/check-story-setup-deployment.sh` — story-setup 部署完整性
 - `scripts/check-claude-adapter.sh` — Claude marketplace 与 skill 映射检查
-- `scripts/check-opencode-adapter.sh` — OpenCode adapter 同步、commands/agents/plugin/config 锚点检查
+- `scripts/check-opencode-adapter.sh` — OpenCode adapter 同步、commands/agents/config 结构与 plugin 真实行为检查
 - `scripts/check-openclaw-skills.sh` — OpenClaw 单行 frontmatter、`metadata.openclaw` 与可选真实 CLI 发现检查
-- `scripts/check-codex-adapter.sh` — Codex repo skills symlink、custom-agent TOML（schema + 生成确定性）与 hooks 锚点检查
+- `scripts/check-codex-adapter.sh` — Codex repo skills symlink、custom-agent TOML、hook 生成确定性与 launcher 契约
 - `scripts/test-codex-hooks.sh` — Codex hooks 合成事件测试
 - 采集脚本 `node --check` 语法校验
 
@@ -78,8 +81,16 @@ PR 自动运行 `.github/workflows/cross-platform.yml`。static-check job 跑以
 
 ```bash
 bash scripts/static-check.sh
+python3 scripts/test-static-check.py
+python3 scripts/skill-numbering.py check
+bash scripts/test-skill-numbering.sh
+bash scripts/check-current-skill-contracts.sh
+python3 scripts/test-current-skill-contracts.py
 bash scripts/check-hook-regex-sync.sh
 bash scripts/check-shared-files.sh
+python3 scripts/test-shared-assets.py
+node scripts/test-normalize-punctuation.js
+node scripts/test-scan-runtime.js
 bash scripts/test-ai-patterns.sh
 bash scripts/test-degeneration.sh
 bash scripts/test-prose-backstop-hook.sh
@@ -104,12 +115,31 @@ bash scripts/test-opencode-cli-e2e.sh
 OPENCLAW_REAL_CHECK=1 bash scripts/check-openclaw-skills.sh
 ```
 
+## 工作流编号规范
+
+新增或调整流程步骤时，显式标题使用 `Step 1`、`Step 2` 这类连续整数；不要为了插入步骤创建 `Step 1.5` / `Phase 2.1` / `Stage 0.5`，也不要在 `SKILL.md` 用 `### 2.1` 或 `- 2.1` 代替明确的工作流标题。`references/` 手册自身的 `3.1` 章节/列表号不受此规则影响。
+
+修改编号前先预览，再写入并复查：
+
+```bash
+python3 scripts/skill-numbering.py audit
+python3 scripts/skill-numbering.py fix --dry-run
+python3 scripts/skill-numbering.py fix --write
+python3 scripts/skill-numbering.py check
+```
+
+自动修复只重排显式 Step 标题及可无歧义绑定的引用。无法绑定的 fractional Step 引用或一对多映射会让整个写入在落盘前失败；Phase、裸编号标题和 bullet 子步骤需要按语义手工命名。完整算法与局部路径用法见 [scripts/README.md](scripts/README.md#工作流编号维护)。
+
 涉及 agent/skill/plugin/hook 协议的断言必须先核对对应项目官方文档，再以真实 CLI 输出复核；不要从其他 agent 的相似字段推断。
 
 ## 共享文件规范
 
 部分文件跨 skill 共享（如 banned-words.md、anti-ai-writing.md），修改时必须同步所有副本。
-运行 `bash scripts/check-shared-files.sh` 检查一致性。
+
+- runtime 脚本的唯一源/目标定义在 `scripts/shared-assets.json`；先改 `source`，再运行 `python3 scripts/sync-shared-assets.py sync`。
+- 同名 runtime 脚本只能属于一个 canonical group，且每个 target 必须保留 source basename；禁止用改名 target 绕过单一 owner。
+- reference 文档仍由 `check-shared-files.sh` 按内容组校验。
+- 提交前统一运行 `bash scripts/check-shared-files.sh`；未在 manifest 登记的重名 runtime 脚本会直接失败。
 
 ### 知识库贡献
 
@@ -165,7 +195,7 @@ bash scripts/test-opencode-cli-e2e.sh  # 可选：需要本机已安装 opencode
 
 ### CI 检测
 
-PR 中如果修改了 Claude Code 模板文件，CI 会自动检测 opencode 模板是否同步，并额外检查 `opencode.json.patch`、`plugin.ts`、13 个 command 与 7 个 agent 的结构锚点。如果 CI 报错，请在本地运行同步脚本和 `bash scripts/check-opencode-adapter.sh`，再提交结果。
+PR 中如果修改了 Claude Code 模板文件，CI 会自动检测 opencode 模板是否同步，并额外检查 `opencode.json.patch`、13 个 command、7 个 agent 的结构以及 `plugin.ts` 的实际守卫/收尾行为。如果 CI 报错，请在本地运行同步脚本和 `bash scripts/check-opencode-adapter.sh`，再提交结果。
 
 ### 手动维护的部分
 
@@ -233,14 +263,15 @@ OPENCLAW_REAL_CHECK=1 bash scripts/check-openclaw-skills.sh  # 本机安装 open
 本项目同时支持 Codex CLI（repo skills 发现 + `$story-setup` 项目部署）：
 
 - repo-local skills：`.agents/skills` 是指向 `skills/` 的相对 symlink（`../skills`，agentskills.io 标准路径），Codex 扫描它发现 skill，别复制第二份。必须是有效相对 symlink（`check-codex-adapter.sh` 守卫 target=`../skills`；无效/绝对会让发现失效，见 openai/codex#11314）；Windows 需 git `core.symlinks=true`。OpenClaw 原生扫 workspace `skills/`，不依赖它。
-- project deployment hooks：`skills/story-setup/references/codex/hooks/hooks.json` 面向 `$story-setup` 部署到写作项目，`command`（POSIX sh）通过当前目录向上查找定位项目 `.codex/hooks/story_codex_hook.py`，不得要求项目必须是 Git 仓库；并把查到的根以 `CODEX_PROJECT_DIR=` 传给 Python（Codex 本身不注入该变量，root 解析以 Python 的 `__file__` 自定位为准）。
-- Windows hooks：Codex 在 Windows 下用 `%COMSPEC% /C`（cmd.exe）跑 hook 命令，**不是** POSIX shell，所以每个 hook 必须带 `commandWindows`（cmd.exe 语法）。当前 `commandWindows` 为 `if exist .codex\hooks\story_codex_hook.py python ... <event>`：cwd 为项目根时运行、否则干净 no-op（best-effort，上溯查找仅 POSIX `command` 具备）。Python hook 本体跨平台、已做 UTF-8 字节 stdio 与 `__file__` 自定位。改 `command` 时必须同步改 `commandWindows`（`check-codex-adapter.sh` 守卫 event 一致 + cmd.exe 安全）。
+- project deployment hooks：`skills/story-setup/references/codex/hooks/hooks.json` 面向 `$story-setup` 部署到写作项目。POSIX `command` 与 Windows `commandWindows` 都从当前目录向上寻找 `.codex/hooks/run-story-hook.*`，不依赖 Git 仓库；找到后由共享 launcher 统一完成事件白名单、解释器探测、`CODEX_PROJECT_DIR` 注入与 Python hook 调度。
+- Windows hooks：Codex 在 Windows 下用 `%COMSPEC% /C`（cmd.exe）启动 `commandWindows`。当前注册命令用 PowerShell 做逐级向上定位，再调用 `run-story-hook.cmd`；因此嵌套工作目录与 POSIX 行为一致，而不是只支持项目根目录。改事件清单或 launcher 后必须重跑生成器和适配检查，禁止在六个注册项里手工复制探测逻辑。
 - custom agents：`skills/story-setup/references/codex/agents/*.toml` 由 `scripts/generate-codex-agents.py` 从 `references/templates/agents/*.md` 生成。修改 Claude agent 模板后必须重新生成并提交。
 
 ### Codex 同步步骤
 
 ```bash
 python3 scripts/generate-codex-agents.py
+python3 scripts/generate-codex-hooks.py
 bash scripts/check-codex-adapter.sh
 bash scripts/test-codex-hooks.sh
 ```

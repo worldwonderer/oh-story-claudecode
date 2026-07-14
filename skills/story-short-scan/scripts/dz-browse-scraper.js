@@ -20,7 +20,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ab, sleep, safeStr, scrollLoad, getArg } = require("./cdp-utils");
+const { ab, sleep, evalJSONBase64, safeStr, scrollLoad, getArg, runCli } = require("./cdp-utils");
 
 const CHANNELS = [
   { id: "male", label: "男频", tab: "男频", url: "https://www.ishugui.com/browse" },
@@ -28,31 +28,12 @@ const CHANNELS = [
 ];
 
 // ---------------------------------------------------------------------------
-// eval 封装：统一走 base64，规避复杂 JS（正则/引号/反斜杠）的 shell 转义问题
-// ---------------------------------------------------------------------------
-
-function evalJSON(port, js) {
-  const b64 = Buffer.from(String(js), "utf-8").toString("base64");
-  const raw = ab(port, "eval", "-b", b64);
-  if (!raw || raw === "ERR") return null;
-  try {
-    let parsed = JSON.parse(raw);
-    if (typeof parsed === "string") {
-      try { parsed = JSON.parse(parsed); } catch {}
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // 页面操作
 // ---------------------------------------------------------------------------
 
 /** 连通性 + 页面就绪自检 */
 function probePage(port) {
-  return evalJSON(
+  return evalJSONBase64(
     port,
     "JSON.stringify({host:location.host,len:(document.body&&document.body.innerText||'').length})"
   );
@@ -66,7 +47,7 @@ function clickTab(port, text) {
     "var el=Array.from(all).find(function(e){return (e.textContent||'').trim()===" + safeStr(text) + "});" +
     "if(el){el.click();return true}return false" +
     "})())";
-  return evalJSON(port, js);
+  return evalJSONBase64(port, js);
 }
 
 /**
@@ -120,7 +101,7 @@ function buildStoriesJS() {
 }
 
 function extractStories(port) {
-  const list = evalJSON(port, buildStoriesJS());
+  const list = evalJSONBase64(port, buildStoriesJS());
   return Array.isArray(list) ? list : [];
 }
 
@@ -229,6 +210,7 @@ function scrapeChannel(port, channelId) {
 
 function main() {
   const channels = CHANNEL === "all" ? CHANNELS.map((c) => c.id) : [CHANNEL];
+  let written = 0;
 
   for (const ch of channels) {
     const content = scrapeChannel(PORT, ch);
@@ -240,17 +222,14 @@ function main() {
     fs.mkdirSync(OUTDIR, { recursive: true });
     const filepath = path.join(OUTDIR, filename);
     fs.writeFileSync(filepath, content, "utf-8");
+    written++;
     console.log(`  ✓ 已保存: ${filepath}`);
   }
+  return written;
 }
 
 if (require.main === module) {
-  try {
-    main();
-  } catch (e) {
-    console.error(`点众采集失败: ${e && e.message ? e.message : e}`);
-    process.exit(1);
-  }
+  runCli(main, "点众采集");
 }
 
 module.exports = { buildStoriesJS };

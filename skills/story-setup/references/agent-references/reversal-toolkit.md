@@ -177,7 +177,7 @@
 2. 报应型：每个报应要让读者等过、铺过，兑现时才解气
 3. 甜宠型：升温节拍密集，每节给一个甜点/反差点
 
-> 拆文时遇到此类，`reversal_type` 填「无反转」，`setup_clues`（反转铺垫）一项跳过阈值（见 analyze output-contract Phase 7.2）。
+> 拆文时遇到此类，`reversal_type` 填「无反转」，`setup_clues`（反转铺垫）一项跳过阈值（见 analyze output-contract 的「structure_counts 数值校验」）。
 
 ---
 

@@ -19,7 +19,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ab, sleep, evalJSON, safeStr, getArg } = require("./cdp-utils");
+const { ab, sleep, evalJSON, safeStr, getArg, runCli } = require("./cdp-utils");
 
 const BOOKLIST_URL = "https://manage.zhangwenpindu.cn/books/booklist";
 const API_BASE = "https://ms.zhangwenpindu.cn";
@@ -173,20 +173,20 @@ function main() {
       console.error(
         `  ✗ CDP 无响应。请确认已用 browser-cdp 启动 Chrome（端口 ${PORT}），且 agent-browser 可用。`
       );
-      return;
+      return 0;
     }
 
     token = getToken(PORT);
   } catch (err) {
     console.error(`[heiyan] 页面加载或 token 提取出错: ${err.message}`);
-    return;
+    return 0;
   }
 
   if (!token) {
     console.log("  ✗ 未检测到 Admin-Token（CDP 已连，但当前未登录）");
     console.log("  → 请先在 Chrome 中打开 https://manage.zhangwenpindu.cn 并登录");
     console.log("  → 登录后重新运行本脚本");
-    return;
+    return 0;
   }
   console.log("  ✓ 获取到认证 token");
 
@@ -239,7 +239,7 @@ function main() {
 
   if (!allBooks.length) {
     console.error("[heiyan] 采集失败：未取到任何书目。多为登录态过期或接口变动，请重新登录后重试。");
-    return;
+    return 0;
   }
 
   // 质量门：书名命中率。API 改字段名时会整片 undefined，必须拦截而非静默写盘
@@ -248,7 +248,7 @@ function main() {
     console.error(
       `[heiyan] 采集失败：${allBooks.length} 条里仅 ${named} 条有书名，疑似接口字段变动，已放弃写盘。`
     );
-    return;
+    return 0;
   }
 
   // 频道筛选
@@ -282,11 +282,11 @@ function main() {
   }
 
   buildAndSave(allBooks, total, filtered, filepath);
+  return 1;
 }
 
-try {
-  main();
-} catch (e) {
-  console.error(`黑岩采集失败: ${e && e.message ? e.message : e}`);
-  process.exit(1);
+if (require.main === module) {
+  runCli(main, "黑岩采集");
 }
+
+module.exports = { probePage, getToken, fetchBookList, fetchBookDetail, buildAndSave };

@@ -10,7 +10,7 @@ metadata: {"openclaw":{"requires":{"bins":["agent-browser"]},"source":"https://g
 ## 前置条件
 
 - macOS / Linux / Windows（实验性），已安装 Google Chrome
-- Node.js 12+
+- Node.js 20+
 - `agent-browser` 已安装：`npm install -g agent-browser`
 
 > ⚠️ **首次启动会 kill 用户的常规 Chrome。** 在启动前必须征求用户同意（见下方"启动流程"），否则用户可能丢失未保存的标签页/草稿。

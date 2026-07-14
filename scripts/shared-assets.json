@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "name": "prose-ai-pattern-detector",
+      "source": "skills/story-deslop/scripts/check-ai-patterns.js",
+      "targets": [
+        "skills/story-long-write/scripts/check-ai-patterns.js",
+        "skills/story-review/scripts/check-ai-patterns.js",
+        "skills/story-short-write/scripts/check-ai-patterns.js"
+      ]
+    },
+    {
+      "name": "prose-degeneration-detector",
+      "source": "skills/story-deslop/scripts/check-degeneration.js",
+      "targets": [
+        "skills/story-long-write/scripts/check-degeneration.js",
+        "skills/story-review/scripts/check-degeneration.js",
+        "skills/story-short-write/scripts/check-degeneration.js"
+      ]
+    },
+    {
+      "name": "prose-punctuation-normalizer",
+      "source": "skills/story-deslop/scripts/normalize-punctuation.js",
+      "targets": [
+        "skills/story-long-write/scripts/normalize-punctuation.js",
+        "skills/story-review/scripts/normalize-punctuation.js",
+        "skills/story-short-write/scripts/normalize-punctuation.js"
+      ]
+    },
+    {
+      "name": "scan-cdp-utils",
+      "source": "skills/story-long-scan/scripts/cdp-utils.js",
+      "targets": [
+        "skills/story-short-scan/scripts/cdp-utils.js"
+      ]
+    }
+  ]
+}

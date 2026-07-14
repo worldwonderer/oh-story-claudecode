@@ -22,7 +22,7 @@ Built around four pillars: reverse-engineering hits · plot modularization · la
 >
 > Starting in v0.6.21: short-form writing reference cleanup — `story-short-write` drops stale long-form inherited references and now uses `short-format` / `short-craft` / `short-deslop` plus four genre packs (wife-chasing crematorium, revenge face-slap, CEO/wealthy family, domestic/palace intrigue) for short-story format, direct emotion, pacing density, and AI-tone cleanup; existing deployed projects should rerun `/story-setup` and start a new session to pick up the updated narrative-writer short-story exception.
 >
-> Starting in v0.6.20: long-form outline reinforcement — benchmark rhythm transfer (reflow a hit book's deconstructed pacing into your volume outline by normalized key points, with a chapter-summary fallback when the rhythm file is absent) and chapter positioning & tension-pacing (fixing "every chapter reads like a standalone short story": chapters are typed by their position in the unit-arc, so relationship/breathing/transition chapters no longer have to manufacture a hook and a payoff while still keeping read-through pull, with a "no emotional-motif clustering" guardrail; positioning is optional and non-quota).
+> Starting in v0.6.20: long-form outline reinforcement — benchmark rhythm transfer (reflow a hit book's deconstructed pacing into your volume outline by normalized key points) and chapter positioning & tension-pacing (fixing "every chapter reads like a standalone short story": chapters are typed by their position in the unit-arc, so relationship/breathing/transition chapters no longer have to manufacture a hook and a payoff while still keeping read-through pull, with a "no emotional-motif clustering" guardrail; positioning is optional and non-quota). The current contract requires both `剧情/节奏.md` and `剧情/情绪模块.md`; if either is missing, rerun analysis/import instead of falling back to chapter summaries.
 >
 > For earlier versions, see [CHANGELOG.md](CHANGELOG.md).
 
@@ -101,7 +101,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 >
 
 > **Codex users:** Use it in-place: Codex scans `$REPO_ROOT/.agents/skills` (a symlink to `skills/`) and discovers all 13 skills; invoke via `$story`, `$story-setup`, or `/skills`. On Windows, enable git `core.symlinks=true` or the symlink breaks — then use the `$story-setup` deployment below.
-> After `$story-setup` deploys into a writing project, it creates `.codex/agents/*.toml`, `.codex/hooks.json`, `.codex/hooks/story_codex_hook.py`, and `.codex/skills/story-setup/references/agent-references/`. Trust the project `.codex/` layer, review/trust hooks in `/hooks`, and open a fresh Codex session so custom agents load.
+> After `$story-setup` deploys into a writing project, it creates `.codex/agents/*.toml`, `.codex/hooks.json`, `.codex/hooks/{story_codex_hook.py,run-story-hook.sh,run-story-hook.cmd}`, and `.codex/skills/story-setup/references/agent-references/`. Trust the project `.codex/` layer, review/trust hooks in `/hooks`, and open a fresh Codex session so custom agents load.
 >
 > **OpenCode users:** After global install, opencode auto-discovers skills from `~/.claude/skills/`; trigger story-setup with natural language on first use (e.g., "use story-setup to deploy the web novel environment"), then **exit and re-enter with `opencode -c`** for slash commands to work. Some hook behaviors differ from Claude Code (session-start / session-end / compact, etc.) — see the OpenCode section in [CONTRIBUTING.md](CONTRIBUTING.md).
 >

@@ -124,7 +124,6 @@
 
 - `文风可用：是` → 文风可用于写作，narrative-writer 按 confidence 分级使用。
 - `文风可用：否：{原因}` → 文风质量不足（例如原文缺失、锚点全是占位符）。story-explorer 读取时返回 `gaps.profile_degenerate: true`，narrative-writer 跳过文风，按默认 Gates 写作，避免被误导。
-- 兼容旧文件：若旧 `文风.md` 出现旧版内部降级标记，story-explorer 也按“文风可用：否”处理。
 
 ## 覆盖与不可模仿原则
 

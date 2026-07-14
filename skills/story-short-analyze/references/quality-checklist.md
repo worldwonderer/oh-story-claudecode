@@ -6,9 +6,9 @@
 >
 > **三类质量的分工（别混用）**：
 >
-> 1. **拆书管道质量检查**（执行过程中）→ [output-templates.md「质量检查必填字段」](output-templates.md)。每条带 `[BLOCK]` / `[WARN]` 标注；`[BLOCK]` 缺失 → Phase 7.3 阻断。
+> 1. **拆书管道质量检查**（执行过程中）→ [output-templates.md「质量检查必填字段」](output-templates.md)。每条带 `[BLOCK]` / `[WARN]` 标注；`[BLOCK]` 缺失 → 「BLOCK 项扫描」阻断。
 > 2. **评估对象（源文）质量**（拆什么样的料）→ 本文件。回答"这篇源文写得好不好"。
-> 3. **拆文报告本身质量**（写什么样的报告）→ [anti-ai-writing.md](anti-ai-writing.md) + [banned-words.md](banned-words.md)。**报告自己**不能写成 AI 腔，由 Phase 7.1 守门，扫描 `拆文报告.md` 全文。注意：扫的是「我们写的拆文报告」，不是源文滤镜。
+> 3. **拆文报告本身质量**（写什么样的报告）→ [anti-ai-writing.md](anti-ai-writing.md) + [banned-words.md](banned-words.md)。**报告自己**不能写成 AI 腔，由「拆文报告 AI 腔自检」守门，扫描 `拆文报告.md` 全文。注意：扫的是「我们写的拆文报告」，不是源文滤镜。
 
 ## 目录
 
@@ -215,7 +215,7 @@
 ### 毒点/代入感/震惊/开头/结尾/情绪/期待感速查
 
 > **本表评估的是源文**（拆解对象写得好不好）。详细的毒点分类、识别方法和修复方案见 [anti-ai-writing.md](anti-ai-writing.md)。
-> **不要把本表用来评估拆文报告本身**：拆文报告本身 AI 腔检查走 Phase 7.1 + [anti-ai-writing.md](anti-ai-writing.md) + [banned-words.md](banned-words.md)。
+> **不要把本表用来评估拆文报告本身**：拆文报告本身 AI 腔检查走「拆文报告 AI 腔自检」+ [anti-ai-writing.md](anti-ai-writing.md) + [banned-words.md](banned-words.md)。
 > **拆文管道完成度** 走 [output-templates.md「质量检查必填字段」](output-templates.md) 的 `[BLOCK]` / `[WARN]` 清单。
 
 | 检查项 | 标准 |

@@ -2,70 +2,70 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume|clear|compact",
         "hooks": [
           {
             "type": "command",
-            "command": "FOUND=; for PYBIN in python3 python py; do \"$PYBIN\" -c \"\" >/dev/null 2>&1 && { FOUND=1; break; }; done; [ -n \"$FOUND\" ] || exit 0; PROJECT_ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}\"; if [ -z \"$PROJECT_ROOT\" ] || [ ! -f \"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\" ]; then SEARCH_DIR=\"$PWD\"; while [ \"$SEARCH_DIR\" != \"/\" ] && [ ! -f \"$SEARCH_DIR/.codex/hooks/story_codex_hook.py\" ]; do SEARCH_DIR=\"$(dirname \"$SEARCH_DIR\")\"; done; PROJECT_ROOT=\"$SEARCH_DIR\"; fi; case \"$PROJECT_ROOT\" in \"\"|/) exit 0;; esac; HOOK=\"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\"; [ -f \"$HOOK\" ] || exit 0; CODEX_PROJECT_DIR=\"$PROJECT_ROOT\" \"$PYBIN\" \"$HOOK\" session-start",
+            "command": "ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; [ -d \"$ROOT\" ] || ROOT=\"$PWD\"; ROOT=\"$(cd \"$ROOT\" 2>/dev/null && pwd)\" || exit 0; while [ ! -f \"$ROOT/.codex/hooks/run-story-hook.sh\" ]; do PARENT=\"$(dirname \"$ROOT\")\"; [ \"$PARENT\" != \"$ROOT\" ] || exit 0; ROOT=\"$PARENT\"; done; sh \"$ROOT/.codex/hooks/run-story-hook.sh\" session-start",
             "timeout": 10,
-            "statusMessage": "Loading story context",
-            "commandWindows": "if exist \".codex\\hooks\\story_codex_hook.py\" python \".codex\\hooks\\story_codex_hook.py\" session-start"
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$r=$env:CODEX_PROJECT_DIR; if (-not $r) { $r=$env:CLAUDE_PROJECT_DIR }; if (-not $r -or -not (Test-Path -LiteralPath $r -PathType Container)) { $r=(Get-Location).Path }; while ($true) { $launcher=Join-Path $r '.codex\\hooks\\run-story-hook.cmd'; if (Test-Path -LiteralPath $launcher -PathType Leaf) { & $launcher 'session-start'; exit $LASTEXITCODE }; $parent=Split-Path -Parent $r; if (-not $parent -or $parent -eq $r) { exit 0 }; $r=$parent }\"",
+            "statusMessage": "Loading story context"
           }
-        ]
+        ],
+        "matcher": "startup|resume|clear|compact"
       }
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|apply_patch|Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "FOUND=; for PYBIN in python3 python py; do \"$PYBIN\" -c \"\" >/dev/null 2>&1 && { FOUND=1; break; }; done; [ -n \"$FOUND\" ] || exit 0; PROJECT_ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}\"; if [ -z \"$PROJECT_ROOT\" ] || [ ! -f \"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\" ]; then SEARCH_DIR=\"$PWD\"; while [ \"$SEARCH_DIR\" != \"/\" ] && [ ! -f \"$SEARCH_DIR/.codex/hooks/story_codex_hook.py\" ]; do SEARCH_DIR=\"$(dirname \"$SEARCH_DIR\")\"; done; PROJECT_ROOT=\"$SEARCH_DIR\"; fi; case \"$PROJECT_ROOT\" in \"\"|/) exit 0;; esac; HOOK=\"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\"; [ -f \"$HOOK\" ] || exit 0; CODEX_PROJECT_DIR=\"$PROJECT_ROOT\" \"$PYBIN\" \"$HOOK\" pre-tool-prose-guard",
+            "command": "ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; [ -d \"$ROOT\" ] || ROOT=\"$PWD\"; ROOT=\"$(cd \"$ROOT\" 2>/dev/null && pwd)\" || exit 0; while [ ! -f \"$ROOT/.codex/hooks/run-story-hook.sh\" ]; do PARENT=\"$(dirname \"$ROOT\")\"; [ \"$PARENT\" != \"$ROOT\" ] || exit 0; ROOT=\"$PARENT\"; done; sh \"$ROOT/.codex/hooks/run-story-hook.sh\" pre-tool-prose-guard",
             "timeout": 10,
-            "statusMessage": "Checking story outline guard",
-            "commandWindows": "if exist \".codex\\hooks\\story_codex_hook.py\" python \".codex\\hooks\\story_codex_hook.py\" pre-tool-prose-guard"
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$r=$env:CODEX_PROJECT_DIR; if (-not $r) { $r=$env:CLAUDE_PROJECT_DIR }; if (-not $r -or -not (Test-Path -LiteralPath $r -PathType Container)) { $r=(Get-Location).Path }; while ($true) { $launcher=Join-Path $r '.codex\\hooks\\run-story-hook.cmd'; if (Test-Path -LiteralPath $launcher -PathType Leaf) { & $launcher 'pre-tool-prose-guard'; exit $LASTEXITCODE }; $parent=Split-Path -Parent $r; if (-not $parent -or $parent -eq $r) { exit 0 }; $r=$parent }\"",
+            "statusMessage": "Checking story outline guard"
           }
-        ]
+        ],
+        "matcher": "Bash|apply_patch|Edit|Write"
       },
       {
-        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "FOUND=; for PYBIN in python3 python py; do \"$PYBIN\" -c \"\" >/dev/null 2>&1 && { FOUND=1; break; }; done; [ -n \"$FOUND\" ] || exit 0; PROJECT_ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}\"; if [ -z \"$PROJECT_ROOT\" ] || [ ! -f \"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\" ]; then SEARCH_DIR=\"$PWD\"; while [ \"$SEARCH_DIR\" != \"/\" ] && [ ! -f \"$SEARCH_DIR/.codex/hooks/story_codex_hook.py\" ]; do SEARCH_DIR=\"$(dirname \"$SEARCH_DIR\")\"; done; PROJECT_ROOT=\"$SEARCH_DIR\"; fi; case \"$PROJECT_ROOT\" in \"\"|/) exit 0;; esac; HOOK=\"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\"; [ -f \"$HOOK\" ] || exit 0; CODEX_PROJECT_DIR=\"$PROJECT_ROOT\" \"$PYBIN\" \"$HOOK\" pre-tool-commit-advisory",
+            "command": "ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; [ -d \"$ROOT\" ] || ROOT=\"$PWD\"; ROOT=\"$(cd \"$ROOT\" 2>/dev/null && pwd)\" || exit 0; while [ ! -f \"$ROOT/.codex/hooks/run-story-hook.sh\" ]; do PARENT=\"$(dirname \"$ROOT\")\"; [ \"$PARENT\" != \"$ROOT\" ] || exit 0; ROOT=\"$PARENT\"; done; sh \"$ROOT/.codex/hooks/run-story-hook.sh\" pre-tool-commit-advisory",
             "timeout": 15,
-            "statusMessage": "Checking story commit warnings",
-            "commandWindows": "if exist \".codex\\hooks\\story_codex_hook.py\" python \".codex\\hooks\\story_codex_hook.py\" pre-tool-commit-advisory"
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$r=$env:CODEX_PROJECT_DIR; if (-not $r) { $r=$env:CLAUDE_PROJECT_DIR }; if (-not $r -or -not (Test-Path -LiteralPath $r -PathType Container)) { $r=(Get-Location).Path }; while ($true) { $launcher=Join-Path $r '.codex\\hooks\\run-story-hook.cmd'; if (Test-Path -LiteralPath $launcher -PathType Leaf) { & $launcher 'pre-tool-commit-advisory'; exit $LASTEXITCODE }; $parent=Split-Path -Parent $r; if (-not $parent -or $parent -eq $r) { exit 0 }; $r=$parent }\"",
+            "statusMessage": "Checking story commit warnings"
           }
-        ]
+        ],
+        "matcher": "Bash"
       }
     ],
     "PreCompact": [
       {
-        "matcher": "manual|auto",
         "hooks": [
           {
             "type": "command",
-            "command": "FOUND=; for PYBIN in python3 python py; do \"$PYBIN\" -c \"\" >/dev/null 2>&1 && { FOUND=1; break; }; done; [ -n \"$FOUND\" ] || exit 0; PROJECT_ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}\"; if [ -z \"$PROJECT_ROOT\" ] || [ ! -f \"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\" ]; then SEARCH_DIR=\"$PWD\"; while [ \"$SEARCH_DIR\" != \"/\" ] && [ ! -f \"$SEARCH_DIR/.codex/hooks/story_codex_hook.py\" ]; do SEARCH_DIR=\"$(dirname \"$SEARCH_DIR\")\"; done; PROJECT_ROOT=\"$SEARCH_DIR\"; fi; case \"$PROJECT_ROOT\" in \"\"|/) exit 0;; esac; HOOK=\"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\"; [ -f \"$HOOK\" ] || exit 0; CODEX_PROJECT_DIR=\"$PROJECT_ROOT\" \"$PYBIN\" \"$HOOK\" pre-compact",
+            "command": "ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; [ -d \"$ROOT\" ] || ROOT=\"$PWD\"; ROOT=\"$(cd \"$ROOT\" 2>/dev/null && pwd)\" || exit 0; while [ ! -f \"$ROOT/.codex/hooks/run-story-hook.sh\" ]; do PARENT=\"$(dirname \"$ROOT\")\"; [ \"$PARENT\" != \"$ROOT\" ] || exit 0; ROOT=\"$PARENT\"; done; sh \"$ROOT/.codex/hooks/run-story-hook.sh\" pre-compact",
             "timeout": 10,
-            "statusMessage": "Summarizing story context",
-            "commandWindows": "if exist \".codex\\hooks\\story_codex_hook.py\" python \".codex\\hooks\\story_codex_hook.py\" pre-compact"
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$r=$env:CODEX_PROJECT_DIR; if (-not $r) { $r=$env:CLAUDE_PROJECT_DIR }; if (-not $r -or -not (Test-Path -LiteralPath $r -PathType Container)) { $r=(Get-Location).Path }; while ($true) { $launcher=Join-Path $r '.codex\\hooks\\run-story-hook.cmd'; if (Test-Path -LiteralPath $launcher -PathType Leaf) { & $launcher 'pre-compact'; exit $LASTEXITCODE }; $parent=Split-Path -Parent $r; if (-not $parent -or $parent -eq $r) { exit 0 }; $r=$parent }\"",
+            "statusMessage": "Summarizing story context"
           }
-        ]
+        ],
+        "matcher": "manual|auto"
       }
     ],
     "PostCompact": [
       {
-        "matcher": "manual|auto",
         "hooks": [
           {
             "type": "command",
-            "command": "FOUND=; for PYBIN in python3 python py; do \"$PYBIN\" -c \"\" >/dev/null 2>&1 && { FOUND=1; break; }; done; [ -n \"$FOUND\" ] || exit 0; PROJECT_ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}\"; if [ -z \"$PROJECT_ROOT\" ] || [ ! -f \"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\" ]; then SEARCH_DIR=\"$PWD\"; while [ \"$SEARCH_DIR\" != \"/\" ] && [ ! -f \"$SEARCH_DIR/.codex/hooks/story_codex_hook.py\" ]; do SEARCH_DIR=\"$(dirname \"$SEARCH_DIR\")\"; done; PROJECT_ROOT=\"$SEARCH_DIR\"; fi; case \"$PROJECT_ROOT\" in \"\"|/) exit 0;; esac; HOOK=\"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\"; [ -f \"$HOOK\" ] || exit 0; CODEX_PROJECT_DIR=\"$PROJECT_ROOT\" \"$PYBIN\" \"$HOOK\" post-compact",
+            "command": "ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; [ -d \"$ROOT\" ] || ROOT=\"$PWD\"; ROOT=\"$(cd \"$ROOT\" 2>/dev/null && pwd)\" || exit 0; while [ ! -f \"$ROOT/.codex/hooks/run-story-hook.sh\" ]; do PARENT=\"$(dirname \"$ROOT\")\"; [ \"$PARENT\" != \"$ROOT\" ] || exit 0; ROOT=\"$PARENT\"; done; sh \"$ROOT/.codex/hooks/run-story-hook.sh\" post-compact",
             "timeout": 10,
-            "statusMessage": "Restoring story context hint",
-            "commandWindows": "if exist \".codex\\hooks\\story_codex_hook.py\" python \".codex\\hooks\\story_codex_hook.py\" post-compact"
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$r=$env:CODEX_PROJECT_DIR; if (-not $r) { $r=$env:CLAUDE_PROJECT_DIR }; if (-not $r -or -not (Test-Path -LiteralPath $r -PathType Container)) { $r=(Get-Location).Path }; while ($true) { $launcher=Join-Path $r '.codex\\hooks\\run-story-hook.cmd'; if (Test-Path -LiteralPath $launcher -PathType Leaf) { & $launcher 'post-compact'; exit $LASTEXITCODE }; $parent=Split-Path -Parent $r; if (-not $parent -or $parent -eq $r) { exit 0 }; $r=$parent }\"",
+            "statusMessage": "Restoring story context hint"
           }
-        ]
+        ],
+        "matcher": "manual|auto"
       }
     ],
     "Stop": [
@@ -73,9 +73,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FOUND=; for PYBIN in python3 python py; do \"$PYBIN\" -c \"\" >/dev/null 2>&1 && { FOUND=1; break; }; done; [ -n \"$FOUND\" ] || exit 0; PROJECT_ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-}}\"; if [ -z \"$PROJECT_ROOT\" ] || [ ! -f \"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\" ]; then SEARCH_DIR=\"$PWD\"; while [ \"$SEARCH_DIR\" != \"/\" ] && [ ! -f \"$SEARCH_DIR/.codex/hooks/story_codex_hook.py\" ]; do SEARCH_DIR=\"$(dirname \"$SEARCH_DIR\")\"; done; PROJECT_ROOT=\"$SEARCH_DIR\"; fi; case \"$PROJECT_ROOT\" in \"\"|/) exit 0;; esac; HOOK=\"$PROJECT_ROOT/.codex/hooks/story_codex_hook.py\"; [ -f \"$HOOK\" ] || exit 0; CODEX_PROJECT_DIR=\"$PROJECT_ROOT\" \"$PYBIN\" \"$HOOK\" stop",
+            "command": "ROOT=\"${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; [ -d \"$ROOT\" ] || ROOT=\"$PWD\"; ROOT=\"$(cd \"$ROOT\" 2>/dev/null && pwd)\" || exit 0; while [ ! -f \"$ROOT/.codex/hooks/run-story-hook.sh\" ]; do PARENT=\"$(dirname \"$ROOT\")\"; [ \"$PARENT\" != \"$ROOT\" ] || exit 0; ROOT=\"$PARENT\"; done; sh \"$ROOT/.codex/hooks/run-story-hook.sh\" stop",
             "timeout": 5,
-            "commandWindows": "if exist \".codex\\hooks\\story_codex_hook.py\" python \".codex\\hooks\\story_codex_hook.py\" stop"
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$r=$env:CODEX_PROJECT_DIR; if (-not $r) { $r=$env:CLAUDE_PROJECT_DIR }; if (-not $r -or -not (Test-Path -LiteralPath $r -PathType Container)) { $r=(Get-Location).Path }; while ($true) { $launcher=Join-Path $r '.codex\\hooks\\run-story-hook.cmd'; if (Test-Path -LiteralPath $launcher -PathType Leaf) { & $launcher 'stop'; exit $LASTEXITCODE }; $parent=Split-Path -Parent $r; if (-not $parent -or $parent -eq $r) { exit 0 }; $r=$parent }\""
           }
         ]
       }

@@ -78,8 +78,3 @@ discover_all_books() {
     find "$root" -maxdepth 4 \( -type d -name "正文" -o -type f -name "正文.md" \) -print 2>/dev/null | while IFS= read -r d; do dirname "$d"; done
   } | awk 'NF && !seen[$0]++'
 }
-
-# 旧名 alias，仅供外部自定义 hook 引用；新代码用 discover_active_book / discover_all_books。
-discover_book_dir() {
-  discover_active_book "$@"
-}

@@ -66,7 +66,18 @@ list_asset_files() {
 }
 
 REFERENCE_FILES="$(list_asset_files references)"
-SCRIPT_FILES="$(list_asset_files scripts)"
+PYTHON_BIN=""
+for candidate in python3 python py; do
+  if "$candidate" -c "" >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+if [ -z "$PYTHON_BIN" ]; then
+  echo "FAIL: Python 3 is required (tried python3, python, and py)" >&2
+  exit 1
+fi
+"$PYTHON_BIN" "$REPO_ROOT/scripts/sync-shared-assets.py" check
 
 list_reference_basenames() {
   local path
@@ -76,13 +87,6 @@ list_reference_basenames() {
       *) printf '%s\n' "${path##*/}" ;;
     esac
   done <<< "$REFERENCE_FILES"
-}
-
-list_script_basenames() {
-  local path
-  while IFS= read -r path; do
-    [ "${path##*/}" = .gitkeep ] || printf '%s\n' "${path##*/}"
-  done <<< "$SCRIPT_FILES"
 }
 
 # Find all reference basenames that appear in 2+ skills
@@ -162,45 +166,9 @@ for base in $dup_names; do
   done
 done
 
-# Script copies are also skill-local assets. If two skills carry the same script
-# basename, treat them as managed copies and require byte identity. This avoids
-# cross-skill file references while still catching drift between duplicated tools.
-script_dup_names="$(list_script_basenames | sort | uniq -d)"
-
-for base in $script_dup_names; do
-  paths=()
-  while IFS= read -r fpath; do
-    [ -z "$fpath" ] && continue
-    [ "${fpath##*/}" = "$base" ] && paths+=("$fpath")
-  done <<< "$SCRIPT_FILES"
-
-  if [ ${#paths[@]} -lt 2 ]; then
-    continue
-  fi
-
-  checked=$((checked + 1))
-  ref_path="${paths[0]}"
-  ref_skill="$(echo "$ref_path" | sed "s|$SKILLS_DIR/||" | cut -d'/' -f1)"
-  all_match=true
-
-  for ((i = 1; i < ${#paths[@]}; i++)); do
-    if ! diff -q "$ref_path" "${paths[$i]}" >/dev/null 2>&1; then
-      skill_name="$(echo "${paths[$i]}" | sed "s|$SKILLS_DIR/||" | cut -d'/' -f1)"
-      if [ "$all_match" = true ]; then
-        echo ""
-        echo "MISMATCH: $base"
-        echo "  Reference: $ref_skill"
-      fi
-      echo "  Differs in: $skill_name"
-      all_match=false
-      mismatches=$((mismatches + 1))
-    fi
-  done
-done
-
 echo ""
 echo "=============================="
-echo "Files checked (shared): $checked | Mismatches: $mismatches"
+echo "Reference groups checked: $checked | Mismatches: $mismatches"
 
 if [ "$mismatches" -gt 0 ]; then
   echo ""

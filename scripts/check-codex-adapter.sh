@@ -28,18 +28,26 @@ assert_path ".agents/skills"
 assert_file "$CODEX_DIR/AGENTS.md.tmpl"
 assert_file "$CODEX_DIR/hooks/hooks.json"
 assert_file "$CODEX_DIR/hooks/story_codex_hook.py"
+assert_file "$CODEX_DIR/hooks/run-story-hook.sh"
+assert_file "$CODEX_DIR/hooks/run-story-hook.cmd"
 assert_path "$CODEX_DIR/agents"
 assert_file "scripts/generate-codex-agents.py"
+assert_file "scripts/generate-codex-hooks.py"
+assert_file "scripts/test-codex-hook-merge.py"
+assert_file "skills/story-setup/scripts/merge-codex-hooks.py"
 
 python3 -m json.tool "$CODEX_DIR/hooks/hooks.json" >/dev/null
 python3 - <<'PY'
 from pathlib import Path
 for name in (
     'scripts/generate-codex-agents.py',
+    'scripts/generate-codex-hooks.py',
     'skills/story-setup/references/codex/hooks/story_codex_hook.py',
 ):
     compile(Path(name).read_text(encoding='utf-8'), name, 'exec')
 PY
+python3 scripts/generate-codex-hooks.py --check
+python3 scripts/test-codex-hook-merge.py
 
 echo "  OK JSON/Python syntax"
 
@@ -86,6 +94,9 @@ echo "  OK .agents/skills discovery symlink ($skill_count skills)"
 python3 scripts/generate-codex-agents.py --dest "$TMP_DIR/agents" >/dev/null
 diff -qr "$TMP_DIR/agents" "$CODEX_DIR/agents" >/dev/null \
   || fail "generated Codex agents are stale; run scripts/generate-codex-agents.py"
+if grep -RInE '当前 Claude 部署|(^|[^[:alnum:]_])/story(-[a-z0-9-]+)?' "$CODEX_DIR/agents"; then
+  fail "generated Codex agents must use Codex platform wording and \$story* invocations"
+fi
 
 # A missing/empty source must fail before touching the destination. Otherwise a
 # typo in --source silently prunes every generated TOML while returning success.
@@ -286,6 +297,8 @@ for path in sorted(Path('skills/story-setup/references/codex/agents').glob('*.to
     instructions = data['developer_instructions']
     assert path.name == f'{name}.toml', f'{path}: filename/name mismatch'
     assert '.codex/skills/story-setup/references/agent-references/' in instructions
+    for stale in ('.claude/skills/', '.opencode/skills/', '{项目根}/skills/story-setup/references/agent-references/'):
+        assert stale not in instructions, f'{path}: stale cross-CLI reference fallback {stale}'
     assert 'agent_type' in instructions, f'{path}: missing Codex agent_type guidance'
     assert 'subagent_type' not in instructions, f'{path}: leaked Claude subagent_type wording'
     assert 'unknown agent_type' in instructions, f'{path}: missing runtime fallback guidance'
@@ -297,13 +310,14 @@ PY
 
 echo "  OK Codex custom-agent TOML (schema + generator determinism)"
 
-# Deployment hooks target the project .codex/ and must not require git to launch.
-assert_grep 'for PYBIN in python3 python py' "$CODEX_DIR/hooks/hooks.json" "deployment hooks must probe Python interpreter"
-assert_grep 'CODEX_PROJECT_DIR.*CLAUDE_PROJECT_DIR.*SEARCH_DIR' "$CODEX_DIR/hooks/hooks.json" "deployment hooks must resolve project root without requiring git"
-if grep -q 'git rev-parse' "$CODEX_DIR/hooks/hooks.json"; then
+# The generated registration owns only root lookup + event routing. Interpreter probing and
+# hook dispatch live in one launcher per platform instead of being copied into six JSON commands.
+assert_grep 'for candidate in python3 python py' "$CODEX_DIR/hooks/run-story-hook.sh" "POSIX launcher must probe Python interpreters"
+assert_grep 'for %%P in \(python3 python py\) do' "$CODEX_DIR/hooks/run-story-hook.cmd" "Windows launcher must probe the current interpreter list"
+assert_grep 'set "PYBIN=%%P"' "$CODEX_DIR/hooks/run-story-hook.cmd" "Windows launcher must retain the first working interpreter"
+if grep -q 'git rev-parse' "$CODEX_DIR/hooks/hooks.json" "$CODEX_DIR/hooks/run-story-hook.sh" "$CODEX_DIR/hooks/run-story-hook.cmd"; then
   fail "deployment hooks must not require git to launch story_codex_hook.py"
 fi
-assert_grep '\.codex/hooks/story_codex_hook\.py' "$CODEX_DIR/hooks/hooks.json" "deployment hooks must point at project .codex/hooks"
 
 # Every launcher must (a) propagate the resolved root to Python (CODEX_PROJECT_DIR=$PROJECT_ROOT)
 # and (b) no-op when the hook file is absent instead of running "//.codex/..." (root="/"). And
@@ -316,27 +330,22 @@ all_hooks = [h for arr in hooks.values() for blk in arr for h in blk["hooks"]]
 assert all_hooks, "no launcher commands found"
 for h in all_hooks:
     c = h["command"]
-    assert '[ -f "$HOOK" ] || exit 0' in c, f"launcher missing no-op guard: {c[:80]}"
-    assert 'CODEX_PROJECT_DIR="$PROJECT_ROOT" "$PYBIN" "$HOOK"' in c, f"launcher must propagate root to Python: {c[:80]}"
-    assert '"$PYBIN" "$PROJECT_ROOT/.codex/hooks/story_codex_hook.py"' not in c, f"launcher runs hook without root propagation/no-op guard: {c[:80]}"
-    # Codex runs Windows hooks via cmd.exe (%COMSPEC% /C), not a POSIX shell, so every hook
-    # needs a cmd.exe-safe commandWindows; otherwise the POSIX command is fed to cmd.exe and breaks.
+    assert '.codex/hooks/run-story-hook.sh' in c, f"POSIX command must route through the shared launcher: {c}"
+    assert 'python3 python py' not in c and 'story_codex_hook.py' not in c, f"registration duplicated launcher logic: {c}"
     w = h.get("commandWindows")
     assert w, f"hook missing commandWindows (Windows = cmd.exe /C): {c[:60]}"
-    assert "story_codex_hook.py" in w, f"commandWindows must invoke the hook: {w}"
-    for posixism in ("${", "$(", "[ -f", "for PYBIN", "; do ", "&& break"):
-        assert posixism not in w, f"commandWindows must be cmd.exe-safe (found POSIX {posixism!r}): {w}"
-    assert c.split()[-1] == w.split()[-1], f"command/commandWindows event mismatch: {c.split()[-1]} vs {w.split()[-1]}"
+    assert "run-story-hook.cmd" in w and "powershell -NoProfile" in w, f"Windows command must locate the shared launcher: {w}"
+    assert "story_codex_hook.py" not in w and "python3" not in w, f"Windows registration duplicated launcher logic: {w}"
+    posix_event = c.rsplit(" ", 1)[-1]
+    assert f"'{posix_event}'" in w, f"command/commandWindows event mismatch: {posix_event} vs {w}"
 hook_py = Path(sys.argv[2]).read_text(encoding="utf-8")
 assert "Path(__file__)" in hook_py and "_deployed_root_from_file" in hook_py, \
     "story_codex_hook.py must self-locate the project root from __file__ (Windows MSYS-path safety)"
 PY
 
-echo "  OK launcher root propagation + no-op guard + Python self-location + cmd.exe commandWindows"
+echo "  OK generated launcher routing + Python self-location + cmd.exe commandWindows"
 
-# Reference-path ordering: where the agent body lists the numbered read order, Codex must read
-# .codex/skills/... first (story-setup deploys the bundle there); otherwise the body contradicts
-# the appended Codex note and the agent reads non-existent .claude/.opencode paths first.
+# Reference-path contract: generated Codex agents use only the bundle story-setup deploys.
 python3 - "$CODEX_DIR/agents" <<'PY'
 import sys
 from pathlib import Path
@@ -344,13 +353,13 @@ for path in sorted(Path(sys.argv[1]).glob("*.toml")):
     text = path.read_text(encoding="utf-8")
     if "1. `{项目根}/" not in text:
         continue  # this agent has no numbered reference list
-    codex_i = text.find(".codex/skills/story-setup/references/agent-references/")
-    claude_i = text.find(".claude/skills/story-setup/references/agent-references/")
-    assert codex_i != -1, f"{path.name}: numbered reference list must include .codex/skills first"
-    assert claude_i == -1 or codex_i < claude_i, f"{path.name}: .codex/skills must precede .claude/skills"
+    assert text.count("1. `{项目根}/.codex/skills/story-setup/references/agent-references/") == 1, \
+        f"{path.name}: numbered reference list must contain the canonical Codex path once"
+    for stale in (".claude/skills/", ".opencode/skills/", "{项目根}/skills/story-setup/references/agent-references/"):
+        assert stale not in text, f"{path.name}: stale cross-CLI reference fallback {stale}"
 PY
 
-echo "  OK Codex agent reference-path ordering"
+echo "  OK Codex agent canonical reference path"
 
 assert_grep '\$story-setup|\$story-long-write|/skills' "$CODEX_DIR/AGENTS.md.tmpl" "Codex AGENTS template must mention skill invocation"
 assert_grep '\.codex/agents/\*\.toml' "$CODEX_DIR/AGENTS.md.tmpl" "Codex AGENTS template must mention custom agent location"

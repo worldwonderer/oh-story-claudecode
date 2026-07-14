@@ -9,11 +9,13 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-HOOK_SRC="$REPO_ROOT/skills/story-setup/references/codex/hooks/story_codex_hook.py"
+HOOKS_SRC="$REPO_ROOT/skills/story-setup/references/codex/hooks"
+HOOK_SRC="$HOOKS_SRC/story_codex_hook.py"
 ROOT="$TMP_DIR/story-project"
 HOOK="$ROOT/.codex/hooks/story_codex_hook.py"
 mkdir -p "$ROOT/.codex/hooks"
 cp "$HOOK_SRC" "$HOOK"
+cp "$HOOKS_SRC/run-story-hook.sh" "$HOOKS_SRC/run-story-hook.cmd" "$ROOT/.codex/hooks/"
 chmod +x "$HOOK"
 
 git -C "$ROOT" init -q
@@ -118,8 +120,8 @@ echo "  OK commit advisory"
 mkdir -p "$ROOT/book/追踪"
 cat > "$ROOT/.story-deployed" <<'TXT'
 deployed_at: 2026-06-25T00:00:00Z
-agents_version: 17
-setup_skill_version: 1.2.6
+agents_version: 18
+setup_skill_version: 1.2.7
 target_cli: codex
 resolver_strategy: project-local-skill-reference
 references_dir: .codex/skills/story-setup/references/agent-references
@@ -190,6 +192,7 @@ NON_GIT="$TMP_DIR/non-git-story-project"
 NON_GIT_HOOK="$NON_GIT/.codex/hooks/story_codex_hook.py"
 mkdir -p "$NON_GIT/.codex/hooks" "$NON_GIT/book/正文" "$NON_GIT/book/大纲" "$NON_GIT/nested/a/b"
 cp "$HOOK_SRC" "$NON_GIT_HOOK"
+cp "$HOOKS_SRC/run-story-hook.sh" "$HOOKS_SRC/run-story-hook.cmd" "$NON_GIT/.codex/hooks/"
 cp "$REPO_ROOT/skills/story-setup/references/codex/hooks/hooks.json" "$NON_GIT/.codex/hooks.json"
 launcher_cmd="$(
   NON_GIT="$NON_GIT" python3 - <<'PY'
@@ -218,6 +221,37 @@ assert_empty "$out" "non-git nested cwd + outline present allows (root reaches P
 rm -f "$NON_GIT/book/大纲/细纲_第4章.md"
 
 echo "  OK non-git nested root propagation"
+
+case "$(uname -s 2>/dev/null || true)" in
+  MINGW*|MSYS*|CYGWIN*)
+    NON_GIT="$NON_GIT" python3 - <<'PY'
+import json
+import os
+import subprocess
+from pathlib import Path
+
+root = Path(os.environ["NON_GIT"])
+hooks = json.loads((root / ".codex/hooks.json").read_text(encoding="utf-8"))["hooks"]
+command = hooks["PreToolUse"][0]["hooks"][0]["commandWindows"]
+payload = b'{"tool_name":"Write","tool_input":{"file_path":"book/正文/第004章_非Git.md","content":"正文"}}'
+completed = subprocess.run(
+    command,
+    cwd=root / "nested/a/b",
+    input=payload,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    shell=True,
+    timeout=20,
+)
+assert completed.returncode == 0, completed.stderr.decode("utf-8", "replace")
+output = completed.stdout.decode("utf-8")
+data = json.loads(output)
+specific = data.get("hookSpecificOutput", {})
+assert specific.get("permissionDecision") == "deny", output
+PY
+    echo "  OK commandWindows nested root + interpreter launcher"
+    ;;
+esac
 
 # Missing deployment: a cwd whose ancestors have no .codex/hooks/story_codex_hook.py → the
 # launcher must no-op (exit 0) silently, NOT run "//.codex/hooks/story_codex_hook.py" (which

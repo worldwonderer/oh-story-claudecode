@@ -20,7 +20,7 @@
 >
 > v0.6.21 起：短篇写作参考栈瘦身——`story-short-write` 删除长篇继承残留 references，改由 `short-format` / `short-craft` / `short-deslop` + 四个题材包（追妻火葬场、复仇打脸、总裁豪门、宅斗宫斗）承接短篇格式、情绪直给、节奏密度和去 AI 味；已部署项目建议重新运行 `/story-setup` 并新开会话，获取新版 narrative-writer 短篇例外。
 >
-> v0.6.20 起：长篇大纲补强——对标节奏迁移（把爆款拆解的剧情节奏按关键点回流进卷纲，缺节奏文件走章节摘要降级）+ 章节定位与张弛（破「每章像短篇」：按章在一级结构里的位置分高压/推进/关系/低压等定位，低压/关系/过场章不再被迫塞钩子爽点、但保留追读拉力，并加「禁情绪母题扎堆」底线；定位可留空、非硬配额）。
+> v0.6.20 起：长篇大纲补强——对标节奏迁移（把爆款拆解的剧情节奏按关键点回流进卷纲）+ 章节定位与张弛（破「每章像短篇」：按章在一级结构里的位置分高压/推进/关系/低压等定位，低压/关系/过场章不再被迫塞钩子爽点、但保留追读拉力，并加「禁情绪母题扎堆」底线；定位可留空、非硬配额）。当前契约要求 `剧情/节奏.md` 与 `剧情/情绪模块.md` 齐全，缺失时先重跑拆文/导入，不再用章节摘要降级。
 >
 > 更早版本变更见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -99,7 +99,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 
 > **Codex 用户：** repo 内直接使用：Codex 会扫描 `$REPO_ROOT/.agents/skills`（指向 `skills/` 的 symlink）发现 13 个 skill；用 `$story`、`$story-setup` 或 `/skills` 调用。Windows 上 git 需开 `core.symlinks=true`，否则 symlink 失效，改走下方 `$story-setup` 部署。
-> 跑 `$story-setup` 部署到写作项目后，会写入 `.codex/agents/*.toml`、`.codex/hooks.json`、`.codex/hooks/story_codex_hook.py` 和 `.codex/skills/story-setup/references/agent-references/`；请信任项目 `.codex/` 配置层并在 `/hooks` review/trust hooks、新开 Codex 会话，让 custom agents 生效。
+> 跑 `$story-setup` 部署到写作项目后，会写入 `.codex/agents/*.toml`、`.codex/hooks.json`、`.codex/hooks/{story_codex_hook.py,run-story-hook.sh,run-story-hook.cmd}` 和 `.codex/skills/story-setup/references/agent-references/`；请信任项目 `.codex/` 配置层并在 `/hooks` review/trust hooks、新开 Codex 会话，让 custom agents 生效。
 >
 > **OpenCode 用户：** 全局安装后 opencode 自动从 `~/.claude/skills/` 发现 skills；首次用自然语言触发 story-setup（如「用 story-setup 部署网文写作环境」），**部署后退出重进 `opencode -c`** 才能用 slash command。部分 hook 行为与 Claude Code 有差异（session-start / session-end / compact 等），详见 [CONTRIBUTING.md](CONTRIBUTING.md) 的 OpenCode 章节。
 >

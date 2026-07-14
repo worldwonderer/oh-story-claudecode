@@ -55,8 +55,11 @@ if sentinel_exists "$ROOT/.story-deployed"; then
       HAS_CONTENT=true
       ;;
     *)
-      if [ "$AGENTS_VERSION" -lt 17 ]; then
-        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 低于 v17。重新运行 /story-setup 刷新 hooks、agents 和 references（部署后需新开会话）。\n\n"
+      if [ "$AGENTS_VERSION" -lt 18 ]; then
+        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 低于 v18。重新运行 /story-setup 刷新 hooks、agents 和 references（部署后需新开会话）。\n\n"
+        HAS_CONTENT=true
+      elif [ "$AGENTS_VERSION" -gt 18 ]; then
+        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 高于本 hook 支持的 v18。不要降级覆盖；请先更新 oh-story-claudecode。\n\n"
         HAS_CONTENT=true
       fi
       ;;

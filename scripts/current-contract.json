@@ -1,0 +1,46 @@
+{
+  "manifest_version": 1,
+  "setup_skill_version": "1.2.7",
+  "agents_version": 18,
+  "topic_decision_phase": 5,
+  "progress_schema_version": 2,
+  "primary_benchmark_artifacts": [
+    "剧情/情绪模块.md",
+    "剧情/节奏.md"
+  ],
+  "required_outline_sections": [
+    {
+      "rule": "阶段位置",
+      "demo": "阶段位置"
+    },
+    {
+      "rule": "结构公式",
+      "demo": "本章结构公式"
+    },
+    {
+      "rule": "禁止提前释放",
+      "demo": "本章禁止提前释放"
+    },
+    {
+      "rule": "内容概括",
+      "demo": "内容概括（五段式）"
+    },
+    {
+      "rule": "情节安排",
+      "demo": "情节安排（多线）"
+    },
+    {
+      "rule": "人物关系和出场顺序",
+      "demo": "人物关系和出场顺序"
+    },
+    {
+      "rule": "情节细化",
+      "demo": "情节细化"
+    },
+    {
+      "rule": "结尾设定和钩子",
+      "demo": "结尾设定和钩子"
+    }
+  ],
+  "expected_demo_outline_count": 20
+}

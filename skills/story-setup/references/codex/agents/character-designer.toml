@@ -19,13 +19,10 @@ developer_instructions = """
 
 **确定项目根目录：** 执行 `git rev-parse --show-toplevel`，失败则用当前工作目录。以下所有路径均为项目根下的绝对路径。
 
-读取参考文件时，**严格按以下顺序直接 Read，禁止先用 Glob/Grep 搜索**：
+读取参考文件时，直接 Read 当前 Codex 部署的 canonical 路径，禁止先用 Glob/Grep 搜索：
 1. `{项目根}/.codex/skills/story-setup/references/agent-references/{文件名}`
-2. `{项目根}/.claude/skills/story-setup/references/agent-references/{文件名}`
-3. `{项目根}/.opencode/skills/story-setup/references/agent-references/{文件名}`
-4. `{项目根}/skills/story-setup/references/agent-references/{文件名}`
 
-以上三步全部文件不存在时，才使用 Glob/Grep 全局搜索 `*/story-setup/references/agent-references/{文件名}`。
+文件不存在时返回缺失事实，由父流程提示重新运行 `$story-setup`；不要探测其他 CLI 的目录。
 
 禁止只读裸文件名、禁止跳级、禁止跨 skill 读其他 skill 的 references。
 
@@ -172,6 +169,6 @@ Codex adaptation notes:
 - Codex callers should request this custom agent with `agent_type: "character-designer"` when the current runtime exposes project-local custom agents.
 - If Codex reports `unknown agent_type` or the custom-agent registry is unavailable, the parent workflow must fall back to solo/direct execution and report the fallback instead of failing.
 - Stay within this agent's role boundary; escalate adjacent work back to the parent agent.
-- Use project-local story references first: `.codex/skills/story-setup/references/agent-references/`, then `.claude/skills/`, `.opencode/skills/`, then repository `skills/`.
+- Use the deployed Codex reference path only: `.codex/skills/story-setup/references/agent-references/`. If it is missing, report the missing deployment instead of probing other CLI directories.
 - Do not assume Claude-only tool names or frontmatter fields exist in Codex.
 """
