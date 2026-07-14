@@ -106,9 +106,13 @@ def safe_rel(root: Path, path: Path) -> str:
 def read_active_book(root: Path) -> Path | None:
     active_file = root / ".active-book"
     if active_file.exists():
-        first = active_file.read_text(encoding="utf-8", errors="ignore").splitlines()
-        if first:
-            candidate = (root / first[0].strip()).resolve()
+        lines = active_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+        # A blank/whitespace first line must fall through to discovery, not resolve to
+        # root/"" == root (mirrors the bash oracle common.sh discover_active_book, which
+        # trims then requires non-empty, and the JS hook's firstLine()+truthy guard).
+        declared = lines[0].strip() if lines else ""
+        if declared:
+            candidate = (root / declared).resolve()
             try:
                 candidate.relative_to(root.resolve())
             except Exception:
