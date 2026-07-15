@@ -382,7 +382,11 @@ assert_grep 'tool\.execute\.before' "$ROOT/plugin.ts" "OpenCode plugin must guar
 assert_grep 'proseBlockReason' "$ROOT/plugin.ts" "OpenCode plugin must keep outline-before-prose guard"
 assert_grep 'tool\.execute\.after' "$ROOT/plugin.ts" "OpenCode plugin must run the prose backstop after writes"
 assert_grep 'proseAfterWrite' "$ROOT/plugin.ts" "OpenCode plugin must surface backstop findings on the write result"
-assert_grep 'from "\./story_hook_core\.js"' "$ROOT/plugin.ts" "OpenCode plugin must consume the shared prose-guard core"
+assert_grep 'from "\./lib/story_hook_core\.js"' "$ROOT/plugin.ts" "OpenCode plugin must consume the shared prose-guard core"
+# CI has no opencode CLI to actually load the plugin, so this is a structural proxy: the
+# deploy manifest must place the core under .opencode/plugins/lib/, never flat in
+# .opencode/plugins/ (a flat *.js there is auto-loaded by OpenCode as a broken second plugin).
+assert_grep '\.opencode/plugins/lib/story_hook_core\.js' "$REPO_ROOT/skills/story-setup/SKILL.md" "SKILL.md deploy manifest must target .opencode/plugins/lib/story_hook_core.js, not a flat .opencode/plugins/story_hook_core.js"
 assert_grep '正文' "$ROOT/plugin.ts" "OpenCode plugin must inspect prose targets"
 assert_grep '@opencode-ai/plugin' "$ROOT/plugin.ts" "OpenCode plugin must import OpenCode plugin types"
 # The shared prose-guard core (light net / outline guard / wordcount·landing·dup-title) deploys

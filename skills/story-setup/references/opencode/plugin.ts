@@ -8,11 +8,13 @@ import {
   extractProseTargets,
   proseBlockReason,
   proseAfterWrite,
-} from "./story_hook_core.js"
+} from "./lib/story_hook_core.js"
 
 // 写正文守卫的检测逻辑（去 AI 味轻量确定性网、大纲/细纲守卫、字数/落盘/标题去重、
 // 正文写入目标抽取）与 ZCode hook 共享同一份 story_hook_core.js，随本插件一起部署到
-// .opencode/plugins/story_hook_core.js。这里只保留 OpenCode 宿主相关的部分：项目根定位、
+// .opencode/plugins/lib/story_hook_core.js（放 lib/ 子目录而非平铺：OpenCode 只单层扫描
+// .opencode/plugins/*.js 当插件加载，平铺会被误当成第二个插件导致加载失败；lib/ 子目录不在
+// 扫描范围内）。这里只保留 OpenCode 宿主相关的部分：项目根定位、
 // 事件模型（experimental.session.compacting / tool.execute.*）、以及把发现追加进写工具
 // 返回结果的输出信封。共享核以 bash hook 为 oracle，parity 由 test-prose-net-parity.sh 守卫。
 

@@ -124,10 +124,14 @@ JS
   # 不走 `npx --yes esbuild`：CI 全平台 node 20，逐次联网下载既慢又脆——B 是开发期确认，
   # CI 的确定性保证由 A（规范串三端一致）承担，无 TS 运行时则 B 自跳过。
   cp "$OPENCODE" "$tmp/p.ts"
-  cp "$OPENCODE_CORE" "$tmp/story_hook_core.js"
-  # plugin.ts imports the net from ./story_hook_core.js; re-export it from that companion
+  # plugin.ts imports the core from ./lib/story_hook_core.js (the deploy target — a lib/
+  # subdir escapes OpenCode's single-level .opencode/plugins/*.js plugin auto-discovery);
+  # mirror that layout here so the copied plugin's import resolves.
+  mkdir -p "$tmp/lib"
+  cp "$OPENCODE_CORE" "$tmp/lib/story_hook_core.js"
+  # plugin.ts imports the net from ./lib/story_hook_core.js; re-export it from that companion
   # so the type-stripped module exposes the exact function OpenCode runs at deploy time.
-  printf "\nexport { proseNetFindings as _net } from './story_hook_core.js'\n" >> "$tmp/p.ts"
+  printf "\nexport { proseNetFindings as _net } from './lib/story_hook_core.js'\n" >> "$tmp/p.ts"
   local ran=0
   if node --experimental-strip-types -e '' >/dev/null 2>&1; then
     node --experimental-strip-types --input-type=module -e "
