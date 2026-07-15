@@ -16,6 +16,8 @@
 
 围绕四条线展开：爆款逆向 · 剧情模块化重组 · 上下文状态分层管理 · 人机协同。
 
+> v0.6.23 起：新增 ZCode 3.3.4 原生适配——仓库可作为 marketplace/plugin 安装，暴露 13 个 Skills、13 个 Commands 与严格 JSON Hooks；`story-setup` 支持 `target_cli=zcode`，安全合并 `.zcode/config.json` 与根 `AGENTS.md`。ZCode 当前不执行项目/plugin custom agents，涉及专业 Agent 的流程会明确降级为 solo/direct。
+>
 > v0.6.22 起：长篇正文接入「题材正文提示卡」——32 个番茄题材的腔调卡在写作时按题材召回进写手（卡内容绝不入正文），并配套大纲边界与逐章写法公式防越界注水；短篇新增投稿层 `submission-craft`（知乎盐选/小程序/番茄三路平台基调、导语门面打磨、付费点断点设计）；全套件 skill 文档去重瘦身约 33KB；story-setup 支持 generic Web AI 部署。已部署项目需重新运行 `/story-setup` 并新开会话。
 >
 > v0.6.21 起：短篇写作参考栈瘦身——`story-short-write` 删除长篇继承残留 references，改由 `short-format` / `short-craft` / `short-deslop` + 四个题材包（追妻火葬场、复仇打脸、总裁豪门、宅斗宫斗）承接短篇格式、情绪直给、节奏密度和去 AI 味；已部署项目建议重新运行 `/story-setup` 并新开会话，获取新版 narrative-writer 短篇例外。

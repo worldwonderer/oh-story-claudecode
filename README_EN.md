@@ -18,6 +18,8 @@ Professional authors follow a three-step method:
 
 Built around four pillars: reverse-engineering hits · plot modularization · layered state management · human-AI collaboration.
 
+> Starting in v0.6.23: native ZCode 3.3.4 support — install the repository as a marketplace/plugin with 13 Skills, 13 Commands, and strict-JSON Hooks; `story-setup` now supports `target_cli=zcode` and safely merges `.zcode/config.json` plus the root `AGENTS.md`. ZCode does not currently execute project/plugin custom agents, so specialist-agent workflows explicitly fall back to solo/direct mode.
+>
 > Starting in v0.6.22: long-form prose gains per-genre "prose prompt cards" — 32 番茄-genre voice cards recalled into the writer at draft time (card text never leaks into prose), plus outline-boundary and per-chapter formula gates against padding; short-form adds a submission layer `submission-craft` (Zhihu Yanxuan / mini-program / Fanqie platform tones, lead-in polish, paywall breakpoint design); suite-wide skill docs deduplicated by ~33KB; story-setup adds generic Web AI deployment. Deployed projects should rerun `/story-setup` and start a new session.
 >
 > Starting in v0.6.21: short-form writing reference cleanup — `story-short-write` drops stale long-form inherited references and now uses `short-format` / `short-craft` / `short-deslop` plus four genre packs (wife-chasing crematorium, revenge face-slap, CEO/wealthy family, domestic/palace intrigue) for short-story format, direct emotion, pacing density, and AI-tone cleanup; existing deployed projects should rerun `/story-setup` and start a new session to pick up the updated narrative-writer short-story exception.
