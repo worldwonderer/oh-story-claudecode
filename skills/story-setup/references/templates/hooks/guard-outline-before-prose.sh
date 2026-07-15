@@ -24,14 +24,38 @@ if [ -z "$HOOK_INPUT" ] && [ ! -t 0 ]; then
 fi
 export HOOK_INPUT
 
-# 探测 node（Claude Code 自身即 node 应用，正常必有；探测不到就静默放行）。
-node -e "" >/dev/null 2>&1 || exit 0
+# 提取目标文件路径：优先 node 共享核（与其它端同一份实现）；node 不可用时回落到纯 bash 抽取。
+# 这是阻断守卫，不能因缺 node 而 fail-open——官方现在推荐原生二进制装 Claude Code，只有 npm
+# 装法才带 Node，native 运行时可能无 node；只要能解析出目标路径就照常判定拦截。两条路径都抽不到
+# 才放行（宁可漏拦不可误伤）。
 CLI="$(dirname "$0")/story_hook_cli.js"
-[ -f "$CLI" ] || exit 0
 
-# 从 tool 输入 JSON（HOOK_INPUT 环境变量）提取目标文件路径，node 按 UTF-8 写回。
-TARGET="$(node "$CLI" extract-target 2>/dev/null || true)"
-# 解析不到路径 → 放行
+# 纯 bash JSON 抽取兜底：按 dig 优先级取第一处 file_path/path/filePath 字符串值。Claude(node
+# 应用)的 hook 负载走 JSON.stringify——非 ASCII 路径是原始 UTF-8（不转 \uXXXX），Windows 盘符
+# 路径是 \\ 转义；两者都可在 bash 里还原（下方盘符分支再把 \ 归一成 /）。仅 node 缺席时启用。
+extract_target_bash() {
+  local key val
+  for key in file_path path filePath; do
+    val="$(printf '%s' "$HOOK_INPUT" \
+      | grep -oE "\"$key\"[[:space:]]*:[[:space:]]*\"([^\"\\\\]|\\\\.)*\"" \
+      | head -n1 \
+      | sed -E "s/^\"$key\"[[:space:]]*:[[:space:]]*\"//; s/\"\$//")"
+    if [ -n "$val" ]; then
+      val="${val//\\\"/\"}"   # \" -> "
+      val="${val//\\\\/\\}"   # \\ -> \
+      printf '%s' "$val"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if node -e "" >/dev/null 2>&1 && [ -f "$CLI" ]; then
+  TARGET="$(node "$CLI" extract-target 2>/dev/null || true)"
+else
+  TARGET="$(extract_target_bash 2>/dev/null || true)"
+fi
+# 两条路径都解析不到 → 放行
 [ -z "$TARGET" ] && exit 0
 
 ROOT=$(project_root)

@@ -454,6 +454,38 @@ run_guard() {
 [ "$(run_guard 'impshort/正文.md')" = "0" ] || fail "guard wrongly blocked story-import SHORT prose migration (拆文库 source present)"
 echo "  OK TS11 outline-before-prose guard"
 
+# TS11b — 阻断守卫在无 node 时必须回落纯 bash 抽取、仍然 exit 2（不得 fail-open）。
+# 官方现推荐原生二进制装 Claude Code（不带 Node），只有 npm 装法才有 node；原实现只探测 node、
+# 探不到就放行，会让"缺细纲写正文"被静默放过（#243 回归）。用一个恒退非零的假 node 垫片模拟
+# "node 不可用"，其余工具(sed/grep/bash)仍在 PATH。垫片若未能遮蔽真 node（个别 Windows 主机）
+# 则跳过，避免环境导致假失败。
+nonode_shim="$TMP_DIR/nonode-shim"
+mkdir -p "$nonode_shim"
+printf '#!/bin/sh\nexit 1\n' > "$nonode_shim/node"
+chmod +x "$nonode_shim/node"
+run_guard_nonode() {
+  local fp="$1" ec=0
+  printf '{"tool_name":"Write","tool_input":{"file_path":"%s","content":"x"}}' "$fp" \
+    | CLAUDE_PROJECT_DIR="$guard_root" PATH="$nonode_shim:$PATH" \
+      bash "$guard_root/.claude/hooks/guard-outline-before-prose.sh" >/dev/null 2>&1 || ec=$?
+  printf '%s' "$ec"
+}
+if ! PATH="$nonode_shim:$PATH" node -e "" >/dev/null 2>&1; then
+  # 缺细纲 -> 仍须拦截（bash 兜底解析出目标路径，照常 exit 2）
+  [ "$(run_guard_nonode 'book/正文/第123章_无纲.md')" = "2" ] \
+    || fail "guard fail-OPEN without node (regression #243): 缺细纲写正文必须仍拦截（bash 兜底）"
+  : > "$guard_root/book/大纲/细纲_第123章.md"
+  # 有细纲 -> 放行（bash 兜底不误伤）
+  [ "$(run_guard_nonode 'book/正文/第123章_无纲.md')" = "0" ] \
+    || fail "guard(no-node) wrongly blocked long prose when 细纲 present (bash 兜底)"
+  # 非正文目标 -> 放行
+  [ "$(run_guard_nonode 'book/设定/角色.md')" = "0" ] \
+    || fail "guard(no-node) wrongly blocked a non-prose file (bash 兜底)"
+  echo "  OK TS11b outline guard fail-closed without node"
+else
+  echo "  SKIP TS11b (假 node 垫片未能遮蔽真 node，跳过 no-node 回归)"
+fi
+
 # TS12 — Agents-pending-restart one-shot confirmation
 restart_root="$TMP_DIR/restart-flag"
 mkdir -p "$restart_root/.claude"
