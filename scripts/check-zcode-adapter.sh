@@ -114,7 +114,21 @@ for hook in plugin_hooks + workspace_hooks:
     assert hook['type'] == 'process' and hook['command'] == 'node'
     assert hook['args'][1] in {'session-start', 'pre-tool-prose-guard', 'pre-tool-commit-advisory', 'post-tool-prose-check'}
 post_groups = plugin['PostToolUse']
-assert len(post_groups) == 1 and post_groups[0]['matcher'] == 'Bash|Write|Edit'
+assert len(post_groups) == 1 and post_groups[0]['matcher'] == 'Bash|Write|Edit|ApplyPatch'
+# 路由测试（防"直调 runner 绕过 matcher"的假绿）：pre-tool-prose-guard 的 matcher 在 plugin
+# 与 workspace config 两份里必须一致，且能路由 test-zcode-hooks 会喂给它的每种工具——含
+# ApplyPatch（写正文的 apply-patch 目标必须真被 matcher 送进 handler，而不只是 runner 直调可拦）。
+import re
+def prose_guard_matcher(events):
+    for group in events['PreToolUse']:
+        if any(h['args'][1] == 'pre-tool-prose-guard' for h in group['hooks']):
+            return group['matcher']
+    return None
+mc = prose_guard_matcher(config['events'])
+mp = prose_guard_matcher(plugin)
+assert mc is not None and mc == mp, ('pre-tool-prose-guard matcher drift between config and plugin', mc, mp)
+for tool in ('Bash', 'Write', 'Edit', 'ApplyPatch'):
+    assert re.search(mc, tool), ('pre-tool-prose-guard matcher does not route tool', tool, mc)
 for hook in plugin_hooks:
     assert hook['args'][0].startswith('${ZCODE_PLUGIN_ROOT}/')
 for hook in workspace_hooks:
@@ -132,6 +146,9 @@ assert_grep '\$story-long-write|\$story-setup' "$ROOT/AGENTS.md.tmpl" 'ZCode AGE
 assert_grep 'project custom agents unavailable.*solo|不执行项目.*custom agents' "$ROOT/AGENTS.md.tmpl" "ZCode AGENTS template must document solo fallback"
 assert_grep 'target_cli = zcode|target_cli.*zcode' skills/story-setup/SKILL.md "story-setup must document zcode target_cli"
 assert_grep 'references/zcode/config\.json\.patch' skills/story-setup/SKILL.md "story-setup manifest missing ZCode config patch"
+# 组合安装验证代理（CI 无 ZCode 运行时）：插件 manifest 与 workspace config 注册同一批 hooks，
+# 部署算法必须记录二者互斥（装插件则跳过 config hooks 合并），否则 PreToolUse/PostToolUse 双触发。
+assert_grep 'hooks 互斥' skills/story-setup/SKILL.md "story-setup must document the plugin/workspace hooks mutex (skip config hooks merge when plugin installed, avoid double-firing)"
 assert_grep '\.zcode/skills/story-setup/references/agent-references' skills/story-setup/SKILL.md "story-setup missing ZCode reference path"
 
 for skill in story-long-write story-short-write story-long-analyze story-import story-deslop story-review; do

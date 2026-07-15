@@ -18,7 +18,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Write|Edit",
+        "matcher": "Bash|Write|Edit|ApplyPatch",
         "hooks": [
           {
             "type": "process",
@@ -48,7 +48,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|Write|Edit",
+        "matcher": "Bash|Write|Edit|ApplyPatch",
         "hooks": [
           {
             "type": "process",
