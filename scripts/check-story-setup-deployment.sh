@@ -486,6 +486,35 @@ else
   echo "  SKIP TS11b (假 node 垫片未能遮蔽真 node，跳过 no-node 回归)"
 fi
 
+# TS11c — node 在场但抽取失败（旧 node 不识 node: 前缀 / 部署核损坏时探测通过、跑脚本抛错）时，
+# 阻断守卫必须回落纯 bash、仍 exit 2。原实现用 if/else：node 探测一过就只走 node 分支，抽空即放行，
+# 正是 #243 复盘发现的第二个 fail-open 面。垫片「node -e '' 退 0、跑真实脚本退非零」模拟坏 node；
+# 只有确认解析到的 node 就是垫片时才跑（否则真 node 会让断言因错误原因通过）。
+brokennode_shim="$TMP_DIR/brokennode-shim"
+mkdir -p "$brokennode_shim"
+printf '#!/bin/sh\n[ "$1" = "-e" ] && exit 0\nexit 1\n' > "$brokennode_shim/node"
+chmod +x "$brokennode_shim/node"
+run_guard_brokennode() {
+  local fp="$1" ec=0
+  printf '{"tool_name":"Write","tool_input":{"file_path":"%s","content":"x"}}' "$fp" \
+    | CLAUDE_PROJECT_DIR="$guard_root" PATH="$brokennode_shim:$PATH" \
+      bash "$guard_root/.claude/hooks/guard-outline-before-prose.sh" >/dev/null 2>&1 || ec=$?
+  printf '%s' "$ec"
+}
+resolved_node="$(PATH="$brokennode_shim:$PATH" bash -c 'command -v node' 2>/dev/null || true)"
+if [ "$resolved_node" = "$brokennode_shim/node" ]; then
+  # node 探测通过但 CLI 抽取抛错 -> 缺细纲仍须拦截（bash 兜底解析目标路径）
+  [ "$(run_guard_brokennode 'book/正文/第124章_坏node.md')" = "2" ] \
+    || fail "guard fail-OPEN with broken node (regression #243): node 在但抽取失败时必须回落 bash 仍拦截"
+  : > "$guard_root/book/大纲/细纲_第124章.md"
+  # 有细纲 -> 放行（bash 兜底不误伤）
+  [ "$(run_guard_brokennode 'book/正文/第124章_坏node.md')" = "0" ] \
+    || fail "guard(broken-node) wrongly blocked long prose when 细纲 present (bash 兜底)"
+  echo "  OK TS11c outline guard fail-closed when node present-but-broken"
+else
+  echo "  SKIP TS11c (假 node 垫片未能遮蔽真 node，跳过 broken-node 回归)"
+fi
+
 # TS12 — Agents-pending-restart one-shot confirmation
 restart_root="$TMP_DIR/restart-flag"
 mkdir -p "$restart_root/.claude"
