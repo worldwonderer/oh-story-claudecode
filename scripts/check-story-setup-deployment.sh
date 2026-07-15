@@ -277,6 +277,29 @@ SENTINEL
 newer_project_out="$(run_from_nested "$newer_project_root" session-start.sh 2>&1 || true)"
 echo "$newer_project_out" | grep -q '高于本 hook 支持的 v18' || fail "session-start did not reject agents_version 19 downgrade"
 echo "$newer_project_out" | grep -q '不要降级覆盖' || fail "session-start did not explain future-version safety"
+
+mixed_version_root="$TMP_DIR/mixed-version"
+mkdir -p "$mixed_version_root/.claude/skills/story-setup/references/agent-references"
+setup_git_repo "$mixed_version_root"
+copy_hooks "$mixed_version_root"
+touch "$mixed_version_root/.claude/skills/story-setup/references/agent-references/dummy.md"
+cat > "$mixed_version_root/.story-deployed" <<'SENTINEL'
+deployed_at: 2026-05-24T00:00:00Z
+agents_version: 18
+setup_skill_version: 1.2.6
+target_cli: claude-code
+resolver_strategy: project-local-skill-reference
+references_dir: .claude/skills/story-setup/references/agent-references
+SENTINEL
+mixed_version_out="$(run_from_nested "$mixed_version_root" session-start.sh 2>&1 || true)"
+# agents_version 是唯一运行时过期权威；setup_skill_version 落后不触发重部署（设计如此）
+if echo "$mixed_version_out" | grep -q '低于 v18'; then
+  fail "session-start incorrectly nagged '低于 v18' for current agents_version=18 just because setup_skill_version lags"
+fi
+if echo "$mixed_version_out" | grep -q '高于本 hook'; then
+  fail "session-start incorrectly nagged '高于本 hook' for current agents_version=18 just because setup_skill_version lags"
+fi
+
 echo "  OK TS5 sentinel diagnostics"
 
 # TS6 — Short project non-mutation

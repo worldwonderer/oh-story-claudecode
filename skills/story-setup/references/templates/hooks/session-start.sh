@@ -65,6 +65,9 @@ if sentinel_exists "$ROOT/.story-deployed"; then
       ;;
   esac
 
+  # agents_version（上面）是唯一的运行时过期权威，只在部署物行为变化时才 bump；
+  # setup_skill_version 是 skill 内容锚点，按内容节奏独立变化，这里只做存在性检查、
+  # 不参与版本比较——否则内容改动会误报"需要重新部署"。
   for field in setup_skill_version target_cli resolver_strategy references_dir; do
     if [ -z "$(read_sentinel_field "$field" "$ROOT/.story-deployed")" ]; then
       OUTPUT+="[WARN] .story-deployed 缺少 $field 字段。重新运行 /story-setup 刷新部署元信息。\n\n"
