@@ -1,0 +1,53 @@
+# {项目名} — 网文写作工具集（ZCode）
+
+本项目已通过 oh-story 接入 ZCode。优先用 `$skill-name` 调用 Skill，也可从 `/` 面板选择同名 Skill 或 Command。
+
+## Skill 路由表
+
+| 命令/意图 | Skill | 说明 |
+|---|---|---|
+| `$story-long-write`、写长篇 | story-long-write | 长篇网文写作（逐章推进） |
+| `$story-short-write`、写短篇 | story-short-write | 短篇网文写作（情绪驱动） |
+| `$story-long-analyze`、长篇拆文 | story-long-analyze | 长篇小说深度拆解 |
+| `$story-short-analyze`、短篇拆文 | story-short-analyze | 短篇小说拆文分析 |
+| `$story-long-scan`、长篇扫榜 | story-long-scan | 长篇小说榜单与市场趋势 |
+| `$story-short-scan`、短篇扫榜 | story-short-scan | 短篇小说榜单与情绪风口 |
+| `$story-deslop`、去 AI 味 | story-deslop | 去除 AI 写作痕迹 |
+| `$story-cover`、封面 | story-cover | 生成封面图 |
+| `$story-review`、审查 | story-review | 多视角审查；项目 custom agents 不可用时降级 solo |
+| `$story-import`、导入 | story-import | 逆向导入已有小说到项目结构 |
+| `$story`、网文 | story | 模糊意图自动分发 |
+| `$story-setup`、准备写书 | story-setup | 部署 ZCode Skills、Commands、Hooks 与 AGENTS.md |
+| `$browser-cdp` | browser-cdp | 浏览器 CDP 工具 |
+
+## 文件结构
+
+- `.zcode/skills/` — 项目本地 Skills，优先于同名 plugin Skills
+- `.zcode/commands/` — 项目本地 Commands
+- `.zcode/hooks/` — oh-story ZCode Hook runner
+- `拆文库/` — 拆文分析结果
+- `{书名}/正文/` — 长篇章节正文
+- `{书名}/正文.md` — 短篇正文
+- `{书名}/设定/` — 角色、世界和题材设定
+- `{书名}/大纲/` — 卷纲与逐章细纲
+- `{书名}/追踪/` — 上下文、伏笔、时间线和角色状态
+- `{书名}/对标/` — 当前项目引用的对标分析
+
+## ZCode 项目约定
+
+- 写正文前必须先有对应大纲：长篇需要 `大纲/细纲_第N章*.md`，短篇需要 `小节大纲.md`。PreToolUse Hook 会做机械守卫，Skill 流程本身也必须遵守。
+- 正文写入后，PostToolUse Hook 会检查落盘、截断、占位符、工程词泄漏、复读、字数欠账和标题重复；有发现时先处理再继续。
+- ZCode 3.3.4 不执行项目/plugin 自定义 Agent。遇到 `story-architect`、`narrative-writer`、`consistency-checker` 等角色调用时，由当前 Agent 按同一规则直接完成，并在结果中报告 `Fallback: project custom agents unavailable -> solo`。
+- 不读取 `.zcode/rules` 或嵌套 `AGENTS.md`；关键规则以本文件和对应 Skill 为准。
+- Compact 后优先读取 `{书名}/追踪/上下文.md` 恢复当前写作进度。
+
+## Compact 后恢复上下文
+
+恢复写作前确认：
+
+1. 当前书目与已完成章节；
+2. 最近的角色/设定变更；
+3. 未回收伏笔；
+4. 当前章节的情绪和节奏目标。
+
+如果存在 `{书名}/追踪/上下文.md`，先读取该文件再继续写作。

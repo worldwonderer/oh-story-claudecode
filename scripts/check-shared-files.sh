@@ -25,12 +25,12 @@ fi
 #   header (consumed as a reference standard for source-story evaluation, not a writer
 #   playbook). Writer skills don't get the header. Wholesale-ignored here because their
 #   non-analyst copies have not all been confirmed byte-identical.
-# - AGENTS.md.tmpl: CLI-specific project instruction templates differ deliberately
-#   across OpenCode/Codex/OpenClaw and are validated by each CLI adapter check.
+# - AGENTS.md.tmpl / hooks.json: CLI-specific project templates differ deliberately
+#   and are validated by each CLI adapter check.
 IGNORE_NAMES="output-templates.md material-decomposition.md quality-checklist.md \
 genre-catalog.md genre-core-mechanics.md genre-readers.md \
 genre-writing-formulas.md genre-writing-techniques.md \
-AGENTS.md.tmpl"
+AGENTS.md.tmpl hooks.json"
 
 # Analyst-divergent (basename): the story-short-analyze copy intentionally prepends the
 # "## 用作拆文标尺时" analyst-lens header, so it is dropped from the comparison set; all

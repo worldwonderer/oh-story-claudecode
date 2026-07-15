@@ -24,6 +24,7 @@ assert_dir "$ROOT"
 assert_file "$ROOT/AGENTS.md.tmpl"
 assert_file "$ROOT/opencode.json.patch"
 assert_file "$ROOT/plugin.ts"
+assert_file "$ROOT/story_hook_core.js"
 assert_dir "$ROOT/agents"
 assert_dir "$ROOT/commands"
 assert_file "scripts/sync-opencode.py"
@@ -380,10 +381,20 @@ assert_grep 'experimental\.session\.compacting' "$ROOT/plugin.ts" "OpenCode plug
 assert_grep 'tool\.execute\.before' "$ROOT/plugin.ts" "OpenCode plugin must guard tool writes"
 assert_grep 'proseBlockReason' "$ROOT/plugin.ts" "OpenCode plugin must keep outline-before-prose guard"
 assert_grep 'tool\.execute\.after' "$ROOT/plugin.ts" "OpenCode plugin must run the prose backstop after writes"
-assert_grep 'proseNetFindings' "$ROOT/plugin.ts" "OpenCode plugin must carry the light prose net (parity with codex/claude)"
-assert_grep 'proseAfterWriteNote' "$ROOT/plugin.ts" "OpenCode plugin must surface backstop findings on the write result"
+assert_grep 'proseAfterWrite' "$ROOT/plugin.ts" "OpenCode plugin must surface backstop findings on the write result"
+assert_grep 'from "\./lib/story_hook_core\.js"' "$ROOT/plugin.ts" "OpenCode plugin must consume the shared prose-guard core"
+# CI has no opencode CLI to actually load the plugin, so this is a structural proxy: the
+# deploy manifest must place the core under .opencode/plugins/lib/, never flat in
+# .opencode/plugins/ (a flat *.js there is auto-loaded by OpenCode as a broken second plugin).
+assert_grep '\.opencode/plugins/lib/story_hook_core\.js' "$REPO_ROOT/skills/story-setup/SKILL.md" "SKILL.md deploy manifest must target .opencode/plugins/lib/story_hook_core.js, not a flat .opencode/plugins/story_hook_core.js"
 assert_grep '正文' "$ROOT/plugin.ts" "OpenCode plugin must inspect prose targets"
 assert_grep '@opencode-ai/plugin' "$ROOT/plugin.ts" "OpenCode plugin must import OpenCode plugin types"
+# The shared prose-guard core (light net / outline guard / wordcount·landing·dup-title) deploys
+# alongside plugin.ts and is imported by it; it must be byte-identical to the ZCode copy and valid JS.
+ZCODE_CORE="$REPO_ROOT/skills/story-setup/references/zcode/hooks/story_hook_core.js"
+cmp -s "$ROOT/story_hook_core.js" "$ZCODE_CORE" || fail "story_hook_core.js drifted from the ZCode copy (must be byte-identical)"
+node --check "$ROOT/story_hook_core.js" || fail "story_hook_core.js is not valid JavaScript"
+assert_grep 'proseNetFindings' "$ROOT/story_hook_core.js" "shared core must carry the light prose net (parity with codex/claude)"
 assert_grep 'AGENTS\.md|OpenCode' "$ROOT/AGENTS.md.tmpl" "OpenCode AGENTS template must be present"
 assert_grep 'story-long-write|story-short-write|story-review' "$ROOT/AGENTS.md.tmpl" "OpenCode AGENTS template must mention story skill routing"
 

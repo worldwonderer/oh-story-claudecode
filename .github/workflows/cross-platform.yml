@@ -44,8 +44,12 @@ jobs:
         run: bash scripts/check-opencode-adapter.sh
       - name: Check OpenClaw skill compatibility
         run: bash scripts/check-openclaw-skills.sh
+      - name: Check ZCode adapter
+        run: bash scripts/check-zcode-adapter.sh
       - name: Test Codex hook adapter
         run: bash scripts/test-codex-hooks.sh
+      - name: Test ZCode hook adapter
+        run: bash scripts/test-zcode-hooks.sh
       - name: Guard against bare python3 invocations
         run: bash scripts/check-python-invocation.sh
       - name: Guard hook locale safety (LC_ALL=C + no full-width char classes)
@@ -96,6 +100,9 @@ jobs:
       - name: Test Codex hook adapter
         shell: bash
         run: bash scripts/test-codex-hooks.sh
+      - name: Test ZCode hook adapter
+        shell: bash
+        run: bash scripts/test-zcode-hooks.sh
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
         with:
@@ -146,6 +153,8 @@ jobs:
         run: bash scripts/check-codex-adapter.sh
       - name: Test Codex hook adapter
         run: bash scripts/test-codex-hooks.sh
+      - name: Test ZCode hook adapter
+        run: bash scripts/test-zcode-hooks.sh
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
         with:

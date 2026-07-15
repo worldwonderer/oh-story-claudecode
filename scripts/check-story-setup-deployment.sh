@@ -1,7 +1,7 @@
 #!/bin/bash
 # check-story-setup-deployment.sh — story-setup deployment/runtime regression checks
 # Covers hook lib deployment, reference bundle integrity, root-aware hooks,
-# short-project non-mutation, commit-hook self-gating, and upgrade docs.
+# short-project non-mutation, commit-hook self-gating, and deployed-behavior anchors.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -10,7 +10,6 @@ SKILL_DIR="$REPO_ROOT/skills/story-setup"
 HOOKS_DIR="$SKILL_DIR/references/templates/hooks"
 AGENT_REFS_DIR="$SKILL_DIR/references/agent-references"
 SKILL_FILE="$SKILL_DIR/SKILL.md"
-UPGRADING_FILE="$SKILL_DIR/UPGRADING.md"
 SETTINGS_FILE="$SKILL_DIR/references/templates/settings-hooks.json"
 TMP_DIR="$(mktemp -d)"
 
@@ -62,7 +61,7 @@ write_sentinel() {
   cat > "$root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
 agents_version: 17
-setup_skill_version: 1.2.6
+setup_skill_version: 1.2.7
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
@@ -130,6 +129,15 @@ while IFS= read -r src; do
       ;;
   esac
 done < <(grep -RhoE '^source[[:space:]]+"[^"]+"' "$HOOKS_DIR"/*.sh | sed -E 's/^source[[:space:]]+"//;s/"$//' | sort -u)
+# node 共享核 + CLI 桥：正文网/字数/大纲守卫/连续性/commit 侦测的单一实现，被 bash hook 经
+# `node "$(dirname "$0")/story_hook_cli.js"` 调用。这两条不是 source 依赖，上面的 grep 抓不到，
+# 显式断言存在 + 语法有效，否则 hook 静默退化（node 缺失时 hook 自身 exit 0，此处按开发机有 node 校验）。
+assert_file "$HOOKS_DIR/story_hook_core.js"
+assert_file "$HOOKS_DIR/story_hook_cli.js"
+if command -v node >/dev/null 2>&1; then
+  node --check "$HOOKS_DIR/story_hook_core.js" || fail "story_hook_core.js node syntax invalid"
+  node --check "$HOOKS_DIR/story_hook_cli.js" || fail "story_hook_cli.js node syntax invalid"
+fi
 assert_grep '递归复制完整目录树|recursive' "$SKILL_FILE" "SKILL.md must require recursive hook deployment"
 assert_grep 'lib/common\.sh' "$SKILL_FILE" "SKILL.md must mention hooks/lib/common.sh"
 assert_grep 'lib/sentinel\.sh' "$SKILL_FILE" "SKILL.md must mention hooks/lib/sentinel.sh"
@@ -156,10 +164,24 @@ for group in 'templates/hooks/' 'templates/rules' 'templates/agents' 'agent-refe
 done
 assert_file "$SKILL_DIR/references/openclaw/AGENTS.md.tmpl"
 assert_file "$SKILL_DIR/references/generic/AGENTS.md.tmpl"
+assert_file "$SKILL_DIR/references/zcode/AGENTS.md.tmpl"
+assert_file "$SKILL_DIR/references/zcode/config.json.patch"
+assert_file "$SKILL_DIR/references/zcode/hooks/hooks.json"
+assert_file "$SKILL_DIR/references/zcode/hooks/story_zcode_hook.js"
+assert_file "$SKILL_DIR/references/zcode/hooks/story_hook_core.js"
+# OpenCode shares the same prose-guard core (byte-identity guarded by check-opencode-adapter.sh);
+# it deploys alongside plugin.ts as .opencode/plugins/lib/story_hook_core.js (lib/ subdir so it
+# escapes OpenCode's single-level .opencode/plugins/*.js plugin auto-discovery).
+assert_file "$SKILL_DIR/references/opencode/story_hook_core.js"
+assert_grep 'opencode/story_hook_core\.js' "$SKILL_FILE" "deployment manifest missing OpenCode shared prose-guard core"
 assert_grep 'references/openclaw/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing OpenClaw AGENTS template"
 assert_grep 'OpenClaw skills-only|target_cli 含 openclaw' "$SKILL_FILE" "story-setup must document OpenClaw skills-only deployment"
 assert_grep 'references/generic/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing generic AGENTS template"
 assert_grep 'target_cli 含 generic|通用 Web AI / 其他 Agent' "$SKILL_FILE" "story-setup must document generic Web AI deployment"
+assert_grep 'references/zcode/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing ZCode AGENTS template"
+assert_grep 'target_cli 含 zcode|target_cli = zcode' "$SKILL_FILE" "story-setup must document ZCode deployment"
+assert_grep '\.zcode/config\.json' "$SKILL_FILE" "story-setup must document ZCode config merge"
+assert_grep '不部署.*\.zcode/agents|不创建.*\.zcode/agents' "$SKILL_FILE" "story-setup must document ZCode agent boundary"
 assert_grep 'references_dir' "$SKILL_FILE" "sentinel references_dir must be documented"
 assert_grep 'resolver_strategy' "$SKILL_FILE" "sentinel resolver_strategy must be documented"
 assert_grep 'target_cli' "$SKILL_FILE" "sentinel target_cli must be documented"
@@ -183,12 +205,6 @@ while IFS= read -r ref; do
 done < <(grep -RhoE 'story-setup/references/agent-references/[A-Za-z0-9_-]+\.md' \
   "$SKILL_DIR/references/templates/agents" "$AGENT_REFS_DIR" "$SKILL_DIR/references/templates/rules" 2>/dev/null \
   | sed 's|.*/||' | sort -u)
-for name in "${historical_missing[@]}"; do
-  if [ "$name" != "output-templates.md" ]; then
-    assert_grep "$name" "$UPGRADING_FILE" "UPGRADING.md must record canonicalization for $name"
-  fi
-done
-assert_grep 'output-templates\.md' "$UPGRADING_FILE" "UPGRADING.md must record removal/rewrite for output-templates.md"
 echo "  OK TS3 agent reference integrity"
 
 # TS4 — Hook root resolution from nested cwd
@@ -254,7 +270,7 @@ copy_hooks "$bad_sentinel_root"
 cat > "$bad_sentinel_root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
 agents_version: 17
-setup_skill_version: 1.2.6
+setup_skill_version: 1.2.7
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
@@ -363,31 +379,19 @@ echo "  OK TS8 multi-book gap detection"
 python3 -m json.tool "$SETTINGS_FILE" >/dev/null
 echo "  OK TS9 settings JSON"
 
-# TS10 — Upgrade notes completeness
-assert_grep 'agents_version: 13|`agents_version: 13`|agents_version`.*13' "$UPGRADING_FILE" "UPGRADING.md must retain agents_version 13 history"
-assert_grep 'agents_version: 17|`agents_version: 17`|agents_version`.*17' "$UPGRADING_FILE" "UPGRADING.md must document agents_version 17"
-assert_grep 'setup_skill_version.*1\.2\.5' "$UPGRADING_FILE" "UPGRADING.md must document setup_skill_version 1.2.5"
+# TS10 — Version threshold + deployed-behavior anchors
+# 只锚定「跑起来会坏」的东西：agents_version 阈值要跨文件对齐，部署到用户手里的
+# agent 模板要带住关键行为规则。原先还夹着一批「UPGRADING.md/README 必须写到某句话」
+# 的文档完整性断言——那种改一个词就红、测的是措辞不是行为，已随 check-story-long-write-contract.sh
+# 一并去掉，发版是否补 UPGRADING 由发版清单和人把关，不靠 CI 钉死措辞。
 assert_grep 'AGENTS_VERSION.*-lt 17|AGENTS_VERSION" -lt 17' "$HOOKS_DIR/session-start.sh" "session-start must warn for agents_version 16 under v17 deployment"
 assert_grep 'agents_version.*< 17|版本 < 17' "$SKILL_DIR/SKILL.md" "story-setup redeploy branch must treat agents_version 16 as stale"
 assert_grep 'agents_version.*小于 `17`|小于 .17' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must treat agents_version 16 as stale"
-assert_grep '/story-setup' "$UPGRADING_FILE" "UPGRADING.md must tell users to rerun /story-setup"
-assert_grep 'hook.*lib|lib/common\.sh|lib/sentinel\.sh' "$UPGRADING_FILE" "UPGRADING.md must document hook lib repair"
-assert_grep 'reference bundle|Agent Reference|agent-references' "$UPGRADING_FILE" "UPGRADING.md must document reference bundle repair"
-assert_grep '新版写作 Agent|写作 Agent|对标文风' "$UPGRADING_FILE" "UPGRADING.md must briefly document the v10 writing-agent refresh"
-assert_grep '关键信息与扩写技法' "$UPGRADING_FILE" "UPGRADING.md must document v12 key-information expansion"
-assert_grep '剧情/节奏\.md|`剧情/节奏\.md`|节奏\.md' "$UPGRADING_FILE" "UPGRADING.md must document v12 rhythm artifact"
-assert_grep '剧情/情绪模块\.md|`剧情/情绪模块\.md`|情绪模块\.md' "$UPGRADING_FILE" "UPGRADING.md must document v12 emotion module artifact"
-assert_grep 'selected_emotion_module' "$UPGRADING_FILE" "UPGRADING.md must document story-explorer selected_emotion_module"
-assert_grep 'rhythm_reference' "$UPGRADING_FILE" "UPGRADING.md must document story-explorer rhythm_reference"
 assert_grep 'contract_version.*v12|gaps\.contract_version == "v12"' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must classify v12 benchmark contracts before fallback"
 assert_grep 'contract_version.*legacy|legacy_deconstruction: true|legacy_deconstruction": true' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must classify legacy benchmark fallback explicitly"
 assert_grep 'missing_primary_contract: true|missing_primary_contract": true' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must emit missing_primary_contract for broken v12 canonical artifacts"
 assert_grep 'repair_action.*Stage 3|Stage 3.*repair_action|重跑 /story-long-analyze Stage 3' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must provide a v12 repair action instead of silent fallback"
 assert_grep 'legacy_deconstruction: true|missing_primary_contract' "$REPO_ROOT/skills/story-long-write/SKILL.md" "story-long-write must not silently fallback for v12 primary contract gaps"
-assert_grep '章节蓝图|内容概括|情节安排|人物关系和出场顺序|结尾设定和钩子' "$UPGRADING_FILE" "UPGRADING.md must document v13 chapter blueprint"
-assert_grep '语气标点谱系' "$UPGRADING_FILE" "UPGRADING.md must document v13 tone punctuation"
-assert_grep '不用.*……|不使用.*……|不保留.*……|不残留.*……' "$UPGRADING_FILE" "UPGRADING.md must document no ellipsis pause punctuation"
-assert_grep '不用.*——|不使用.*——|不保留.*——|不残留.*——' "$UPGRADING_FILE" "UPGRADING.md must document no dialogue dash exception"
 assert_grep '内容概括（五段式）|情节安排（多线）|人物关系和出场顺序|结尾设定和钩子' "$SKILL_DIR/references/templates/agents/story-architect.md" "story-architect must output v13 chapter blueprint fields"
 assert_grep '逻辑线|人物关系变化|代价兑现 / 收益兑现|结尾设定' "$SKILL_DIR/references/templates/agents/consistency-checker.md" "consistency-checker must consume v13 outline blueprint fields"
 assert_grep '语气标点谱系' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must enforce v13 tone punctuation"
@@ -396,9 +400,6 @@ assert_grep '不用.*——|不使用.*——|不保留.*——|不残留.*—�
 assert_grep '语气标点谱系' "$AGENT_REFS_DIR/format-and-structure.md" "agent references must include v13 tone punctuation format rules"
 assert_grep '不用.*……|不使用.*……|不保留.*……|不残留.*……' "$AGENT_REFS_DIR/format-and-structure.md" "agent references must forbid ellipsis pause punctuation"
 assert_grep '不用.*——|不使用.*——|不保留.*——|不残留.*——|正文和对话都禁止.*——' "$AGENT_REFS_DIR/format-and-structure.md" "agent references must forbid dialogue dash exception"
-assert_grep 'AI 句式硬门槛.*issue #166|issue #166.*AI 句式硬门槛' "$UPGRADING_FILE" "UPGRADING.md must document v14 AI sentence gate and issue #166"
-assert_grep '先否定再肯定' "$UPGRADING_FILE" "UPGRADING.md must document the forbidden not-then-is flip"
-assert_grep 'check-ai-patterns\.js.*blocking.*复扫.*0|blocking.*复扫.*0.*check-ai-patterns\.js|check-ai-patterns\.js.*复扫到 0|复扫到 0.*check-ai-patterns\.js' "$UPGRADING_FILE" "UPGRADING.md must document detector blocking rescan to zero"
 assert_grep '禁止先否定再肯定翻转句式' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must hard-ban not-then-is flips"
 assert_grep 'check-ai-patterns\.js --check' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must require detector rescan handoff"
 assert_grep '裸调用.*不得自动进入正文写作|不得自动进入正文写作.*裸调用' "$REPO_ROOT/skills/story-long-write/SKILL.md" "story-long-write bare invocation must not auto-write prose"
@@ -409,8 +410,7 @@ assert_grep '细纲边界|outline_underfilled|不得自造剧情' "$SKILL_DIR/re
 assert_grep 'outline_underfilled' "$SKILL_DIR/references/opencode/agents/narrative-writer.md" "opencode narrative-writer must inherit outline_underfilled boundary"
 assert_grep 'outline_underfilled' "$SKILL_DIR/references/codex/agents/narrative-writer.toml" "codex narrative-writer must inherit outline_underfilled boundary"
 assert_grep '导入续写入口顺序|推荐顺序.*story-setup' "$REPO_ROOT/skills/story-import/SKILL.md" "story-import must answer setup-vs-import order before asking for source"
-assert_grep '导入续写顺序|推荐先.*story-setup.*story-import' "$REPO_ROOT/README.md" "README must document import continuation order"
-echo "  OK TS10 upgrade notes"
+echo "  OK TS10 version + behavior anchors"
 
 # TS11 — Outline-before-prose write guard (BLOCKING PreToolUse hook)
 guard_root="$TMP_DIR/outline-guard"
@@ -453,6 +453,67 @@ run_guard() {
 : > "$guard_root/impshort/设定.md"
 [ "$(run_guard 'impshort/正文.md')" = "0" ] || fail "guard wrongly blocked story-import SHORT prose migration (拆文库 source present)"
 echo "  OK TS11 outline-before-prose guard"
+
+# TS11b — 阻断守卫在无 node 时必须回落纯 bash 抽取、仍然 exit 2（不得 fail-open）。
+# 官方现推荐原生二进制装 Claude Code（不带 Node），只有 npm 装法才有 node；原实现只探测 node、
+# 探不到就放行，会让"缺细纲写正文"被静默放过（#243 回归）。用一个恒退非零的假 node 垫片模拟
+# "node 不可用"，其余工具(sed/grep/bash)仍在 PATH。垫片若未能遮蔽真 node（个别 Windows 主机）
+# 则跳过，避免环境导致假失败。
+nonode_shim="$TMP_DIR/nonode-shim"
+mkdir -p "$nonode_shim"
+printf '#!/bin/sh\nexit 1\n' > "$nonode_shim/node"
+chmod +x "$nonode_shim/node"
+run_guard_nonode() {
+  local fp="$1" ec=0
+  printf '{"tool_name":"Write","tool_input":{"file_path":"%s","content":"x"}}' "$fp" \
+    | CLAUDE_PROJECT_DIR="$guard_root" PATH="$nonode_shim:$PATH" \
+      bash "$guard_root/.claude/hooks/guard-outline-before-prose.sh" >/dev/null 2>&1 || ec=$?
+  printf '%s' "$ec"
+}
+if ! PATH="$nonode_shim:$PATH" node -e "" >/dev/null 2>&1; then
+  # 缺细纲 -> 仍须拦截（bash 兜底解析出目标路径，照常 exit 2）
+  [ "$(run_guard_nonode 'book/正文/第123章_无纲.md')" = "2" ] \
+    || fail "guard fail-OPEN without node (regression #243): 缺细纲写正文必须仍拦截（bash 兜底）"
+  : > "$guard_root/book/大纲/细纲_第123章.md"
+  # 有细纲 -> 放行（bash 兜底不误伤）
+  [ "$(run_guard_nonode 'book/正文/第123章_无纲.md')" = "0" ] \
+    || fail "guard(no-node) wrongly blocked long prose when 细纲 present (bash 兜底)"
+  # 非正文目标 -> 放行
+  [ "$(run_guard_nonode 'book/设定/角色.md')" = "0" ] \
+    || fail "guard(no-node) wrongly blocked a non-prose file (bash 兜底)"
+  echo "  OK TS11b outline guard fail-closed without node"
+else
+  echo "  SKIP TS11b (假 node 垫片未能遮蔽真 node，跳过 no-node 回归)"
+fi
+
+# TS11c — node 在场但抽取失败（旧 node 不识 node: 前缀 / 部署核损坏时探测通过、跑脚本抛错）时，
+# 阻断守卫必须回落纯 bash、仍 exit 2。原实现用 if/else：node 探测一过就只走 node 分支，抽空即放行，
+# 正是 #243 复盘发现的第二个 fail-open 面。垫片「node -e '' 退 0、跑真实脚本退非零」模拟坏 node；
+# 只有确认解析到的 node 就是垫片时才跑（否则真 node 会让断言因错误原因通过）。
+brokennode_shim="$TMP_DIR/brokennode-shim"
+mkdir -p "$brokennode_shim"
+printf '#!/bin/sh\n[ "$1" = "-e" ] && exit 0\nexit 1\n' > "$brokennode_shim/node"
+chmod +x "$brokennode_shim/node"
+run_guard_brokennode() {
+  local fp="$1" ec=0
+  printf '{"tool_name":"Write","tool_input":{"file_path":"%s","content":"x"}}' "$fp" \
+    | CLAUDE_PROJECT_DIR="$guard_root" PATH="$brokennode_shim:$PATH" \
+      bash "$guard_root/.claude/hooks/guard-outline-before-prose.sh" >/dev/null 2>&1 || ec=$?
+  printf '%s' "$ec"
+}
+resolved_node="$(PATH="$brokennode_shim:$PATH" bash -c 'command -v node' 2>/dev/null || true)"
+if [ "$resolved_node" = "$brokennode_shim/node" ]; then
+  # node 探测通过但 CLI 抽取抛错 -> 缺细纲仍须拦截（bash 兜底解析目标路径）
+  [ "$(run_guard_brokennode 'book/正文/第124章_坏node.md')" = "2" ] \
+    || fail "guard fail-OPEN with broken node (regression #243): node 在但抽取失败时必须回落 bash 仍拦截"
+  : > "$guard_root/book/大纲/细纲_第124章.md"
+  # 有细纲 -> 放行（bash 兜底不误伤）
+  [ "$(run_guard_brokennode 'book/正文/第124章_坏node.md')" = "0" ] \
+    || fail "guard(broken-node) wrongly blocked long prose when 细纲 present (bash 兜底)"
+  echo "  OK TS11c outline guard fail-closed when node present-but-broken"
+else
+  echo "  SKIP TS11c (假 node 垫片未能遮蔽真 node，跳过 broken-node 回归)"
+fi
 
 # TS12 — Agents-pending-restart one-shot confirmation
 restart_root="$TMP_DIR/restart-flag"
