@@ -177,7 +177,7 @@ EOF
   printf '年龄　：18\n' > "$BOOK/正文/第1章_开端.md"
   git -C "$P2" add -A >/dev/null 2>&1
   cout="$(cd "$P2" && GBK CLAUDE_PROJECT_DIR="$P2" STORY_COMMIT_COMMAND='git commit -m x' bash .claude/hooks/validate-story-commit.sh 2>&1 || true)"
-  echo "$cout" | grep -q 'Hardcoded character attributes' && pass "[GBK] validate-commit catches fullwidth-colon attr" || bad "[GBK] validate-commit missed fullwidth-colon attr under GBK"
+  echo "$cout" | grep -q '正文硬编码角色属性' && pass "[GBK] validate-commit catches fullwidth-colon attr" || bad "[GBK] validate-commit missed fullwidth-colon attr under GBK"
 
   # 2d lib/common.sh discover_active_book：.active-book 指向「短中文书名」时，GBK 下 trim sed
   # 会报 illegal byte sequence → active 被吞空 → 误回退到 find 的第一本书。覆盖被 session-*/

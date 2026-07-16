@@ -104,7 +104,8 @@ fi
 # advisory 顺序，不影响是否报）。扫描范围 repo-wide（与上方缺口检测一致），多书项目里非活跃书
 # 也会提醒——有意为之（切书前也想知道断线），不按 .active-book 收窄。staleness 用 mtime 比较
 # （+1 秒容差防同秒误报），是启发式 advisory：git checkout / 带 -p 的拷贝改 mtime 时可能偏差，
-# 只提醒不阻塞。node 探测不到静默跳过（core.js 由 bash hook 目录内 story_hook_cli.js 加载）。
+# 只提醒不阻塞。node 探测不到静默跳过（native 安装可能无 node，session-start.sh 会在会话起点
+# 提示一次；core.js 由 bash hook 目录内 story_hook_cli.js 加载）。
 if node -e "" >/dev/null 2>&1; then
   CONT_CLI="$(dirname "$0")/story_hook_cli.js"
   if [ -f "$CONT_CLI" ]; then

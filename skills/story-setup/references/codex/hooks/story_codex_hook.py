@@ -168,6 +168,116 @@ def _net_is_skippable(stripped: str) -> bool:
     return False
 
 
+# ── 毒句式（确定性 AI 句式指纹，与 JS 核 toxicPhraseFindings 同构，文案以 JS 核为准）──
+# 与 check-ai-patterns.js 的同名新规则统一规格：只收确定性、低误报的句式；密度型/
+# advisory 检测归 check-ai-patterns.js 深扫。全部正则线性扫描、量词有界。台词/弹幕/
+# 系统播报不算：逐行先剥成对引号，剥后仍残留引号字符（跨行对话/未闭合）的行整行跳过。
+# js↔py 由 scripts/check-hook-regex-sync.sh（规范串逐字锁）与
+# scripts/test-prose-net-parity.sh（fixture 逐字 diff）锁 parity。
+_TOXIC_QUOTE_SPANS = [re.compile(r"「[^」]*」"), re.compile(r"『[^』]*』"), re.compile(r"【[^】]*】"), re.compile(r"“[^”]*”"), re.compile(r"‘[^’]*’"), re.compile(r'"[^"]*"'), re.compile(r"'[^']*'")]
+_TOXIC_QUOTE_CHARS = set("「」『』【】“”‘’\"'")
+# 分句起点边界（前一字符属于它才认「是A，不是B」的分句首「是」）；同时用作确认语的右边界。
+_TOXIC_CLAUSE_BOUNDARY = set("，,。.！!？?；;：:、…—~ \t　")
+# 疑问尾（是吗/是吧/是嘛）与确认语（是的/是啊/是呀/是呢+边界）里的「是」不是对比句系动词；
+# 排除逻辑移植自 check-ai-patterns.js 的 TAG_PARTICLES / AFFIRMATION_TAG_PARTICLES。
+_TOXIC_TAG_PARTICLES = ("吗", "吧", "嘛")
+_TOXIC_AFFIRM_PARTICLES = ("的", "啊", "呀", "呢")
+_TOXIC_TRAILER_WINDOW = 600
+_TOXIC_SENTENCE_PATTERNS = [
+    (re.compile(r"声音(?:并)?不[大高响亮][^。！？!?\n]{0,16}[却但偏]"), "voice-contrast", "删「不X…却Y」反差腔，直接写具体效果或动作。"),
+    (re.compile(r"(?:没有[^。！？!?\n，,]{1,12}[，,]){2}"), "negation-parade", "「没有…，没有…」排比删到只剩一个或全删，改写正面在场的细节。"),
+    (re.compile(r"是[^。！？!?\n，,]{1,12}[，,]\s*(?:而)?不是[^。！？!?\n]{1,20}"), "reverse-not-is", "删否定铺垫，直接写肯定项，或改成动作细节。"),
+    (re.compile(r"不是[^。！？!?\n]{1,16}[，,]\s*(?:而)?是"), "not-is-comparison", "删否定铺垫，直接写肯定项，或改成动作细节。"),
+]
+# 「正式拉开序幕/帷幕」是场内事件的报幕式陈述，不是叙述者预告，lookbehind 排除（同 check-ai-patterns.js）。
+_TOXIC_TRAILER = re.compile(r"没人知道|谁也不知道|谁也没想到|殊不知|(?:这)?才刚刚开(?:始|头)|正(?:朝着|向着)[^。！？!?\n]{0,24}(?:压|涌|袭|逼)(?:了?过去|了?过来|来)|(?<!正式)拉开(?:序幕|帷幕)|即将(?:开始|来临|降临)")
+# 「是A，不是B」的反问尾巴（…，不是吗/么/吧）不算对比句；取匹配段最后一个「不是」后的首字判断。
+_TOXIC_REVERSE_TAIL = re.compile(r"[，,]\s*(?:而)?不是([^。！？!?\n]*)$")
+
+
+def _toxic_strip_quoted(line: str) -> str:
+    out = line
+    for rx in _TOXIC_QUOTE_SPANS:
+        out = rx.sub("", out)
+    return out
+
+
+def _toxic_not_is_excluded(line: str, matched: str, start: int) -> bool:
+    """「是不是」疑问、翻转「是」后跟疑问尾/确认语 → 不算「不是A，(而)是B」对比句。"""
+    if start > 0 and line[start - 1] == "是":
+        return True
+    end = start + len(matched)
+    c1 = line[end] if end < len(line) else ""
+    c2 = line[end + 1] if end + 1 < len(line) else ""
+    if c1 in _TOXIC_TAG_PARTICLES:
+        return True
+    if c1 in _TOXIC_AFFIRM_PARTICLES and (c2 == "" or c2 in _TOXIC_CLAUSE_BOUNDARY):
+        return True
+    return False
+
+
+def _toxic_reverse_not_is_excluded(line: str, matched: str, start: int) -> bool:
+    """只认分句首的「是A，不是B」：句中「但是/还是/只是/他是…」的「是」一律不算（either-or
+    「不是/就是/也是」与全部「X是」连词/副词合成词都被分句首判定排除）；「是的，不是…」
+    确认语开头、「是不是…」问句起头、「…，不是吗/么/吧」反问尾巴不算（同 check-ai-patterns.js）。"""
+    prev = line[start - 1] if start > 0 else ""
+    if prev != "" and prev not in _TOXIC_CLAUSE_BOUNDARY:
+        return True
+    if line[start + 1:start + 3] == "不是":
+        return True
+    c1 = line[start + 1] if start + 1 < len(line) else ""
+    c2 = line[start + 2] if start + 2 < len(line) else ""
+    if (c1 in _TOXIC_TAG_PARTICLES or c1 in _TOXIC_AFFIRM_PARTICLES) and (c2 == "" or c2 in _TOXIC_CLAUSE_BOUNDARY):
+        return True
+    tail = _TOXIC_REVERSE_TAIL.search(matched)
+    t1 = tail.group(1)[:1] if tail and tail.group(1) else ""
+    if t1 in ("吗", "么", "吧"):
+        return True
+    return False
+
+
+def _toxic_match_sentence(line: str) -> tuple[str, str, str] | None:
+    """每行只报第一条命中的句式规则（复扫到净哲学：改完一处再扫下一处）。"""
+    for rx, label, fix in _TOXIC_SENTENCE_PATTERNS:
+        for m in rx.finditer(line):
+            if label == "not-is-comparison" and _toxic_not_is_excluded(line, m.group(0), m.start()):
+                continue
+            if label == "reverse-not-is" and _toxic_reverse_not_is_excluded(line, m.group(0), m.start()):
+                continue
+            return (label, fix, m.group(0))
+    return None
+
+
+def toxic_phrase_findings(text: str) -> list[str]:
+    findings: list[str] = []
+    content: list[tuple[int, str]] = []
+    for i, raw in enumerate(text.split("\n"), 1):
+        s = raw.strip()
+        if _net_is_skippable(s):
+            continue
+        stripped = _toxic_strip_quoted(s)
+        if any(ch in _TOXIC_QUOTE_CHARS for ch in stripped):
+            continue
+        content.append((i, stripped))
+    for line_no, stripped in content:
+        hit = _toxic_match_sentence(stripped)
+        if hit:
+            findings.append(f"第{line_no}行 毒句式[{hit[0]}]：『{hit[2][:20]}』——{hit[1]}")
+    # trailer-ending 只扫文末 600 字窗口（剥引号后按行累计，边界行整行计入）。
+    acc = 0
+    cut = len(content)
+    while cut > 0 and acc < _TOXIC_TRAILER_WINDOW:
+        cut -= 1
+        acc += len(content[cut][1])
+    for line_no, stripped in content[cut:]:
+        m = _TOXIC_TRAILER.search(stripped)
+        if m:
+            findings.append(f"第{line_no}行 毒句式[trailer-ending]：『{m.group(0)[:20]}』——删章尾预告腔，用正在发生的动作或画面收章。")
+    if findings:
+        findings.append("毒句式是确定性 AI 指纹：本章须清零后再继续。完整扫描：node <skill>/scripts/check-ai-patterns.js --check <正文文件>")
+    return findings
+
+
 def prose_net_findings(text: str) -> list[str]:
     findings: list[str] = []
     content: list[tuple[int, str]] = []
@@ -199,6 +309,7 @@ def prose_net_findings(text: str) -> list[str]:
         ln, last = content[-1]
         if last and last[-1] not in _NET_TERMINAL:
             findings.append(f"第{ln}行 疑似截断：结尾「…{last[-12:]}」未以标点收束")
+    findings.extend(toxic_phrase_findings(text))
     return findings
 
 
@@ -421,7 +532,8 @@ def prose_block_reason(root: Path, abs_path: Path) -> str | None:
         if not (book_dir / "设定.md").exists():
             return None
         if not (book_dir / "小节大纲.md").exists():
-            return f"⛔ 写正文被拦截：{safe_rel(root, abs_path)} 缺少同目录 小节大纲.md。先按 story-short-write 完成小节大纲再写正文。"
+            # 文案对齐 JS core proseBlockReason（py↔js 由 test-prose-net-parity.sh Part E 锁 parity）
+            return f"⛔ 写正文被拦截：{safe_rel(root, abs_path)} 缺少同目录 小节大纲.md。先按 story-short-write 完成「小节大纲.md」再写正文。"
         return None
     if parent != "正文":
         return None
@@ -446,6 +558,39 @@ def prose_block_reason(root: Path, abs_path: Path) -> str | None:
                 break
     if not found:
         return f"⛔ 写正文被拦截：第 {num} 章缺少细纲（{safe_rel(root, outline_dir)}/细纲_第{num}章.md）。先按 story-long-write 单章流程补建细纲再写正文。"
+    # 欠账门（无状态）：写第 N 章（首建）前，上一章有未清毒句式且未标「去味:跳过」豁免时先清再写。
+    # 判据现算自上一章文件本身，不落任何状态文件；找不到上一章/读取失败一律放行（宁可漏拦不可误伤）。
+    # js↔py 文案由 check-hook-regex-sync.sh 锁同步，判定由 test-prose-net-parity.sh Part E 锁 parity。
+    prev_num = int(num) - 1
+    if prev_num >= 1:
+        prev_file = None
+        try:
+            for candidate in abs_path.parent.iterdir():
+                pm = re.match(r"^第0*(\d+)章.*\.md$", candidate.name)
+                if pm and int(pm.group(1)) == prev_num:
+                    prev_file = candidate
+                    break
+        except OSError:
+            prev_file = None
+        if prev_file is not None:
+            prev_text = None
+            try:
+                prev_text = prev_file.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                prev_text = None
+            if prev_text is not None and "去味:跳过" not in "\n".join(prev_text.splitlines()[:6]):
+                hits = [ln for ln in toxic_phrase_findings(prev_text) if ln.startswith("第")]
+                if hits:
+                    shown = hits[:6]
+                    more = len(hits) - len(shown)
+                    reason = (
+                        f"⛔ 写正文被拦截：上一章（{prev_file.name}）有 {len(hits)} 处未清毒句式欠账，"
+                        f"先清零再写第 {num} 章；用户显式豁免时在上一章标题行下加 <!-- 去味:跳过 --> 后重试。\n"
+                        + "\n".join(shown)
+                    )
+                    if more > 0:
+                        reason += f"\n（另有 {more} 处，完整扫描：node <skill>/scripts/check-ai-patterns.js --check 上一章文件）"
+                    return reason
     return None
 
 
@@ -582,19 +727,22 @@ def staged_markdown_warnings(root: Path) -> str:
         if not full.exists():
             continue
         text = full.read_text(encoding="utf-8", errors="ignore")
+        # 匹配语义与警告文案对齐 JS core（story_hook_core.js stagedMarkdownWarnings，跨 CLI 的
+        # 权威实现）：name 字段 re.I 大小写不敏感、中文文案。py↔js 由
+        # scripts/test-prose-net-parity.sh Part E 锁 parity。
         if file == "正文.md" or "/正文.md" in file or file.startswith("正文/") or "/正文/" in file:
             hits = []
             for idx, line in enumerate(text.splitlines(), 1):
                 if re.search(r"(身高|体重|年龄)(\s|　)*(：|:)(\s|　)*[0-9]+", line):
                     hits.append(f"{idx}:{line}")
             if hits:
-                warnings.append(f"⚠ {file}: Hardcoded character attributes found (should reference 设定/ files):\n" + "\n".join(hits))
+                warnings.append(f"⚠ {file}: 正文硬编码角色属性，应引用设定文件：\n" + "\n".join(hits))
         if file.startswith("设定/") or "/设定/" in file:
-            if not re.search(r"^(\s|　)*(名字|姓名|名称|name|Name)(\s|　)*(：|:)", text, re.M):
-                warnings.append(f"⚠ {file}: Setting file missing required fields (name/名字: ...)")
+            if not re.search(r"^(\s|　)*(名字|姓名|名称|name)(\s|　)*(：|:)", text, re.M | re.I):
+                warnings.append(f"⚠ {file}: 设定文件缺少 name/名字 必填字段。")
     if not warnings:
         return ""
-    return "=== Story Commit Warnings (advisory only, not blocking) ===\n" + "\n".join(warnings) + "\n=== End Warnings ==="
+    return "=== Story Commit Warnings（advisory only）===\n" + "\n".join(warnings) + "\n=== End Warnings ==="
 
 
 def pre_tool_commit_advisory(obj: dict[str, Any]) -> None:

@@ -3,7 +3,7 @@
 # 网在四处各有实现：① Claude check-prose-after-write.sh 内嵌 python；② Codex
 # story_codex_hook.py；③ OpenCode plugin.ts；④ ZCode story_zcode_hook.js。
 # （③④ 的纯逻辑现共用各自的 story_hook_core.js companion，字节一致。）
-# 四份必须同检同放。本测试四层保证：
+# 四份必须同检同放。本测试五层保证：
 #   A. 规范串一致（CI 安全、零运行时依赖）：每条 net 正则/常量/阈值的规范文本必须在四份里都出现，
 #      改一处漏改另一处即 fail——直接锚定漂移（参照 check-hook-regex-sync.sh 的做法）。
 #   B. 功能 parity（best-effort，无 TS 运行时则自跳过）：codex python 网、opencode TS 网、
@@ -14,6 +14,11 @@
 #      改调本目录同一份 node 共享核 story_hook_core.js（经 story_hook_cli.js）。与 zcode/opencode
 #      同一份、已由 B/C 锁到 codex，故 claude==codex 结构性闭环。守两条防回退：hook 里不得再出现
 #      heredoc python，且必须经 story_hook_cli.js 调核。字节一致另由 check-shared-files 保证。
+#   E. 未归核面 parity（CI 硬保证）：staged markdown warnings 与大纲阻断判定未归核——codex
+#      python 与 JS core 各有一份实现，在 fixture 上逐字比对（大小写变体命中、警告/阻断文案），
+#      语义/文案以 JS core 为准。Claude 端这两面另有纯 bash 实现（validate-story-commit.sh 的
+#      grep 段、guard-outline-before-prose.sh 的判定段），无跨端逐字锁，行为由
+#      check-story-setup-deployment.sh / test-hook-encoding-portable.sh 的运行回归覆盖。
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
@@ -97,7 +102,20 @@ run_functional() {
   "placeholder": "他打开门。\n（此处省略三百字打斗描写）他赢了。",
   "english_ai": "他说。\nI cannot continue writing this scene for you.",
   "parallel": "要么生，要么死。\n要么战，要么逃。\n要么赢，要么输。\n他做出了选择。",
-  "danmaku": "前方高能！\n前方高能！预警。\n这一段我哭了。\n作者加更！"
+  "danmaku": "前方高能！\n前方高能！预警。\n这一段我哭了。\n作者加更！",
+  "toxic_voice": "他开口了。\n声音不高，第一句却稳稳压住了整个大厅。",
+  "toxic_negation": "没有伴奏，没有和声，没有提词器。\n台下静了三秒。",
+  "toxic_reverse_notis": "是真嗓子，不是修音修出来的。\n他清了清嗓子接着唱。",
+  "toxic_forward_notis": "不是没有想过退路，而是根本没有退路。\n他把门关上了。",
+  "toxic_trailer": "他放下麦克风朝台下鞠了一躬。\n没人知道，这才刚刚开头。",
+  "toxic_dialogue_ok": "「没人知道。」\n他笑了笑接着往前走。",
+  "toxic_eitheror_ok": "不是生就是死，他认了。\n他推门走了进去。",
+  "toxic_affirm_ok": "是啊，不是他的错。\n他把灯关了。",
+  "toxic_shibushi_ok": "他问自己是不是听错了，是不是灯光太晃。\n他揉了揉眼睛。",
+  "toxic_question_ok": "是不是他干的，不是我干的。\n他说不清。",
+  "toxic_rhetorical_ok": "是挺好的一件事，不是吗。\n他点了点头。",
+  "toxic_curtain_ok": "钟声再度响起，比赛正式拉开序幕。\n他站上了台。",
+  "toxic_trailer_window_ok": "没人知道他练了多少年。\n江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。江晨把这段视频剪了又剪从凌晨剪到天亮每一帧都抠得死死的。\n他把琴盖合上，起了身。"
 }
 EOF
 
@@ -124,6 +142,23 @@ JS
     diff "$tmp/py.txt" "$tmp/zcode.txt" >&2 || true
     return 3
   fi
+
+  # 毒句式 fixture 防空转断言（两端同错也能 diff 通过，故对期望输出显式断言）：
+  # 正例（用户实抓的真实毒句）须命中对应规则；反例（对话内/either-or/确认语/是不是/
+  # 窗口外 trailer）须完全静默。
+  grep -q '^toxic_voice | 第2行 毒句式\[voice-contrast\]' "$tmp/py.txt" || { echo "FAIL: 毒句式正例 voice-contrast 未命中「声音不高…却」" >&2; return 3; }
+  grep -q '^toxic_negation | 第1行 毒句式\[negation-parade\]' "$tmp/py.txt" || { echo "FAIL: 毒句式正例 negation-parade 未命中「没有…没有…」" >&2; return 3; }
+  grep -q '^toxic_reverse_notis | 第1行 毒句式\[reverse-not-is\]' "$tmp/py.txt" || { echo "FAIL: 毒句式正例 reverse-not-is 未命中「是真嗓子，不是修音」" >&2; return 3; }
+  grep -q '^toxic_forward_notis | 第1行 毒句式\[not-is-comparison\]' "$tmp/py.txt" || { echo "FAIL: 毒句式正例 not-is-comparison 未命中「不是…，而是…」" >&2; return 3; }
+  grep -q '^toxic_trailer | 第2行 毒句式\[trailer-ending\]' "$tmp/py.txt" || { echo "FAIL: 毒句式正例 trailer-ending 未命中「没人知道，这才刚刚开头」" >&2; return 3; }
+  grep -q '^toxic_dialogue_ok | $' "$tmp/py.txt" || { echo "FAIL: 对话内「没人知道」被误报（成对引号应剥除）" >&2; return 3; }
+  grep -q '^toxic_eitheror_ok | $' "$tmp/py.txt" || { echo "FAIL: either-or「不是A就是B」被误报" >&2; return 3; }
+  grep -q '^toxic_affirm_ok | $' "$tmp/py.txt" || { echo "FAIL: 确认语「是啊，不是…」被误报" >&2; return 3; }
+  grep -q '^toxic_shibushi_ok | $' "$tmp/py.txt" || { echo "FAIL: 疑问「是不是」被误报" >&2; return 3; }
+  grep -q '^toxic_question_ok | $' "$tmp/py.txt" || { echo "FAIL: 「是不是…」问句起头被误报" >&2; return 3; }
+  grep -q '^toxic_rhetorical_ok | $' "$tmp/py.txt" || { echo "FAIL: 反问尾巴「…，不是吗」被误报" >&2; return 3; }
+  grep -q '^toxic_curtain_ok | $' "$tmp/py.txt" || { echo "FAIL: 报幕式「正式拉开序幕」被误报" >&2; return 3; }
+  grep -q '^toxic_trailer_window_ok | $' "$tmp/py.txt" || { echo "FAIL: 文末 600 字窗口外的「没人知道」被误报" >&2; return 3; }
 
   # 转译 TS：擦除类型即可（net 函数只用 RegExp/String/Set/Array）。优先 node 原生类型擦除
   # （node ≥ 22.6 的 --experimental-strip-types），否则用本机已装的 esbuild 二进制。
@@ -254,12 +289,104 @@ run_claude_core_check() {
   return 0
 }
 
+# ── E. 未归核面 parity（codex python vs JS core），CI 硬保证 ─────────────────────
+# staged markdown warnings 与大纲阻断判定未归核：codex python（staged_markdown_warnings /
+# prose_block_reason）与 JS core（stagedMarkdownWarnings / proseBlockReason）各有一份实现，
+# 语义/文案以 JS core 为准，这里在 fixture 上逐字比对防漂移。Claude 端的纯 bash 实现不在此锁，
+# 由 check-story-setup-deployment.sh / test-hook-encoding-portable.sh 的运行回归覆盖。
+# fixture 至少覆盖：① name 字段大小写变体（NAME/全角空格补白）命中一致——有字段不告警；
+# ② 缺字段/硬编码属性的中文警告文案（含头尾框线）逐字一致；③ 长篇缺细纲/有细纲、
+# 短篇缺小节大纲/无设定信号 4 组阻断判定与阻断文案逐字一致。
+run_uncored_parity() {
+  command -v node >/dev/null 2>&1 || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  command -v git >/dev/null 2>&1 || return 1
+  local tmp; tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+
+  # E1: staged markdown warnings —— 建独立 git 仓库并 stage 固定文件集
+  local repo="$tmp/repo"
+  mkdir -p "$repo/book/正文" "$repo/设定"
+  git -C "$repo" init -q
+  printf '身高: 180\n他推门而入。\n年龄　：18\n' > "$repo/book/正文/第1章.md"
+  printf 'NAME：林远\n' > "$repo/设定/主角.md"            # 大小写变体：字段在，不告警
+  printf '　名字 ：苏离\n' > "$repo/设定/配角.md"          # 全角空格补白：字段在，不告警
+  printf '简介：没有名字字段\n' > "$repo/设定/反派.md"     # 缺字段：告警
+  git -C "$repo" add -A
+
+  python3 - "$CODEX" "$repo" > "$tmp/spy.txt" <<'PY'
+import importlib.util, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+out = m.staged_markdown_warnings(Path(sys.argv[2]))
+sys.stdout.buffer.write((out + "\n").encode("utf-8"))
+PY
+  node - "$CLAUDE_CORE" "$repo" > "$tmp/sjs.txt" <<'JS'
+const core = require(process.argv[2])
+console.log(core.stagedMarkdownWarnings(process.argv[3]))
+JS
+  if ! diff "$tmp/spy.txt" "$tmp/sjs.txt" >/dev/null; then
+    echo "FAIL: staged warnings parity 不一致（codex python vs JS core）：" >&2
+    diff "$tmp/spy.txt" "$tmp/sjs.txt" >&2 || true
+    return 3
+  fi
+  # 防空转（两边都输出空串也会 diff 通过）：断言命中/未命中与统一后的中文文案确实在场
+  grep -q '正文硬编码角色属性，应引用设定文件' "$tmp/spy.txt" || { echo "FAIL: staged warnings 未按统一文案报硬编码属性" >&2; return 3; }
+  grep -q '反派.md: 设定文件缺少 name/名字 必填字段。' "$tmp/spy.txt" || { echo "FAIL: staged warnings 未按统一文案报缺 name 字段" >&2; return 3; }
+  grep -q '主角.md' "$tmp/spy.txt" && { echo "FAIL: 大写 NAME： 应视为字段已存在（大小写不敏感）" >&2; return 3; }
+  grep -q '配角.md' "$tmp/spy.txt" && { echo "FAIL: 全角空格补白的 名字 ： 应视为字段已存在" >&2; return 3; }
+
+  # E2: 大纲阻断判定 —— 6 组判定：长篇缺细纲(拦)/有细纲(放)、短篇缺小节大纲(拦)/无设定信号(放)、
+  #     毒句式欠账门（上一章有欠账拦 / 标「去味:跳过」豁免放）
+  local blk="$tmp/blk"
+  mkdir -p "$blk/long/正文" "$blk/long/大纲" "$blk/short" "$blk/short2" \
+    "$blk/long2/正文" "$blk/long2/大纲" "$blk/long3/正文" "$blk/long3/大纲"
+  : > "$blk/long/大纲/细纲_第2章.md"
+  : > "$blk/short/设定.md"
+  : > "$blk/short2/其他.md"
+  : > "$blk/long2/大纲/细纲_第2章.md"
+  printf '%s\n' '# 第1章 旧' '' '声音不大，却带着一股狠劲。' > "$blk/long2/正文/第1章_旧.md"
+  : > "$blk/long3/大纲/细纲_第2章.md"
+  printf '%s\n' '# 第1章 旧' '<!-- 去味:跳过 -->' '声音不大，却带着一股狠劲。' > "$blk/long3/正文/第1章_旧.md"
+
+  python3 - "$CODEX" "$blk" > "$tmp/bpy.txt" <<'PY'
+import importlib.util, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+root = Path(sys.argv[2])
+for rel in ["long/正文/第1章_起.md", "long/正文/第2章_承.md", "short/正文.md", "short2/正文.md", "long2/正文/第2章_新.md", "long3/正文/第2章_新.md"]:
+    reason = m.prose_block_reason(root, root / rel)
+    sys.stdout.buffer.write((f"{rel} :: {reason if reason else '-'}\n").encode("utf-8"))
+PY
+  node - "$CLAUDE_CORE" "$blk" > "$tmp/bjs.txt" <<'JS'
+const path = require("node:path")
+const core = require(process.argv[2])
+const root = process.argv[3]
+for (const rel of ["long/正文/第1章_起.md", "long/正文/第2章_承.md", "short/正文.md", "short2/正文.md", "long2/正文/第2章_新.md", "long3/正文/第2章_新.md"]) {
+  const reason = core.proseBlockReason(root, path.join(root, rel))
+  console.log(`${rel} :: ${reason || "-"}`)
+}
+JS
+  if ! diff "$tmp/bpy.txt" "$tmp/bjs.txt" >/dev/null; then
+    echo "FAIL: 大纲阻断 parity 不一致（codex python vs JS core）：" >&2
+    diff "$tmp/bpy.txt" "$tmp/bjs.txt" >&2 || true
+    return 3
+  fi
+  grep -q '第1章_起.md :: ⛔' "$tmp/bpy.txt" || { echo "FAIL: 长篇缺细纲未被拦截" >&2; return 3; }
+  grep -q '第2章_承.md :: -' "$tmp/bpy.txt" || { echo "FAIL: 长篇有细纲被误拦" >&2; return 3; }
+  grep -q 'short/正文.md :: ⛔' "$tmp/bpy.txt" || { echo "FAIL: 短篇缺小节大纲未被拦截" >&2; return 3; }
+  grep -q 'short2/正文.md :: -' "$tmp/bpy.txt" || { echo "FAIL: 无设定信号的正文.md 被误拦" >&2; return 3; }
+  grep -q '毒句式欠账' "$tmp/bpy.txt" || { echo "FAIL: 上一章毒句式欠账未被欠账门拦截" >&2; return 3; }
+  grep -q 'long3/正文/第2章_新.md :: -' "$tmp/bpy.txt" || { echo "FAIL: 标「去味:跳过」豁免的上一章仍被欠账门误拦" >&2; return 3; }
+  return 0
+}
+
 set +e
 run_functional
 rc=$?
 set -e
 case "$rc" in
-  0) echo "功能 parity：codex python 网 == opencode TS 网 == zcode JS 网（9 fixtures 逐字相等）。" ;;
+  0) echo "功能 parity：codex python 网 == opencode TS 网 == zcode JS 网（22 fixtures 逐字相等，含毒句式正反例）。" ;;
   2) echo "功能 parity：跳过（无 TS 运行时；规范串检查已给 CI 安全保证）。" ;;
   *) fails=$((fails + 1)) ;;
 esac
@@ -280,6 +407,16 @@ rc_claude=$?
 set -e
 case "$rc_claude" in
   0) echo "Claude 归核回归：4 个 bash hook 无内嵌 python、均经 story_hook_cli.js 调共享核（与 OpenCode/ZCode 同一份，经 B/C 锁到 codex）。" ;;
+  *) fails=$((fails + 1)) ;;
+esac
+
+set +e
+run_uncored_parity
+rc_uncored=$?
+set -e
+case "$rc_uncored" in
+  0) echo "未归核面 parity：codex python == JS core（staged warnings 大小写变体/文案 + 大纲阻断 6 组判定含毒句式欠账门/文案逐字相等）。" ;;
+  1) echo "未归核面 parity：跳过（无 node/python3/git 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac
 

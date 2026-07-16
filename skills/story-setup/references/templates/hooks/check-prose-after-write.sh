@@ -4,9 +4,10 @@
 # 即使主会话漏跑「确定性收尾」步骤（压缩/弱模型/分心），这些硬信号也保证被抓。
 #
 # 只兜「硬信号」（漏跑最伤、退化模型自己发现不了的）：截断、生成拒绝语 / AI 自指、
-# 工程词漏进正文、紧邻整行复读、落盘失败/截断、字数欠账。碎句号/长段落/破折号这类
-# advisory，以及复读全量 / tier2 歧义词，仍由 workflow 收尾步骤的 check-ai-patterns /
-# check-degeneration 全量跑——本 hook 不部署也不依赖那两个检测器，是独立的轻量网。
+# 工程词漏进正文、紧邻整行复读、毒句式（确定性 AI 句式指纹）、落盘失败/截断、字数欠账。
+# 碎句号/长段落/破折号这类 advisory，以及复读全量 / tier2 歧义词，仍由 workflow 收尾
+# 步骤的 check-ai-patterns / check-degeneration 全量跑——本 hook 不部署也不依赖那两个
+# 检测器，是独立的轻量网（毒句式规则与 check-ai-patterns.js 的同名规则统一规格）。
 #
 # 覆盖范围：只在 PostToolUse 的 Write|Edit|MultiEdit 上触发。cat>/tee/cp/mv 等用 Bash
 # 写正文的路径绕过本 hook（Claude/OpenCode 侧 Bash 只做 pre-guard，无 post-write 兜底）；
@@ -32,7 +33,8 @@ if [ -z "$HOOK_INPUT" ] && [ ! -t 0 ]; then
 fi
 export HOOK_INPUT
 
-# 探测 node（Claude Code 自身即 node 应用，正常必有；探测不到就静默放行）。
+# 探测 node（官方现在推荐原生二进制装 Claude Code，只有 npm 装法才带 Node——native 安装
+# 可能无 node。探测不到就静默放行：兜底网降级停用，session-start.sh 会在会话起点提示一次）。
 node -e "" >/dev/null 2>&1 || exit 0
 CLI="$(dirname "$0")/story_hook_cli.js"
 [ -f "$CLI" ] || exit 0
@@ -84,11 +86,11 @@ if [ "$BYTES" -lt 200 ]; then
   OUT+="【落盘】正文仅 ${BYTES} 字节，疑似未写完/落盘失败（quota/超时中断？），请核对并补写。\n"
 fi
 
-# 内容网 + 字数：走 node 共享核。net 抓 截断/拒绝语/AI自指/工程词tier1/紧邻复读（硬信号，
-# 退化模型自己发现不了）；字数从 大纲/细纲_第N章*.md 的「字数目标」对照实际<90% 提示。
+# 内容网 + 字数：走 node 共享核。net 抓 截断/拒绝语/AI自指/工程词tier1/紧邻复读/毒句式
+# （硬信号，退化模型自己发现不了）；字数从 大纲/细纲_第N章*.md 的「字数目标」对照实际<90% 提示。
 # best-effort：找不到细纲/目标静默跳过，不误报。
 NET_MSG="$(node "$CLI" prose-net "$ABS" 2>/dev/null || true)"
-[ -n "$NET_MSG" ] && OUT+="【退化/工程词/字数】（硬信号：截断/拒绝语/工程词→重写；命中即处理，别留给下一章）\n${NET_MSG}\n"
+[ -n "$NET_MSG" ] && OUT+="【退化/工程词/毒句式/字数】（硬信号：截断/拒绝语/工程词/毒句式→重写；命中即处理，别留给下一章）\n${NET_MSG}\n"
 
 [ -z "$OUT" ] && exit 0
 

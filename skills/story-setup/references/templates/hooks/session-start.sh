@@ -35,9 +35,11 @@ if [ -f "$ROOT/.claude/.agents-pending-restart" ]; then
 fi
 
 # 部署自检：.story-deployed 存在但 hooks 文件被误删时发出警告
+# story_hook_cli.js/story_hook_core.js 是承重的 node 共享核——被删时 check-prose-after-write/
+# validate-story-commit/detect-story-gaps 全部静默退化，必须列入名单。
 if sentinel_exists "$ROOT/.story-deployed"; then
   MISSING_HOOKS=""
-  for hook in session-start.sh session-end.sh detect-story-gaps.sh pre-compact.sh post-compact.sh validate-story-commit.sh guard-outline-before-prose.sh check-prose-after-write.sh lib/common.sh lib/sentinel.sh; do
+  for hook in session-start.sh session-end.sh detect-story-gaps.sh pre-compact.sh post-compact.sh validate-story-commit.sh guard-outline-before-prose.sh check-prose-after-write.sh story_hook_cli.js story_hook_core.js lib/common.sh lib/sentinel.sh; do
     if [ ! -f "$ROOT/.claude/hooks/$hook" ]; then
       MISSING_HOOKS+="$hook "
     fi
@@ -48,6 +50,15 @@ if sentinel_exists "$ROOT/.story-deployed"; then
     HAS_CONTENT=true
   fi
 
+  # node 运行时检测：正文兜底网/commit 格式提示/连续性检查走 node 共享核（#243）。官方现在
+  # 推荐原生二进制装 Claude Code，只有 npm 装法才带 Node——native 安装可能无 node，上述三项
+  # 会静默降级停用（大纲拦截守卫有纯 bash 兜底，仍生效）。会话起点提示一次，避免误以为兜底仍在。
+  if ! node -e "" >/dev/null 2>&1; then
+    OUTPUT+="[WARN] 检测不到 node 运行时：正文兜底网/commit 格式提示/连续性检查已停用（大纲拦截仍有纯 bash 兜底）。\n"
+    OUTPUT+="  修复：安装 Node.js（https://nodejs.org，或 nvm / brew install node）后新开会话即可恢复。\n\n"
+    HAS_CONTENT=true
+  fi
+
   AGENTS_VERSION=$(read_sentinel_field agents_version "$ROOT/.story-deployed")
   case "$AGENTS_VERSION" in
     ''|*[!0-9]*)
@@ -55,11 +66,11 @@ if sentinel_exists "$ROOT/.story-deployed"; then
       HAS_CONTENT=true
       ;;
     *)
-      if [ "$AGENTS_VERSION" -lt 18 ]; then
-        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 低于 v18。重新运行 /story-setup 刷新 hooks、agents 和 references（部署后需新开会话）。\n\n"
+      if [ "$AGENTS_VERSION" -lt 19 ]; then
+        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 低于 v19。重新运行 /story-setup 刷新 hooks、agents 和 references（部署后需新开会话）。\n\n"
         HAS_CONTENT=true
-      elif [ "$AGENTS_VERSION" -gt 18 ]; then
-        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 高于本 hook 支持的 v18。不要降级覆盖；请先更新 oh-story-claudecode。\n\n"
+      elif [ "$AGENTS_VERSION" -gt 19 ]; then
+        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 高于本 hook 支持的 v19。不要降级覆盖；请先更新 oh-story-claudecode。\n\n"
         HAS_CONTENT=true
       fi
       ;;

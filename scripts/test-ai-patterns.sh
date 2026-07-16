@@ -45,7 +45,7 @@ title: 不是A，而是B
 是药。
 她不是不想走，也不是不敢走。
 他不是讨厌你，只是累了。
-他不是走了，可是没人知道。
+他不是走了，可是没人发现。
 他不是不愿意，于是答应了。
 她不是生气，倒是有点担心。
 他不是哭就是闹。
@@ -97,7 +97,7 @@ const expected = [
 // false-positive class). “是不是”/“也不是” second-negation must also stay silent.
 const forbidden = [
   '只是累了',
-  '可是没人知道',
+  '可是没人发现',
   '于是答应了',
   '倒是有点担心',
   // either-or「不是A就是B / 也是B」与句尾反问「…，是吗 / 是吧 / 是嘛」不是否定后翻转。
@@ -369,12 +369,17 @@ NODE
 echo "micro-action-tic (电报体微动作复读) regression tests passed."
 
 # --- issue #205：抽象总结复读（命运/棋局/这一刻终于明白/才刚刚开始）---
+# 尾部补 16 行中性叙述：把「才刚刚开始」推出 trailer-ending 的文末 600 字窗口，
+# 让本 fixture 保持只验证 advisory 的 abstract-summary-tic。
 FIXTURE14="$TMP_DIR/fixture-abstract-summary.md"
 printf '%s\n' \
   '从这一刻开始，所有安排都被推到台前。' \
   '命运像早已布好的棋局，把他推向那扇门。' \
   '他生出前所未有的决意。' \
   '属于他的反击，才刚刚开始。' > "$FIXTURE14"
+for _ in $(seq 1 16); do
+  printf '%s\n' '院子里的灯还亮着，母亲把晒好的被子抱进屋里，他在门口帮着把竹竿收回来，又把水缸的盖子盖好。' >> "$FIXTURE14"
+done
 set +e
 node "$SCRIPT" --json "$FIXTURE14" > "$OUT"
 set -e
@@ -458,7 +463,7 @@ printf '%s\n' \
   '夜色静静笼罩着城市，远处霓虹隐约闪烁。' \
   '林澈心中涌起一股说不清的情绪，仿佛某种预兆正在缓缓靠近。' \
   '苏晚眼中闪过一丝复杂的神色，嘴角勾起一抹若有若无的笑意。' \
-  '她声音不大，却带着一种不容置疑的力量。' \
+  '她语气不容置疑，声音里透着不易察觉的冷意。' \
   '林澈深吸一口气，淡淡开口，语气平静无波。' \
   '苏晚指节泛白，目光锐利，沉默在两人之间蔓延。' > "$FIXTURE16"
 set +e
@@ -915,3 +920,159 @@ if (lc.length !== 0) throw new Error('低连接但中长句充足时不应报 lo
 NODE
 
 echo "low-connective-density-tic (低连接密度 + 缺中长句) regression tests passed."
+
+# ============================================================
+# 实战测试漏网句式（A-E）：音量反差腔 / 否定排比 / 反序对比 / 预告式收尾 / 引号强调滥用
+# 正例取自实战写作抓到的真实漏网句；反例含对话豁免、either-or、正常引用与真人语料边界句。
+# ============================================================
+
+# --- 实战漏网 A：voice-contrast（声音不高…却…，blocking）---
+FIXTURE_VOICE="$TMP_DIR/fixture-voice-contrast.md"
+printf '%s\n' \
+  '声音不高，第一句却稳稳压住了整个大厅。' \
+  '“他声音不大，却带着火气。”旁边的人小声嘀咕。' \
+  '她的声音不大，台下前排听得清楚。' > "$FIXTURE_VOICE"
+set +e
+node "$SCRIPT" --json "$FIXTURE_VOICE" > "$OUT"
+node "$SCRIPT" --fail-on=blocking "$FIXTURE_VOICE" >/dev/null 2>&1
+voice_blk=$?
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const vc = r.findings.filter((f) => f.type === 'voice-contrast');
+if (vc.length !== 1) throw new Error('音量反差腔应命中 1 处 voice-contrast: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}`)));
+if (vc[0].line !== 1 || vc[0].severity !== 'blocking') throw new Error('voice-contrast 应为 line 1 blocking: ' + JSON.stringify(vc[0]));
+// 引号内台词（line 2）与无转折的平铺（line 3）不算音量反差腔。
+if (vc[0].excerpt.includes('火气')) throw new Error('引号内台词不应命中 voice-contrast: ' + JSON.stringify(vc[0]));
+NODE
+[ "$voice_blk" -eq 1 ] || { echo "FAIL: voice-contrast --fail-on=blocking 应退出 1，实际 $voice_blk" >&2; exit 1; }
+
+echo "voice-contrast (音量反差腔) regression tests passed."
+
+# --- 实战漏网 B：negation-parade（没有X，没有Y…／没X…只是Y，blocking）---
+FIXTURE_PARADE="$TMP_DIR/fixture-negation-parade.md"
+printf '%s\n' \
+  '没有伴奏，没有和声，没有提词器。' \
+  '他没炫技，没有那种一张嘴就飙高音的架势。他只是唱，把每个字放平。' \
+  '“没有饭，没有水，我们怎么过夜？”有人喊。' \
+  '他没有回头。巷子里没有灯，他摸着墙走。' > "$FIXTURE_PARADE"
+set +e
+node "$SCRIPT" --json "$FIXTURE_PARADE" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const np = r.findings.filter((f) => f.type === 'negation-parade');
+if (np.length !== 2) throw new Error('否定排比应命中 2 处 negation-parade: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}`)));
+if (np[0].line !== 1 || np[1].line !== 2) throw new Error('negation-parade 应命中 line 1（连排）与 line 2（先否定后只是）: ' + JSON.stringify(np));
+if (!np.every((f) => f.severity === 'blocking')) throw new Error('negation-parade 应为 blocking');
+// 引号内台词（line 3）与分句独立否定（line 4）不算排比。
+NODE
+
+echo "negation-parade (否定排比) regression tests passed."
+
+# --- 实战漏网 C：reverse-not-is（是A，不是B — not-is 反序变种，blocking）---
+FIXTURE_REVNOTIS="$TMP_DIR/fixture-reverse-not-is.md"
+printf '%s\n' \
+  '气息拉满不断，是真嗓子，不是修音修出来的。' \
+  '“是我先来的，不是他。”她把票拍在窗口上。' \
+  '反正就是这样，不是谁都能改的。' \
+  '他也是这两年才学会的，不是天生就懂。' \
+  '是啊，不是谁都有这个耐心。' \
+  '他问是不是弄错了，不是他报的名。' \
+  '他是走了，不是吗？' > "$FIXTURE_REVNOTIS"
+set +e
+node "$SCRIPT" --json "$FIXTURE_REVNOTIS" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const rn = r.findings.filter((f) => f.type === 'reverse-not-is');
+if (rn.length !== 1) throw new Error('反序对比腔应命中 1 处 reverse-not-is: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}`)));
+if (rn[0].line !== 1 || rn[0].severity !== 'blocking') throw new Error('reverse-not-is 应为 line 1 blocking: ' + JSON.stringify(rn[0]));
+if (!rn[0].excerpt.includes('是真嗓子')) throw new Error('reverse-not-is excerpt 应含正例片段: ' + JSON.stringify(rn[0]));
+// 反例必须全部保持沉默：引号内辩解（2）、就是/也是合成词（3/4）、是啊确认语（5）、
+// 是不是问句（6）、不是吗反问尾巴（7）。
+NODE
+
+echo "reverse-not-is (反序对比腔) regression tests passed."
+
+# --- 实战漏网 D：trailer-ending（预告式总结收尾，仅文末 600 字窗口，blocking）---
+# 反例：窗口外叙述里的「没人知道」（line 1）、窗口内对话里的「没人知道」、
+# 真人语料报幕句「比赛正式拉开序幕」（《万疆》第120章原句式）。
+FIXTURE_TRAILER="$TMP_DIR/fixture-trailer-ending.md"
+printf '%s\n' '他把口琴收进兜里。没人知道他练了多久。' > "$FIXTURE_TRAILER"
+for _ in $(seq 1 16); do
+  printf '%s\n' '院子里的灯还亮着，母亲把晒好的被子抱进屋里，他在门口帮着把竹竿收回来，又把水缸的盖子盖好。' >> "$FIXTURE_TRAILER"
+done
+printf '%s\n' \
+  '“没人知道下一场在哪儿。”老赵嘟囔着收拾谱架。' \
+  '钟声再度响起，比赛正式拉开序幕。' \
+  '没人知道，这才刚刚开头。' \
+  '一场从县城炸向省台的接力，正朝着他，缓缓压了过去。' >> "$FIXTURE_TRAILER"
+set +e
+node "$SCRIPT" --json "$FIXTURE_TRAILER" > "$OUT"
+node "$SCRIPT" --fail-on=blocking "$FIXTURE_TRAILER" >/dev/null 2>&1
+trailer_blk=$?
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const te = r.findings.filter((f) => f.type === 'trailer-ending');
+if (te.length !== 3) throw new Error('章尾预告腔应命中 3 处 trailer-ending: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}:${f.excerpt}`)));
+if (!te.every((f) => f.severity === 'blocking')) throw new Error('trailer-ending 应为 blocking');
+if (te.some((f) => f.line === 1)) throw new Error('窗口外（文首）的「没人知道」不应命中 trailer-ending');
+if (te.some((f) => f.excerpt.includes('下一场'))) throw new Error('对话里的「没人知道」不应命中 trailer-ending');
+if (te.some((f) => f.excerpt.includes('拉开序幕'))) throw new Error('真人报幕句「正式拉开序幕」不应命中 trailer-ending');
+const excerpts = te.map((f) => f.excerpt).join(' | ');
+for (const marker of ['没人知道', '这才刚刚开头', '压了过去']) {
+  if (!excerpts.includes(marker)) throw new Error(`trailer-ending 缺少正例命中 ${marker}: ${excerpts}`);
+}
+NODE
+[ "$trailer_blk" -eq 1 ] || { echo "FAIL: trailer-ending --fail-on=blocking 应退出 1，实际 $trailer_blk" >&2; exit 1; }
+
+echo "trailer-ending (预告式总结收尾) regression tests passed."
+
+# --- 实战漏网 E：quote-emphasis-tic（叙述里短词加引号强调，advisory 密度型）---
+FIXTURE_QUOTE_EMPH="$TMP_DIR/fixture-quote-emphasis.md"
+printf '%s\n' \
+  '他是被请来“把关”的，来之前心里还揣着句现成的话。' \
+  '这段“掉马神演”，正被一帧一帧拍下、剪好、甩上网。' \
+  '没人出声，几千人像被那朵“花”钉在了座位上。' \
+  '她说“好”，转身就走。' \
+  '“嗯。”' \
+  '“叮咚~”“叮咚~”“叮咚~”' \
+  '他念了一遍“静”，又写下“定”。' > "$FIXTURE_QUOTE_EMPH"
+set +e
+node "$SCRIPT" --json "$FIXTURE_QUOTE_EMPH" > "$OUT"
+node "$SCRIPT" --fail-on=blocking "$FIXTURE_QUOTE_EMPH" >/dev/null 2>&1
+quote_emph_blk=$?
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const qe = r.findings.filter((f) => f.type === 'quote-emphasis-tic');
+if (qe.length !== 1) throw new Error('叙述层引号强调 ≥3 处应报 1 条 quote-emphasis-tic: ' + JSON.stringify(r.findings.map((f) => f.type)));
+if (qe[0].severity !== 'advisory') throw new Error('quote-emphasis-tic 应为 advisory');
+if (!qe[0].message.includes('3 处')) throw new Error('引语动词邻接/独立台词/拟声词连发不应计数，应恰为 3 处: ' + JSON.stringify(qe[0]));
+if (!qe[0].excerpt.includes('把关')) throw new Error('quote-emphasis-tic excerpt 应含「把关」正例: ' + JSON.stringify(qe[0]));
+NODE
+[ "$quote_emph_blk" -eq 0 ] || { echo "FAIL: quote-emphasis-tic --fail-on=blocking 应退出 0，实际 $quote_emph_blk" >&2; exit 1; }
+
+# 低于阈值（<3 处）不报：单处强调是正常修辞；含真人语料边界句（《万疆》第40章海报标语）。
+FIXTURE_QUOTE_EMPH_NORMAL="$TMP_DIR/fixture-quote-emphasis-normal.md"
+printf '%s\n' \
+  '凌晨十二点十分，番城旅游官网出现苏阳的照片，手里的海报变成了“我在番城”。' \
+  '他是被请来“把关”的，来之前心里还揣着句现成的话。' > "$FIXTURE_QUOTE_EMPH_NORMAL"
+set +e
+node "$SCRIPT" --json "$FIXTURE_QUOTE_EMPH_NORMAL" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const qe = r.findings.filter((f) => f.type === 'quote-emphasis-tic');
+if (qe.length !== 0) throw new Error('低于 3 处的引号强调不应报 quote-emphasis-tic: ' + JSON.stringify(qe));
+NODE
+
+echo "quote-emphasis-tic (引号强调滥用) regression tests passed."

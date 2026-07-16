@@ -197,6 +197,36 @@ function proseBlockReason(root, absolute) {
   if (!found) {
     return `⛔ 写正文被拦截：第 ${chapter} 章缺少细纲（${safeRelative(root, outlineDir)}/细纲_第${chapter}章.md）。先按 story-long-write 单章流程补建细纲再写正文。`
   }
+  // 欠账门（无状态）：写第 N 章（首建）前，上一章有未清毒句式且未标「去味:跳过」豁免时先清再写。
+  // 判据现算自上一章文件本身，不落任何状态文件；找不到上一章/读取失败一律放行（宁可漏拦不可误伤）。
+  // js↔py 文案由 check-hook-regex-sync.sh 锁同步，判定由 test-prose-net-parity.sh Part E 锁 parity。
+  const prevNum = Number(chapter) - 1
+  if (prevNum >= 1) {
+    let prevFile = null
+    try {
+      for (const file of fs.readdirSync(path.dirname(absolute))) {
+        const pm = file.match(/^第0*(\d+)章.*\.md$/)
+        if (pm && Number(pm[1]) === prevNum) {
+          prevFile = path.join(path.dirname(absolute), file)
+          break
+        }
+      }
+    } catch {}
+    if (prevFile) {
+      let prevText = null
+      try { prevText = fs.readFileSync(prevFile, "utf8") } catch {}
+      if (prevText !== null && !prevText.split(/\r?\n/).slice(0, 6).join("\n").includes("去味:跳过")) {
+        const hits = toxicPhraseFindings(prevText).filter((line) => line.startsWith("第"))
+        if (hits.length) {
+          const shown = hits.slice(0, 6)
+          const more = hits.length - shown.length
+          let reason = `⛔ 写正文被拦截：上一章（${path.basename(prevFile)}）有 ${hits.length} 处未清毒句式欠账，先清零再写第 ${chapter} 章；用户显式豁免时在上一章标题行下加 <!-- 去味:跳过 --> 后重试。\n${shown.join("\n")}`
+          if (more > 0) reason += `\n（另有 ${more} 处，完整扫描：node <skill>/scripts/check-ai-patterns.js --check 上一章文件）`
+          return reason
+        }
+      }
+    }
+  }
   return null
 }
 
@@ -216,6 +246,112 @@ const HARD_PATTERNS = [
 
 function skippableLine(line) {
   return !line || line.startsWith("#") || line === "---" || /^[-—=*·•\s]+$/.test(line)
+}
+
+// ── 毒句式（确定性 AI 句式指纹，写后正文网热路径）─────────────────────────────
+// 与 check-ai-patterns.js 的同名新规则统一规格：只收确定性、低误报的句式；密度型/
+// advisory 检测归 check-ai-patterns.js 深扫，不进这张每次写正文都跑的网。全部正则
+// 线性扫描、量词有界，无回溯灾难。台词/弹幕/系统播报不算：逐行先剥成对引号，剥后
+// 仍残留引号字符（跨行对话/未闭合）的行整行跳过。js↔py 同构实现（codex
+// story_codex_hook.py）由 scripts/check-hook-regex-sync.sh（规范串逐字锁）与
+// scripts/test-prose-net-parity.sh（fixture 逐字 diff）锁 parity，文案以本核为准。
+const TOXIC_QUOTE_SPANS = [/「[^」]*」/g, /『[^』]*』/g, /【[^】]*】/g, /“[^”]*”/g, /‘[^’]*’/g, /"[^"]*"/g, /'[^']*'/g]
+const TOXIC_QUOTE_CHARS = new Set(Array.from("「」『』【】“”‘’\"'"))
+// 分句起点边界（前一字符属于它才认「是A，不是B」的分句首「是」）；同时用作确认语的右边界。
+const TOXIC_CLAUSE_BOUNDARY = new Set(Array.from("，,。.！!？?；;：:、…—~ \t　"))
+// 疑问尾（是吗/是吧/是嘛）与确认语（是的/是啊/是呀/是呢+边界）里的「是」不是对比句系动词；
+// 排除逻辑移植自 check-ai-patterns.js 的 TAG_PARTICLES / AFFIRMATION_TAG_PARTICLES。
+const TOXIC_TAG_PARTICLES = new Set(["吗", "吧", "嘛"])
+const TOXIC_AFFIRM_PARTICLES = new Set(["的", "啊", "呀", "呢"])
+const TOXIC_TRAILER_WINDOW = 600
+const TOXIC_SENTENCE_PATTERNS = [
+  [/声音(?:并)?不[大高响亮][^。！？!?\n]{0,16}[却但偏]/g, "voice-contrast", "删「不X…却Y」反差腔，直接写具体效果或动作。"],
+  [/(?:没有[^。！？!?\n，,]{1,12}[，,]){2}/g, "negation-parade", "「没有…，没有…」排比删到只剩一个或全删，改写正面在场的细节。"],
+  [/是[^。！？!?\n，,]{1,12}[，,]\s*(?:而)?不是[^。！？!?\n]{1,20}/g, "reverse-not-is", "删否定铺垫，直接写肯定项，或改成动作细节。"],
+  [/不是[^。！？!?\n]{1,16}[，,]\s*(?:而)?是/g, "not-is-comparison", "删否定铺垫，直接写肯定项，或改成动作细节。"],
+]
+// 「正式拉开序幕/帷幕」是场内事件的报幕式陈述，不是叙述者预告，lookbehind 排除（同 check-ai-patterns.js）。
+const TOXIC_TRAILER_PATTERN = /没人知道|谁也不知道|谁也没想到|殊不知|(?:这)?才刚刚开(?:始|头)|正(?:朝着|向着)[^。！？!?\n]{0,24}(?:压|涌|袭|逼)(?:了?过去|了?过来|来)|(?<!正式)拉开(?:序幕|帷幕)|即将(?:开始|来临|降临)/
+// 「是A，不是B」的反问尾巴（…，不是吗/么/吧）不算对比句；取匹配段最后一个「不是」后的首字判断。
+const TOXIC_REVERSE_TAIL = /[，,]\s*(?:而)?不是([^。！？!?\n]*)$/
+
+function stripQuotedSpans(line) {
+  let out = line
+  for (const spans of TOXIC_QUOTE_SPANS) out = out.replace(spans, "")
+  return out
+}
+
+// 「是不是」疑问、翻转「是」后跟疑问尾/确认语 → 不算「不是A，(而)是B」对比句。
+function toxicNotIsExcluded(line, matched, start) {
+  if (start > 0 && line[start - 1] === "是") return true
+  const end = start + matched.length
+  const c1 = line[end] || ""
+  const c2 = line[end + 1] || ""
+  if (TOXIC_TAG_PARTICLES.has(c1)) return true
+  if (TOXIC_AFFIRM_PARTICLES.has(c1) && (c2 === "" || TOXIC_CLAUSE_BOUNDARY.has(c2))) return true
+  return false
+}
+
+// 只认分句首的「是A，不是B」：句中「但是/还是/只是/他是…」的「是」一律不算（either-or
+// 「不是/就是/也是」与全部「X是」连词/副词合成词都被分句首判定排除）；「是的，不是…」
+// 确认语开头、「是不是…」问句起头、「…，不是吗/么/吧」反问尾巴不算（同 check-ai-patterns.js）。
+function toxicReverseNotIsExcluded(line, matched, start) {
+  const prev = start > 0 ? line[start - 1] : ""
+  if (prev !== "" && !TOXIC_CLAUSE_BOUNDARY.has(prev)) return true
+  if (line.slice(start + 1, start + 3) === "不是") return true
+  const c1 = line[start + 1] || ""
+  const c2 = line[start + 2] || ""
+  if ((TOXIC_TAG_PARTICLES.has(c1) || TOXIC_AFFIRM_PARTICLES.has(c1)) && (c2 === "" || TOXIC_CLAUSE_BOUNDARY.has(c2))) return true
+  const tail = matched.match(TOXIC_REVERSE_TAIL)
+  const t1 = tail && tail[1] ? tail[1][0] : ""
+  if (t1 === "吗" || t1 === "么" || t1 === "吧") return true
+  return false
+}
+
+// 每行只报第一条命中的句式规则（复扫到净哲学：改完一处再扫下一处）。
+function matchToxicSentence(line) {
+  for (const [regex, label, fix] of TOXIC_SENTENCE_PATTERNS) {
+    regex.lastIndex = 0
+    let match
+    while ((match = regex.exec(line)) !== null) {
+      if (label === "not-is-comparison" && toxicNotIsExcluded(line, match[0], match.index)) continue
+      if (label === "reverse-not-is" && toxicReverseNotIsExcluded(line, match[0], match.index)) continue
+      return [label, fix, match[0]]
+    }
+  }
+  return null
+}
+
+function toxicPhraseFindings(text) {
+  const findings = []
+  const content = []
+  text.split("\n").forEach((raw, index) => {
+    const line = raw.trim()
+    if (skippableLine(line)) return
+    const stripped = stripQuotedSpans(line)
+    for (const ch of stripped) {
+      if (TOXIC_QUOTE_CHARS.has(ch)) return
+    }
+    content.push([index + 1, stripped])
+  })
+  for (const [lineNo, stripped] of content) {
+    const hit = matchToxicSentence(stripped)
+    if (hit) findings.push(`第${lineNo}行 毒句式[${hit[0]}]：『${hit[2].slice(0, 20)}』——${hit[1]}`)
+  }
+  // trailer-ending 只扫文末 600 字窗口（剥引号后按行累计，边界行整行计入）。
+  let acc = 0
+  let cut = content.length
+  while (cut > 0 && acc < TOXIC_TRAILER_WINDOW) {
+    cut -= 1
+    acc += Array.from(content[cut][1]).length
+  }
+  for (let i = cut; i < content.length; i++) {
+    const [lineNo, stripped] = content[i]
+    const match = stripped.match(TOXIC_TRAILER_PATTERN)
+    if (match) findings.push(`第${lineNo}行 毒句式[trailer-ending]：『${match[0].slice(0, 20)}』——删章尾预告腔，用正在发生的动作或画面收章。`)
+  }
+  if (findings.length) findings.push("毒句式是确定性 AI 指纹：本章须清零后再继续。完整扫描：node <skill>/scripts/check-ai-patterns.js --check <正文文件>")
+  return findings
 }
 
 function proseNetFindings(text) {
@@ -255,6 +391,7 @@ function proseNetFindings(text) {
     const [lineNo, last] = content[content.length - 1]
     if (!TERMINAL.has(Array.from(last).pop())) findings.push(`第${lineNo}行 疑似截断：结尾「…${last.slice(-12)}」未以标点收束`)
   }
+  findings.push(...toxicPhraseFindings(text))
   return findings
 }
 
@@ -418,4 +555,6 @@ module.exports = {
   HARD_PATTERNS,
   skippableLine,
   proseNetFindings,
+  stripQuotedSpans,
+  toxicPhraseFindings,
 }

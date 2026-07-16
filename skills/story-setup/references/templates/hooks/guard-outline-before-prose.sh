@@ -123,6 +123,27 @@ case "$BASE" in
       printf '%s\n' "   如确需先起草，请先补建对应细纲文件。" >&2
       exit 2
     fi
+    # 欠账门（无状态）：写第 N 章（首建）前，上一章有未清毒句式且未标「去味:跳过」豁免时先清再写。
+    # 毒句式扫描走共享核 prose-toxic 子命令（与写后网同一份规则）；node/核缺失或扫描失败一律
+    # 放行（宁可漏拦不可误伤）——写后网与 SKILL 同轮铁律仍兜底。判据现算自上一章文件，无状态。
+    PREV=$((NUM - 1))
+    if [ "$PREV" -ge 1 ] && node -e "" >/dev/null 2>&1 && [ -f "$CLI" ]; then
+      PROSE_DIR="$(dirname "$ABS")"
+      PREV_FILE=""
+      for f in "$PROSE_DIR"/第*章*.md; do
+        [ -e "$f" ] || continue
+        pnum="$(basename "$f" | sed -n 's/^第0*\([0-9][0-9]*\)章.*/\1/p')"
+        if [ "$pnum" = "$PREV" ]; then PREV_FILE="$f"; break; fi
+      done
+      if [ -n "$PREV_FILE" ] && ! head -n 6 "$PREV_FILE" | grep -qF '去味:跳过'; then
+        TOXIC="$(node "$CLI" prose-toxic "$PREV_FILE" 2>/dev/null || true)"
+        if [ -n "$TOXIC" ]; then
+          printf '%s\n' "⛔ 写正文被拦截：上一章（$(basename "$PREV_FILE")）有未清毒句式欠账，先清零再写第 ${NUM} 章；用户显式豁免时在上一章标题行下加 <!-- 去味:跳过 --> 后重试。" >&2
+          printf '%s\n' "$TOXIC" | head -n 8 >&2
+          exit 2
+        fi
+      fi
+    fi
     ;;
 esac
 

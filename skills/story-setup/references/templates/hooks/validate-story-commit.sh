@@ -14,7 +14,8 @@ is_git_commit_command() {
   # 走 node 共享核 isGitCommitCommand：命令优先取 STORY_COMMIT_COMMAND，缺省从 HOOK_INPUT
   # 挖 command/cmd/script。js 分词语义，与 OpenCode/ZCode 一致；对「引号内分隔符」这类边界
   # 与旧 python shlex 有已文档化、仅 advisory 的差异（不影响本 hook 的 exit 0 非阻塞语义）。
-  # node 探测不到就当「非 commit」，让下方静默放行（兜底不反噬提交流程）。
+  # node 探测不到就当「非 commit」，让下方静默放行（兜底不反噬提交流程；native 安装可能
+  # 无 node，此时 commit 格式提示停用，session-start.sh 会在会话起点提示一次）。
   node -e "" >/dev/null 2>&1 || return 1
   local CLI; CLI="$(dirname "$0")/story_hook_cli.js"
   [ -f "$CLI" ] || return 1
@@ -50,6 +51,8 @@ while IFS= read -r -d '' file; do
   fi
 
   # 检查正文文件是否包含硬编码的情节值
+  # 匹配语义与警告文案对齐 JS core（story_hook_core.js stagedMarkdownWarnings，跨 CLI 的
+  # 权威实现；py↔js 由 scripts/test-prose-net-parity.sh Part E 锁 parity）。
   # 冒号/空白都用交替而不是把全角字符塞进方括号字符组：含全角字符的字符组在 C 区域会被
   # 拆成单字节、漏匹配；(：|:) 同时命中全角「：」和半角「:」，([[:space:]]|　) 在 LC_ALL=C 下
   # 也认全角空格 U+3000（否则全角空格分隔的写法会漏检/误判）。
@@ -57,23 +60,24 @@ while IFS= read -r -d '' file; do
     正文.md|*/正文.md|正文/*|*/正文/*)
       HARDCODED=$(grep -nE "(身高|体重|年龄)([[:space:]]|　)*(：|:)([[:space:]]|　)*[0-9]+" "$FULL_PATH" 2>/dev/null || true)
       if [ -n "$HARDCODED" ]; then
-        WARNINGS="$WARNINGS\n⚠ $file: Hardcoded character attributes found (should reference 设定/ files):\n$HARDCODED"
+        WARNINGS="$WARNINGS\n⚠ $file: 正文硬编码角色属性，应引用设定文件：\n$HARDCODED"
       fi
       ;;
   esac
 
-  # 检查设定文件的必填字段（结构化匹配：key:value 格式）
+  # 检查设定文件的必填字段（结构化匹配：key:value 格式）。grep -i 对齐 JS core 的 /i：
+  # 大小写不敏感命中 name/NAME/Name（LC_ALL=C 下 -i 只折叠 ASCII，中文字节不受影响）。
   case "$file" in
     设定/*|*/设定/*)
-      if ! grep -qE "^([[:space:]]|　)*(名字|姓名|名称|name|Name)([[:space:]]|　)*(：|:)" "$FULL_PATH" 2>/dev/null; then
-        WARNINGS="$WARNINGS\n⚠ $file: Setting file missing required fields (name/名字: ...)"
+      if ! grep -qiE "^([[:space:]]|　)*(名字|姓名|名称|name)([[:space:]]|　)*(：|:)" "$FULL_PATH" 2>/dev/null; then
+        WARNINGS="$WARNINGS\n⚠ $file: 设定文件缺少 name/名字 必填字段。"
       fi
       ;;
   esac
 done < <(git -C "$ROOT" -c core.quotepath=false diff --cached --relative --name-only --diff-filter=ACM -z -- . 2>/dev/null || true)
 
 if [ -n "$WARNINGS" ]; then
-  echo "=== Story Commit Warnings (advisory only, not blocking) ==="
+  echo "=== Story Commit Warnings（advisory only）==="
   printf '%b\n' "$WARNINGS"
   echo "=== End Warnings ==="
 fi
