@@ -110,7 +110,7 @@ TXT
 git -C "$ROOT" add book/正文/第1章.md short/正文.md
 out="$(run_hook pre-tool-commit-advisory '{"tool_name":"Bash","tool_input":{"command":"git commit -m test"}}')"
 assert_additional_context "$out" "commit advisory"
-echo "$out" | grep -q 'Hardcoded character attributes' || fail "commit advisory did not inspect staged markdown"
+echo "$out" | grep -q '正文硬编码角色属性' || fail "commit advisory did not inspect staged markdown"
 echo "$out" | grep -q 'short/正文.md' || fail "commit advisory missed short prose"
 out="$(run_hook pre-tool-commit-advisory '{"tool_name":"Bash","tool_input":{"command":"echo git commit docs"}}')"
 assert_empty "$out" "non-commit bash command"
@@ -120,7 +120,7 @@ echo "  OK commit advisory"
 mkdir -p "$ROOT/book/追踪"
 cat > "$ROOT/.story-deployed" <<'TXT'
 deployed_at: 2026-06-25T00:00:00Z
-agents_version: 18
+agents_version: 19
 setup_skill_version: 1.2.7
 target_cli: codex
 resolver_strategy: project-local-skill-reference

@@ -60,7 +60,7 @@ write_sentinel() {
   local root="$1"
   cat > "$root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
-agents_version: 18
+agents_version: 19
 setup_skill_version: 1.2.7
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
@@ -104,7 +104,7 @@ assert_commit_warns() {
   local out
   out="$(run_commit_hook_command "$root" "$command_text")"
   echo "$out" | grep -q 'Story Commit Warnings' || fail "validate-story-commit did not warn for $label: $command_text"
-  echo "$out" | grep -q 'Hardcoded character attributes' || fail "validate-story-commit did not inspect staged markdown for $label"
+  echo "$out" | grep -q '正文硬编码角色属性' || fail "validate-story-commit did not inspect staged markdown for $label"
 }
 
 echo "Story setup deployment check"
@@ -129,9 +129,11 @@ while IFS= read -r src; do
       ;;
   esac
 done < <(grep -RhoE '^source[[:space:]]+"[^"]+"' "$HOOKS_DIR"/*.sh | sed -E 's/^source[[:space:]]+"//;s/"$//' | sort -u)
-# node 共享核 + CLI 桥：正文网/字数/大纲守卫/连续性/commit 侦测的单一实现，被 bash hook 经
-# `node "$(dirname "$0")/story_hook_cli.js"` 调用。这两条不是 source 依赖，上面的 grep 抓不到，
-# 显式断言存在 + 语法有效，否则 hook 静默退化（node 缺失时 hook 自身 exit 0，此处按开发机有 node 校验）。
+# node 共享核 + CLI 桥：正文网/字数/路径抽取/git commit 侦测/连续性的单一实现，被 bash hook 经
+# `node "$(dirname "$0")/story_hook_cli.js"` 调用。大纲阻断判定与 staged markdown warnings 未归核，
+# 仍是各端独立实现（Claude 纯 bash；codex↔core 由 test-prose-net-parity.sh Part E 锁 parity）。
+# 这两条不是 source 依赖，上面的 grep 抓不到，显式断言存在 + 语法有效，否则 hook 静默退化
+# （node 缺失时 hook 自身 exit 0、session-start.sh 会话起点提示一次，此处按开发机有 node 校验）。
 assert_file "$HOOKS_DIR/story_hook_core.js"
 assert_file "$HOOKS_DIR/story_hook_cli.js"
 if command -v node >/dev/null 2>&1; then
@@ -143,7 +145,9 @@ assert_grep 'lib/common\.sh' "$SKILL_FILE" "SKILL.md must mention hooks/lib/comm
 assert_grep 'lib/sentinel\.sh' "$SKILL_FILE" "SKILL.md must mention hooks/lib/sentinel.sh"
 echo "  OK TS1 hook dependency completeness"
 
-# TS1b — SessionStart 部署自检名单必须覆盖所有 hook 脚本（防新增 hook 漏登记，#195 review）
+# TS1b — SessionStart 部署自检名单必须覆盖所有 hook 脚本（防新增 hook 漏登记，#195 review）。
+# *.js 一并枚举：story_hook_cli.js/story_hook_core.js 是承重共享核，被删时正文兜底/commit 侦测/
+# 连续性检查全部静默退化，同样必须登记进自检名单。
 selfcheck_line="$(grep -E 'for hook in .*; do' "$HOOKS_DIR/session-start.sh" | head -1)"
 [ -n "$selfcheck_line" ] || fail "session-start.sh 缺少 hook 自检 for 循环"
 while IFS= read -r hookfile; do
@@ -152,8 +156,8 @@ while IFS= read -r hookfile; do
     *" $base "*) : ;;
     *) fail "session-start.sh 部署自检名单漏列 hook：$base（新增 hook 须同步加入该名单）" ;;
   esac
-done < <(find "$HOOKS_DIR" -maxdepth 1 -name '*.sh' -type f)
-echo "  OK TS1b session-start self-check lists all hook scripts"
+done < <(find "$HOOKS_DIR" -maxdepth 1 \( -name '*.sh' -o -name '*.js' \) -type f)
+echo "  OK TS1b session-start self-check lists all hook scripts and node cores"
 
 # TS2 — Deployment checklist/manifest parseability
 for header in 'Source path' 'Target path' 'Owner class' 'Merge mode' 'Validation check'; do
@@ -261,7 +265,7 @@ setup_git_repo "$bad_sentinel_root"
 copy_hooks "$bad_sentinel_root"
 cat > "$bad_sentinel_root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
-agents_version: 18
+agents_version: 19
 setup_skill_version: 1.2.7
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
@@ -283,7 +287,7 @@ resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
 stale_previous_out="$(run_from_nested "$stale_previous_root" session-start.sh 2>&1 || true)"
-echo "$stale_previous_out" | grep -q '低于 v18' || fail "session-start did not warn for agents_version 17 stale v18 deployment"
+echo "$stale_previous_out" | grep -q '低于 v19' || fail "session-start did not warn for agents_version 17 stale v19 deployment"
 
 newer_project_root="$TMP_DIR/newer-project"
 mkdir -p "$newer_project_root/.claude/skills/story-setup/references/agent-references"
@@ -291,14 +295,14 @@ setup_git_repo "$newer_project_root"
 copy_hooks "$newer_project_root"
 cat > "$newer_project_root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
-agents_version: 19
+agents_version: 20
 setup_skill_version: 1.3.0
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
 newer_project_out="$(run_from_nested "$newer_project_root" session-start.sh 2>&1 || true)"
-echo "$newer_project_out" | grep -q '高于本 hook 支持的 v18' || fail "session-start did not reject agents_version 19 downgrade"
+echo "$newer_project_out" | grep -q '高于本 hook 支持的 v19' || fail "session-start did not reject agents_version 20 downgrade"
 echo "$newer_project_out" | grep -q '不要降级覆盖' || fail "session-start did not explain future-version safety"
 
 mixed_version_root="$TMP_DIR/mixed-version"
@@ -308,7 +312,7 @@ copy_hooks "$mixed_version_root"
 touch "$mixed_version_root/.claude/skills/story-setup/references/agent-references/dummy.md"
 cat > "$mixed_version_root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
-agents_version: 18
+agents_version: 19
 setup_skill_version: 1.2.6
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
@@ -316,11 +320,11 @@ references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
 mixed_version_out="$(run_from_nested "$mixed_version_root" session-start.sh 2>&1 || true)"
 # agents_version 是唯一运行时过期权威；setup_skill_version 落后不触发重部署（设计如此）
-if echo "$mixed_version_out" | grep -q '低于 v18'; then
-  fail "session-start incorrectly nagged '低于 v18' for current agents_version=18 just because setup_skill_version lags"
+if echo "$mixed_version_out" | grep -q '低于 v19'; then
+  fail "session-start incorrectly nagged '低于 v19' for current agents_version=19 just because setup_skill_version lags"
 fi
 if echo "$mixed_version_out" | grep -q '高于本 hook'; then
-  fail "session-start incorrectly nagged '高于本 hook' for current agents_version=18 just because setup_skill_version lags"
+  fail "session-start incorrectly nagged '高于本 hook' for current agents_version=19 just because setup_skill_version lags"
 fi
 
 echo "  OK TS5 sentinel diagnostics"
@@ -388,7 +392,7 @@ cat > "$project_root/book/正文/第1章.md" <<'TXT'
 TXT
 git -C "$mono_root" add "story-project/book/正文/第1章.md"
 mono_out="$(cd "$project_root" && CLAUDE_PROJECT_DIR="$project_root" STORY_COMMIT_COMMAND='git commit -m test' bash .claude/hooks/validate-story-commit.sh 2>&1 || true)"
-echo "$mono_out" | grep -q 'Hardcoded character attributes' || fail "validate-story-commit missed staged files when CLAUDE_PROJECT_DIR differs from git root"
+echo "$mono_out" | grep -q '正文硬编码角色属性' || fail "validate-story-commit missed staged files when CLAUDE_PROJECT_DIR differs from git root"
 echo "  OK TS7 commit hook self-gating"
 
 # TS8 — detect-story-gaps multi-book traversal
@@ -415,12 +419,12 @@ echo "  OK TS9 settings JSON"
 # agent 模板要带住关键行为规则。原先还夹着一批「UPGRADING.md/README 必须写到某句话」
 # 的文档完整性断言——那种改一个词就红、测的是措辞不是行为，已随 check-story-long-write-contract.sh
 # 一并去掉，发版是否补 UPGRADING 由发版清单和人把关，不靠 CI 钉死措辞。
-assert_grep 'AGENTS_VERSION.*-lt 18|AGENTS_VERSION" -lt 18' "$HOOKS_DIR/session-start.sh" "session-start must warn for agents_version 17 under v18 deployment"
-assert_grep 'AGENTS_VERSION.*-gt 18|AGENTS_VERSION" -gt 18' "$HOOKS_DIR/session-start.sh" "session-start must reject agents_version 19 downgrade"
-assert_grep 'agents_version.*小于 `18`|版本 < 18' "$SKILL_DIR/SKILL.md" "story-setup redeploy branch must treat agents_version 17 as stale"
-assert_grep 'agents_version.*大于 `18`' "$SKILL_DIR/SKILL.md" "story-setup must stop before downgrading a newer deployment"
-assert_grep 'agents_version.*小于 `18`|小于 .18' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must treat agents_version 17 as stale"
-assert_grep 'agents_version.*大于 `18`' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must not run old contracts against a newer deployment"
+assert_grep 'AGENTS_VERSION.*-lt 19|AGENTS_VERSION" -lt 19' "$HOOKS_DIR/session-start.sh" "session-start must warn for agents_version 18 under v19 deployment"
+assert_grep 'AGENTS_VERSION.*-gt 19|AGENTS_VERSION" -gt 19' "$HOOKS_DIR/session-start.sh" "session-start must reject agents_version 20 downgrade"
+assert_grep 'agents_version.*小于 `19`|版本 < 19' "$SKILL_DIR/SKILL.md" "story-setup redeploy branch must treat agents_version 18 as stale"
+assert_grep 'agents_version.*大于 `19`' "$SKILL_DIR/SKILL.md" "story-setup must stop before downgrading a newer deployment"
+assert_grep 'agents_version.*小于 `19`|小于 .19' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must treat agents_version 18 as stale"
+assert_grep 'agents_version.*大于 `19`' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must not run old contracts against a newer deployment"
 assert_grep '^version:[[:space:]]*1\.2\.7$' "$SKILL_FILE" "story-setup frontmatter must match the deployed setup version"
 assert_grep '剧情/情绪模块\.md.*missing_primary_contract|missing_primary_contract.*剧情/情绪模块\.md' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must require the current emotion-module artifact"
 assert_grep '剧情/节奏\.md.*missing_primary_contract|missing_primary_contract.*剧情/节奏\.md' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must require the current rhythm artifact"
@@ -429,7 +433,7 @@ assert_grep 'missing_primary_contract: true|missing_primary_contract": true' "$S
 assert_grep 'repair_action.*Stage 3|Stage 3.*repair_action|重跑 /story-long-analyze Stage 3' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must provide a repair action instead of silent fallback"
 assert_grep 'missing_primary_contract' "$REPO_ROOT/skills/story-long-write/SKILL.md" "story-long-write must not silently fallback for missing primary artifacts"
 assert_grep '内容概括（五段式）|情节安排（多线）|人物关系和出场顺序|结尾设定和钩子' "$SKILL_DIR/references/templates/agents/story-architect.md" "story-architect must output v13 chapter blueprint fields"
-assert_grep '逻辑线|人物关系变化|代价兑现 / 收益兑现|结尾设定' "$SKILL_DIR/references/templates/agents/consistency-checker.md" "consistency-checker must consume v13 outline blueprint fields"
+assert_grep '逻辑线|人物关系变化|行动成本（可无）/收益归属|结尾设定' "$SKILL_DIR/references/templates/agents/consistency-checker.md" "consistency-checker must consume current outline blueprint fields"
 assert_grep '语气标点谱系' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must enforce v13 tone punctuation"
 assert_grep '不用.*……|不使用.*……|不保留.*……|不残留.*……' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must reject ellipsis pause punctuation"
 assert_grep '不用.*——|不使用.*——|不保留.*——|不残留.*——' "$SKILL_DIR/references/templates/agents/narrative-writer.md" "narrative-writer must reject dialogue dash exception"
