@@ -38,6 +38,9 @@ DEPLOYED_RUNTIME_PREFIXES = (".claude/", ".codex/", ".opencode/")
 # skills may reference its launcher; every other cross-skill file path remains
 # forbidden so domain workflows stay self-contained.
 FOUNDATION_SKILL_REFERENCES = frozenset({"browser-cdp"})
+# 变更日志按定义记录历史状态：其内联路径是「当时」的引用（含已删/已移动/跨 skill 的旧文件），
+# 不是当前运行时依赖，不作跨 skill / 死链校验（与 check-current-skill-contracts.py 的跳过一致）。
+CHANGELOG_DOCS = frozenset({"UPGRADING.md", "CHANGELOG.md"})
 EXTERNAL_URL_RE = re.compile(
     r"(?i)\b(?:https?|ftp)://[^\s<>\"'`]+"
 )
@@ -343,6 +346,8 @@ def cross_skill_path_issues(skill_dir: Path, root: Path) -> list[Issue]:
     for path in sorted(skill_dir.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in SKILL_TEXT_SUFFIXES:
             continue
+        if path.name in CHANGELOG_DOCS:
+            continue
         text = path.read_text(encoding="utf-8")
         for line_number, line in enumerate(text.splitlines(), start=1):
             # URL paths name remote resources, not repository skill imports.
@@ -404,6 +409,9 @@ def validate_skill(
     resolved_by_document: dict[Path, set[Path]] = {path.resolve(): set() for path in markdown_paths}
 
     for document in list(documents.values()):
+        # 变更日志的历史内联路径不作死链/跨 skill 校验（仍可作为其它文件的链接目标）
+        if document.path.name in CHANGELOG_DOCS:
+            continue
         seen_refs: set[tuple[int, str, str]] = set()
         for ref in document.refs:
             key = (ref.line, ref.raw, ref.kind)

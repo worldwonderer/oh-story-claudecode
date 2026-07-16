@@ -76,6 +76,10 @@ class AbsentRule:
     label: str
     pattern: str
     relative_roots: Tuple[str, ...]
+    # 「静默才禁」豁免：命中行的本地上下文若带显式容忍标记（不阻塞 / [待补充] / 回退 /
+    # 只核对 / 记录…），说明是有据可查的旧格式容忍而非静默降级，放行。仅用于旧格式大纲容忍
+    # （keep C）；benchmark 回退（drop A/B）的规则不设豁免，静默与显式一律禁。
+    exempt_when: Optional[str] = None
 
 
 LEGACY_RULES = (
@@ -87,9 +91,12 @@ LEGACY_RULES = (
     ),
     AbsentRule(
         "old-artifact-prose",
-        "no old artifact-format compatibility prose",
+        "no silent old artifact-format downgrade",
         r"旧拆文库|旧版细纲|旧式薄细纲|旧版内部降级标记|早期拆文库格式|兼容旧结构",
         ("skills",),
+        # keep C：旧格式大纲/细纲容忍是显式、有据可查的（不阻塞日更、回退读取旧字段、未知写
+        # [待补充]、记录到追踪），不是静默降级——带这些标记就放行，只拦无标记的静默兼容措辞。
+        exempt_when=r"不阻塞|\[待补充\]|回退|只核对|记录|保留或映射|仍可续写|仍可用|仍要保留",
     ),
     AbsentRule(
         "removed-hook-alias",
@@ -331,11 +338,17 @@ def regex_hits(path: Path, pattern: re.Pattern[str]) -> Iterator[Finding]:
 
 def check_absent_rule(repo_root: Path, rule: AbsentRule) -> List[Finding]:
     compiled = re.compile(rule.pattern)
+    exempt = re.compile(rule.exempt_when) if rule.exempt_when else None
     findings: List[Finding] = []
     for relative_root in rule.relative_roots:
         root = repo_root / relative_root
         for path in iter_files(root):
             for hit in regex_hits(path, compiled):
+                if exempt is not None:
+                    # 只看命中行本身：显式容忍标记须与旧格式措辞同处一行才算「有据可查」，
+                    # 避免相邻的静默降级借上一行的标记蒙混过关
+                    if exempt.search(hit.excerpt):
+                        continue
                 findings.append(
                     Finding(rule.code, rule.label, hit.path, hit.line, hit.excerpt)
                 )

@@ -8,12 +8,21 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const pluginPath = path.join(
-  repoRoot,
-  "skills/story-setup/references/opencode/plugin.ts"
-);
+const srcDir = path.join(repoRoot, "skills/story-setup/references/opencode");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "story-opencode-plugin-"));
 const originalCwd = process.cwd();
+
+// plugin.ts imports "./lib/story_hook_core.js"（与 ZCode 共享的 prose-guard 核，部署到
+// .opencode/plugins/lib/）。仓库源码里核是平铺的，只有部署布局才有 lib/ 子目录；在 tmp 里
+// 复刻部署布局，import 才能解析到核。
+const deployDir = path.join(tmp, "plugins");
+fs.mkdirSync(path.join(deployDir, "lib"), { recursive: true });
+fs.copyFileSync(path.join(srcDir, "plugin.ts"), path.join(deployDir, "plugin.ts"));
+fs.copyFileSync(
+  path.join(srcDir, "story_hook_core.js"),
+  path.join(deployDir, "lib", "story_hook_core.js")
+);
+const pluginPath = path.join(deployDir, "plugin.ts");
 
 async function expectBlocked(action, label) {
   await assert.rejects(action, /写正文被拦截/, label);

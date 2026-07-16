@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.23
+
+- **ZCode 原生适配（#211）**：新增 `.zcode-plugin/plugin.json` 与根 `marketplace.json`，把仓库作为一个 `oh-story` plugin 暴露 13 个 Skills、13 个 Commands 和 ZCode Hooks；`story-setup` 新增 `target_cli=zcode`，部署 `.zcode/skills` / `.zcode/commands` / `.zcode/hooks`，安全合并 `.zcode/config.json` 与根 `AGENTS.md`。
+- **严格 Hook 契约**：新增无第三方依赖的 Node runner，覆盖 SessionStart 上下文/连续性恢复、PreToolUse 大纲守卫与 commit advisory、PostToolUse 正文轻量确定性网；非空 stdout 只输出 ZCode 3.3.4 接受的严格 JSON，异常写 stderr 并 fail-open。正文网 parity 从 Claude/OpenCode/Codex 扩到 ZCode。
+- **能力边界透明降级**：ZCode 3.3.4 不执行项目/plugin custom agents，也没有 `.zcode/rules`、PreCompact 或 SessionEnd；6 个依赖专业 Agent 的 Skill 与 story-review 在 ZCode 下明确降级 solo/direct，不伪造平台能力。
+- **验证与文档**：新增 ZCode adapter 静态检查、Hook 合成契约测试和 Windows/macOS/Linux CI；补充 ZCode 3.3.4 官方规范、Issue #211 与参考实现的调研报告。
+- 版本号升级到 `0.6.23`（Claude/ZCode marketplace + `skills/story/VERSION`）；`story-setup` 升级到 `1.2.7`，`agents_version` 保持 `17`（ZCode 不部署项目 Agent）。已部署 ZCode 项目升级时需重新运行 `$story-setup` 并新开 session。
+
 ## v0.6.22
 
 > 长篇题材正文提示卡 + 短篇投稿层 + 全套件文档瘦身（#226 / #227 / #228）

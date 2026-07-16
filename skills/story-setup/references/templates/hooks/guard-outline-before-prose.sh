@@ -12,12 +12,10 @@ set -euo pipefail
 source "$(dirname "$0")/lib/common.sh"
 
 # 全程走字节稳定区域：本 hook 在中文路径上做 bash 通配（中间目录是中文书名时
-# 细纲_第*章*.md 在 GBK 区域会 NOMATCH）、sed 提章号、case 匹配，还内嵌 python 抽取
-# 中文路径。Windows 中文系统若导出 GBK/GB2312 区域设置，这些都会按多字节错误解码 UTF-8
-# 而失效。强制 C 区域走字节匹配（UTF-8 字面量 vs UTF-8 字节相等）才稳定（issue #164）。
-# 必须在内嵌 python 之前 export：LC_ALL=C 下 python 在 Windows 走 Unicode 环境 API、在
-# 新版 python 会把 C 强转 UTF-8，都能正确解码中文输入；反而是用户的 GBK 区域会把 python
-# 读到的 UTF-8 环境变量解成乱码。输出已用 sys.stdout.buffer 直写 UTF-8 字节、与区域无关。
+# 细纲_第*章*.md 在 GBK 区域会 NOMATCH）、sed 提章号、case 匹配。Windows 中文系统若导出
+# GBK/GB2312 区域设置，这些都会按多字节错误解码 UTF-8 而失效。强制 C 区域走字节匹配（UTF-8
+# 字面量 vs UTF-8 字节相等）才稳定（issue #164）。路径抽取走 node 共享核，node 自身按 UTF-8
+# 处理、与 bash 区域无关；拦截判定全在下方 bash，不受影响。
 export LC_ALL=C
 
 HOOK_INPUT="${CLAUDE_TOOL_INPUT:-}"
@@ -26,50 +24,41 @@ if [ -z "$HOOK_INPUT" ] && [ ! -t 0 ]; then
 fi
 export HOOK_INPUT
 
-# 从 tool 输入 JSON 提取目标文件路径。探测真正可用的解释器：Windows 上
-# `command -v python3` 会命中 Microsoft Store 占位程序（exit 49），所以实跑
-# 一次 -c "" 而非只查 PATH。
-# 输出走 sys.stdout.buffer 直写 UTF-8 字节：Windows 中文系统 python stdout 默认
-# cp936，文本模式输出会把中文路径编成 GBK，和脚本里的 UTF-8 字面量（"正文"、第N章）
-# 字节不一致，导致每个比较恒假、守卫静默放行（issue #164）。
-extract_target_path() {
-  local PYBIN=""
-  for c in python3 python py; do
-    if "$c" -c "" >/dev/null 2>&1; then PYBIN="$c"; break; fi
+# 提取目标文件路径：优先 node 共享核（与其它端同一份实现）；node 缺席、或 node 在但抽取失败时
+# 都回落纯 bash 抽取。这是阻断守卫，不能因 node 问题而 fail-open——官方现在推荐原生二进制装
+# Claude Code，只有 npm 装法才带 Node，native 运行时可能无 node；旧 node 不识 node: 前缀、或
+# 部署的核损坏时 node 探测通过但抽取会抛错。只要能解析出目标路径就照常判定拦截，两条路径都抽不到
+# 才放行（宁可漏拦不可误伤）。
+CLI="$(dirname "$0")/story_hook_cli.js"
+
+# 纯 bash JSON 抽取兜底：按 dig 优先级取第一处 file_path/path/filePath 字符串值。Claude(node
+# 应用)的 hook 负载走 JSON.stringify——非 ASCII 路径是原始 UTF-8（不转 \uXXXX），Windows 盘符
+# 路径是 \\ 转义；两者都可在 bash 里还原（下方盘符分支再把 \ 归一成 /）。node 缺席、或 node 在
+# 但抽取失败时启用。
+extract_target_bash() {
+  local key val
+  for key in file_path path filePath; do
+    val="$(printf '%s' "$HOOK_INPUT" \
+      | grep -oE "\"$key\"[[:space:]]*:[[:space:]]*\"([^\"\\\\]|\\\\.)*\"" \
+      | head -n1 \
+      | sed -E "s/^\"$key\"[[:space:]]*:[[:space:]]*\"//; s/\"\$//")"
+    if [ -n "$val" ]; then
+      val="${val//\\\"/\"}"   # \" -> "
+      val="${val//\\\\/\\}"   # \\ -> \
+      printf '%s' "$val"
+      return 0
+    fi
   done
-  [ -z "$PYBIN" ] && return 1
-  "$PYBIN" - <<'PY'
-import json, os, sys
-
-raw = os.environ.get("HOOK_INPUT", "")
-if not raw:
-    sys.exit(1)
-try:
-    obj = json.loads(raw)
-except Exception:
-    sys.exit(1)
-
-def dig(value):
-    if isinstance(value, dict):
-        for k in ("file_path", "path", "filePath"):
-            v = value.get(k)
-            if isinstance(v, str) and v:
-                return v
-        for k in ("tool_input", "input", "parameters", "args"):
-            found = dig(value.get(k))
-            if found:
-                return found
-    return ""
-
-p = dig(obj)
-if not p:
-    sys.exit(1)
-sys.stdout.buffer.write(p.encode("utf-8"))
-PY
+  return 1
 }
 
-TARGET="$(extract_target_path 2>/dev/null || true)"
-# 解析不到路径 → 放行
+TARGET=""
+if node -e "" >/dev/null 2>&1 && [ -f "$CLI" ]; then
+  TARGET="$(node "$CLI" extract-target 2>/dev/null || true)"
+fi
+# node 在场却抽空（旧 node 不识 node: 前缀 / 核损坏时探测通过但抽取抛错）也回落纯 bash，
+# 否则会走 fail-open。两条路径都解析不到才放行。
+[ -z "$TARGET" ] && TARGET="$(extract_target_bash 2>/dev/null || true)"
 [ -z "$TARGET" ] && exit 0
 
 ROOT=$(project_root)

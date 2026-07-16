@@ -298,10 +298,45 @@ def test_upgrading_version_contract() -> None:
     )
 
 
+def test_old_artifact_prose_silent_only() -> None:
+    """keep C：带显式标记的旧格式大纲容忍放行，无标记的静默降级仍拦（drop A/B 不受影响）。"""
+    rule = next(r for r in VALIDATOR.LEGACY_RULES if r.code == "old-artifact-prose")
+    require(rule.exempt_when is not None, "old-artifact-prose must narrow to silent-only")
+    flagged = [
+        "旧版细纲缺这些字段不阻塞读取，未知项写 `[待补充]`。",
+        "旧版细纲回退读取核心事件、情节点序列、目标情绪。",
+        "旧版卷纲缺少卷契约/循环卡不阻塞日更；本轮记录到 `追踪/上下文.md`。",
+        "旧版细纲只核对核心事件、目标情绪、章首/章尾钩子和字数目标。",
+    ]
+    silent = [
+        "直接改读旧版细纲当权威，不提示。",
+        "早期拆文库格式直接拿来用。",
+        "兼容旧结构，静默继续写作。",
+    ]
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        skills = root / "skills" / "story-long-write"
+        skills.mkdir(parents=True)
+        (skills / "keep-c.md").write_text("\n".join(flagged) + "\n", encoding="utf-8")
+        require(
+            not VALIDATOR.check_absent_rule(root, rule),
+            "flagged old-outline tolerance (keep C) must pass, got {}".format(
+                VALIDATOR.check_absent_rule(root, rule)
+            ),
+        )
+        (skills / "keep-c.md").write_text("\n".join(silent) + "\n", encoding="utf-8")
+        found = VALIDATOR.check_absent_rule(root, rule)
+        require(
+            len(found) == len(silent),
+            "each silent old-format downgrade must fire, got {}".format(found),
+        )
+
+
 def main() -> int:
     test_manifest_contract()
     test_bad_fallbacks_fail()
     test_fail_fast_prose_passes()
+    test_old_artifact_prose_silent_only()
     test_structured_sentinel_contract()
     test_structured_outline_contract()
     test_upgrading_version_contract()
