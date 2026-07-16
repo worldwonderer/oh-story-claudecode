@@ -2,13 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
-## v0.6.23
+## v0.7.0
 
-- **ZCode 原生适配（#211）**：新增 `.zcode-plugin/plugin.json` 与根 `marketplace.json`，把仓库作为一个 `oh-story` plugin 暴露 13 个 Skills、13 个 Commands 和 ZCode Hooks；`story-setup` 新增 `target_cli=zcode`，部署 `.zcode/skills` / `.zcode/commands` / `.zcode/hooks`，安全合并 `.zcode/config.json` 与根 `AGENTS.md`。
-- **严格 Hook 契约**：新增无第三方依赖的 Node runner，覆盖 SessionStart 上下文/连续性恢复、PreToolUse 大纲守卫与 commit advisory、PostToolUse 正文轻量确定性网；非空 stdout 只输出 ZCode 3.3.4 接受的严格 JSON，异常写 stderr 并 fail-open。正文网 parity 从 Claude/OpenCode/Codex 扩到 ZCode。
-- **能力边界透明降级**：ZCode 3.3.4 不执行项目/plugin custom agents，也没有 `.zcode/rules`、PreCompact 或 SessionEnd；6 个依赖专业 Agent 的 Skill 与 story-review 在 ZCode 下明确降级 solo/direct，不伪造平台能力。
-- **验证与文档**：新增 ZCode adapter 静态检查、Hook 合成契约测试和 Windows/macOS/Linux CI；补充 ZCode 3.3.4 官方规范、Issue #211 与参考实现的调研报告。
-- 版本号升级到 `0.6.23`（Claude/ZCode marketplace + `skills/story/VERSION`）；`story-setup` 升级到 `1.2.7`，`agents_version` 保持 `17`（ZCode 不部署项目 Agent）。已部署 ZCode 项目升级时需重新运行 `$story-setup` 并新开 session。
+> 多端适配再扩两家（ZCode / Reasonix）· hook 核统一到共享 node 核 + 六端 parity 锁 · 长篇「剧情单元」概念统一并接入拆书产物 · 去 AI 味闸口机器化（毒句式确定性检测 + 欠账门）· 契约体检与脚本加固
+
+### 新增
+
+- **ZCode 3.3.4 原生适配（#234）**：新增 `.zcode-plugin/plugin.json` 与根 `marketplace.json`，把仓库作为 `oh-story` plugin 暴露 13 个 Skills、13 个 Commands 和严格 JSON Hooks；`story-setup` 新增 `target_cli=zcode`，部署 `.zcode/skills` / `.zcode/commands` / `.zcode/hooks`，安全合并 `.zcode/config.json` 与根 `AGENTS.md`。无第三方依赖的 Node hook runner 覆盖 SessionStart 上下文/连续性恢复、PreToolUse 大纲守卫与 commit advisory、PostToolUse 正文轻量确定性网；非空 stdout 只输出 ZCode 接受的严格 JSON，异常写 stderr 并 fail-open。ZCode 3.3.4 不执行项目/plugin custom agents、无 `.zcode/rules`/PreCompact/SessionEnd，涉及专业 Agent 的 Skill 与 story-review 明确降级 solo/direct，不伪造平台能力。
+- **Reasonix 原生支持 Phase 1（#238）**：新增根 `reasonix-plugin.json` plugin manifest（version 钉住 `skills/story/VERSION`）与 README 安装说明；Reasonix 扫描 `.agents/skills`（与 Codex 共用的 `skills/` symlink）发现 13 个 skill，`check-reasonix-adapter.sh` 守卫 manifest。项目级 `story-setup` 部署与 hooks 留待后续阶段，当前涉及专业 Agent 的流程走 solo/direct。
+- **短篇题材风格包按平台语料重建（#231）**：`story-short-write` 题材风格包从 4 个扩到 10 个（新增世情打脸、民俗怪谈、悬疑、甜宠、双男主、沙雕脑洞），按七猫/知乎/黑岩/点众四平台真实语料重建开头模式、爽点密度、对话风格、情绪模式与结尾模式，并修正世情题材误路由。
+
+### 改进
+
+- **长篇「剧情单元」概念统一并接入拆书产物（#246）**：把「剧情条 / 循环卡 / 正式情节循环 / 剧情段」五个混用叫法统一为**剧情单元**（卷纲里记为**剧情单元卡**），字段 循环ID/循环节拍/… → 单元ID/单元节拍/…（「循环」只保留节奏义如爽点循环）。拆书剧情单元接入卷纲/细纲：卷纲剧情单元卡新增「对标剧情参照」，对标节奏迁移改以剧情单元为选段单位，细纲分批边界改为「一批 = 一个剧情单元」，拆文侧 `剧情/README.md` 新增「剧情单元清单」索引（存量书可机械补建）。旧版卷纲/细纲/拆文库无这些字段一律不阻塞、按字段结构回退读取，仅在补纲/改纲时升级。story-long-write 场景表新增「补纲/扩纲」入口与卷纲锁定定义。
+- **读者契约 + 终局储备推进模型（#237）**：用「读者契约 + 终局储备」双层推进模型替代原「成长预算」，放开单章爽感，治长篇推进过快导致后期无可写；Σ 字数预算契约（密/疏预算、Σ∈[章目标, ×1.1]）不变。
+- **去 AI 味闸口机器化（无状态，#246）**：写后正文网新增确定性毒句式检测（「不是 A 而是 B」全家族、声线反差、否定排比、预告收尾），落盘即自动扫描并推回命中；写下一章前新增「毒句式欠账门」——上一章有未清 blocking 命中且未标 `<!-- 去味:跳过 -->` 豁免时拦截（判据现算自文件本身，不落任何状态文件，node 缺失或解析失败一律放行）。豁免标记冒号全半角均认，同时使写后网跳过该章毒句式推回（其余网照常）。`check-ai-patterns.js` 同步新增 voice-contrast / negation-parade / reverse-not-is / trailer-ending（blocking，经真人语料零误报校准）与 quote-emphasis-tic（advisory）。四端（Claude/OpenCode/Codex/ZCode）共享同一份判定，js↔py 逐字 parity 锁 + 引号占位对齐 check-ai-patterns.js。
+
+### 重构
+
+- **hook 核统一到共享 node 核 + parity 锁（#239 / #243）**：OpenCode 与 ZCode 收敛到同一份 `story_hook_core.js`（ZCode hook 564→198 行），Claude 的 4 个 bash hook 也把内嵌 python 收敛到该共享核（经 `story_hook_cli.js`），消灭此前唯一无守卫且已漂移的手抄实现；Codex 保留 python 实现，由 py↔js 逐字 parity 锁（`test-prose-net-parity.sh` A–E 层）钉住。补 node 缺失/损坏时的 fail-open 回归；大纲拦截保留纯 bash 兜底。
+- **技能契约体检 + fail-fast（#242）**：新增 `check-current-skill-contracts.py` + `current-contract.json`，把版本锚点、Phase、schema、主产物路径与细纲必填项固化成 CI 契约，`agents_version` 成为运行时过期判定的唯一权威；对标主产物（`剧情/情绪模块.md` / `剧情/节奏.md`）缺失改 fail-fast，不再用旧产物静默降级。
+- **仓库脚本加固（#233）**：共享文件/OpenCode 同步检查改只读 + 写安全，适配器生成器原子发布 + 异常回滚，新增四端真实 CLI 安装的兼容 workflow。
+
+### 修复
+
+- **Codex hook 空白 `.active-book` 首行当仓库根（#235）**：`.active-book` 首行为空时不再误把仓库根当活跃书目，对齐 bash oracle。
+
+### 其他
+
+- **去掉部署检查的文档措辞门禁（#240）**：删除「UPGRADING/README 必须写某句话」类脆弱措辞门禁，保留 `agents_version` 阈值等行为锚点。
+
+### 发布准备
+
+- 版本号升级到 `0.7.0`（`.claude-plugin/marketplace.json` + 根 `marketplace.json` + `.zcode-plugin/plugin.json` + `reasonix-plugin.json` + `skills/story/VERSION`）。`.story-deployed` 的 `agents_version` 本周期从 `17` 连续升到 `19`（#242 → 18，#246 → 19），`setup_skill_version` 为 `1.2.7`；本版含 hooks / agent 模板 / 项目规则模板的行为变更，已部署项目需重新运行 `/story-setup`（Codex 用 `$story-setup`）并**新开会话**获取，从 v0.6.22 升级重跑一次即到位。`UPGRADING.md` 新增 v18 / v19 条目，`README` / `README_EN` 版本说明收敛为最近 3 版（更早见 CHANGELOG）。
 
 ## v0.6.22
 
