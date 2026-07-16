@@ -43,17 +43,8 @@ discover_active_book() {
     # 不在库里 export（避免给调用方留全局副作用，与文件头「不覆盖调用方 shell 选项」一致）。
     active=$(LC_ALL=C sed -n '1p' "$root/.active-book" | LC_ALL=C sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)
     if [ -n "$active" ]; then
-      # 与共享核 discoverActiveBook 同判据：声明路径必须真实存在且在项目根内（cd+pwd -P
-      # 顺带归一 ../ 与符号链接），失效（改名/删除/越界）时回退到下方 find 发现，
-      # 避免把陈旧指针当活跃书目。
-      local candidate
-      candidate=$(cd "$(resolve_project_path "$active")" 2>/dev/null && pwd -P || true)
-      case "$candidate" in
-        "$root"|"$root"/*)
-          printf '%s\n' "$candidate"
-          return
-          ;;
-      esac
+      resolve_project_path "$active"
+      return
     fi
   fi
 
