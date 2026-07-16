@@ -167,7 +167,7 @@ TOXIC_SYNC=(
   '是[^。！？!?\n，,]{1,12}[，,]\s*(?:而)?不是[^。！？!?\n]{1,20}'
   '不是[^。！？!?\n]{1,16}[，,]\s*(?:而)?是'
   '没人知道|谁也不知道|谁也没想到|殊不知|(?:这)?才刚刚开(?:始|头)|正(?:朝着|向着)[^。！？!?\n]{0,24}(?:压|涌|袭|逼)(?:了?过去|了?过来|来)|(?<!正式)拉开(?:序幕|帷幕)|即将(?:开始|来临|降临)'
-  '[，,]\s*(?:而)?不是([^。！？!?\n]*)$'
+  '.*[，,]\s*(?:而)?不是([^。！？!?\n]*)$'
   # 常量（文末窗口、分句边界、疑问尾/确认语排除集）
   'TOXIC_TRAILER_WINDOW = 600'
   '，,。.！!？?；;：:、…—~ \t　'
@@ -182,6 +182,8 @@ TOXIC_SYNC=(
   '毒句式是确定性 AI 指纹：本章须清零后再继续。完整扫描：node <skill>/scripts/check-ai-patterns.js --check <正文文件>'
   '处未清毒句式欠账，'
   '去味:跳过'
+  '去味(：|:)跳过'
+  '\r?\n'
 )
 toxic_fail=0
 for needle in "${TOXIC_SYNC[@]}"; do
@@ -192,8 +194,26 @@ for needle in "${TOXIC_SYNC[@]}"; do
     fi
   done
 done
+
+# 欠账门在 Claude bash 侧另有一份前置实现（guard-outline-before-prose.sh：上一章发现 +
+# 首 6 行豁免窗口 + 拦截文案，毒句式扫描本身走共享核 prose-toxic），豁免标记与门文案
+# 必须与 js/py 三处同步。
+GUARD_SH="$REPO_ROOT/skills/story-setup/references/templates/hooks/guard-outline-before-prose.sh"
+GATE_SYNC=(
+  '去味(：|:)跳过'
+  '未清毒句式欠账'
+  '<!-- 去味:跳过 --> 后重试'
+)
+for needle in "${GATE_SYNC[@]}"; do
+  for file in "$JS_CORE" "$PY_HOOK" "$GUARD_SH"; do
+    if ! grep -Fq -- "$needle" "$file"; then
+      echo "FAIL: 欠账门规范串缺失/漂移 — 「${needle}」未出现在 $(basename "$file")"
+      toxic_fail=1
+    fi
+  done
+done
 if [ "$toxic_fail" -ne 0 ]; then
   exit 1
 fi
 
-echo "OK: 毒句式正则/常量/文案 js↔py 逐字同步"
+echo "OK: 毒句式正则/常量/文案 js↔py 逐字同步（欠账门标记/文案含 bash 前置门三处同步）"

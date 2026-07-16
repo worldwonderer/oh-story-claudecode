@@ -171,7 +171,8 @@ def _net_is_skippable(stripped: str) -> bool:
 # ── 毒句式（确定性 AI 句式指纹，与 JS 核 toxicPhraseFindings 同构，文案以 JS 核为准）──
 # 与 check-ai-patterns.js 的同名新规则统一规格：只收确定性、低误报的句式；密度型/
 # advisory 检测归 check-ai-patterns.js 深扫。全部正则线性扫描、量词有界。台词/弹幕/
-# 系统播报不算：逐行先剥成对引号，剥后仍残留引号字符（跨行对话/未闭合）的行整行跳过。
+# 系统播报不算：逐行把成对引号段等长句号占位（同 check-ai-patterns.js 的 maskQuoted），
+# 占位后仍残留引号字符（跨行对话/未闭合）的行整行跳过。
 # js↔py 由 scripts/check-hook-regex-sync.sh（规范串逐字锁）与
 # scripts/test-prose-net-parity.sh（fixture 逐字 diff）锁 parity。
 _TOXIC_QUOTE_SPANS = [re.compile(r"「[^」]*」"), re.compile(r"『[^』]*』"), re.compile(r"【[^】]*】"), re.compile(r"“[^”]*”"), re.compile(r"‘[^’]*’"), re.compile(r'"[^"]*"'), re.compile(r"'[^']*'")]
@@ -192,13 +193,15 @@ _TOXIC_SENTENCE_PATTERNS = [
 # 「正式拉开序幕/帷幕」是场内事件的报幕式陈述，不是叙述者预告，lookbehind 排除（同 check-ai-patterns.js）。
 _TOXIC_TRAILER = re.compile(r"没人知道|谁也不知道|谁也没想到|殊不知|(?:这)?才刚刚开(?:始|头)|正(?:朝着|向着)[^。！？!?\n]{0,24}(?:压|涌|袭|逼)(?:了?过去|了?过来|来)|(?<!正式)拉开(?:序幕|帷幕)|即将(?:开始|来临|降临)")
 # 「是A，不是B」的反问尾巴（…，不是吗/么/吧）不算对比句；取匹配段最后一个「不是」后的首字判断。
-_TOXIC_REVERSE_TAIL = re.compile(r"[，,]\s*(?:而)?不是([^。！？!?\n]*)$")
+_TOXIC_REVERSE_TAIL = re.compile(r".*[，,]\s*(?:而)?不是([^。！？!?\n]*)$")
 
 
-def _toxic_strip_quoted(line: str) -> str:
+def _toxic_mask_quoted(line: str) -> str:
+    # 占位长度按 UTF-16 码元计（emoji 等增补面字符算 2），与 JS 核 "。".repeat(m.length)
+    # 逐字对齐——否则含 emoji 台词的行两端 masked 长度不同，trailer 窗口切点漂移。
     out = line
     for rx in _TOXIC_QUOTE_SPANS:
-        out = rx.sub("", out)
+        out = rx.sub(lambda m: "。" * (len(m.group(0).encode("utf-16-le")) // 2), out)
     return out
 
 
@@ -255,22 +258,22 @@ def toxic_phrase_findings(text: str) -> list[str]:
         s = raw.strip()
         if _net_is_skippable(s):
             continue
-        stripped = _toxic_strip_quoted(s)
-        if any(ch in _TOXIC_QUOTE_CHARS for ch in stripped):
+        masked = _toxic_mask_quoted(s)
+        if any(ch in _TOXIC_QUOTE_CHARS for ch in masked):
             continue
-        content.append((i, stripped))
-    for line_no, stripped in content:
-        hit = _toxic_match_sentence(stripped)
+        content.append((i, masked))
+    for line_no, masked in content:
+        hit = _toxic_match_sentence(masked)
         if hit:
             findings.append(f"第{line_no}行 毒句式[{hit[0]}]：『{hit[2][:20]}』——{hit[1]}")
-    # trailer-ending 只扫文末 600 字窗口（剥引号后按行累计，边界行整行计入）。
+    # trailer-ending 只扫文末 600 字窗口（引号占位后按行累计，边界行整行计入）。
     acc = 0
     cut = len(content)
     while cut > 0 and acc < _TOXIC_TRAILER_WINDOW:
         cut -= 1
         acc += len(content[cut][1])
-    for line_no, stripped in content[cut:]:
-        m = _TOXIC_TRAILER.search(stripped)
+    for line_no, masked in content[cut:]:
+        m = _TOXIC_TRAILER.search(masked)
         if m:
             findings.append(f"第{line_no}行 毒句式[trailer-ending]：『{m.group(0)[:20]}』——删章尾预告腔，用正在发生的动作或画面收章。")
     if findings:
@@ -309,7 +312,11 @@ def prose_net_findings(text: str) -> list[str]:
         ln, last = content[-1]
         if last and last[-1] not in _NET_TERMINAL:
             findings.append(f"第{ln}行 疑似截断：结尾「…{last[-12:]}」未以标点收束")
-    findings.extend(toxic_phrase_findings(text))
+    # 「去味:跳过」豁免与欠账门同判据（文件首 6 行）：标记在场时跳过毒句式推回，
+    # 其余网（元信息/占位/复读/截断）照常——否则按拦截提示加标记的那次 Edit 会把
+    # 已豁免的毒句式再次当硬信号推回。
+    if not re.search(r"去味(：|:)跳过", "\n".join(re.split(r"\r?\n", text)[:6])):
+        findings.extend(toxic_phrase_findings(text))
     return findings
 
 
@@ -575,10 +582,10 @@ def prose_block_reason(root: Path, abs_path: Path) -> str | None:
         if prev_file is not None:
             prev_text = None
             try:
-                prev_text = prev_file.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
+                prev_text = prev_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
                 prev_text = None
-            if prev_text is not None and "去味:跳过" not in "\n".join(prev_text.splitlines()[:6]):
+            if prev_text is not None and not re.search(r"去味(：|:)跳过", "\n".join(re.split(r"\r?\n", prev_text)[:6])):
                 hits = [ln for ln in toxic_phrase_findings(prev_text) if ln.startswith("第")]
                 if hits:
                     shown = hits[:6]

@@ -215,7 +215,7 @@ function proseBlockReason(root, absolute) {
     if (prevFile) {
       let prevText = null
       try { prevText = fs.readFileSync(prevFile, "utf8") } catch {}
-      if (prevText !== null && !prevText.split(/\r?\n/).slice(0, 6).join("\n").includes("去味:跳过")) {
+      if (prevText !== null && !/去味(：|:)跳过/.test(prevText.split(/\r?\n/).slice(0, 6).join("\n"))) {
         const hits = toxicPhraseFindings(prevText).filter((line) => line.startsWith("第"))
         if (hits.length) {
           const shown = hits.slice(0, 6)
@@ -251,8 +251,10 @@ function skippableLine(line) {
 // ── 毒句式（确定性 AI 句式指纹，写后正文网热路径）─────────────────────────────
 // 与 check-ai-patterns.js 的同名新规则统一规格：只收确定性、低误报的句式；密度型/
 // advisory 检测归 check-ai-patterns.js 深扫，不进这张每次写正文都跑的网。全部正则
-// 线性扫描、量词有界，无回溯灾难。台词/弹幕/系统播报不算：逐行先剥成对引号，剥后
-// 仍残留引号字符（跨行对话/未闭合）的行整行跳过。js↔py 同构实现（codex
+// 线性扫描、量词有界，无回溯灾难。台词/弹幕/系统播报不算：逐行把成对引号段等长
+// 句号占位（同 check-ai-patterns.js 的 maskQuoted：占位天然截断各规则的字符类，
+// 规则不会跨引号拼出假命中），占位后仍残留引号字符（跨行对话/未闭合）的行整行
+// 跳过。js↔py 同构实现（codex
 // story_codex_hook.py）由 scripts/check-hook-regex-sync.sh（规范串逐字锁）与
 // scripts/test-prose-net-parity.sh（fixture 逐字 diff）锁 parity，文案以本核为准。
 const TOXIC_QUOTE_SPANS = [/「[^」]*」/g, /『[^』]*』/g, /【[^】]*】/g, /“[^”]*”/g, /‘[^’]*’/g, /"[^"]*"/g, /'[^']*'/g]
@@ -273,11 +275,11 @@ const TOXIC_SENTENCE_PATTERNS = [
 // 「正式拉开序幕/帷幕」是场内事件的报幕式陈述，不是叙述者预告，lookbehind 排除（同 check-ai-patterns.js）。
 const TOXIC_TRAILER_PATTERN = /没人知道|谁也不知道|谁也没想到|殊不知|(?:这)?才刚刚开(?:始|头)|正(?:朝着|向着)[^。！？!?\n]{0,24}(?:压|涌|袭|逼)(?:了?过去|了?过来|来)|(?<!正式)拉开(?:序幕|帷幕)|即将(?:开始|来临|降临)/
 // 「是A，不是B」的反问尾巴（…，不是吗/么/吧）不算对比句；取匹配段最后一个「不是」后的首字判断。
-const TOXIC_REVERSE_TAIL = /[，,]\s*(?:而)?不是([^。！？!?\n]*)$/
+const TOXIC_REVERSE_TAIL = /.*[，,]\s*(?:而)?不是([^。！？!?\n]*)$/
 
-function stripQuotedSpans(line) {
+function maskQuotedSpans(line) {
   let out = line
-  for (const spans of TOXIC_QUOTE_SPANS) out = out.replace(spans, "")
+  for (const spans of TOXIC_QUOTE_SPANS) out = out.replace(spans, (m) => "。".repeat(m.length))
   return out
 }
 
@@ -328,17 +330,17 @@ function toxicPhraseFindings(text) {
   text.split("\n").forEach((raw, index) => {
     const line = raw.trim()
     if (skippableLine(line)) return
-    const stripped = stripQuotedSpans(line)
-    for (const ch of stripped) {
+    const masked = maskQuotedSpans(line)
+    for (const ch of masked) {
       if (TOXIC_QUOTE_CHARS.has(ch)) return
     }
-    content.push([index + 1, stripped])
+    content.push([index + 1, masked])
   })
-  for (const [lineNo, stripped] of content) {
-    const hit = matchToxicSentence(stripped)
+  for (const [lineNo, masked] of content) {
+    const hit = matchToxicSentence(masked)
     if (hit) findings.push(`第${lineNo}行 毒句式[${hit[0]}]：『${hit[2].slice(0, 20)}』——${hit[1]}`)
   }
-  // trailer-ending 只扫文末 600 字窗口（剥引号后按行累计，边界行整行计入）。
+  // trailer-ending 只扫文末 600 字窗口（引号占位后按行累计，边界行整行计入）。
   let acc = 0
   let cut = content.length
   while (cut > 0 && acc < TOXIC_TRAILER_WINDOW) {
@@ -346,8 +348,8 @@ function toxicPhraseFindings(text) {
     acc += Array.from(content[cut][1]).length
   }
   for (let i = cut; i < content.length; i++) {
-    const [lineNo, stripped] = content[i]
-    const match = stripped.match(TOXIC_TRAILER_PATTERN)
+    const [lineNo, masked] = content[i]
+    const match = masked.match(TOXIC_TRAILER_PATTERN)
     if (match) findings.push(`第${lineNo}行 毒句式[trailer-ending]：『${match[0].slice(0, 20)}』——删章尾预告腔，用正在发生的动作或画面收章。`)
   }
   if (findings.length) findings.push("毒句式是确定性 AI 指纹：本章须清零后再继续。完整扫描：node <skill>/scripts/check-ai-patterns.js --check <正文文件>")
@@ -391,7 +393,12 @@ function proseNetFindings(text) {
     const [lineNo, last] = content[content.length - 1]
     if (!TERMINAL.has(Array.from(last).pop())) findings.push(`第${lineNo}行 疑似截断：结尾「…${last.slice(-12)}」未以标点收束`)
   }
-  findings.push(...toxicPhraseFindings(text))
+  // 「去味:跳过」豁免与欠账门同判据（文件首 6 行）：标记在场时跳过毒句式推回，
+  // 其余网（元信息/占位/复读/截断）照常——否则按拦截提示加标记的那次 Edit 会把
+  // 已豁免的毒句式再次当硬信号推回。
+  if (!/去味(：|:)跳过/.test(text.split(/\r?\n/).slice(0, 6).join("\n"))) {
+    findings.push(...toxicPhraseFindings(text))
+  }
   return findings
 }
 
@@ -555,6 +562,6 @@ module.exports = {
   HARD_PATTERNS,
   skippableLine,
   proseNetFindings,
-  stripQuotedSpans,
+  maskQuotedSpans,
   toxicPhraseFindings,
 }

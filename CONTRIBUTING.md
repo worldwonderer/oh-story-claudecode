@@ -171,7 +171,7 @@ fork → branch → commit → PR → review → merge
 
 ## OpenCode 模板同步
 
-本项目同时支持 Claude Code、OpenCode、Codex、ZCode 和 OpenClaw。OpenCode 的 agent 模板和项目指令模板由 `scripts/sync-opencode.py` 从 Claude Code 模板自动生成。
+本项目同时支持 Claude Code、OpenCode、Codex、ZCode、OpenClaw 和 Reasonix（Phase 1）。OpenCode 的 agent 模板和项目指令模板由 `scripts/sync-opencode.py` 从 Claude Code 模板自动生成。
 
 ### 何时需要同步
 
@@ -279,6 +279,20 @@ bash scripts/test-prose-net-parity.sh
 ```
 
 更新正文轻量确定性网时，必须同步 Claude、OpenCode、Codex、ZCode 四端，并让 parity 测试通过。
+
+## Reasonix 适配维护
+
+Reasonix（DeepSeek-Reasonix CLI）目前是 Phase 1：只有 skills + 原生 plugin manifest，无项目级 `story-setup` 部署、无 hooks、无 custom agents（涉及专业 Agent 的 Skill 走 solo/direct fallback）：
+
+- 根 `reasonix-plugin.json` 是 plugin manifest；`version` 必须与 `skills/story/VERSION` 同步（`check-reasonix-adapter.sh` 守卫）。
+- Reasonix 原生扫描 `.agents/skills`（指向 `skills/` 的 symlink，与 Codex 共用）发现 13 个 skill。
+- 真实 CLI 校验 `reasonix doctor capabilities` 不在 CI 内，发版前可手动跑。
+
+### Reasonix 检查步骤
+
+```bash
+bash scripts/check-reasonix-adapter.sh
+```
 
 ## Codex 适配维护
 

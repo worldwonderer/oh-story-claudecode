@@ -22,6 +22,7 @@
 | `check-openclaw-skills.sh` | OpenClaw AgentSkills/frontmatter 兼容性 | CI |
 | `check-codex-adapter.sh` | Codex 适配层：repo skills symlink、agent TOML、hooks 与跨平台 launcher | CI（调 generate-codex-agents.py 验生成确定性） |
 | `check-zcode-adapter.sh` | ZCode plugin/marketplace、Skills/Commands/Hooks 与部署锚点 | CI |
+| `check-reasonix-adapter.sh` | Reasonix plugin manifest（schema、13 Skills、版本与 skills/story/VERSION 同步） | CI |
 
 ## 测试回归（test-*）
 

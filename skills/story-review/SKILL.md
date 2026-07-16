@@ -153,7 +153,7 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
    node scripts/check-degeneration.js --check <正文文件...>
    ```
    - 将 `ellipsis`、`double-hyphen`、`markdown-divider` 结果作为 `format` findings 合并进报告。`em-dash` 破折号只采用 `check-ai-patterns.js` 的语义改写建议（见下条）；`normalize-punctuation.js` 报的同一位置 `em-dash` 在合并时去重丢弃，避免同处出现「机械替换」与「按功能改写」两条相互冲突的 finding。另外人工检查标点节奏是否通篇句号化或随机堆砌，脚本不替代语气判断。
-   - `check-ai-patterns.js` 的 findings 合并进 `prose`：blocking（`not-is-comparison` / `em-dash`）按 S2，建议删否定铺垫、直接写后项，或按破折号功能改成动作/短句/逗号/冒号。
+   - `check-ai-patterns.js` 的 findings 合并进 `prose`：severity=blocking 的类别一律按 S2（当前为 `not-is-comparison` / `em-dash` / `voice-contrast` / `negation-parade` / `reverse-not-is` / `trailer-ending`），修法直接采用检测器输出的建议（删否定铺垫/反差腔/排比否定/章尾预告腔，直接写后项或具体动作；破折号按功能改成动作/短句/逗号/冒号）。
    - 其余 prose findings 统一按 S4：只指出读感风险，不替代人工判断；功能性写法标 `[需复核]` 并保留。完整类别和修法见 `anti-ai-writing.md`。
    - `check-degeneration.js` 报告模型退化（逐字复读/截断/占位符/工程词泄漏），每条带 `severity: blocking|advisory`：blocking（复读/截断/tier1 工程词）作为 S1/S2 `prose` findings，修复建议是「重新生成该段，不是改写」；advisory（tier2 章节/歧义词）作为 S4。
    - `story-review` 不修改文件；需要自动修复时建议转 `/story-deslop`。

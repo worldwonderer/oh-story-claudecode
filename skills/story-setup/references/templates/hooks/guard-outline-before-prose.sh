@@ -135,7 +135,7 @@ case "$BASE" in
         pnum="$(basename "$f" | sed -n 's/^第0*\([0-9][0-9]*\)章.*/\1/p')"
         if [ "$pnum" = "$PREV" ]; then PREV_FILE="$f"; break; fi
       done
-      if [ -n "$PREV_FILE" ] && ! head -n 6 "$PREV_FILE" | grep -qF '去味:跳过'; then
+      if [ -n "$PREV_FILE" ] && ! head -n 6 "$PREV_FILE" | grep -qE '去味(：|:)跳过'; then
         TOXIC="$(node "$CLI" prose-toxic "$PREV_FILE" 2>/dev/null || true)"
         if [ -n "$TOXIC" ]; then
           printf '%s\n' "⛔ 写正文被拦截：上一章（$(basename "$PREV_FILE")）有未清毒句式欠账，先清零再写第 ${NUM} 章；用户显式豁免时在上一章标题行下加 <!-- 去味:跳过 --> 后重试。" >&2

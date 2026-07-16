@@ -88,7 +88,7 @@ printf '%s' "$out" | grep -q '占位符' || fail "post-Bash check missed prose t
 echo "  OK Bash write post-check"
 
 cat > "$ROOT/.story-deployed" <<'EOF'
-agents_version: 17
+agents_version: 19
 setup_skill_version: 1.2.7
 target_cli: zcode
 resolver_strategy: project-local-skill-reference
