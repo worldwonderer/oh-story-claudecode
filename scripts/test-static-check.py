@@ -176,6 +176,24 @@ def test_fenced_examples_do_not_leak_into_validation() -> None:
         assert "[unknown-agent]" not in result.stdout, result.stdout
 
 
+def test_fullwidth_paren_agent_refs_are_validated() -> None:
+    with tempfile.TemporaryDirectory(prefix="story-static-fullwidth-agent-") as tmp:
+        root = Path(tmp)
+        build_agent_catalog(root)
+        write(
+            root / "skills/demo/SKILL.md",
+            "---\nname: demo\ndescription: Demo\n---\n# Demo\n\n"
+            "**Agent 1: helper**（subagent_type: helper）\n\n"
+            "**Agent 2: phantom**（subagent_type: phantom）\n",
+        )
+
+        result = run(root)
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert "unknown subagent_type 'phantom'" in result.stdout, result.stdout
+        assert "unknown subagent_type 'helper'" not in result.stdout, result.stdout
+        assert result.stdout.count("[unknown-agent]") == 1, result.stdout
+
+
 def test_cross_skill_paths_in_runtime_scripts_fail() -> None:
     with tempfile.TemporaryDirectory(prefix="story-static-cross-script-") as tmp:
         root = Path(tmp)
@@ -257,6 +275,7 @@ def main() -> None:
     test_local_paths_stay_in_skill_and_repository_scope()
     test_markdown_links_do_not_use_fallback_locations()
     test_fenced_examples_do_not_leak_into_validation()
+    test_fullwidth_paren_agent_refs_are_validated()
     test_cross_skill_paths_in_runtime_scripts_fail()
     test_foundation_browser_cdp_reference_passes()
     test_external_urls_are_not_cross_skill_paths()

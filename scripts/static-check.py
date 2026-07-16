@@ -27,7 +27,10 @@ INLINE_MD_PATH_RE = re.compile(
 AGENT_REF_RES = (
     re.compile(r"subagent_type\s*:\s*\"([a-z][a-z0-9_-]*)\""),
     re.compile(r"subagent_type\s*=\s*\"([a-z][a-z0-9_-]*)\""),
-    re.compile(r"\(subagent_type\s*:\s*([a-z][a-z0-9_-]*)\)"),
+    # 括号形态同时接受全角/半角括号与冒号（正文标注常写「（subagent_type: x）」），
+    # 引号可选。保留括号收尾锚点：兼容性说明里大量出现裸 `subagent_type` 词条，
+    # 不带括号/引号锚点的裸形态会把这些非引用语境误抓成 agent 引用。
+    re.compile(r"[（(]subagent_type\s*[:：]\s*\"?([a-z][a-z0-9_-]*)\"?\s*[)）]"),
 )
 UNLINKED_SECTION_RE = re.compile(
     r"(?:见|参考|参见|详见)\s*SKILL\.md\s+[^，。；;\n]+"
