@@ -60,8 +60,6 @@
 4. 新开会话，使 custom agents 与 hooks 按当前文件重新注册。
 5. 若已有拆文库或细纲不满足当前契约，先重新拆解/导入或补齐细纲，再继续写作。
 
-ZCode 适配不部署项目 Agent，因此从 setup `1.2.6` 升到 `1.2.7` 时 `agents_version` 仍为 `17`；用 `.story-deployed` 的 `target_cli` 和 `setup_skill_version` 判断是否需要补部署 ZCode 资源。
-
 ## 版本变更
 
 ### v2
