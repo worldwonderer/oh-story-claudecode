@@ -168,6 +168,7 @@ for group in 'templates/hooks/' 'templates/rules' 'templates/agents' 'agent-refe
 done
 assert_file "$SKILL_DIR/references/openclaw/AGENTS.md.tmpl"
 assert_file "$SKILL_DIR/references/generic/AGENTS.md.tmpl"
+assert_file "$SKILL_DIR/references/reasonix/AGENTS.md.tmpl"
 assert_file "$SKILL_DIR/references/zcode/AGENTS.md.tmpl"
 assert_file "$SKILL_DIR/references/zcode/config.json.patch"
 assert_file "$SKILL_DIR/references/zcode/hooks/hooks.json"
@@ -182,6 +183,8 @@ assert_grep 'references/openclaw/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment man
 assert_grep 'OpenClaw skills-only|target_cli 含 openclaw' "$SKILL_FILE" "story-setup must document OpenClaw skills-only deployment"
 assert_grep 'references/generic/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing generic AGENTS template"
 assert_grep 'target_cli 含 generic|通用 Web AI / 其他 Agent' "$SKILL_FILE" "story-setup must document generic Web AI deployment"
+assert_grep 'references/reasonix/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing Reasonix AGENTS template"
+assert_grep 'Reasonix skills-only|target_cli 含 reasonix' "$SKILL_FILE" "story-setup must document Reasonix skills-only deployment"
 assert_grep 'references/zcode/AGENTS\.md\.tmpl' "$SKILL_FILE" "deployment manifest missing ZCode AGENTS template"
 assert_grep 'target_cli 含 zcode|target_cli = zcode' "$SKILL_FILE" "story-setup must document ZCode deployment"
 assert_grep '\.zcode/config\.json' "$SKILL_FILE" "story-setup must document ZCode config merge"

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Deterministic checks for the Reasonix native plugin manifest (issue #204, Phase 1).
-# Reasonix (DeepSeek-Reasonix CLI) reads a root reasonix-plugin.json and scans its
-# `skills` dir. Phase 1 ships only the manifest + Skills; project deployment and hooks
-# are later phases. Live `reasonix doctor capabilities` needs the CLI and is not in CI.
+# Deterministic checks for the Reasonix native plugin manifest (issue #204/#252).
+# Reasonix (DeepSeek-Reasonix CLI) reads a root reasonix-plugin.json and scans project
+# skill roots. This guard covers the global manifest; project-level `story-setup`
+# deployment is skills-only (target_cli=reasonix, skills + AGENTS.md, no hooks/custom
+# agents -> solo/direct fallback) and is guarded by check-story-setup-deployment.sh.
+# Reasonix hooks and custom agents remain later phases. Live `reasonix doctor
+# capabilities` needs the CLI and is not in CI.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

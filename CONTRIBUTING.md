@@ -282,10 +282,11 @@ bash scripts/test-prose-net-parity.sh
 
 ## Reasonix 适配维护
 
-Reasonix（DeepSeek-Reasonix CLI）目前是 Phase 1：只有 skills + 原生 plugin manifest，无项目级 `story-setup` 部署、无 hooks、无 custom agents（涉及专业 Agent 的 Skill 走 solo/direct fallback）：
+Reasonix（DeepSeek-Reasonix CLI）当前支持 skills + 原生 plugin manifest + skills-only 的项目级 `story-setup` 部署；hooks 与 custom agents 留待后续阶段（涉及专业 Agent 的 Skill 走 solo/direct fallback）：
 
 - 根 `reasonix-plugin.json` 是 plugin manifest；`version` 必须与 `skills/story/VERSION` 同步（`check-reasonix-adapter.sh` 守卫）。
-- Reasonix 原生扫描 `.agents/skills`（指向 `skills/` 的 symlink，与 Codex 共用）发现 13 个 skill。
+- Reasonix 原生扫描项目 skill root（`.agents/skills` 等，指向 `skills/` 的 symlink，与 Codex 共用）发现 13 个 skill。
+- `story-setup` 的 `target_cli=reasonix` 走 skills-only 部署：复制 13 个 skill 到项目 `skills/`、写入 `references/reasonix/AGENTS.md.tmpl`，不部署 hooks/agents（与 OpenClaw / generic 同构，由 `check-story-setup-deployment.sh` 守卫）。改动 Reasonix 部署路径或模板时同步该守卫。
 - 真实 CLI 校验 `reasonix doctor capabilities` 不在 CI 内，发版前可手动跑。
 
 ### Reasonix 检查步骤
