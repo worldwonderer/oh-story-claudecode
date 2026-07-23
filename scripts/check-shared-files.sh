@@ -21,22 +21,24 @@ fi
 # - material-decomposition.md: long/short analyze use different decomposition pipelines
 # - quality-checklist.md: story-short-analyze's copy points to material-decomposition.md
 #   (absent in story-short-write); the two copies are intentionally skill-specific
-# - 5 genre files: story-short-analyze prepends a "## 用作拆文标尺时" analyst-lens
+# - 4 genre files: story-short-analyze prepends a "## 用作拆文标尺时" analyst-lens
 #   header (consumed as a reference standard for source-story evaluation, not a writer
 #   playbook). Writer skills don't get the header. Wholesale-ignored here because their
 #   non-analyst copies have not all been confirmed byte-identical.
+#   genre-writing-formulas.md graduated to ANALYST_DIVERGENT_NAMES: its writer copies
+#   are byte-identical and now guarded.
 # - AGENTS.md.tmpl / hooks.json: CLI-specific project templates differ deliberately
 #   and are validated by each CLI adapter check.
 IGNORE_NAMES="output-templates.md material-decomposition.md quality-checklist.md \
 genre-catalog.md genre-core-mechanics.md genre-readers.md \
-genre-writing-formulas.md genre-writing-techniques.md \
+genre-writing-techniques.md \
 AGENTS.md.tmpl hooks.json"
 
 # Analyst-divergent (basename): the story-short-analyze copy intentionally prepends the
 # "## 用作拆文标尺时" analyst-lens header, so it is dropped from the comparison set; all
 # OTHER copies (writer skills + agent-references) must still stay byte-identical. Stricter
 # than a wholesale ignore — it still guards writer↔writer drift.
-ANALYST_DIVERGENT_NAMES="character-basics.md character-design-methods.md character-relations.md"
+ANALYST_DIVERGENT_NAMES="character-basics.md character-design-methods.md character-relations.md genre-writing-formulas.md"
 
 # Genre-style-divergent (basename): the story-short-write copy under references/genre-styles/
 # is a short-form writer style pack, a different artifact from the long-form
