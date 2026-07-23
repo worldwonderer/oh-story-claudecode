@@ -217,6 +217,6 @@
 ### v20 (当前)
 
 - `.story-deployed` 的 `agents_version` 升级到 `20`（`setup_skill_version` 仍为 `1.2.7`）。
-- **narrative-writer Gate D 接入句长基线**：Gate D 由「节奏打碎」改为「节奏调校」——只拆臃肿修饰、堆叠比喻、信息过载的长句，改写后叙述底色保持逗号流水句（agent-references/anti-ai-writing.md 规则 3「句长基线」：逗号间 8-12 字、整句 20-30 字，禁 ≤5 字碎片连续成串）；「手机阅读密度」明确拆的是段落、不碎逗号层。
-- **agent-references 句长治理**：anti-ai-writing.md 规则 3 重写为「句长基线（短是工具，不是底色）」并设句长总纲（真实爆款语料校准：长篇旁白逗号间片段均值 8.8-9.6 字、整句均值 22-24 字、流水句占 74-80%）；banned-words.md 的 缓缓/微微/轻轻/淡淡 从一级降为二级密度控制（每千字合计 ≤3）；quality-checklist / writing-craft / format-and-structure / genre-writing-formulas 同步消除「见长就拆」「全量情绪外化」等诱导条款。
+- **narrative-writer Gate D 接入句长标准**：Gate D 由「节奏打碎」改为「节奏调整」——只拆臃肿修饰、堆叠比喻、信息过载的长句，改写后叙述句仍以逗号长句为主（agent-references/anti-ai-writing.md 规则 3「句子该多长」：逗号之间 8-12 字、整句 20-30 字，不要连着出现 ≤5 字的碎片）；「手机阅读密度」明确拆的是段落，不把句子内部切碎。
+- **agent-references 句长治理**：anti-ai-writing.md 规则 3 重写为「句子该多长（短句是工具，不是默认）」，并声明本文件句长以规则 3 为准（真实爆款语料校准：长篇旁白逗号之间平均 8.8-9.6 字、整句平均 22-24 字、逗号长句占 74-80%）；banned-words.md 的 缓缓/微微/轻轻/淡淡 从一级降为二级密度控制（每千字合计 ≤3）；quality-checklist / writing-craft / format-and-structure / genre-writing-formulas 同步消除「见长就拆」「全量情绪外化」等诱导条款。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v19 部署。
