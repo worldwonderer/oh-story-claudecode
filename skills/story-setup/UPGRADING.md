@@ -219,4 +219,5 @@
 - `.story-deployed` 的 `agents_version` 升级到 `20`（`setup_skill_version` 仍为 `1.2.7`）。
 - **narrative-writer Gate D 接入句长标准**：Gate D 由「节奏打碎」改为「节奏调整」——只拆臃肿修饰、堆叠比喻、信息过载的长句，改写后叙述句仍以逗号长句为主（agent-references/anti-ai-writing.md 规则 3「句子该多长」：逗号之间 8-12 字、整句 20-30 字，不要连着出现 ≤5 字的碎片）；「手机阅读密度」明确拆的是段落，不把句子内部切碎。
 - **agent-references 句长治理**：anti-ai-writing.md 规则 3 重写为「句子该多长（短句是工具，不是默认）」，并声明本文件句长以规则 3 为准（真实爆款语料校准：长篇旁白逗号之间平均 8.8-9.6 字、整句平均 22-24 字、逗号长句占 74-80%）；banned-words.md 的 缓缓/微微/轻轻/淡淡 从一级降为二级密度控制（每千字合计 ≤3）；quality-checklist / writing-craft / format-and-structure / genre-writing-formulas 同步消除「见长就拆」「全量情绪外化」等诱导条款。
+- **narrative-writer 外化处方设上限**：「心理外化 / Gate C 心理描写外化 / 情绪词默认外化」由绝对化改为一处到位、非铁律、必要内心可直写、别堆蹭袖口/攥裤管式无功能小动作；emotional-arc-design 的「短句=果决热血」改为「句长跟着情绪和节奏走」；writing-craft 开头事件密度的高密度范例由电报体短句换成逗号流水，点明密度是一段里几件事、不是句句断开。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v19 部署。
