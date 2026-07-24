@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.1
+
+> 正文「电报体」彻底治理——写入端做减法 + story-deslop 去抵抗 + 全套短句崇拜清扫（语料 + 五题材实测双证）；补同人 / 既有世界观命名护栏；Reasonix skills-only 适配 + 开书对标发现。
+
+### 修复
+
+- **正文电报体彻底修（#256，续 #254）**：#254 立了逗号流水句基线仍不彻底——报告人指出跑 `/story-deslop` 时模型把连续短句当「刻意节奏」而抗拒去电报体。本次三层做减法：
+  - **写入端**：删「短句=果决热血 / 情绪密度高」奖励、开头事件密度的电报体范例（改逗号流水）；narrative-writer「心理外化 / Gate C / 情绪词默认外化」由绝对化改为设上限（模板 + opencode/codex 经 sync 脚本重生成，短篇题材包例外原样保留）。
+  - **story-deslop 去抵抗**：anti-ai-writing 规则 3 删掉「连续短句只在三场合连用」的许可，只留「默认逗号长句 + 短句是偶尔的孤立重拍」；模式 9 峰值保护保留；修 story-review 评分表 / style-craft / style-profile 等下游镜像里矛盾的「连用短句」「句长拆短」残留。
+  - **全套短句崇拜清扫**：39 文件普查、逐处判定，清「短句为主 / 多采用短句 / 短句占比 >70% / 见长就拆」等残留；示例句 after 由电报体改逗号长句，黑岩「一句一段」模板换成真实黑岩语料，短篇加整句上限修「盐言被拉成 130 字流水句」的过矫。
+  - 证据：mongo 爆款语料实测叙述逗句比 1.2–1.74、连续短句 run 仅占 1.7–4.3%；codewhale + DeepSeek-V4-Pro 五题材实测旧规则全崩电报体、新规则全流畅 0 电报 run，且战斗峰值 / 情感克制 / 沙雕 deadpan 不退步。
+
+### 新增
+
+- **同人 / 既有世界观命名护栏（#257）**：character-basics 主角 / 配角卡、genre-catalog 同人流派、plot-special-topics 同人写作要点补命名一致性约束——原著角色沿用官方本名 / 译名，新角色贴合原著对应地域 / 文化的命名与译名风格，同一地域不混语系，不套用与设定不符的现代化 / 政治化名字（设定相对，现代设定同人不受限）。低成本兜底降低时代错位取名概率，非确定性修复。
+- **Reasonix skills-only 适配 + 开书对标发现（#253，Closes #252）**：新增 `target_cli=reasonix`（复制 skills + `.agents/skills` symlink + Reasonix AGENTS.md，无 hooks/agents 走 solo/direct）；开书阶段新增「对标发现」主动扫 `拆文库/` 按题材推荐对标书（长篇 Phase 1 / 短篇 Phase 2）+ 卷纲提醒。
+
+### 内部 / 语料治理
+
+- **正文句长基线（#254）**：anti-ai-writing 规则 3 重写为「句长基线（短是工具，不是底色）」+ 语料校准注（qimao 125 本×前 8 章：逗号间 8.8–9.6 字、整句 22–24 字、逗号流水占叙述 74–80%）；banned-words 缓缓 / 微微 / 轻轻 / 淡淡 降为二级密度控制；清除各处「见长就拆 / 机械长短交替」配方。`agents_version` 升至 **20**。
+
+### 升级
+
+- 已部署项目重跑 `/story-setup` 刷新 references / agents 并**新开会话**；`agents_version` 20 已含 #254 + #256 的写作规则变更。
+
 ## v0.7.0
 
 > 多端适配再扩两家（ZCode / Reasonix）· hook 核统一到共享 node 核 + 六端 parity 锁 · 长篇「剧情单元」概念统一并接入拆书产物 · 去 AI 味闸口机器化（毒句式确定性检测 + 欠账门）· 契约体检与脚本加固
