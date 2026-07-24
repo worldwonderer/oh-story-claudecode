@@ -100,7 +100,7 @@ PYEOF
 **Bash 不可用时的降级**（仅子代理上下文等极端情况，主线程不会触发）：
 
 - 跳过本步骤；句长段写「Bash 工具不可用，跳过确定性统计」
-- `confidence: low`，narrative-writer 让位回默认 Gate D（句长拆短）
+- `confidence: low`，narrative-writer 让位回默认 Gate D（按句长标准校准）
 
 ### Step 5: 选原文锚点片段 (4-6 段)
 
