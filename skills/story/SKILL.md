@@ -56,7 +56,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 工作台会识别标准 `拆文库/{书名}/`，兼容存量 `拆文库-{书名}/`，并把含 `正文/`、
 `大纲/`、`设定/` 或 `追踪/` 的目录识别为写作项目。浏览器可编辑 `.md`、`.txt`、
-`.json`、`.yaml`、`.yml`、`.toml`，保存前用修改时间防止静默覆盖外部更新。
+`.json`、`.yaml`、`.yml`、`.toml`，保存或确认删除前用修改时间防止误操作外部更新。
 
 停止服务时终止对应的 Node 长运行进程即可。若用户只问用法，不要替他启动；给出
 `/story dashboard` / `$story dashboard` 两种平台对应入口。

@@ -60,6 +60,31 @@ test("用现有 demo 浏览拆文库、搜索项目并编辑保存", async ({ pa
   expect(consoleErrors).toEqual([]);
 });
 
+test("从真实 demo 删除文稿前明确确认并刷新文件树", async ({ page, request }) => {
+  const filePath = "拆文库/盘龙/_progress.md";
+  await page.goto("/");
+  const initialFileCount = Number(await page.locator("#fileCount").textContent());
+
+  await page.locator(`.file-row[data-path='${filePath}']`).click();
+  await expect(page.locator("#editorTitle")).toHaveText("_progress.md");
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.type()).toBe("confirm");
+    expect(dialog.message()).toContain("_progress.md");
+    expect(dialog.message()).toContain("无法撤销");
+    await dialog.accept();
+  });
+  await page.locator("#deleteButton").click();
+
+  await expect(page.locator("#toastRegion")).toContainText("已删除");
+  await expect(page.locator("#editorEmpty")).toBeVisible();
+  await expect(page.locator(`.file-row[data-path='${filePath}']`)).toHaveCount(0);
+  await expect(page.locator("#fileCount")).toHaveText(String(initialFileCount - 1));
+
+  const deleted = await request.get(`/api/file?path=${encodeURIComponent(filePath)}`);
+  expect(deleted.status()).toBe(404);
+});
+
 test("@mobile 手机视口仍可从真实长篇项目打开大纲", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("OH STORY", { exact: true })).toBeVisible();

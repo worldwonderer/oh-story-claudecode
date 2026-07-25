@@ -144,8 +144,8 @@ Natural language also triggers: `帮我开书` ("help me start writing") → `st
 Run `/story dashboard` in a writing workspace (`$story dashboard` in Codex). The story skill starts a
 local-only workspace on `127.0.0.1`, showing real deconstruction libraries and long/short writing
 project trees. It supports filename search, safe Markdown preview, and lightweight editing of
-`.md`, `.txt`, `.json`, `.yaml`, `.yml`, and `.toml` with conflict-aware saves. Production use
-requires only Node.js and never uploads story content.
+`.md`, `.txt`, `.json`, `.yaml`, `.yml`, and `.toml` with conflict-aware saves and confirmed
+single-file deletion. Production use requires only Node.js and never uploads story content.
 
 ```bash
 npm install

@@ -769,6 +769,19 @@ kbd {
 
 .editor-actions {
   flex: 0 0 auto;
+  gap: 6px;
+}
+
+.document-delete-button:hover:not(:disabled),
+.document-delete-button:focus-visible {
+  color: var(--red-700);
+  background: var(--red-100);
+  border-color: #f0cdd1;
+}
+
+.document-delete-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .mobile-back-button {

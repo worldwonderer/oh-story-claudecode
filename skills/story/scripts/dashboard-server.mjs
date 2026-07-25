@@ -424,6 +424,32 @@ async function saveWorkspaceFile(root, payload) {
   };
 }
 
+async function deleteWorkspaceFile(root, payload) {
+  if (!payload || typeof payload !== "object") {
+    throw new DashboardError(400, "invalid_payload", "缺少删除参数");
+  }
+  if (!Number.isFinite(payload.expectedMtimeMs)) {
+    throw new DashboardError(400, "missing_file_version", "删除请求缺少文件版本，请重新载入后再试");
+  }
+
+  const { absolutePath, info } = await resolveWorkspacePath(root, payload.path, {
+    editableOnly: true,
+  });
+  if (Math.abs(info.mtimeMs - payload.expectedMtimeMs) > 0.5) {
+    throw new DashboardError(
+      409,
+      "file_changed",
+      "文件已被其他程序修改。请重新载入后再删除，避免误删新版本。",
+    );
+  }
+
+  await unlink(absolutePath);
+  return {
+    ok: true,
+    path: toPosixPath(relative(await existingRealRoot(root), absolutePath)),
+  };
+}
+
 async function serveStaticFile(requestPath, response) {
   const assetName = requestPath === "/" ? "index.html" : requestPath.slice(1);
   if (!["index.html", "styles.css", "app.js"].includes(assetName)) {
@@ -459,7 +485,7 @@ function assertLocalRequest(request, allowNetwork) {
   if (!LOOPBACK_HOSTS.has(hostname)) {
     throw new DashboardError(403, "invalid_host", "Dashboard 只接受本机回环地址请求");
   }
-  if (request.method === "PUT" && request.headers.origin) {
+  if (["PUT", "DELETE"].includes(request.method) && request.headers.origin) {
     const originHostname = normalizedOriginHostname(request.headers.origin);
     if (!LOOPBACK_HOSTS.has(originHostname)) {
       throw new DashboardError(403, "invalid_origin", "拒绝来自非本机页面的写入请求");
@@ -487,6 +513,10 @@ export function createDashboardServer({ root, allowNetwork = false }) {
       }
       if (request.method === "PUT" && url.pathname === "/api/file") {
         sendJson(response, 200, await saveWorkspaceFile(workspaceRoot, await readJsonBody(request)));
+        return;
+      }
+      if (request.method === "DELETE" && url.pathname === "/api/file") {
+        sendJson(response, 200, await deleteWorkspaceFile(workspaceRoot, await readJsonBody(request)));
         return;
       }
       if (request.method === "GET") {

@@ -174,6 +174,70 @@ describe("HTTP API", () => {
     assert.equal(await readFile(resolve(root, filePath), "utf8"), "外部程序的新内容");
   });
 
+  test("deletes an unchanged editable file but rejects cross-origin deletion", async () => {
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+    const filePath = "长篇/示例书/正文/第001章.md";
+    const loaded = await fetch(
+      `${baseUrl}/api/file?path=${encodeURIComponent(filePath)}`,
+    ).then((response) => response.json());
+
+    const rejected = await fetch(`${baseUrl}/api/file`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://example.com",
+      },
+      body: JSON.stringify({
+        path: filePath,
+        expectedMtimeMs: loaded.mtimeMs,
+      }),
+    });
+    assert.equal(rejected.status, 403);
+    assert.equal((await rejected.json()).error.code, "invalid_origin");
+    assert.equal(await readFile(resolve(root, filePath), "utf8"), "初稿");
+
+    const deletedResponse = await fetch(`${baseUrl}/api/file`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: filePath,
+        expectedMtimeMs: loaded.mtimeMs,
+      }),
+    });
+    assert.equal(deletedResponse.status, 200);
+    const deleted = await deletedResponse.json();
+    assert.deepEqual(deleted, { ok: true, path: filePath });
+    await assert.rejects(
+      readFile(resolve(root, filePath), "utf8"),
+      (error) => error?.code === "ENOENT",
+    );
+  });
+
+  test("does not delete a file changed after it was opened", async () => {
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+    const filePath = "长篇/示例书/正文/第001章.md";
+    const loaded = await fetch(
+      `${baseUrl}/api/file?path=${encodeURIComponent(filePath)}`,
+    ).then((response) => response.json());
+
+    await new Promise((accept) => setTimeout(accept, 20));
+    await writeFile(resolve(root, filePath), "外部程序的新内容", "utf8");
+
+    const response = await fetch(`${baseUrl}/api/file`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: filePath,
+        expectedMtimeMs: loaded.mtimeMs,
+      }),
+    });
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).error.code, "file_changed");
+    assert.equal(await readFile(resolve(root, filePath), "utf8"), "外部程序的新内容");
+  });
+
   test("rejects unsupported files, traversal, and malformed JSON", async () => {
     const root = await createWorkspace();
     const baseUrl = await startServer(root);

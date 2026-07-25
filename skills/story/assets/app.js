@@ -7,6 +7,8 @@ const state = {
   mode: "edit",
   filter: "",
   loadingFile: false,
+  saving: false,
+  deleting: false,
 };
 
 const elements = {
@@ -34,6 +36,7 @@ const elements = {
   editorInput: document.querySelector("#editorInput"),
   previewPane: document.querySelector("#previewPane"),
   modeButtons: [...document.querySelectorAll(".mode-switch button")],
+  deleteButton: document.querySelector("#deleteButton"),
   saveButton: document.querySelector("#saveButton"),
   cursorPosition: document.querySelector("#cursorPosition"),
   encodingLabel: document.querySelector("#encodingLabel"),
@@ -252,17 +255,24 @@ function setDirty(dirty) {
   state.dirty = dirty;
   elements.dirtyStatus.dataset.state = dirty ? "dirty" : "saved";
   elements.dirtyStatus.querySelector("span:last-child").textContent = dirty ? "待保存" : "已保存";
-  elements.saveButton.disabled = !dirty || state.loadingFile;
+  syncActionAvailability();
+}
+
+function syncActionAvailability() {
+  const busy = state.loadingFile || state.saving || state.deleting;
+  elements.saveButton.disabled = busy || !state.dirty;
+  elements.deleteButton.disabled = busy || !state.activeFile;
 }
 
 function setSaving(saving) {
+  state.saving = saving;
   elements.dirtyStatus.dataset.state = saving ? "saving" : state.dirty ? "dirty" : "saved";
   elements.dirtyStatus.querySelector("span:last-child").textContent = saving
     ? "保存中"
     : state.dirty
       ? "待保存"
       : "已保存";
-  elements.saveButton.disabled = saving || !state.dirty;
+  syncActionAvailability();
 }
 
 function renderBreadcrumbs(path) {
@@ -300,6 +310,7 @@ function updateCursorPosition() {
 async function openFile(path, { force = false } = {}) {
   if (state.loadingFile || (!force && !confirmDiscard())) return;
   state.loadingFile = true;
+  syncActionAvailability();
   elements.fileTree.setAttribute("aria-busy", "true");
   try {
     const file = await requestJson(`/api/file?path=${encodeURIComponent(path)}`);
@@ -321,6 +332,7 @@ async function openFile(path, { force = false } = {}) {
     showToast(error.message, "error");
   } finally {
     state.loadingFile = false;
+    syncActionAvailability();
     elements.fileTree.removeAttribute("aria-busy");
   }
 }
@@ -418,7 +430,7 @@ function setMode(mode) {
 }
 
 async function saveFile() {
-  if (!state.activeFile || !state.dirty) return;
+  if (!state.activeFile || !state.dirty || state.saving || state.deleting) return;
   setSaving(true);
   try {
     const saved = await requestJson("/api/file", {
@@ -443,6 +455,44 @@ async function saveFile() {
     } else {
       showToast(error.message, "error");
     }
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function deleteFile() {
+  if (!state.activeFile || state.saving || state.deleting) return;
+  const file = state.activeFile;
+  const warning = state.dirty
+    ? `《${file.name}》还有未保存修改。删除会永久移除磁盘文件并丢弃这些修改，且无法撤销。确定删除吗？`
+    : `确定永久删除《${file.name}》吗？此操作无法撤销。`;
+  if (!window.confirm(warning)) return;
+
+  state.deleting = true;
+  syncActionAvailability();
+  try {
+    await requestJson("/api/file", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: file.path,
+        expectedMtimeMs: file.mtimeMs,
+      }),
+    });
+    state.activeFile = null;
+    state.originalContent = "";
+    elements.editorInput.value = "";
+    elements.editorWorkspace.hidden = true;
+    elements.editorEmpty.hidden = false;
+    document.body.classList.remove("document-open");
+    setDirty(false);
+    await loadWorkspace();
+    showToast(`已删除《${file.name}》`);
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    state.deleting = false;
+    syncActionAvailability();
   }
 }
 
@@ -494,6 +544,7 @@ elements.mobileBackButton.addEventListener("click", () => {
   window.requestAnimationFrame(() => elements.treeSearch.focus());
 });
 elements.saveButton.addEventListener("click", saveFile);
+elements.deleteButton.addEventListener("click", deleteFile);
 
 elements.editorInput.addEventListener("input", () => {
   setDirty(elements.editorInput.value !== state.originalContent);
