@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { createServer } from "node:http";
 import {
   copyFile,
@@ -613,12 +614,29 @@ async function listen(server, host, preferredPort) {
 }
 
 function openBrowser(url) {
-  const command =
-    process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
-  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
+  const { command, args } = browserLaunchCommand(url);
   const child = spawn(command, args, { detached: true, stdio: "ignore" });
   child.on("error", () => {});
   child.unref();
+}
+
+export function browserLaunchCommand(url, platform = process.platform) {
+  if (platform === "darwin") {
+    return { command: "open", args: [url] };
+  }
+  if (platform === "win32") {
+    return { command: "cmd", args: ["/c", "start", "", url] };
+  }
+  return { command: "xdg-open", args: [url] };
+}
+
+export function pathsReferToSameFile(left, right) {
+  if (!left || !right) return false;
+  try {
+    return realpathSync(left) === realpathSync(right);
+  } catch {
+    return false;
+  }
 }
 
 function printHelp() {
@@ -663,7 +681,7 @@ async function main() {
   process.once("SIGTERM", shutdown);
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(MODULE_PATH);
+const isMain = pathsReferToSameFile(process.argv[1], MODULE_PATH);
 if (isMain) {
   main().catch((error) => {
     const message = error instanceof DashboardError ? error.message : error?.stack || String(error);

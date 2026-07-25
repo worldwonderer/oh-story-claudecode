@@ -5,7 +5,9 @@ import { resolve } from "node:path";
 import { afterEach, describe, test } from "node:test";
 import {
   DashboardError,
+  browserLaunchCommand,
   createDashboardServer,
+  pathsReferToSameFile,
   resolveWorkspacePath,
   scanWorkspace,
 } from "../skills/story/scripts/dashboard-server.mjs";
@@ -115,6 +117,47 @@ describe("path boundary", () => {
     await assert.rejects(
       resolveWorkspacePath(root, "逃逸.md", { editableOnly: true }),
       (error) => error instanceof DashboardError && error.code === "symlink_not_editable",
+    );
+  });
+});
+
+describe("CLI portability", () => {
+  test("uses each operating system's default-browser command", () => {
+    const url = "http://127.0.0.1:43110";
+    assert.deepEqual(browserLaunchCommand(url, "darwin"), {
+      command: "open",
+      args: [url],
+    });
+    assert.deepEqual(browserLaunchCommand(url, "linux"), {
+      command: "xdg-open",
+      args: [url],
+    });
+    assert.deepEqual(browserLaunchCommand(url, "win32"), {
+      command: "cmd",
+      args: ["/c", "start", "", url],
+    });
+  });
+
+  test("recognizes the CLI entrypoint through a symlinked install path", async (context) => {
+    const root = await createWorkspace();
+    const alias = `${root}-alias`;
+    temporaryDirectories.push(alias);
+    try {
+      await symlink(root, alias, process.platform === "win32" ? "junction" : "dir");
+    } catch (error) {
+      if (error?.code === "EPERM") {
+        context.skip("当前平台不允许创建测试目录链接");
+        return;
+      }
+      throw error;
+    }
+
+    assert.equal(
+      pathsReferToSameFile(
+        resolve(root, "长篇", "示例书", "正文", "第001章.md"),
+        resolve(alias, "长篇", "示例书", "正文", "第001章.md"),
+      ),
+      true,
     );
   });
 });

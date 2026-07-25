@@ -60,17 +60,26 @@ test("用现有 demo 浏览拆文库、搜索项目并编辑保存", async ({ pa
   expect(consoleErrors).toEqual([]);
 });
 
-test("从真实 demo 删除文稿前明确确认并刷新文件树", async ({ page, request }) => {
-  const filePath = "拆文库/盘龙/_progress.md";
+test("从真实 demo 删除文稿前明确确认并刷新文件树", async ({ page, request }, testInfo) => {
+  const retryFiles = [
+    "拆文库/盘龙/_progress.md",
+    "拆文库/盘龙/快速预览.md",
+    "拆文库/盘龙/概要.md",
+  ];
+  const filePath = retryFiles[testInfo.retry];
   await page.goto("/");
-  const initialFileCount = Number(await page.locator("#fileCount").textContent());
+  await expect(page.locator("#fileCount")).not.toHaveText("—");
+  const initialFileCount = Number(
+    (await page.locator("#fileCount").textContent()).replaceAll(",", ""),
+  );
+  expect(Number.isFinite(initialFileCount)).toBeTruthy();
 
   await page.locator(`.file-row[data-path='${filePath}']`).click();
-  await expect(page.locator("#editorTitle")).toHaveText("_progress.md");
+  await expect(page.locator("#editorTitle")).toHaveText(filePath.split("/").at(-1));
 
   page.once("dialog", async (dialog) => {
     expect(dialog.type()).toBe("confirm");
-    expect(dialog.message()).toContain("_progress.md");
+    expect(dialog.message()).toContain(filePath.split("/").at(-1));
     expect(dialog.message()).toContain("无法撤销");
     await dialog.accept();
   });

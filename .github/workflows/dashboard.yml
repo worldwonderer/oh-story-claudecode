@@ -35,7 +35,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  api:
+    name: api (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:dashboard
+
+  e2e:
+    name: e2e (ubuntu)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -46,4 +64,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm test
+      - run: npm run test:dashboard:e2e

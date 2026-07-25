@@ -148,19 +148,11 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 ### Story Dashboard
 
-在写作工作区运行 `/story dashboard`（Codex 用 `$story dashboard`），story skill 会启动只监听
-`127.0.0.1` 的本地工作台。它按 `拆文库/{书名}`、`长篇/{书名}`、`短篇/{书名}` 展示真实
-项目文件树，支持搜索、Markdown 安全预览，以及 `.md` / `.txt` / `.json` / `.yaml` /
-`.yml` / `.toml` 的轻量编辑、冲突保护保存和确认后单文件删除。生产运行只需 Node.js，
-不上传小说内容。
+运行 `/story dashboard`（Codex 用 `$story dashboard`）打开本地写作工作台，浏览拆文库与
+长/短篇项目文件树，并完成搜索、Markdown 预览、文本编辑、冲突保护保存和确认删除。
+服务仅监听 `127.0.0.1`，小说内容不会上传。
 
-开发预览与测试：
-
-```bash
-npm install
-npm run dashboard -- --root demo --open
-npm test
-```
+![OH STORY 本地写作工作台](demo/story-dashboard.png)
 
 <details>
 <summary>封面生成示例</summary>
