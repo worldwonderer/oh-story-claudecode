@@ -499,6 +499,20 @@ def upgrading_version_findings(
                     path,
                 )
             )
+    # 「升级步骤」里让用户核对的版本号是操作指令，bump 时最容易漏（它不在当前版本 bullet
+    # 里，也不被部署检查的 TS10 锚点覆盖）。任何写成 `agents_version: N` 的行都必须是当前值。
+    for raw in text.splitlines():
+        match = re.search(r"`agents_version:\s*(\d+)`", raw)
+        if match and match.group(1) != str(manifest.agents_version):
+            findings.append(
+                Finding(
+                    "upgrading-step-version",
+                    "UPGRADING step line pins agents_version {!r}, must be {!r}: {}".format(
+                        match.group(1), str(manifest.agents_version), raw.strip()
+                    ),
+                    path,
+                )
+            )
     return findings
 
 

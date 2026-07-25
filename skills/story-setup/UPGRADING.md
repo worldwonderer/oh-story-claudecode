@@ -3,9 +3,9 @@
 ## 当前版本
 
 - `setup_skill_version: 1.2.7`
-- `agents_version: 20`
+- `agents_version: 21`
 
-`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `20`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `20`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v20 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
+`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `21`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `21`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v21 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
 
 ## 升级策略
 
@@ -43,10 +43,11 @@
 - `{书名}/设定/`、`大纲/`、`追踪/`
 - `.active-book`
 
-## v20 当前契约
+## v21 当前契约
 
 - 写作与导入只接受当前拆文产物：`剧情/情绪模块.md` 与 `剧情/节奏.md` 缺失时 fail-fast，并给出重跑 Stage 3+ / 重新导入的修复动作。
 - 新建、补建、改纲的细纲只接受完整章节蓝图：缺少阶段位置、结构公式、禁止提前释放、内容概括、情节安排、人物关系、情节细化或结尾设定时，先补齐再写。旧版细纲缺这些字段不阻塞日更，回退消费旧字段（核心事件、情节点序列、目标情绪、章首/章尾钩子、字数目标）。
+- 细纲字段是本章「要发生什么」的内容规格，不规定正文形状：各字段都要在正文里兑现，但正文可合并、穿插、重排情节点，不按条目顺序一条一段平推。细纲「结尾 / 结尾设定」写本章最后落在什么动作、画面或台词上，不写状态判词。
 - 每个 agent adapter 只读取本目标的 canonical reference 路径：Claude `.claude/skills/`、OpenCode `skills/`、Codex `.codex/skills/`。
 - `_progress.md` 恢复只接受 `schema_version: 2` 与章节边界表，不再执行隐式历史迁移。
 - Codex hooks 升级使用稳定管理身份替换注册；会先移除旧直调 Python 命令与已有 launcher 命令，再写入当前 6 个注册，不会双重执行。
@@ -55,7 +56,7 @@
 ## 升级步骤
 
 1. 在项目根目录重新运行 story-setup。
-2. 确认 `.story-deployed` 写入 `agents_version: 20` 与 `setup_skill_version: 1.2.7`。
+2. 确认 `.story-deployed` 写入 `agents_version: 21` 与 `setup_skill_version: 1.2.7`。
 3. 确认目标 CLI 的 agents、hooks/rules 和 reference bundle 都通过安装验证。
 4. 新开会话，使 custom agents 与 hooks 按当前文件重新注册。
 5. 若已有拆文库或细纲不满足当前契约，先重新拆解/导入或补齐细纲，再继续写作。
@@ -214,7 +215,17 @@
 - **去AI味闸口机器化（无状态）**：写后正文网新增确定性毒句式检测（不是A而是B 全家族/声线反差/否定排比/预告收尾），写正文落盘即自动扫描并推回命中，Claude/ZCode/OpenCode/Codex 四端同一共享核；写下一章前新增「毒句式欠账门」——上一章有未清 blocking 命中且未标 `<!-- 去味:跳过 -->` 豁免时拦截（判据现算自文件本身，不落任何状态文件，node 缺失或解析失败一律放行）；豁免标记冒号全半角均认，且同时使写后网跳过该章毒句式推回（其余网照常）；`check-ai-patterns.js` 同步新增 voice-contrast / negation-parade / reverse-not-is / trailer-ending（blocking，经真人语料零误报校准）与 quote-emphasis-tic（advisory）；SKILL 侧最毒句式速查内联进写作步骤、新增「写后同轮清零」要求，OpenClaw/generic 无 hook 平台由 AGENTS 模板自锁条款兜底。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v18 部署。
 
-### v20 (当前)
+### v21 (当前)
+
+- `.story-deployed` 的 `agents_version` 升级到 `21`（`setup_skill_version` 仍为 `1.2.7`）。
+- **章尾状态总结体进写前闸门（#255）**：部署 hook 的毒句式欠账门新增 `trailer-summary` 规则，与既有 `trailer-ending` 共用文末 600 字窗口，命中「这一夜注定… / 这一切都结束了 / 新的人生才刚刚开始 / 命运的齿轮 / 就这样，一切都结束了」这类把细纲「结尾设定·收束状态」原样写成总结句的收尾——收的都是 `banned-words.md` 已按名禁掉的形态。写下一章前必须清零，`<!-- 去味:跳过 -->` 仍可豁免。四端（Claude / OpenCode / ZCode 共享 JS 核 + Codex Python）同步，`check-ai-patterns.js` 四份副本同规则。
+- **不收「(这|那)一刻…终于明白」与裸认知句**：真人语料里那是正常的认知节拍，短篇第一人称审判金句还是卖点（`short-craft.md`「审判金句 / 心死余韵」）；这一族仍由 advisory 的 `abstract-summary-tic` 按密度兜。
+- 各分支都要求落在句末断言位，避免吃进条件从句（等这一切结束了，…）、动补（说明得非常清楚）、成语跨匹配（命中注定）、系表（结果是注定的）、及物用法（才结束了这个话题）与场内报幕（宣布…圆满落幕）——这些形状已作为负例 fixture 钉进 `scripts/test-ai-patterns.sh`。
+- 校准（文末 600 字窗口，命中逐条人工复核）：qimao 章中段 20000 章命中 1 处（0.005%）、heiyan 整篇 3999 篇命中 22 处（0.550%，全部是上列禁用形态）；同批既有 `trailer-ending` 分别命中 1.345% / 6.602%。短篇整篇即收口，基线天然高于长篇章中段，故两个总体分别报数。
+- **细纲模板改问落幕动作（#255）**：`story-architect` 细纲模板、`story-long-write` 与 `story-import` 的细纲字段、`rules/story-outline.md` 的必填项描述，「结尾 / 结尾设定」统一从「收束到什么状态」改成「最后落在谁的什么动作、画面或台词上」，规格本身不再是总结句形状。依据是真人语料实测：长篇章末句里，对话收尾约 29%、动作或画面约 26%、疑问或省略号悬停约 6%，明确的状态总结只占约 1%，章末最后一段字数中位 23 字——真实章节多是停在一个具体动作上，并不做收束。
+- 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v20 部署，且 agent 模板改动只在会话启动时注册。
+
+### v20
 
 - `.story-deployed` 的 `agents_version` 升级到 `20`（`setup_skill_version` 仍为 `1.2.7`）。
 - **narrative-writer Gate D 接入句长标准**：Gate D 由「节奏打碎」改为「节奏调整」——只拆臃肿修饰、堆叠比喻、信息过载的长句，改写后叙述句仍以逗号长句为主（agent-references/anti-ai-writing.md 规则 3「句子该多长」：逗号之间 8-12 字、整句 20-30 字，不要连着出现 ≤5 字的碎片）；「手机阅读密度」明确拆的是段落，不把句子内部切碎。

@@ -1076,3 +1076,56 @@ if (qe.length !== 0) throw new Error('低于 3 处的引号强调不应报 quote
 NODE
 
 echo "quote-emphasis-tic (引号强调滥用) regression tests passed."
+
+# --- issue #255：章尾状态总结体（trailer-summary）------------------------------
+# 细纲「结尾设定/收束状态」被原样写成总结句收章。与 trailer-ending 共用文末 600 字窗口。
+FIXTURE_TRAILER_SUMMARY="$TMP_DIR/fixture-trailer-summary.md"
+printf '%s\n' \
+  '她把账单摊在桌上，指腹压出一道白痕，纸边被汗浸软了一角。' \
+  '他端起杯子又放下，杯底磕在桌面上响了一声。' \
+  '这一切都结束了。这一夜注定无眠。' > "$FIXTURE_TRAILER_SUMMARY"
+set +e
+node "$SCRIPT" --json "$FIXTURE_TRAILER_SUMMARY" > "$OUT"
+node "$SCRIPT" --fail-on=blocking "$FIXTURE_TRAILER_SUMMARY" >/dev/null 2>&1
+trailer_sum_blk=$?
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const ts = r.findings.filter((f) => f.type === 'trailer-summary');
+if (ts.length < 2) throw new Error('章尾「这一切都结束了」+「这一夜注定」应各报一条: ' + JSON.stringify(ts));
+if (ts.some((f) => f.severity !== 'blocking')) throw new Error('trailer-summary 应为 blocking: ' + JSON.stringify(ts));
+NODE
+[ "$trailer_sum_blk" -eq 1 ] || { echo "FAIL: trailer-summary --fail-on=blocking 应退出 1，实际 $trailer_sum_blk" >&2; exit 1; }
+
+# 负例：语料实测出的六类结构性误报形状，逐条钉死——时间跳转（就这样，时间过去了）、
+# 及物用法（才结束了这个话题）、场内报幕（宣布…圆满落幕）、条件从句（等这一切结束了，…）、
+# 动补（说明得非常清楚）、嵌套从句（认为这一切都结束了的时候）、成语跨匹配（命中注定）、
+# 系表（结果是注定的），以及「(这|那)一刻…终于明白」与裸认知句——后两者是短篇第一人称
+# 审判金句的形状（short-craft「审判金句 / 心死余韵」是卖点），本规则一律不收。
+FIXTURE_TRAILER_SUMMARY_NORMAL="$TMP_DIR/fixture-trailer-summary-normal.md"
+printf '%s\n' \
+  '就这样，一年的时间过去了，账本从抽屉挪进了保险柜。' \
+  '就这样，主仆二人都自责了一番，才结束了这个话题。' \
+  '就这样，四点多钟，季政委宣布这次相亲联谊会圆满落幕。' \
+  '等这一切结束了，我们就能过上平静幸福的生活了。' \
+  '尽管兽绝神木似乎将这一切都说明得非常清楚，但结果与所想并不一样。' \
+  '就在他认为这一切都结束了的时候，门又被推开了。' \
+  '世间的这一刻，所有人都接受了命中注定的结局！' \
+  '加上装备的碾压，这一战的结果是注定的。' \
+  '他捏着那张纸，不知道这一切意味着什么。' \
+  '她盯着屏幕，不明白这一切都说明了什么。' \
+  '那一刻我终于明白，母亲当年为什么总在夜里哭。' \
+  '我猛地抬头，死死盯着手机，终于明白，为何女儿这半年总躲着我。' \
+  '我抓起外套就往门口走，反手带上了那扇门。' > "$FIXTURE_TRAILER_SUMMARY_NORMAL"
+set +e
+node "$SCRIPT" --json "$FIXTURE_TRAILER_SUMMARY_NORMAL" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const ts = r.findings.filter((f) => f.type === 'trailer-summary');
+if (ts.length !== 0) throw new Error('裸认知句/时间跳转不应报 trailer-summary: ' + JSON.stringify(ts));
+NODE
+
+echo "trailer-summary (章尾状态总结体) regression tests passed."
