@@ -1,6 +1,6 @@
 ---
 name: story
-description: "网络小说工具箱主入口。根据用户需求自动路由到对应 skill；当用户意图不明确时触发，由路由逻辑分发到具体的扫榜/拆文/写作/去AI味/封面/导入/审查 skill。触发方式：/story、$story、/网文、「我想写小说」「帮我写书」「写网文」「检查更新」「有新版本吗」。"
+description: "网络小说工具箱主入口。根据用户需求自动路由到对应 skill，并可启动本地 Dashboard 查看拆文库、写作项目和编辑文本。触发方式：/story、$story、/story dashboard、$story dashboard、/网文、「我想写小说」「打开工作台」「检查更新」。"
 metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claudecode"}}
 ---
 # story：网文工具箱路由
@@ -25,6 +25,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | 环境部署 | 准备写书、搭环境、初始化 | `/story-setup` |
 | 浏览器操控 | 浏览器、抓取、登录态 | `/browser-cdp` |
 | 导入小说 | 导入、反向解析、导入小说、把我的书导进来 | `/story-import` |
+| 工作台 | dashboard、工作台、看拆文库、浏览项目文件、打开项目面板 | 见下方「Dashboard 工作台」 |
 | 检查/更新版本 | 检查更新、有新版本吗、升级、更新工具箱 | 见下方「版本更新检查」 |
 | 切换/列出书目 | 切书、换书、列出我的书、我在写哪几本、切换项目 | 见下方「多书切换」 |
 | 查故事资料 | 查角色、查伏笔、查进度、查设定、什么状态、写到哪了 | spawn `story-explorer` agent（结构化 prompt：`项目目录：{dir}\n查询类型：{根据意图选择}\n查询参数：{用户查询}`）；agent 不可用时见下方「查询降级」 |
@@ -33,6 +34,32 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 ### 导入续写顺序
 
 用户问"导入续写先 setup 还是 import"时，直接回答：**推荐先 `/story-setup`，新开/刷新会话后 `/story-import`，最后 `/story-long-write 日更` 或 `/story-long-write 写第N章`**。如果用户已经直接触发 `/story-import`，按 story-import 自带环境检测继续：未 setup 时让用户选择先去 setup 或继续串行导入。
+
+## Dashboard 工作台
+
+用户执行 `/story dashboard`（Codex 为 `$story dashboard`），或明确说“打开工作台 / 看项目
+文件”时，直接启动随本 skill 分发的本地 Dashboard，不再转发到其他 skill：
+
+1. 把**当前工作目录**作为默认工作区；用户明确给出目录时改用该目录。目录必须存在。
+2. 从当前已加载的 `story` skill 目录定位 `scripts/dashboard-server.mjs`，不要硬编码仓库路径、
+   全局 skill 路径或用户主目录。
+3. 检查 `node` 可用后，以长运行进程执行：
+
+   ```bash
+   node "<story-skill-dir>/scripts/dashboard-server.mjs" --root "<workspace>" --open
+   ```
+
+4. 等待输出出现“本机地址”，把完整 URL 回给用户。工具支持后台进程/PTY 时让服务保持运行；
+   无法自动拉起浏览器不算失败，仍返回可点击 URL。
+5. Dashboard 默认只监听 `127.0.0.1`。不要主动增加 `--allow-network`，不要把工作区暴露到
+   局域网或公网。
+
+工作台会识别标准 `拆文库/{书名}/`，兼容存量 `拆文库-{书名}/`，并把含 `正文/`、
+`大纲/`、`设定/` 或 `追踪/` 的目录识别为写作项目。浏览器可编辑 `.md`、`.txt`、
+`.json`、`.yaml`、`.yml`、`.toml`，保存前用修改时间防止静默覆盖外部更新。
+
+停止服务时终止对应的 Node 长运行进程即可。若用户只问用法，不要替他启动；给出
+`/story dashboard` / `$story dashboard` 两种平台对应入口。
 
 ## 路由流程
 

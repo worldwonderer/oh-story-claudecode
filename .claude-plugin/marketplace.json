@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "story",
-      "description": "网络小说工具箱主入口。根据你的需求自动路由到长篇/短篇的扫榜、拆文或写作工具。",
+      "description": "网络小说工具箱主入口。自动路由扫榜、拆文与写作工具，并可通过 /story dashboard 启动本地写作工作台。",
       "source": "./",
       "strict": false,
       "version": "1.0.0",

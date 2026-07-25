@@ -122,7 +122,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 | Skill | Trigger | Description |
 |:------|:--------|:------------|
 | `story-setup` | `/story-setup` / `$story-setup` | Environment setup — Claude/OpenCode/Codex/ZCode/OpenClaw plus generic (safe merge) |
-| `story` | `/story` / `$story` | Toolbox router — routes fuzzy intents to the matching skill |
+| `story` | `/story` / `$story` / `/story dashboard` | Toolbox router plus a local deconstruction/project dashboard |
 | `story-long-write` | `/story-long-write` | Long-form writing — outline building, character design, prose output |
 | `story-long-analyze` | `/story-long-analyze` | Long-form deconstruction — Golden First 3 Chapters, payoff design, pacing analysis |
 | `story-long-scan` | `/story-long-scan` | Long-form trend scan — Qidian/Fanqie/Jinjiang market trends |
@@ -137,7 +137,21 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 
 > `story-deslop` uses local prose linting: blocking applies only to deterministic style/punctuation issues, while other findings require read-through judgment; external detectors such as Zhuque are self-check references, not replacements for human review.
 
-Natural language also triggers: `帮我开书` ("help me start writing") → `story-long-write`, `这篇太AI了` ("this is too AI-ish") → `story-deslop`, `把我的书导进来` ("import my book") → `story-import`, `沈栀现在什么状态` ("what's Shen Zhi's current status") → `story-explorer`.
+Natural language also triggers: `帮我开书` ("help me start writing") → `story-long-write`, `这篇太AI了` ("this is too AI-ish") → `story-deslop`, `把我的书导进来` ("import my book") → `story-import`, `打开工作台` ("open the dashboard") → `story dashboard`, `沈栀现在什么状态` ("what's Shen Zhi's current status") → `story-explorer`.
+
+### Story Dashboard
+
+Run `/story dashboard` in a writing workspace (`$story dashboard` in Codex). The story skill starts a
+local-only workspace on `127.0.0.1`, showing real deconstruction libraries and long/short writing
+project trees. It supports filename search, safe Markdown preview, and lightweight editing of
+`.md`, `.txt`, `.json`, `.yaml`, `.yml`, and `.toml` with conflict-aware saves. Production use
+requires only Node.js and never uploads story content.
+
+```bash
+npm install
+npm run dashboard -- --root demo --open
+npm test
+```
 
 <details>
 <summary>Cover generation example</summary>
@@ -152,7 +166,7 @@ Natural language also triggers: `帮我开书` ("help me start writing") → `st
 Full output from `/story-long-analyze` deep mode on the first 23 chapters of *Coiling Dragon*:
 
 ```
-demo/拆文库-盘龙/
+demo/拆文库/盘龙/
 ├── 概要.md              # Novel overview + chapter index
 ├── 拆文报告.md           # 5-dimension scoring + pacing analysis + takeaways
 ├── 文风.md              # Benchmark voice: sentence rhythm, punctuation, dialogue subtext, emotion pacing
@@ -190,7 +204,7 @@ Long-form deconstruction also produces `文风.md`, plus `剧情/节奏.md` (pac
 `/story-short-analyze` deconstructing the short story 《曾将爱意私藏》 (~8,500 chars, win-back / "faked-death" genre):
 
 ```
-demo/拆文库-曾将爱意私藏/
+demo/拆文库/曾将爱意私藏/
 ├── 原文/原文.txt        # Source backup
 ├── 拆文报告.md          # Story core + 5-dim scores + 6-facet payoff + cognitive reversal + 9-layer resonance
 ├── 情节节点.md          # 54 plot points (source quotes + emotion markers −9~+9)
@@ -208,7 +222,7 @@ Short-form deconstruction outputs `拆文报告 / 情节节点 / 写作手法`; 
 `/story-import` reverse-builds the author's already-published first 20 chapters (~37k chars) into a continuation-ready writing project, handed off to `/story-long-write` for daily writing from chapter 21:
 
 ```
-demo/让你管账号，你高燃混剪炸全网/
+demo/长篇/让你管账号，你高燃混剪炸全网/
 ├── 正文/        Chapters 001–020 (published source text)
 ├── 大纲/        大纲.md · 卷纲_第1卷.md · 细纲_第001–020章.md (one file per chapter)
 ├── 设定/        角色/ (6 character files) · 世界观/{background · cheat-system}

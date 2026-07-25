@@ -4,6 +4,10 @@
 .agents/*
 !.agents/skills
 .codebuddy/
+.codewhale/
+node_modules/
+playwright-report/
+test-results/
 AGENTS.md
 CLAUDE.md
 _archive/

@@ -124,7 +124,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
 | `story-setup` | `/story-setup` `$story-setup` `/准备写书` | 环境部署 · Claude/OpenCode/Codex/ZCode/OpenClaw + generic（已有配置安全合并） |
-| `story` | `/story` `$story` `/网文` | 工具箱路由 · 模糊意图自动分发到对应 skill |
+| `story` | `/story` `$story` `/story dashboard` | 工具箱路由 · 模糊意图分发 + 本地拆文/项目 Dashboard |
 | `story-long-write` | `/story-long-write` `/写长篇` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |
 | `story-long-scan` | `/story-long-scan` | 长篇扫榜 · 起点/番茄/晋江市场趋势 |
@@ -143,7 +143,23 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 - 「帮我开书」→ `story-long-write`
 - 「这篇太 AI 了」→ `story-deslop`
 - 「把我的书导进来」→ `story-import`
+- 「打开工作台」→ `story dashboard`（本机浏览拆文库与写作项目，可轻量编辑）
 - 「沈栀现在什么状态」→ 自动 spawn `story-explorer` agent
+
+### Story Dashboard
+
+在写作工作区运行 `/story dashboard`（Codex 用 `$story dashboard`），story skill 会启动只监听
+`127.0.0.1` 的本地工作台。它按 `拆文库/{书名}`、`长篇/{书名}`、`短篇/{书名}` 展示真实
+项目文件树，支持搜索、Markdown 安全预览，以及 `.md` / `.txt` / `.json` / `.yaml` /
+`.yml` / `.toml` 的轻量编辑与冲突保护保存。生产运行只需 Node.js，不上传小说内容。
+
+开发预览与测试：
+
+```bash
+npm install
+npm run dashboard -- --root demo --open
+npm test
+```
 
 <details>
 <summary>封面生成示例</summary>
@@ -158,7 +174,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 使用 `/story-long-analyze` 深度模式分析《盘龙》前23章的完整输出：
 
 ```
-demo/拆文库-盘龙/
+demo/拆文库/盘龙/
 ├── 概要.md              # 全书概要 + 章节索引
 ├── 拆文报告.md           # 五维评分 + 爽点密度 + 可借鉴套路
 ├── 文风.md              # 句长/标点/对话潜台词/情绪节奏 + 原文锚点
@@ -196,7 +212,7 @@ demo/拆文库-盘龙/
 使用 `/story-short-analyze` 拆解短篇《曾将爱意私藏》（约 8500 字，追妻火葬场 · 死遁）的完整输出：
 
 ```
-demo/拆文库-曾将爱意私藏/
+demo/拆文库/曾将爱意私藏/
 ├── 原文/原文.txt        # 原文备份
 ├── 拆文报告.md          # 故事核 + 五维评分 + 爆点6维 + 认知反转 + 共鸣9层
 ├── 情节节点.md          # 54 个情节节点（原文引用 + 情绪标记 −9~+9）
@@ -214,7 +230,7 @@ demo/拆文库-曾将爱意私藏/
 推荐先 `/story-setup` 部署写作项目，再使用 `/story-import` 把作者已发布的前 20 章（约 3.7 万字）逆向重建为可续写的写作工程，最后接 `/story-long-write 日更` 或 `/story-long-write 写第21章` 续写：
 
 ```
-demo/让你管账号，你高燃混剪炸全网/
+demo/长篇/让你管账号，你高燃混剪炸全网/
 ├── 正文/        第001–020章（已发布原文）
 ├── 大纲/        大纲.md · 卷纲_第1卷.md · 细纲_第001–020章.md（1 章 1 文件）
 ├── 设定/        角色/{江晨·钟嘉嘉·周薄森·张耀祖·吴伟·李林}

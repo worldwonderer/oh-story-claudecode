@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### 新增
+
+- **Story Dashboard 本地工作台**：`/story dashboard`（Codex 为 `$story dashboard`）从当前
+  工作区启动零生产依赖的本地 Web UI，分开展示 `拆文库/` 与长短篇写作项目文件树，支持
+  文件名搜索、Markdown 安全预览、白名单文本轻量编辑、快捷保存和 mtime 冲突保护；服务
+  默认只绑定 `127.0.0.1`，路径规范化、真实路径校验和 2 MiB 上限防止越界读写。
+- **真实 demo 驱动的浏览器测试**：把原有《盘龙》《曾将爱意私藏》拆文资产整理到
+  `demo/拆文库/{书名}/`，把《让你管账号，你高燃混剪炸全网》工程整理到
+  `demo/长篇/{书名}/`；Node API 回归与 Playwright 桌面/移动 E2E 都复制这批现有 demo
+  到临时目录后执行，避免另造与真实产物脱节的 fixture。
+
 ## v0.7.1
 
 > 正文「电报体」彻底治理——写入端做减法 + story-deslop 去抵抗 + 全套短句崇拜清扫（语料 + 五题材实测双证）；补同人 / 既有世界观命名护栏；Reasonix skills-only 适配 + 开书对标发现。

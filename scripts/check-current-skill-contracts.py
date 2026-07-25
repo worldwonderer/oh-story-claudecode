@@ -800,7 +800,7 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
         outline_rule_contract_findings(outline_rule_text, manifest, outline_rule)
     )
 
-    demo_root = repo_root / "demo/拆文库-盘龙"
+    demo_root = repo_root / "demo/拆文库/盘龙"
     for artifact in manifest.primary_benchmark_artifacts:
         artifact_path = demo_root / artifact
         try:
@@ -812,7 +812,7 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
                 Finding("demo-primary-artifact", "demo deconstruction is missing non-empty {}".format(artifact), artifact_path)
             )
 
-    outline_dir = repo_root / "demo/让你管账号，你高燃混剪炸全网/大纲"
+    outline_dir = repo_root / "demo/长篇/让你管账号，你高燃混剪炸全网/大纲"
     outlines = sorted(outline_dir.glob("细纲_第*.md"))
     if len(outlines) != manifest.expected_demo_outline_count:
         findings.append(

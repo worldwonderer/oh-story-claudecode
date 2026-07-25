@@ -1,0 +1,49 @@
+name: Story Dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "demo/**"
+      - "skills/story/assets/**"
+      - "skills/story/scripts/dashboard-server.mjs"
+      - "tests/dashboard-server.test.mjs"
+      - "tests/e2e/**"
+      - "tests/helpers/dashboard-e2e-server.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - "playwright.config.mjs"
+      - ".github/workflows/dashboard.yml"
+  pull_request:
+    paths:
+      - "demo/**"
+      - "skills/story/assets/**"
+      - "skills/story/scripts/dashboard-server.mjs"
+      - "tests/dashboard-server.test.mjs"
+      - "tests/e2e/**"
+      - "tests/helpers/dashboard-e2e-server.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - "playwright.config.mjs"
+      - ".github/workflows/dashboard.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: story-dashboard-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test

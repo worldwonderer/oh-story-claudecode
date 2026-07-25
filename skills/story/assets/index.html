@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#f7f8fa">
+    <title>OH STORY · 本地写作工作台</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#editorPanel">跳到文稿台</a>
+
+    <div class="app-shell">
+      <header class="masthead">
+        <div class="brand-lockup" aria-label="OH STORY 本地写作工作台">
+          <span class="brand-seal" aria-hidden="true">OH</span>
+          <span class="brand-copy">
+            <strong>OH STORY</strong>
+            <small>WRITING DESK</small>
+          </span>
+        </div>
+
+        <div class="workspace-identity">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3.5 6.5h6l2 2h9v10h-17z"></path>
+          </svg>
+          <span class="workspace-copy">
+            <strong id="workspaceName">正在辨认书架…</strong>
+            <span id="workspacePath" class="workspace-path"></span>
+          </span>
+        </div>
+
+        <div class="masthead-actions">
+          <div class="workspace-summary" aria-label="工作区统计">
+            <span><b id="libraryCount">—</b> 拆文库</span>
+            <span><b id="projectCount">—</b> 项目</span>
+            <span><b id="fileCount">—</b> 文稿</span>
+          </div>
+          <div id="connectionStatus" class="connection-status" role="status">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span>连接中</span>
+          </div>
+          <button id="refreshButton" class="icon-button" type="button" title="刷新工作区" aria-label="刷新工作区">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 6v5h-5"></path>
+              <path d="M18.2 15.7A7 7 0 1 1 19 9.3L20 11"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="desk">
+        <aside class="archive-panel" aria-labelledby="archiveTitle">
+          <h1 id="archiveTitle" class="sr-only">工作区文件</h1>
+
+          <div class="archive-tabs" role="tablist" aria-label="工作区内容">
+            <button id="librariesTab" type="button" role="tab" aria-selected="true" aria-controls="treePanel" data-view="libraries">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 5.5h6l2 2h8v11H4z"></path>
+              </svg>
+              <span>拆文库</span>
+              <b id="librariesBadge">0</b>
+            </button>
+            <button id="projectsTab" type="button" role="tab" aria-selected="false" aria-controls="treePanel" data-view="projects">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 4.5h14v15H5z"></path>
+                <path d="M8 8h8M8 12h8M8 16h5"></path>
+              </svg>
+              <span>写作项目</span>
+              <b id="projectsBadge">0</b>
+            </button>
+          </div>
+
+          <label class="search-field" for="treeSearch">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5"></circle>
+              <path d="m16 16 4 4"></path>
+            </svg>
+            <span class="sr-only">搜索文件名</span>
+            <input id="treeSearch" type="search" autocomplete="off" placeholder="搜索文件、角色或章节">
+            <kbd>⌘ K</kbd>
+          </label>
+
+          <div id="treePanel" class="tree-panel" role="tabpanel" aria-labelledby="librariesTab">
+            <div id="treeLoading" class="tree-message">
+              <span class="loading-mark" aria-hidden="true"></span>
+              <p>正在整理案卷…</p>
+            </div>
+            <div id="fileTree" class="file-tree" aria-label="文件树"></div>
+          </div>
+
+          <footer class="archive-note">
+            <span class="status-dot" aria-hidden="true"></span>
+            <p>本地工作区 · 文稿不会上传</p>
+          </footer>
+        </aside>
+
+        <section id="editorPanel" class="editor-panel" aria-labelledby="editorTitle">
+          <div id="editorEmpty" class="editor-empty">
+            <div class="empty-folio" aria-hidden="true">
+              <svg viewBox="0 0 48 48">
+                <path d="M12 7h19l6 6v28H12z"></path>
+                <path d="M31 7v7h6M18 21h13M18 27h13M18 33h9"></path>
+              </svg>
+            </div>
+            <h2>选择一份文稿开始工作</h2>
+            <p>从左侧打开 Markdown、TXT 或配置文本，直接阅读、校订并保存。</p>
+            <div class="empty-shortcuts">
+              <span><kbd>⌘ K</kbd> 搜索</span>
+              <span><kbd>⌘ S</kbd> 保存</span>
+            </div>
+          </div>
+
+          <div id="editorWorkspace" class="editor-workspace" hidden>
+            <header class="editor-toolbar">
+              <button id="mobileBackButton" class="mobile-back-button" type="button" aria-label="返回文件列表">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m15 5-7 7 7 7"></path>
+                </svg>
+                <span>文件</span>
+              </button>
+              <div class="document-identity">
+                <nav id="breadcrumbs" class="breadcrumbs" aria-label="文件路径"></nav>
+                <div class="document-title-row">
+                  <h2 id="editorTitle">未命名文稿</h2>
+                </div>
+              </div>
+
+              <div class="editor-actions">
+                <div class="mode-switch" role="group" aria-label="文稿模式">
+                  <button type="button" data-mode="edit" aria-pressed="true">编辑</button>
+                  <button type="button" data-mode="preview" aria-pressed="false">预览</button>
+                </div>
+              </div>
+            </header>
+
+            <div id="editorBody" class="editor-body">
+              <label class="sr-only" for="editorInput">文件内容</label>
+              <textarea id="editorInput" spellcheck="true"></textarea>
+              <article id="previewPane" class="preview-pane" aria-label="Markdown 预览" hidden></article>
+            </div>
+
+            <footer class="editor-footer">
+              <div class="document-status">
+                <span id="cursorPosition">第 1 行，第 1 列</span>
+                <span id="documentMeta" class="document-meta"></span>
+                <span id="encodingLabel">UTF-8 · LF</span>
+              </div>
+              <div class="save-controls">
+                <span id="dirtyStatus" class="save-state" data-state="saved">
+                  <span aria-hidden="true"></span>
+                  <span>已保存</span>
+                </span>
+                <button id="saveButton" class="save-button" type="button" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 4h12l2 2v14H5z"></path>
+                    <path d="M8 4v6h8V4M8 20v-6h8v6"></path>
+                  </svg>
+                  <span>保存</span>
+                  <kbd>⌘ S</kbd>
+                </button>
+              </div>
+            </footer>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toastRegion" class="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <dialog id="conflictDialog" class="conflict-dialog" aria-labelledby="conflictTitle">
+      <form method="dialog">
+        <span class="dialog-seal" aria-hidden="true">校</span>
+        <span class="eyebrow">检测到外部修改</span>
+        <h2 id="conflictTitle">磁盘上的文稿比当前版本更新</h2>
+        <p>为避免覆盖其他程序写入的内容，Dashboard 已暂停保存。你可以保留当前编辑继续比对，或重新载入磁盘版本。</p>
+        <div class="dialog-actions">
+          <button value="cancel" class="secondary-button">保留当前编辑</button>
+          <button id="reloadConflictButton" value="reload" class="danger-button">重新载入磁盘版本</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

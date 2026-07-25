@@ -1,0 +1,13 @@
+{
+  "name": "oh-story-dashboard-tests",
+  "private": true,
+  "scripts": {
+    "dashboard": "node skills/story/scripts/dashboard-server.mjs",
+    "test:dashboard": "node --test tests/dashboard-server.test.mjs tests/dashboard-trigger-contract.test.mjs",
+    "test:dashboard:e2e": "playwright test",
+    "test": "npm run test:dashboard && npm run test:dashboard:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.0"
+  }
+}
