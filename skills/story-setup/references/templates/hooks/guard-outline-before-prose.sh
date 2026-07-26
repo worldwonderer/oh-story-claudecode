@@ -22,7 +22,12 @@ HOOK_INPUT="${CLAUDE_TOOL_INPUT:-}"
 if [ -z "$HOOK_INPUT" ] && [ ! -t 0 ]; then
   HOOK_INPUT="$(cat)"
 fi
-export HOOK_INPUT
+# 故意不 export：Write/Edit/MultiEdit 负载里带整章正文（MultiEdit 还带 old_string+new_string），
+# export 会把它塞进本脚本每个子进程的 envp，负载一大 execve 就 E2BIG（Linux 单个环境变量上限
+# 128 KiB，macOS 整体 1 MiB），dirname/sed/node 全报「Argument list too long」——本守卫会在
+# 走到 exit 2 之前死掉，退成「非阻塞错误」放过这次写入，与 BLOCKING 契约相反。改为只在需要负载
+# 的 node 调用处用管道喂 stdin（story_hook_cli.js extract-target 在 HOOK_INPUT 缺省时读 stdin）；
+# 下方 extract_target_bash 用的是 printf 内建，不需要 export。
 
 # 提取目标文件路径：优先 node 共享核（与其它端同一份实现）；node 缺席、或 node 在但抽取失败时
 # 都回落纯 bash 抽取。这是阻断守卫，不能因 node 问题而 fail-open——官方现在推荐原生二进制装
@@ -54,7 +59,7 @@ extract_target_bash() {
 
 TARGET=""
 if node -e "" >/dev/null 2>&1 && [ -f "$CLI" ]; then
-  TARGET="$(node "$CLI" extract-target 2>/dev/null || true)"
+  TARGET="$(printf '%s' "$HOOK_INPUT" | node "$CLI" extract-target 2>/dev/null || true)"
 fi
 # node 在场却抽空（旧 node 不识 node: 前缀 / 核损坏时探测通过但抽取抛错）也回落纯 bash，
 # 否则会走 fail-open。两条路径都解析不到才放行。
@@ -139,7 +144,11 @@ case "$BASE" in
         TOXIC="$(node "$CLI" prose-toxic "$PREV_FILE" 2>/dev/null || true)"
         if [ -n "$TOXIC" ]; then
           printf '%s\n' "⛔ 写正文被拦截：上一章（$(basename "$PREV_FILE")）有未清毒句式欠账，先清零再写第 ${NUM} 章；用户显式豁免时在上一章标题行下加 <!-- 去味:跳过 --> 后重试。" >&2
-          printf '%s\n' "$TOXIC" | head -n 8 >&2
+          # 只列前 8 条。不能写 `printf … | head -n 8`：欠账多时 head 先退出，printf 吃 SIGPIPE，
+          # pipefail 下整条管道返回 141，set -e 立刻终止脚本——下面的 exit 2 永远走不到，拦截
+          # 退成「非阻塞错误」放过这次写入。改用 here-string 直喂 head（无管道即无 SIGPIPE），
+          # 再兜一层 || true，保证无论如何都能走到 exit 2。
+          head -n 8 <<< "$TOXIC" >&2 || true
           exit 2
         fi
       fi

@@ -4,12 +4,14 @@
 set -euo pipefail
 
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# 注入串用真实换行拼接（NL），不用字面 `\n` 占位：输出端必须 printf '%s'，见文末注释。
+NL=$'\n'
 OUTPUT=""
 HAS_CONTENT=false
 
 # 先做最小 preflight，再 source；否则 lib 缺失时无法输出可修复提示。
 if [ ! -f "$HOOK_DIR/lib/common.sh" ] || [ ! -f "$HOOK_DIR/lib/sentinel.sh" ]; then
-  printf '%b' "[WARN] story hook 函数库缺失。重新运行 /story-setup 恢复 .claude/hooks/lib/。\n"
+  printf '%s\n' "[WARN] story hook 函数库缺失。重新运行 /story-setup 恢复 .claude/hooks/lib/。"
   exit 0
 fi
 
@@ -28,8 +30,8 @@ ROOT=$(project_root)
 # subagent_type；story-setup 部署完会留下 .claude/.agents-pending-restart 标记。
 # 走到这里说明已是新会话、agents 已随会话重新加载——确认并清除标记（一次性）。
 if [ -f "$ROOT/.claude/.agents-pending-restart" ]; then
-  OUTPUT+="[INFO] story-setup 刚部署/更新了 agents，本会话已重新加载——story-architect、narrative-writer 等 custom agent 现已注册可用。\n"
-  OUTPUT+="  若写作 skill 仍提示 spawn 失败 / 降级 solo，说明你还在部署时的旧会话里，请再新开一个 Claude Code 会话。\n\n"
+  OUTPUT+="[INFO] story-setup 刚部署/更新了 agents，本会话已重新加载——story-architect、narrative-writer 等 custom agent 现已注册可用。${NL}"
+  OUTPUT+="  若写作 skill 仍提示 spawn 失败 / 降级 solo，说明你还在部署时的旧会话里，请再新开一个 Claude Code 会话。${NL}${NL}"
   HAS_CONTENT=true
   rm -f "$ROOT/.claude/.agents-pending-restart" 2>/dev/null || true
 fi
@@ -45,8 +47,8 @@ if sentinel_exists "$ROOT/.story-deployed"; then
     fi
   done
   if [ -n "$MISSING_HOOKS" ]; then
-    OUTPUT+="[WARN] .story-deployed 存在但缺少 hook：$MISSING_HOOKS\n"
-    OUTPUT+="  修复：重新运行 /story-setup 恢复缺失的 hook。\n\n"
+    OUTPUT+="[WARN] .story-deployed 存在但缺少 hook：$MISSING_HOOKS${NL}"
+    OUTPUT+="  修复：重新运行 /story-setup 恢复缺失的 hook。${NL}${NL}"
     HAS_CONTENT=true
   fi
 
@@ -54,23 +56,23 @@ if sentinel_exists "$ROOT/.story-deployed"; then
   # 推荐原生二进制装 Claude Code，只有 npm 装法才带 Node——native 安装可能无 node，上述三项
   # 会静默降级停用（大纲拦截守卫有纯 bash 兜底，仍生效）。会话起点提示一次，避免误以为兜底仍在。
   if ! node -e "" >/dev/null 2>&1; then
-    OUTPUT+="[WARN] 检测不到 node 运行时：正文兜底网/commit 格式提示/连续性检查已停用（大纲拦截仍有纯 bash 兜底）。\n"
-    OUTPUT+="  修复：安装 Node.js（https://nodejs.org，或 nvm / brew install node）后新开会话即可恢复。\n\n"
+    OUTPUT+="[WARN] 检测不到 node 运行时：正文兜底网/commit 格式提示/连续性检查已停用（大纲拦截仍有纯 bash 兜底）。${NL}"
+    OUTPUT+="  修复：安装 Node.js（https://nodejs.org，或 nvm / brew install node）后新开会话即可恢复。${NL}${NL}"
     HAS_CONTENT=true
   fi
 
   AGENTS_VERSION=$(read_sentinel_field agents_version "$ROOT/.story-deployed")
   case "$AGENTS_VERSION" in
     ''|*[!0-9]*)
-      OUTPUT+="[WARN] .story-deployed 缺少数字 agents_version。重新运行 /story-setup。\n\n"
+      OUTPUT+="[WARN] .story-deployed 缺少数字 agents_version。重新运行 /story-setup。${NL}${NL}"
       HAS_CONTENT=true
       ;;
     *)
       if [ "$AGENTS_VERSION" -lt 21 ]; then
-        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 低于 v21。重新运行 /story-setup 刷新 hooks、agents 和 references（部署后需新开会话）。\n\n"
+        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 低于 v21。重新运行 /story-setup 刷新 hooks、agents 和 references（部署后需新开会话）。${NL}${NL}"
         HAS_CONTENT=true
       elif [ "$AGENTS_VERSION" -gt 21 ]; then
-        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 高于本 hook 支持的 v21。不要降级覆盖；请先更新 oh-story-claudecode。\n\n"
+        OUTPUT+="[WARN] story-setup agents_version=$AGENTS_VERSION 高于本 hook 支持的 v21。不要降级覆盖；请先更新 oh-story-claudecode。${NL}${NL}"
         HAS_CONTENT=true
       fi
       ;;
@@ -81,7 +83,7 @@ if sentinel_exists "$ROOT/.story-deployed"; then
   # 不参与版本比较——否则内容改动会误报"需要重新部署"。
   for field in setup_skill_version target_cli resolver_strategy references_dir; do
     if [ -z "$(read_sentinel_field "$field" "$ROOT/.story-deployed")" ]; then
-      OUTPUT+="[WARN] .story-deployed 缺少 $field 字段。重新运行 /story-setup 刷新部署元信息。\n\n"
+      OUTPUT+="[WARN] .story-deployed 缺少 $field 字段。重新运行 /story-setup 刷新部署元信息。${NL}${NL}"
       HAS_CONTENT=true
     fi
   done
@@ -90,42 +92,47 @@ if sentinel_exists "$ROOT/.story-deployed"; then
   if [ -n "$REFERENCES_DIR" ]; then
     REFERENCES_PATH=$(resolve_project_path "$REFERENCES_DIR")
     if [ ! -d "$REFERENCES_PATH" ] || ! find "$REFERENCES_PATH" -maxdepth 1 -type f -name "*.md" -print -quit 2>/dev/null | grep -q .; then
-      OUTPUT+="[WARN] story-setup 参考资料包缺失或为空：${REFERENCES_DIR}。重新运行 /story-setup。\n\n"
+      OUTPUT+="[WARN] story-setup 参考资料包缺失或为空：${REFERENCES_DIR}。重新运行 /story-setup。${NL}${NL}"
       HAS_CONTENT=true
     fi
   fi
 else
-  OUTPUT+="[WARN] 写作环境未部署。运行 /story-setup 初始化。\n\n"
+  OUTPUT+="[WARN] 写作环境未部署。运行 /story-setup 初始化。${NL}${NL}"
   HAS_CONTENT=true
 fi
 
 # 显示分支和最近 commit（仅在有 git 历史时）
 BRANCH=$(git -C "$ROOT" branch --show-current 2>/dev/null || echo "")
 if [ -n "$BRANCH" ]; then
-  OUTPUT+="=== 写作进度 ===\n"
-  OUTPUT+="分支：$BRANCH\n"
+  OUTPUT+="=== 写作进度 ===${NL}"
+  OUTPUT+="分支：$BRANCH${NL}"
   RECENT=$(git -C "$ROOT" log --oneline -5 2>/dev/null || true)
   if [ -n "$RECENT" ]; then
-    OUTPUT+="$RECENT\n"
+    OUTPUT+="$RECENT${NL}"
   fi
-  OUTPUT+="\n"
+  OUTPUT+="${NL}"
   HAS_CONTENT=true
 fi
 
 # 上下文.md 摘要（只看当前位置部分，前 10 行）
 BOOK_DIR=$(discover_active_book)
 if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/上下文.md" ]; then
-  OUTPUT+="--- 当前位置 ---\n"
-  SNAPSHOT=$(head -10 "$BOOK_DIR/追踪/上下文.md")
-  OUTPUT+="${SNAPSHOT}\n---\n\n"
+  OUTPUT+="--- 当前位置 ---${NL}"
+  # `2>/dev/null || true` 不能省：[ -f ] 对「存在但读不到」也为真，此时 head 退非零，
+  # set -e 会就地终止脚本——OUTPUT 到文末才 flush，上面所有 [WARN] 会连同 stderr 一起丢光。
+  SNAPSHOT=$(head -10 "$BOOK_DIR/追踪/上下文.md" 2>/dev/null || true)
+  OUTPUT+="${SNAPSHOT}${NL}---${NL}${NL}"
   HAS_CONTENT=true
 fi
 
 # 未完成拆文（阈值 > 0 才报告）
 if [ -d "$ROOT/拆文库" ]; then
-  PROGRESS_COUNT=$(find "$ROOT/拆文库" -name "_progress.md" 2>/dev/null | wc -l | tr -d ' ')
+  # 同上：子目录不可读时 find 退 1，pipefail 把它变成整条管道的退出码，set -e 就在这里
+  # 终止脚本、一个字节都不输出。`|| true` + 数字兜底保证只是这一项降级、其余提示照常送达。
+  PROGRESS_COUNT=$(find "$ROOT/拆文库" -name "_progress.md" 2>/dev/null | wc -l | tr -d ' ' || true)
+  case "$PROGRESS_COUNT" in ''|*[!0-9]*) PROGRESS_COUNT=0 ;; esac
   if [ "$PROGRESS_COUNT" -gt 0 ]; then
-    OUTPUT+="[INFO] 拆文库/ 中有 $PROGRESS_COUNT 个未完成拆文。运行 /story-long-analyze 或 /story-short-analyze。\n"
+    OUTPUT+="[INFO] 拆文库/ 中有 $PROGRESS_COUNT 个未完成拆文。运行 /story-long-analyze 或 /story-short-analyze。${NL}"
     HAS_CONTENT=true
   fi
 fi
@@ -155,13 +162,17 @@ story_update_check() {
   fi
   [ -n "$latest" ] || return 0
   if [ "$latest" != "$cur" ] && [ "$(printf '%s\n%s\n' "$cur" "$latest" | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)" = "$latest" ]; then
-    OUTPUT+="[INFO] 网文工具箱有新版本 v${latest}（当前 v${cur}）。更新：npx skills add worldwonderer/oh-story-claudecode -y -g 后重跑 /story-setup；或对 /story 说“检查更新”。关掉提醒：export STORY_NO_UPDATE_CHECK=1\n"
+    OUTPUT+="[INFO] 网文工具箱有新版本 v${latest}（当前 v${cur}）。更新：npx skills add worldwonderer/oh-story-claudecode -y -g 后重跑 /story-setup；或对 /story 说“检查更新”。关掉提醒：export STORY_NO_UPDATE_CHECK=1${NL}"
     HAS_CONTENT=true
   fi
 }
 story_update_check || true
 
 # 仅在有实际内容时输出，否则完全静默
+# 必须 %s 不能 %b：$OUTPUT 里嵌着 追踪/上下文.md 的原文摘要和 git log 的 commit 标题。%b 会把
+# 其中的 `\b`、`\n` 当转义展开（把备份路径 D:\backup\novel 改写成不存在的路径，还往 context
+# 里塞裸 0x08），`\c`（commit 标题里的 C:\code 就带）更会直接终止 printf，把后面的 --- 收尾、
+# 拆文 [INFO]、新版本 [INFO] 全部静默丢掉。分隔换行由上面拼接时的 ${NL} 真实换行承担。
 if [ "$HAS_CONTENT" = true ]; then
-  printf '%b' "$OUTPUT"
+  printf '%s' "$OUTPUT"
 fi
