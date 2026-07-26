@@ -29,7 +29,7 @@
 const fs = require("fs");
 const https = require("https");
 const path = require("path");
-const { ab, sleep, evalJSON, scrollLoad, getArg, runCli } = require("./cdp-utils");
+const { ab, sleep, evalJSON, scrollLoad, getArg, localDateStamp, runCli } = require("./cdp-utils");
 
 const PC_BASE_URL = "https://www.qidian.com/rank";
 const MOBILE_BASE_URL = "https://m.qidian.com";
@@ -477,21 +477,35 @@ async function scrapeRank(rankTypeId) {
 }
 
 async function main() {
+  // 参数错误是配置问题，不是单个榜单的瞬时失败：先于 per-榜单隔离快速失败
+  if (!["auto", "mobile", "cdp"].includes(SCRAPE_MODE)) {
+    throw new Error(`未知 --mode: ${SCRAPE_MODE}（可选 auto/mobile/cdp）`);
+  }
+
   const rankTypes = RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
   let written = 0;
 
   for (const rt of rankTypes) {
-    const content = await scrapeRank(rt);
-    if (!content) continue;
+    // per-榜单隔离：移动端 SSR 失败后的 CDP 回退会直接抛（ab() 不吞错），
+    // 一个榜单的瞬时失败不该掐掉 --type all 后面的榜单（与番茄/刺猬猫一致）
+    try {
+      const content = await scrapeRank(rt);
+      if (!content) continue;
 
-    const rtInfo = RANK_TYPES.find((r) => r.id === rt);
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const filename = `起点${rtInfo.label}_${date}.md`;
-    fs.mkdirSync(OUTDIR, { recursive: true });
-    const filepath = path.join(OUTDIR, filename);
-    fs.writeFileSync(filepath, content, "utf-8");
-    written++;
-    console.log(`  ✓ 已保存: ${filepath}`);
+      const rtInfo = RANK_TYPES.find((r) => r.id === rt);
+      const date = localDateStamp();
+      const filename = `起点${rtInfo.label}_${date}.md`;
+      fs.mkdirSync(OUTDIR, { recursive: true });
+      const filepath = path.join(OUTDIR, filename);
+      fs.writeFileSync(filepath, content, "utf-8");
+      written++;
+      console.log(`  ✓ 已保存: ${filepath}`);
+    } catch (rankErr) {
+      const rtInfo = RANK_TYPES.find((r) => r.id === rt);
+      console.error(
+        `[qidian] ${rtInfo ? rtInfo.label : rt} 采集失败，跳过: ${rankErr && rankErr.message ? rankErr.message : rankErr}`
+      );
+    }
   }
   return written;
 }

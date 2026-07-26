@@ -24,7 +24,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ab, sleep, evalJSONBase64, getArg, runCli } = require("./cdp-utils");
+const { ab, sleep, evalJSONBase64, getArg, localDateStamp, runCli } = require("./cdp-utils");
 
 const BASE_URL = "https://www.jjwxc.net/topten.php";
 
@@ -127,14 +127,29 @@ function buildDetailJS(ids) {
   })).then(function(arr){var map={};arr.forEach(function(o){map[o.id]=o});return JSON.stringify(map);})`;
 }
 
-/** 分批解码详情，合并结果 */
+/**
+ * 分批解码详情，合并结果。
+ * 每批单独 try/catch：整批的并发 fetch 贴着 ab() 的 20s 超时线，一次瞬时超时（或
+ * 返回非 JSON）只该丢这 6 本，不能连坐后面几十本，更不能把已解析好的列表带走。
+ */
 function fetchDetails(port, ids) {
   const map = {};
+  let failedChunks = 0;
   for (let i = 0; i < ids.length; i += DETAIL_CHUNK) {
     const chunk = ids.slice(i, i + DETAIL_CHUNK);
-    const part = evalJSONBase64(port, buildDetailJS(chunk)) || {};
-    Object.assign(map, part);
+    try {
+      const part = evalJSONBase64(port, buildDetailJS(chunk)) || {};
+      Object.assign(map, part);
+    } catch (chunkErr) {
+      failedChunks++;
+      console.error(
+        `  ⚠ 详情批次 ${Math.floor(i / DETAIL_CHUNK) + 1}（${chunk.length} 本）获取失败，跳过: ${chunkErr.message}`
+      );
+    }
     sleep(400);
+  }
+  if (failedChunks > 0) {
+    console.error(`  ⚠ 共 ${failedChunks} 个详情批次失败，这部分书只有列表数据。`);
   }
   return map;
 }
@@ -232,7 +247,14 @@ function scrapeRank(port, rankTypeId, channelId) {
     detailPlanned = picked.length;
     if (picked.length) {
       console.log(`  → 补采详情 ${picked.length} 本（每频道前 ${TOP}，上限 ${DETAIL_LIMIT}）...`);
-      detailMap = fetchDetails(port, picked);
+      // 详情是列表的增补，不是前提：整段失败也要保住已解析好的列表落盘
+      // （下面的质量门会把 detailOk===0 标成 [详情解析异常/登录态缺失]）
+      try {
+        detailMap = fetchDetails(port, picked);
+      } catch (detailErr) {
+        detailMap = {};
+        console.error(`  ⚠ 详情补采整体失败，仅保留列表数据: ${detailErr.message}`);
+      }
       detailOk = Object.values(detailMap).filter((d) => d && d.collect).length;
       console.log(`  ✓ 详情命中收藏数 ${detailOk}/${picked.length}`);
     }
@@ -303,18 +325,26 @@ function main() {
 
   for (const rt of rankTypes) {
     for (const ch of channels) {
-      const content = scrapeRank(PORT, rt, ch);
-      if (!content) continue;
+      // per-榜单隔离：一个榜单出错不该掐掉 --type all 后面的榜单（与番茄/刺猬猫一致）
+      try {
+        const content = scrapeRank(PORT, rt, ch);
+        if (!content) continue;
 
-      const rtInfo = RANK_TYPES.find((r) => r.id === rt);
-      const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-      const chLabel = ch === "0" ? "全站" : `频道${ch}`;
-      const filename = `晋江${rtInfo.label}_${chLabel}_${date}.md`;
-      fs.mkdirSync(OUTDIR, { recursive: true });
-      const filepath = path.join(OUTDIR, filename);
-      fs.writeFileSync(filepath, content, "utf-8");
-      written++;
-      console.log(`  ✓ 已保存: ${filepath}`);
+        const rtInfo = RANK_TYPES.find((r) => r.id === rt);
+        const date = localDateStamp();
+        const chLabel = ch === "0" ? "全站" : `频道${ch}`;
+        const filename = `晋江${rtInfo.label}_${chLabel}_${date}.md`;
+        fs.mkdirSync(OUTDIR, { recursive: true });
+        const filepath = path.join(OUTDIR, filename);
+        fs.writeFileSync(filepath, content, "utf-8");
+        written++;
+        console.log(`  ✓ 已保存: ${filepath}`);
+      } catch (rankErr) {
+        const rtInfo = RANK_TYPES.find((r) => r.id === rt);
+        console.error(
+          `[jjwxc] ${rtInfo ? rtInfo.label : rt} 采集失败，跳过: ${rankErr && rankErr.message ? rankErr.message : rankErr}`
+        );
+      }
     }
   }
   return written;

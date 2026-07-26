@@ -2,7 +2,7 @@
  * CDP 工具函数 — 各平台采集脚本的公共依赖
  *
  * 使用方式：
- *   const { ab, sleep, evalJSON, evalJSONBase64, scrollLoad, getArg, safeStr } = require("./cdp-utils");
+ *   const { ab, sleep, evalJSON, evalJSONBase64, scrollLoad, getArg, safeStr, localDateStamp } = require("./cdp-utils");
  *
  * 前置：
  *   node {SKILL_DIR}/browser-cdp/scripts/setup-cdp-chrome.js 9222
@@ -176,6 +176,22 @@ function getArg(args, name) {
 }
 
 /**
+ * 输出文件名用的日期戳（YYYYMMDD），一律取**本地日历日**。
+ * 不能用 new Date().toISOString().slice(0,10)：那是 UTC 日期，比 UTC+8 晚 8 小时。
+ * 文件名是各采集脚本唯一的去重键（一个榜单一天一份），北京时间 00:00-08:00 之间的采集
+ * 会退回「昨天」的文件名，静默覆盖前一晚采到的同名报告，且这份数据被标成前一天。
+ * @param {Date} [date] - 默认当前时间
+ * @returns {string} YYYYMMDD
+ */
+function localDateStamp(date) {
+  const d = date instanceof Date ? date : new Date();
+  const y = String(d.getFullYear()).padStart(4, "0");
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
+}
+
+/**
  * Run a scraper entrypoint and turn "completed without writing anything" into
  * a real CLI failure. Entrypoints return the number of output files written.
  */
@@ -203,5 +219,6 @@ module.exports = {
   safeStr,
   scrollLoad,
   getArg,
+  localDateStamp,
   runCli,
 };

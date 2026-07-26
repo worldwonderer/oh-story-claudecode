@@ -13,6 +13,10 @@
 //   --profile <name>         使用指定 Chrome profile（默认: Default）
 //   --dry-run                打印将执行的操作，不实际执行
 //
+// 说明：CDP 端口已在监听时默认直接复用现有 Chrome 并退出 0；但传了 --reset 或显式
+//       --profile 时不复用——这两个参数就是要重建 debug profile（登录态过期即走这条路），
+//       会先关闭现有 Chrome（非 TTY 下需 --yes，否则 exit 3 报 NEEDS_CONSENT）。
+//
 // 退出码:
 //   0  成功 / detect-only 完成
 //   1  通用错误（环境缺失、超时等）
@@ -42,6 +46,9 @@ const readline = require("readline");
 function parseArgs(argv) {
   const flags = { dryRun: false, yes: false, detectOnly: false, reset: false };
   let profile = "Default";
+  // 是否显式传了 --profile：默认值 "Default" 无法区分「没传」和「传了 Default」，
+  // 而这两种情况在"CDP 已就绪"分支上的语义不同（复用 vs 按指定 profile 重建）
+  let profileExplicit = false;
   let port = null;
 
   for (let i = 0; i < argv.length; i++) {
@@ -57,6 +64,7 @@ function parseArgs(argv) {
           console.error("❌ --profile 需要一个参数（例如: --profile \"Profile 1\"）");
           process.exit(1);
         }
+        profileExplicit = true;
         break;
       default:
         if (/^\d+$/.test(a)) {
@@ -75,7 +83,7 @@ function parseArgs(argv) {
     process.exit(1);
   }
 
-  return { flags, profile, port };
+  return { flags, profile, profileExplicit, port };
 }
 
 const ARGS = parseArgs(process.argv.slice(2));
@@ -386,13 +394,22 @@ async function main() {
 
   if (ARGS.flags.dryRun) {
     const cdpAlive = !!(await probeCDP(CDP_PORT));
+    // --reset / 显式 --profile 会跳过复用（见下方第 3 步），dry-run 必须照实说
+    const willReuse = cdpAlive && !ARGS.flags.reset && !ARGS.profileExplicit;
+    const cdpNote = !cdpAlive
+      ? "未监听"
+      : willReuse
+        ? "已就绪（实际运行时会直接复用）"
+        : "已就绪（但传了 --reset/--profile，实际运行会重建，不复用）";
     log(`Chrome profile: ${defaultProfile} (${hasProfile ? "存在" : "不存在"})`);
-    log(`CDP 端口 ${CDP_PORT}: ${cdpAlive ? "已就绪（实际运行时会直接复用）" : "未监听"}`);
+    log(`CDP 端口 ${CDP_PORT}: ${cdpNote}`);
     const runningPids = config.listChromePids();
     log(`检测到 ${runningPids.length} 个 Chrome 进程`);
     log("\n--- dry-run 模式：只打印操作，不执行 ---");
-    if (cdpAlive) {
+    if (willReuse) {
       log("0. CDP 已就绪，实际运行会直接复用并退出 0（以下步骤仅供参考）");
+    } else if (cdpAlive) {
+      log("0. CDP 已就绪，但传了 --reset/--profile：实际运行不复用，按下列步骤重建");
     }
     if (ARGS.flags.reset) log(`1. 删除 ${debugProfile}`);
     if (runningPids.length > 0) {
@@ -412,12 +429,19 @@ async function main() {
     process.exit(0);
   }
 
-  // 3) 若 CDP 已就绪 → 复用，直接退出
+  // 3) 若 CDP 已就绪 → 复用，直接退出。
+  //    但 --reset / 显式 --profile 的语义就是"重建 debug profile"：登录态过期时文档正是
+  //    让用户跑 --reset，而那时 CDP 恰恰是活着的（过期是从这个会话里发现的）。若照旧复用，
+  //    这两个参数会被静默丢掉，还以 exit 0 报"成功"。因此这两种情况不复用，继续往下重建。
   const existing = await probeCDP(CDP_PORT);
   if (existing) {
-    ok("CDP 已就绪，复用现有 Chrome。");
-    log(existing.split("\n").slice(0, 5).join("\n"));
-    process.exit(0);
+    if (!ARGS.flags.reset && !ARGS.profileExplicit) {
+      ok("CDP 已就绪，复用现有 Chrome。");
+      log(existing.split("\n").slice(0, 5).join("\n"));
+      process.exit(0);
+    }
+    const requested = ARGS.flags.reset ? "--reset" : `--profile ${ARGS.profile}`;
+    warn(`CDP 端口 ${CDP_PORT} 已在监听，但传了 ${requested}：不复用，将关闭现有 Chrome 后重建 debug profile。`);
   }
 
   if (!hasProfile) {

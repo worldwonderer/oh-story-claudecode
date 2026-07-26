@@ -20,7 +20,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ab, sleep, evalJSONBase64, scrollLoad, getArg, runCli } = require("./cdp-utils");
+const { ab, sleep, evalJSONBase64, scrollLoad, getArg, localDateStamp, runCli } = require("./cdp-utils");
 
 // 一次详情请求的并发批大小。番茄详情页用同步 XHR 拉取，批太大会撞上
 // cdp-utils 里 ab() 的 20s 超时；超时会显式失败，这里分批是为了避免整个题材被中断。
@@ -396,7 +396,7 @@ function main() {
         const content = scrapeChannel(ch, ty);
         if (!content) continue;
 
-        const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+        const date = localDateStamp();
         const filename = `番茄${channelLabel(ch)}${typeLabel(ty)}_全题材_${date}.md`;
         fs.mkdirSync(OUTDIR, { recursive: true });
         const filepath = path.join(OUTDIR, filename);

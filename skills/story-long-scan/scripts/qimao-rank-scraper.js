@@ -17,7 +17,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ab, sleep, evalJSONBase64, safeStr, scrollLoad, getArg, runCli } = require("./cdp-utils");
+const { ab, sleep, evalJSONBase64, safeStr, scrollLoad, getArg, localDateStamp, runCli } = require("./cdp-utils");
 
 const RANK_URL = "https://www.qimao.com/paihang";
 
@@ -283,7 +283,7 @@ function main() {
 
       const chInfo = CHANNELS.find((c) => c.id === ch);
       const rtInfo = RANK_TYPES.find((r) => r.id === rt);
-      const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const date = localDateStamp();
       const filename = `七猫${chInfo.label}${rtInfo.label}_${date}.md`;
       fs.mkdirSync(OUTDIR, { recursive: true });
       const filepath = path.join(OUTDIR, filename);
