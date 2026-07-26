@@ -89,6 +89,20 @@ def main() -> None:
     else:
         raise AssertionError("malformed template hooks must fail")
 
+    # 用户手改出的非数组事件值（撞上模板事件名）必须走 MergeError/exit 2 诊断，
+    # 而不是 .extend() 的 AttributeError traceback。
+    for bad in ({"matcher": "Bash", "hooks": []}, "nope", 5, None, True):
+        try:
+            merger.merge_documents({"hooks": {"PreToolUse": bad}}, template)
+        except merger.MergeError as exc:
+            assert "existing.hooks.PreToolUse must be an array" in str(exc), exc
+        else:
+            raise AssertionError(f"malformed existing event value must fail: {bad!r}")
+
+    # 未与模板撞名的非数组事件值仍原样保留（保留用户已有配置的契约不能被上面的校验收紧）。
+    preserved = merger.merge_documents({"hooks": {"UserEvent": {"a": 1}}}, template)
+    assert preserved["hooks"]["UserEvent"] == {"a": 1}, preserved
+
     print("OK: Codex hook merge replaces v17 registrations and preserves user hooks")
 
 

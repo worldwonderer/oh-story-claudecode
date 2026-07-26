@@ -91,6 +91,11 @@ def merge_documents(existing: object, template: object) -> dict[str, Any]:
     assert isinstance(result, dict)  # narrowed by require_hooks
     merged_hooks = strip_managed_registrations(existing_hooks)
     for event, blocks in template_hooks.items():
+        # 只在与模板事件撞名时要求用户侧是数组：未知事件的非数组值由
+        # strip_managed_registrations 原样保留（保留用户已有配置的契约），
+        # 撞名却无法 extend 时给出 MergeError 诊断而不是 AttributeError traceback。
+        if event in merged_hooks and not isinstance(merged_hooks[event], list):
+            raise MergeError(f"existing.hooks.{event} must be an array")
         merged_hooks.setdefault(event, []).extend(copy.deepcopy(blocks))
     result["hooks"] = merged_hooks
     return result

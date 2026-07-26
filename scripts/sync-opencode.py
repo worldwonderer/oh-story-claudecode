@@ -18,13 +18,17 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def parse_frontmatter(content: str) -> tuple[dict, str]:
     """Extract YAML-like frontmatter and body from markdown content."""
-    if not content.startswith("---"):
+    # 结束分隔符必须是独占一行的 `---`（锚定 "\n---\n"），不能用 content.split("---", 2)：
+    # 后者会被 frontmatter 值里的三连字符（描述里的 `---`、注释里的 `---`）当成结束标记，
+    # 把剩余键连同 permission/steps 一起截断进正文，且静默 exit 0。
+    # 与同源生成器 generate-codex-agents.py 的解析口径保持一致。
+    if not content.startswith("---\n"):
         return {}, content
-    parts = content.split("---", 2)
-    if len(parts) < 3:
+    end = content.find("\n---\n", len("---"))
+    if end < 0:
         return {}, content
-    fm_text = parts[1].strip()
-    body = parts[2]
+    fm_text = content[len("---") : end].strip()
+    body = content[end + len("\n---") :]
     fm = {}
     lines = fm_text.split("\n")
     i = 0
@@ -93,7 +97,14 @@ def convert_claude_to_opencode(fm: dict) -> dict:
     elif has_write:
         perm["edit"] = "allow"
 
-    if "Bash" in tools:
+    # bash 同样走 "disallowedTools 优先"：OpenCode 里未声明的权限等于放行，只落 edit: deny
+    # 的只读 agent 仍可用 shell 重定向写文件。Codex 侧同源 agent 用的是
+    # sandbox_mode = "read-only"（只读的是文件系统，不是「禁止一切命令」），所以这里用
+    # OpenCode 的命令 glob 形式：放行 agent 正文里唯一需要的只读命令（确定项目根的
+    # git rev-parse），其余一律 deny，而不是一刀切 bash: deny 把那一步也打死。
+    if "Bash" in disallowed:
+        perm["bash"] = {"git rev-parse *": "allow", "*": "deny"}
+    elif "Bash" in tools:
         perm["bash"] = "allow"
     if perm:
         result["permission"] = perm
@@ -123,7 +134,13 @@ def format_frontmatter(fm: dict) -> str:
         if key == "permission" and isinstance(value, dict):
             lines.append("permission:")
             for pk, pv in value.items():
-                lines.append(f"  {pk}: {pv}")
+                if isinstance(pv, dict):
+                    # 命令 glob 形式（如 bash）：glob 键必须加引号，裸 `*` 在 YAML 里是别名标记
+                    lines.append(f"  {pk}:")
+                    for glob, action in pv.items():
+                        lines.append(f'    "{glob}": {action}')
+                else:
+                    lines.append(f"  {pk}: {pv}")
         elif key == "description" and "\n" in value:
             lines.append("description: |")
             for desc_line in value.split("\n"):

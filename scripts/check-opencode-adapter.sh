@@ -363,6 +363,46 @@ PY
 
 echo "  OK agent templates"
 
+# frontmatter 解析必须锚定独占一行的 `---`（值里的三连字符不得截断 permission/steps），
+# 且 disallowedTools 里的 Bash 必须落成真正的 bash 限制：OpenCode 里未声明的权限等于放行，
+# 只有 edit: deny 的只读 agent 仍能用 shell 重定向写正文。
+python3 - "scripts/sync-opencode.py" <<'PY'
+import importlib.util
+import sys
+from pathlib import Path
+
+script_path = Path(sys.argv[1]).resolve()
+spec = importlib.util.spec_from_file_location("sync_opencode_permissions", script_path)
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+
+source = (
+    "---\nname: a\ndescription: |\n  只读 agent --- 7 Gate。\n"
+    "tools: [Read, Glob, Grep]\ndisallowedTools: [Write, Edit, Bash]\nmaxTurns: 9\n"
+    "# 备注 --- 与主 skill 平级\n---\nbody\n"
+)
+fm, body = module.parse_frontmatter(source)
+missing = {'name', 'description', 'tools', 'disallowedTools', 'maxTurns'} - set(fm)
+assert not missing, f'frontmatter truncated at an inline ---: missing {missing}'
+assert body.strip() == 'body', body
+
+converted = module.convert_claude_to_opencode(fm)
+permission = converted['permission']
+assert permission['edit'] == 'deny', converted
+bash = permission.get('bash')
+assert isinstance(bash, dict) and bash.get('*') == 'deny', f'disallowed Bash must deny: {converted}'
+assert '    "*": deny' in module.format_frontmatter(converted), module.format_frontmatter(converted)
+
+read_only = {'chapter-extractor', 'consistency-checker', 'story-explorer'}
+base = Path('skills/story-setup/references/opencode/agents')
+for name in sorted(read_only):
+    fm_text = (base / f'{name}.md').read_text(encoding='utf-8').split('\n---\n', 1)[0]
+    assert '"*": deny' in fm_text, f'{name}: read-only agent must deny arbitrary bash'
+PY
+
+echo "  OK read-only agents deny arbitrary bash (frontmatter parsed whole)"
+
 python3 - <<'PY'
 from pathlib import Path
 skill_names = {p.parent.name for p in Path('skills').glob('*/SKILL.md')}

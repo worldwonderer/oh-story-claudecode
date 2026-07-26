@@ -77,6 +77,24 @@ try {
     { args: { command: "grep 'book/正文/第003章_绕过.md' notes.md" } }
   );
 
+  // apply_patch 是 OpenCode 的 edit 类工具，且 gpt-5 系模型只暴露它、隐藏 write/edit：
+  // 守卫与落盘兜底都必须认它，否则那类模型整场没有大纲守卫和正文兜底。
+  const addPatch = (target) =>
+    `*** Begin Patch\n*** Add File: ${target}\n+正文第一句。\n*** End Patch\n`;
+  await expectBlocked(
+    () =>
+      hooks["tool.execute.before"](
+        { tool: "apply_patch" },
+        { args: { patchText: addPatch("book/正文/第004章_补丁.md") } }
+      ),
+    "apply_patch must not bypass the outline guard"
+  );
+  fs.writeFileSync("book/大纲/细纲_第4章.md", "# 细纲\n", "utf8");
+  await hooks["tool.execute.before"](
+    { tool: "apply_patch" },
+    { args: { patchText: addPatch("book/正文/第004章_补丁.md") } }
+  );
+
   fs.mkdirSync("short", { recursive: true });
   fs.writeFileSync("short/设定.md", "# 设定\n", "utf8");
   await expectBlocked(
@@ -113,6 +131,64 @@ try {
     nonProseOutput
   );
   assert.equal(nonProseOutput.output, "unchanged");
+
+  fs.writeFileSync(
+    "book/正文/第004章_补丁.md",
+    `${"街灯一盏盏亮起。".repeat(30)}\nTODO 此处待补`,
+    "utf8"
+  );
+  const patchAfterOutput = { output: "patch applied" };
+  await hooks["tool.execute.after"](
+    { tool: "apply_patch", args: { patchText: addPatch("book/正文/第004章_补丁.md") } },
+    patchAfterOutput
+  );
+  assert.match(patchAfterOutput.output, /正文兜底检测/);
+  assert.match(patchAfterOutput.output, /占位符/);
+
+  const nonProsePatchOutput = { output: "unchanged" };
+  await hooks["tool.execute.after"](
+    { tool: "apply_patch", args: { patchText: addPatch("notes.md") } },
+    nonProsePatchOutput
+  );
+  assert.equal(nonProsePatchOutput.output, "unchanged");
+
+  // 非写类工具必须在 dispatch 前返回，不为 read/grep/... fork 一次 git rev-parse
+  // （插件常驻 OpenCode 服务进程，这笔同步 execSync 会卡事件循环）。
+  // 用只记账的 git shim 顶掉 PATH：读类工具后账本必须为空，写类工具后必须有记录——
+  // 后一条防止这个断言变成永真。
+  if (process.platform !== "win32") {
+    const shimDir = path.join(tmp, "bin");
+    const gitLog = path.join(tmp, "git-calls.log");
+    fs.mkdirSync(shimDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(shimDir, "git"),
+      `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(gitLog)}\nprintf '%s\\n' ${JSON.stringify(tmp)}\n`,
+      { mode: 0o755 }
+    );
+    const realPath = process.env.PATH;
+    process.env.PATH = shimDir;
+    try {
+      for (const tool of ["read", "grep", "glob", "list", "todowrite", "webfetch"]) {
+        await hooks["tool.execute.before"]({ tool, args: {} }, { args: {} });
+      }
+      assert.equal(
+        fs.existsSync(gitLog),
+        false,
+        "non-write tools must not fork git rev-parse"
+      );
+      await hooks["tool.execute.before"](
+        { tool: "write" },
+        { args: { filePath: "book/正文/第002章_续写.md" } }
+      );
+      assert.match(
+        fs.readFileSync(gitLog, "utf8"),
+        /rev-parse/,
+        "git shim must actually intercept projectRoot()"
+      );
+    } finally {
+      process.env.PATH = realPath;
+    }
+  }
 
   const compact = { context: [] };
   await hooks["experimental.session.compacting"]({}, compact);

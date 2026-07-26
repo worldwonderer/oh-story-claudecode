@@ -6,6 +6,7 @@ import {
   discoverActiveBook,
   resolveTarget,
   extractProseTargets,
+  extractPatchTargets,
   proseBlockReason,
   proseAfterWrite,
 } from "./lib/story_hook_core.js"
@@ -90,21 +91,31 @@ export default (async () => {
       input: { tool: string; args?: Record<string, unknown> },
       output: { args?: Record<string, unknown> }
     ) => {
-      const root = projectRoot()
       const targets: string[] = []
 
       if (input.tool === "write" || input.tool === "edit") {
         const filePath = (output.args?.filePath as string) || ""
-        if (filePath) targets.push(resolveTarget(root, filePath))
+        if (filePath) targets.push(filePath)
+      } else if (input.tool === "apply_patch") {
+        // apply_patch 是 OpenCode 的 edit 类工具（upstream permission 与 write/edit 同组），
+        // 且 gpt-5 系模型只暴露它、隐藏 write/edit——不接这个分支等于守卫整场失效。
+        // 目标抽取（*** Add/Update File:）复用共享核，与 ZCode/Codex adapter 同一份判据。
+        const patchText = (output.args?.patchText as string) || ""
+        for (const t of extractPatchTargets(patchText)) targets.push(t)
       } else if (input.tool === "bash") {
         const cmd = (output.args?.command as string) || ""
-        for (const t of extractProseTargets(cmd)) targets.push(resolveTarget(root, t))
+        for (const t of extractProseTargets(cmd)) targets.push(t)
       } else {
         return
       }
 
-      for (const abs of targets) {
-        const reason = proseBlockReason(root, abs)
+      // 非写类工具（read/grep/glob/list/…）已在上面 return：projectRoot() 是同步 execSync，
+      // 插件常驻在 OpenCode 服务进程里，只有确认有目标要查时才 fork git。
+      if (targets.length === 0) return
+
+      const root = projectRoot()
+      for (const target of [...new Set(targets)]) {
+        const reason = proseBlockReason(root, resolveTarget(root, target))
         if (reason) {
           throw new Error(`${reason}（此操作无法通过 Bash/命令行绕过。）`)
         }
@@ -118,13 +129,28 @@ export default (async () => {
       input: { tool: string; args?: Record<string, unknown> },
       output: { output?: string }
     ) => {
-      if (input.tool !== "write" && input.tool !== "edit") return
-      const filePath = (input.args?.filePath as string) || ""
-      if (!filePath) return
+      const targets: string[] = []
+      if (input.tool === "write" || input.tool === "edit") {
+        const filePath = (input.args?.filePath as string) || ""
+        if (filePath) targets.push(filePath)
+      } else if (input.tool === "apply_patch") {
+        // 与 before 同一套目标抽取：gpt-5 系模型只有 apply_patch，不接就等于整场没有落盘兜底。
+        const patchText = (input.args?.patchText as string) || ""
+        for (const t of extractPatchTargets(patchText)) targets.push(t)
+      } else {
+        return
+      }
+      if (targets.length === 0) return
       const root = projectRoot()
       try {
-        const note = proseAfterWrite(root, resolveTarget(root, filePath))
-        if (note && typeof output.output === "string") output.output += `\n\n${note}`
+        const notes: string[] = []
+        for (const target of [...new Set(targets)]) {
+          const note = proseAfterWrite(root, resolveTarget(root, target))
+          if (note) notes.push(note)
+        }
+        if (notes.length && typeof output.output === "string") {
+          output.output += `\n\n${notes.join("\n\n")}`
+        }
       } catch {
         // 兜底不能反过来卡流程：解析失败一律放行
       }
