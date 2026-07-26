@@ -1,3 +1,5 @@
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
 test("用现有 demo 浏览拆文库、搜索项目并编辑保存", async ({ page, request }) => {
@@ -282,18 +284,74 @@ test("打开文稿不会收起正在翻的目录", async ({ page }) => {
   await expect(row).toBeVisible();
 });
 
-test("目录树被截断时明确提示，而不是让文件凭空消失", async ({ page }) => {
-  await page.route("**/api/workspace", async (route) => {
-    const response = await route.fetch();
-    const payload = await response.json();
-    payload.limits.truncated = true;
-    await route.fulfill({ response, json: payload });
-  });
+// 提示条必须由真实扫描触发：改写响应把 truncated 拍成 true 只能证明模板会渲染，
+// 服务端根本没上报截断这种漏文件的 bug 照样从这条断言底下溜过去。
+test("目录树被截断时明确提示，而不是让文件凭空消失", async ({ page, request }) => {
+  const workspace = await request.get("/api/workspace").then((response) => response.json());
+  const projectPath = workspace.projects[0].path;
+  // 在真实 fixture 的正文下套满 12 层，越过服务端 MAX_TREE_DEPTH，扫描会真的剪掉子树
+  const nestedRoot = resolve(workspace.workspace.path, projectPath, "正文", "深卷");
+  const nestedLeaf = resolve(
+    nestedRoot,
+    ...Array.from({ length: 11 }, (_, index) => `第${index + 1}折`),
+  );
+
+  try {
+    await mkdir(nestedLeaf, { recursive: true });
+    await writeFile(resolve(nestedLeaf, "埋掉的一章.md"), "深处的正文", "utf8");
+
+    await page.goto("/");
+    await expect(page.locator("#treeTruncationNotice")).toContainText("有目录套得太深");
+    await expect(page.locator("#treeTruncationNotice")).toContainText("更深处的文稿没有列出");
+    await expect(page.locator("#treeTruncationNotice")).toContainText("搜索也只覆盖已列出的部分");
+    await expect(page.locator("#fileCount")).toContainText("+");
+
+    // 被剪掉的文稿确实不在树里，也搜不到——提示条说的就是这件事
+    await page.getByRole("tab", { name: /写作项目/ }).click();
+    await page.locator("#treeSearch").fill("埋掉的一章");
+    await expect(page.locator("#fileTree .file-row")).toHaveCount(0);
+    await expect(page.locator("#fileTree")).toContainText("没有找到");
+  } finally {
+    await rm(nestedRoot, { recursive: true, force: true });
+  }
+
+  // 深目录挪走后提示条必须自己消失，否则就是恒亮的噪音而不是告警
+  await page.goto("/");
+  await expect(page.locator("#fileTree")).toContainText("盘龙");
+  await expect(page.locator("#treeTruncationNotice")).toHaveCount(0);
+  await expect(page.locator("#fileCount")).not.toContainText("+");
+});
+
+// 节点预算这条成因也要真跑一遍：它和深度截断共用 truncated 布尔值，
+// 只测一条就分不出「文案是否跟着成因走」，作者会拿到错的处置建议。
+test("文件顶到节点上限时提示的是减量，而不是拍平目录", async ({ page, request }) => {
+  const workspace = await request.get("/api/workspace").then((response) => response.json());
+  const body = resolve(workspace.workspace.path, workspace.projects[0].path, "正文");
+  const created = [];
+
+  try {
+    // 比 MAX_TREE_NODES 多出一截，扫描必然在列完之前用光预算
+    for (let start = 0; start < 5010; start += 200) {
+      await Promise.all(
+        Array.from({ length: Math.min(200, 5010 - start) }, (_, offset) => {
+          const target = resolve(body, `凑数_第${String(start + offset + 1).padStart(5, "0")}章.md`);
+          created.push(target);
+          return writeFile(target, "凑数", "utf8");
+        }),
+      );
+    }
+
+    await page.goto("/");
+    await expect(page.locator("#treeTruncationNotice")).toContainText("工作区文件太多");
+    await expect(page.locator("#treeTruncationNotice")).toContainText("条上限");
+    await expect(page.locator("#treeTruncationNotice")).not.toContainText("有目录套得太深");
+    await expect(page.locator("#fileCount")).toContainText("+");
+  } finally {
+    await Promise.all(created.map((target) => rm(target, { force: true })));
+  }
 
   await page.goto("/");
-  await expect(page.locator("#treeTruncationNotice")).toContainText("目录树只列到");
-  await expect(page.locator("#treeTruncationNotice")).toContainText("搜索也只覆盖已列出的部分");
-  await expect(page.locator("#fileCount")).toContainText("+");
+  await expect(page.locator("#treeTruncationNotice")).toHaveCount(0);
 });
 
 test("@mobile 手机视口仍可从真实长篇项目打开大纲", async ({ page }) => {

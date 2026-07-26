@@ -263,7 +263,32 @@ function renderTree() {
   elements.fileTree.append(list);
 }
 
-// 扫描到达节点上限时目录树和搜索都只覆盖已列出的部分，必须明说，不能让作者以为文件不存在
+// 节点预算打满要减量，目录套太深要把嵌套拍平：两种截断的处置办法不同，
+// 混成同一句话等于让作者照着错的办法搬文稿，所以按后端报的成因分别成句。
+function truncationMessage(limits) {
+  const byDepth = Boolean(limits.truncatedByDepth);
+  // 老版本后端只给 truncated 一个布尔值，没有成因时按节点上限解释，保持旧文案不回退成空话。
+  const byNodes = typeof limits.truncatedByNodes === "boolean" ? limits.truncatedByNodes : !byDepth;
+  const reasons = [];
+  if (byNodes) {
+    reasons.push(`工作区文件太多，目录树只列到 ${formatNumber(limits.maxTreeNodes)} 条上限，部分文稿没有列出`);
+  }
+  if (byDepth) {
+    const depthLimit = Number.isFinite(limits.maxTreeDepth)
+      ? `（超过 ${formatNumber(limits.maxTreeDepth)} 层）`
+      : "";
+    reasons.push(`有目录套得太深${depthLimit}，更深处的文稿没有列出`);
+  }
+  let advice = "请把旧卷或拆文库挪到别处，或直接在编辑器里打开缺失的文件。";
+  if (byNodes && byDepth) {
+    advice = "请把旧卷或拆文库挪到别处、并把过深的子目录拍平，或直接在编辑器里打开缺失的文件。";
+  } else if (byDepth) {
+    advice = "请把过深的子目录拍平，或直接在编辑器里打开缺失的文件。";
+  }
+  return `${reasons.join("；")}，搜索也只覆盖已列出的部分。${advice}`;
+}
+
+// 扫描碰到上限时目录树和搜索都只覆盖已列出的部分，必须明说，不能让作者以为文件不存在
 function renderTruncationNotice(limits) {
   if (!limits?.truncated) {
     elements.truncationNotice?.remove();
@@ -279,9 +304,7 @@ function renderTruncationNotice(limits) {
     elements.treePanel.insertBefore(notice, elements.fileTree);
     elements.truncationNotice = notice;
   }
-  elements.truncationNotice.querySelector("p").textContent =
-    `工作区文件太多，目录树只列到 ${formatNumber(limits.maxTreeNodes)} 条上限，部分文稿没有列出，搜索也只覆盖已列出的部分。` +
-    "请把旧卷或拆文库挪到别处，或直接在编辑器里打开缺失的文件。";
+  elements.truncationNotice.querySelector("p").textContent = truncationMessage(limits);
 }
 
 function renderWorkspace() {

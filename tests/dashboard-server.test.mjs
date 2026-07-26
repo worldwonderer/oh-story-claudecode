@@ -56,6 +56,47 @@ async function createWorkspace() {
   return root;
 }
 
+// 真造一棵超过 MAX_TREE_DEPTH 的目录：深度上限是靠 buildTreeNode 剪子树实现的，
+// 只有走真实 scanWorkspace 才能测出「文件被剪掉却不报截断」这类静默漏文件。
+async function createDeepWorkspace(nesting = 12) {
+  const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-deep-"));
+  temporaryDirectories.push(root);
+  const projectRoot = resolve(root, "长篇", "深书");
+  await mkdir(resolve(projectRoot, "大纲"), { recursive: true });
+  await mkdir(resolve(projectRoot, "正文"), { recursive: true });
+  await writeFile(resolve(projectRoot, "正文", "第001章.md"), "初稿", "utf8");
+  // 正文 从项目根算起是第 1 层，再往下套 nesting 层，最深的文稿必然越过深度上限
+  const deepDirectory = resolve(
+    projectRoot,
+    "正文",
+    ...Array.from({ length: nesting }, (_, index) => `卷${index + 1}`),
+  );
+  await mkdir(deepDirectory, { recursive: true });
+  await writeFile(resolve(deepDirectory, "埋掉的一章.md"), "深处的正文", "utf8");
+  return root;
+}
+
+// 节点预算同样会真的丢文件，用一棵扁平但超量的项目树顶到 MAX_TREE_NODES。
+async function createOversizedWorkspace(fileCount = 5010) {
+  const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-oversized-"));
+  temporaryDirectories.push(root);
+  const body = resolve(root, "长篇", "巨书", "正文");
+  await mkdir(resolve(root, "长篇", "巨书", "大纲"), { recursive: true });
+  await mkdir(body, { recursive: true });
+  for (let start = 0; start < fileCount; start += 200) {
+    await Promise.all(
+      Array.from({ length: Math.min(200, fileCount - start) }, (_, offset) =>
+        writeFile(
+          resolve(body, `第${String(start + offset + 1).padStart(5, "0")}章.md`),
+          "初稿",
+          "utf8",
+        ),
+      ),
+    );
+  }
+  return root;
+}
+
 async function startServer(root) {
   const server = createDashboardServer({ root });
   await new Promise((accept, reject) => {
@@ -81,9 +122,50 @@ describe("workspace scanning", () => {
     assert.equal(workspace.stats.libraries, 2);
     assert.equal(workspace.stats.projects, 1);
     assert.ok(workspace.stats.editableFiles > 100);
-    // 前端要靠这两个字段判断「树是否被截断」，缺一个就会又变成静默漏文件
+    // 前端要靠这几个字段判断「树是否被截断」，缺一个就会又变成静默漏文件
     assert.equal(workspace.limits.truncated, false);
+    assert.equal(workspace.limits.truncatedByNodes, false);
+    assert.equal(workspace.limits.truncatedByDepth, false);
     assert.ok(workspace.limits.maxTreeNodes > 0);
+    assert.ok(workspace.limits.maxTreeDepth > 0);
+  });
+
+  test("reports truncation when the depth cap prunes a subtree", async () => {
+    const root = await createDeepWorkspace();
+    const workspace = await scanWorkspace(root);
+
+    // 深度上限确实剪掉了文稿，那就必须报截断：这里报 false 就是让文件凭空消失
+    assert.equal(workspace.limits.truncated, true);
+    assert.equal(workspace.limits.truncatedByDepth, true);
+    assert.equal(workspace.limits.truncatedByNodes, false);
+    // 只有深度触顶，节点预算根本没打满，别把两种成因搅在一起
+    assert.ok(workspace.limits.maxTreeDepth > 0);
+
+    const serialized = JSON.stringify(workspace);
+    assert.doesNotMatch(serialized, /埋掉的一章/);
+    // 剪掉深处子树不能连带毁掉整棵树：浅层正文和项目本身都要照常列出
+    assert.match(serialized, /第001章\.md/);
+    assert.equal(workspace.projects.length, 1);
+  });
+
+  test("keeps depth truncation quiet when every file fits inside the cap", async () => {
+    const root = await createDeepWorkspace(6);
+    const workspace = await scanWorkspace(root);
+
+    // 没越线就不能报截断，否则提示条恒亮，等于又变成没人看的噪音
+    assert.equal(workspace.limits.truncated, false);
+    assert.equal(workspace.limits.truncatedByDepth, false);
+    assert.match(JSON.stringify(workspace), /埋掉的一章/);
+  });
+
+  test("reports truncation when the node budget runs out", async () => {
+    const root = await createOversizedWorkspace();
+    const workspace = await scanWorkspace(root);
+
+    assert.equal(workspace.limits.truncated, true);
+    assert.equal(workspace.limits.truncatedByNodes, true);
+    assert.equal(workspace.limits.truncatedByDepth, false);
+    assert.ok(workspace.stats.files <= workspace.limits.maxTreeNodes);
   });
 
   test("ignores infrastructure folders and marks unsupported files read-only", async () => {

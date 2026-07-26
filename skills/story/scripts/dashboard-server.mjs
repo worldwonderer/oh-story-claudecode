@@ -137,7 +137,14 @@ export async function resolveWorkspacePath(root, requestedPath, options = {}) {
 }
 
 async function buildTreeNode(root, absolutePath, relativePath, state, depth = 0) {
-  if (state.nodes >= MAX_TREE_NODES || depth > MAX_TREE_DEPTH) {
+  // 两个上限都会真的丢文件，必须各自留痕：靠 state.nodes 反推截断只能看见节点预算，
+  // 目录太深被剪掉的子树会一声不响地消失，作者还以为文稿本来就不存在。
+  if (state.nodes >= MAX_TREE_NODES) {
+    state.nodeLimitHit = true;
+    return null;
+  }
+  if (depth > MAX_TREE_DEPTH) {
+    state.depthLimitHit = true;
     return null;
   }
   state.nodes += 1;
@@ -299,7 +306,7 @@ export async function scanWorkspace(root) {
   const projectRoots = await findProjectRoots(realRoot, libraryPaths);
 
   // 先扫写作项目再扫拆文库：节点预算有限时，作者自己的正文优先于参考档案。
-  const state = { nodes: 0 };
+  const state = { nodes: 0, nodeLimitHit: false, depthLimitHit: false };
   const projects = (
     await Promise.all(
       projectRoots.map((entry) =>
@@ -329,7 +336,12 @@ export async function scanWorkspace(root) {
       maxFileBytes: MAX_FILE_BYTES,
       editableExtensions: [...EDITABLE_EXTENSIONS],
       maxTreeNodes: MAX_TREE_NODES,
-      truncated: state.nodes >= MAX_TREE_NODES,
+      maxTreeDepth: MAX_TREE_DEPTH,
+      // truncated 仍是前端读的总闸门，但成因要分开报：「文件太多」和「目录套太深」
+      // 对作者是两种处置办法，混成一句话等于让人照着错的办法搬文件。
+      truncated: state.nodeLimitHit || state.depthLimitHit,
+      truncatedByNodes: state.nodeLimitHit,
+      truncatedByDepth: state.depthLimitHit,
     },
   };
 }
