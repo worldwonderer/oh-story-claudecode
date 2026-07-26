@@ -589,16 +589,19 @@ function arg(name, def) {
 const id = arg("--id", "fake-cdp");
 const portfile = arg("--portfile", null);
 const stopfile = arg("--stopfile", null);
+// --no-identity：照答 /json/version，但不给 webSocketDebuggerUrl，模拟「身份取不到」
+const noIdentity = process.argv.indexOf("--no-identity") > -1;
 let port = Number(arg("--port", arg("--remote-debugging-port", 0)));
 if (!Number.isInteger(port) || port < 0) port = 0;
 const server = http.createServer((req, res) => {
   if (req.url !== "/json/version") { res.writeHead(404); res.end("nope"); return; }
   res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({
-    Browser: id,
-    "Protocol-Version": "1.3",
-    webSocketDebuggerUrl: "ws://127.0.0.1:" + server.address().port + "/devtools/browser/" + id,
-  }));
+  const payload = { Browser: id, "Protocol-Version": "1.3" };
+  if (!noIdentity) {
+    payload.webSocketDebuggerUrl =
+      "ws://127.0.0.1:" + server.address().port + "/devtools/browser/" + id;
+  }
+  res.end(JSON.stringify(payload));
 });
 server.listen(port, "127.0.0.1", () => {
   if (portfile) fs.writeFileSync(portfile, String(server.address().port), "utf8");
@@ -640,6 +643,93 @@ const child = spawn(
 );
 child.unref();
 setTimeout(() => process.exit(0), 300);
+`;
+
+// 同上，但 launcher 常驻——这就是复审给的最小变异。于是「旧端点消失过 + 身份变了 +
+// spawn 出的进程还活着」三条间接证据全成立，而端口其实握在另一个进程手里。
+// 光靠这三条推不出「端口归它」，只有把端口和进程真正绑上的检查才拦得住。
+const FAKE_CHROME_FOREIGN_ALIVE = `"use strict";
+const fs = require("fs");
+const path = require("path");
+const { spawn } = require("child_process");
+let port = 0;
+for (const a of process.argv) {
+  const m = a.match(/^--remote-debugging-port=(\\d+)$/);
+  if (m) port = Number(m[1]);
+}
+const child = spawn(
+  process.execPath,
+  [path.join(__dirname, "fake-cdp.js"), "--port", String(port), "--id", "foreign-orphan-cdp",
+   "--stopfile", process.env.H_STOPFILE_NEW],
+  { detached: true, stdio: "ignore" }
+);
+child.unref();
+// 变异点：launcher 不退出，只在测试收尾写 stopfile 时才退
+setInterval(() => { if (fs.existsSync(process.env.H_STOPFILE_NEW)) process.exit(0); }, 50);
+`;
+
+// 端口被一个「不在本次 spawn 的进程树里」的进程握着，而 launcher 照样活着。
+// 两级 spawn：中间那层立刻退出，端点进程被 init 收养，脱离本次启动的进程树。
+// 它还故意带上和本次启动一模一样的 --remote-debugging-port=<port>，唯一的区别就是
+// 「不是我们起的」——这条测的正是 pid 归属本身。
+const FAKE_CHROME_OUTSIDE_TREE = `"use strict";
+const fs = require("fs");
+const path = require("path");
+const { spawn } = require("child_process");
+let port = 0;
+for (const a of process.argv) {
+  const m = a.match(/^--remote-debugging-port=(\\d+)$/);
+  if (m) port = Number(m[1]);
+}
+const relay = spawn(
+  process.execPath,
+  ["-e",
+   "const {spawn}=require('child_process');" +
+   "const c=spawn(process.argv[1],process.argv.slice(2),{detached:true,stdio:'ignore'});" +
+   "c.unref();process.exit(0);",
+   process.execPath,
+   path.join(__dirname, "fake-cdp.js"), "--remote-debugging-port=" + port,
+   "--id", "outside-tree-cdp", "--stopfile", process.env.H_STOPFILE_NEW],
+  { detached: true, stdio: "ignore" }
+);
+relay.unref();
+setInterval(() => { if (fs.existsSync(process.env.H_STOPFILE_NEW)) process.exit(0); }, 50);
+`;
+
+// 真 Chrome 的常见形态：launcher 自己不监听，端口由它拉起来的 browser 进程持有
+// （macOS 上启动的二进制还可能 re-exec）。这个子进程继承了本次启动的
+// --remote-debugging-port，人也在 spawn 出来的进程树里——归属校验必须认这种形态，
+// 否则真实启动会被误杀。这是归属校验的假阴性守卫。
+const FAKE_CHROME_CHILD_BROWSER = `"use strict";
+const fs = require("fs");
+const path = require("path");
+const { spawn } = require("child_process");
+let port = 0;
+for (const a of process.argv) {
+  const m = a.match(/^--remote-debugging-port=(\\d+)$/);
+  if (m) port = Number(m[1]);
+}
+spawn(
+  process.execPath,
+  [path.join(__dirname, "fake-cdp.js"), "--remote-debugging-port=" + port,
+   "--id", "child-browser-cdp", "--stopfile", process.env.H_STOPFILE_NEW],
+  { stdio: "ignore" }
+);
+setInterval(() => { if (fs.existsSync(process.env.H_STOPFILE_NEW)) process.exit(0); }, 50);
+`;
+
+// 端口由 launcher 本进程亲自绑住（归属这条是真成立的），但 /json/version 里没有
+// webSocketDebuggerUrl——cdpIdentity() 返回 null。按它自己的合约，null 只能当「无法比对」。
+const FAKE_CHROME_NO_IDENTITY = `"use strict";
+const path = require("path");
+let port = 0;
+for (const a of process.argv) {
+  const m = a.match(/^--remote-debugging-port=(\\d+)$/);
+  if (m) port = Number(m[1]);
+}
+process.argv = [process.argv[0], "fake-cdp", "--port", String(port), "--id", "no-identity-cdp",
+  "--no-identity", "--stopfile", process.env.H_STOPFILE_NEW];
+require(path.join(__dirname, "fake-cdp.js"));
 `;
 
 const CDP_PRELOAD = `"use strict";
@@ -698,6 +788,10 @@ function runSetupCdp(scenario) {
       ["fake-chrome-dies.js", FAKE_CHROME_DIES],
       ["fake-chrome-fresh.js", FAKE_CHROME_FRESH],
       ["fake-chrome-orphan.js", FAKE_CHROME_ORPHAN],
+      ["fake-chrome-foreign-alive.js", FAKE_CHROME_FOREIGN_ALIVE],
+      ["fake-chrome-outside-tree.js", FAKE_CHROME_OUTSIDE_TREE],
+      ["fake-chrome-child-browser.js", FAKE_CHROME_CHILD_BROWSER],
+      ["fake-chrome-no-identity.js", FAKE_CHROME_NO_IDENTITY],
       ["cdp-preload.js", CDP_PRELOAD],
     ]) {
       fs.writeFileSync(path.join(tmpDir, name), body, "utf8");
@@ -745,6 +839,10 @@ function runSetupCdp(scenario) {
       genuineReset: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-fresh.js" },
       plainReuse: { args: [], pids: "empty", kill: "noop", chrome: "fake-chrome-dies.js" },
       orphanEndpoint: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-orphan.js" },
+      foreignHeldPort: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-foreign-alive.js" },
+      outsideTreeHolder: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-outside-tree.js" },
+      childHoldsPort: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-child-browser.js" },
+      nullIdentity: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-no-identity.js" },
     }[scenario];
     assert(plan, `harness: 未知场景 ${scenario}`);
 
@@ -856,13 +954,19 @@ function testCdpResetRefusesStaleEndpoint() {
   );
 }
 
-// 反向：端口真的空出来、新实例真的起来了，--reset 照样成功——闸门不是把功能关掉
+// 反向：端口真的空出来、新实例真的起来了（端口就绑在 spawn 出来的那个进程上，
+// 命令行里带着本次的 --remote-debugging-port），--reset 照样成功——闸门不是把功能关掉。
+// 这一条同时是归属校验的假阳性守卫：lsof/ps 查出来的持有者必须真能匹配上本次启动。
 function testCdpResetSucceedsWhenPortActuallyFrees() {
   const run = runSetupCdp("genuineReset");
   assert.strictEqual(
     run.status,
     0,
     `旧端点确实消失 + 新端点起来了，--reset 必须成功:\n${run.stdout}\n${run.stderr}`
+  );
+  assert(
+    !/CDP_OWNER_|CDP_PORT_NOT_OURS|CDP_IDENTITY_UNVERIFIABLE/.test(run.stderr),
+    `真实启动不许被归属/身份校验误杀:\n${run.stderr}`
   );
   assert.match(run.stdout, /已释放/);
   assert.match(run.stdout, /正在删除 debug profile/);
@@ -883,6 +987,11 @@ function testCdpPlainReuseUnchanged() {
   assert(!/正在停止/.test(run.stdout), run.stdout);
   assert(!/正在删除 debug profile/.test(run.stdout), run.stdout);
   assert(!/正在以 CDP 模式启动 Chrome/.test(run.stdout), run.stdout);
+  // 复用快路径没有「本次启动的实例」可言，归属/身份校验一概不该在这里跑
+  assert(
+    !/CDP_OWNER_|CDP_PORT_NOT_OURS|CDP_IDENTITY_UNVERIFIABLE/.test(run.stderr),
+    `复用快路径不该跑启动后的归属/身份校验:\n${run.stderr}`
+  );
 }
 
 // 端口空出来了，但刚 spawn 的 Chrome 死了、端口被另一个进程接手：identity 变了也不算成功
@@ -902,6 +1011,108 @@ function testCdpRejectsEndpointNotFromThisLaunch() {
   assert(
     !run.stdout.includes("foreign-orphan-cdp"),
     `不该把外来端点的 /json/version 当成结果输出:\n${run.stdout}`
+  );
+}
+
+// 回归点：launcher 活着，但端口握在它 detach 出去的另一个进程手里。
+// 「旧端点消失过 + 身份变了 + spawn 的进程还活着」这三条间接证据全成立——推不出「端口归它」。
+// 必须真的把端口和本次启动的实例绑上：LISTEN 持有者要在这棵进程树里，且树里确有一个
+// 带着本次的 --remote-debugging-port 的持有者。否则拿到的就是别人的登录态。
+function testCdpRejectsForeignHolderWhileLauncherAlive() {
+  const run = runSetupCdp("foreignHeldPort");
+
+  assert.strictEqual(
+    run.status,
+    1,
+    `端口握在别的进程手里（哪怕 launcher 还活着）必须非零退出，实际 ${run.status}:\n${run.stdout}\n${run.stderr}`
+  );
+  // 查得出归属就点名 NOT_LAUNCHED_INSTANCE；查不出来（本机没有 lsof/ps 一类工具）也只能
+  // UNVERIFIABLE 硬失败——两条都是「证不出来就不放行」，唯独不许 exit 0。
+  assert.match(
+    run.stderr,
+    /CDP_OWNER_NOT_LAUNCHED_INSTANCE|CDP_OWNER_UNVERIFIABLE/,
+    `必须点名说清为什么不认这个端点:\n${run.stderr}`
+  );
+  // 这次 launcher 是活着的：不许靠「进程已退出」那条老分支蒙对
+  assert(
+    !/已经退出/.test(run.stderr),
+    `launcher 活着时不该走到「进程已退出」分支:\n${run.stderr}`
+  );
+  assert(
+    !/已成功以 CDP 模式启动/.test(run.stdout),
+    `不许把别人握着的端口报成启动成功:\n${run.stdout}`
+  );
+  assert(
+    !run.stdout.includes("foreign-orphan-cdp"),
+    `不该把外来端点的 /json/version 当成结果输出:\n${run.stdout}`
+  );
+}
+
+// 回归点：端口被一个不在本次 spawn 进程树里的进程握着（launcher 照样活着），
+// 而且那个进程带着和本次一模一样的 --remote-debugging-port——唯一的区别就是「不是我们起的」。
+// 这一条测的正是 pid 归属本身。
+function testCdpRejectsPortHeldOutsideSpawnedTree() {
+  const run = runSetupCdp("outsideTreeHolder");
+
+  assert.strictEqual(
+    run.status,
+    1,
+    `端口持有者不在本次启动的进程树里必须非零退出，实际 ${run.status}:\n${run.stdout}\n${run.stderr}`
+  );
+  assert.match(
+    run.stderr,
+    /CDP_PORT_NOT_OURS|CDP_OWNER_UNVERIFIABLE/,
+    `必须点名说清为什么不认这个端点:\n${run.stderr}`
+  );
+  assert(
+    !/已成功以 CDP 模式启动/.test(run.stdout),
+    `不许把树外进程握着的端口报成启动成功:\n${run.stdout}`
+  );
+  assert(
+    !run.stdout.includes("outside-tree-cdp"),
+    `不该把树外端点的 /json/version 当成结果输出:\n${run.stdout}`
+  );
+}
+
+// 反向：真 Chrome 常常不是 launcher 自己监听，而是它拉起来的 browser 进程持有端口
+// （macOS 上还可能 re-exec）。树里更深一层的持有者必须照样算成功——归属校验是拦别人的，
+// 不是把真实启动拦掉。
+function testCdpAcceptsPortHeldByLaunchedChildProcess() {
+  const run = runSetupCdp("childHoldsPort");
+
+  assert.strictEqual(
+    run.status,
+    0,
+    `端口由本次启动拉起的子进程持有，必须算成功:\n${run.stdout}\n${run.stderr}`
+  );
+  assert.match(run.stdout, /已成功以 CDP 模式启动/);
+  assert(run.stdout.includes("child-browser-cdp"), run.stdout);
+  assert(
+    !/CDP_OWNER_|CDP_PORT_NOT_OURS|CDP_IDENTITY_UNVERIFIABLE/.test(run.stderr),
+    `进程树里更深一层的持有者不许被误杀:\n${run.stderr}`
+  );
+}
+
+// 回归点：/json/version 应答里取不到实例身份时，cdpIdentity() 返回 null。
+// 它的合约写死了 null 只能当「无法比对」——既不是相同也不是不同。放它过去就等于
+// 把「证明不了」当成「证明了」，所以必须硬失败，哪怕端口归属这条其实是成立的。
+function testCdpRejectsUnverifiableIdentity() {
+  const run = runSetupCdp("nullIdentity");
+
+  assert.strictEqual(
+    run.status,
+    1,
+    `取不到实例身份必须非零退出，实际 ${run.status}:\n${run.stdout}\n${run.stderr}`
+  );
+  assert.match(run.stderr, /CDP_IDENTITY_UNVERIFIABLE/);
+  assert.match(run.stderr, /取不到实例身份/);
+  assert(
+    !/已成功以 CDP 模式启动/.test(run.stdout),
+    `身份没证出来就不许报成功:\n${run.stdout}`
+  );
+  assert(
+    !run.stdout.includes("no-identity-cdp"),
+    `不该把没身份的端点当成结果输出:\n${run.stdout}`
   );
 }
 
@@ -937,5 +1148,9 @@ testCdpProbeUsesFreshSocket();
 testCdpPlainReuseUnchanged();
 testCdpResetRefusesStaleEndpoint();
 testCdpRejectsEndpointNotFromThisLaunch();
+testCdpRejectsForeignHolderWhileLauncherAlive();
+testCdpRejectsPortHeldOutsideSpawnedTree();
+testCdpRejectsUnverifiableIdentity();
+testCdpAcceptsPortHeldByLaunchedChildProcess();
 testCdpResetSucceedsWhenPortActuallyFrees();
 console.log("OK: scan runtime uses shell-safe CDP calls and side-effect-free scraper modules");

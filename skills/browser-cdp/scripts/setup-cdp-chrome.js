@@ -17,8 +17,10 @@
 //       --profile 时不复用——这两个参数就是要重建 debug profile（登录态过期即走这条路），
 //       会先关闭现有 Chrome（非 TTY 下需 --yes，否则 exit 3 报 NEEDS_CONSENT）。
 //       重建路径上有两道硬闸门：关完进程后端口必须真的不再应答（否则在动 profile 之前就
-//       exit 1 中止，绝不删一个还在运行的 Chrome 的 profile）；启动后应答的实例身份必须
-//       与重建前不同且 spawn 出的进程还活着（否则拒绝报成功，避免把旧会话当新浏览器交出去）。
+//       exit 1 中止，绝不删一个还在运行的 Chrome 的 profile）；启动后必须证明「端口上应答的
+//       就是本次启动的实例」——身份取得到且与重建前不同、spawn 出的进程还活着、端口的 LISTEN
+//       持有者全在这棵进程树里、且树里确有一个持有者带着本次的 --remote-debugging-port。
+//       任何一条证不出来（含查不到）都拒绝报成功，避免把别人的会话当新浏览器交出去。
 //
 // 退出码:
 //   0  成功 / detect-only 完成
@@ -295,6 +297,199 @@ function describePortHolder(port) {
   }
 }
 
+/** 跑一条只读的查询命令，拿 stdout；命令不存在/非零退出/超时一律返回 null */
+function queryStdout(cmd) {
+  try {
+    const out = execSync(cmd, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    return typeof out === "string" ? out : String(out);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 列出正在 LISTEN 指定端口的进程 pid。
+ * 只在「已经探到 CDP 应答」之后调用——那一刻端口必然有人在监听，所以空结果只可能是
+ * 工具缺失或看不见，一律返回 null 表示「无从判断」，绝不能被当成「没人占用」而放行。
+ */
+function listPortListenerPids(port) {
+  const cmds =
+    PLATFORM === "win32"
+      ? ["netstat -ano -p tcp"]
+      : [
+          `lsof -nP -iTCP:${port} -sTCP:LISTEN -t`,
+          // Linux 上 lsof 经常不预装，用 ss / fuser 兜底
+          `ss -H -ltnp "sport = :${port}"`,
+          `fuser -n tcp ${port}`,
+        ];
+  for (const cmd of cmds) {
+    const out = queryStdout(cmd);
+    if (out === null) continue;
+    const pids = new Set();
+    if (PLATFORM === "win32") {
+      const re = new RegExp(`:${port}\\s+\\S+\\s+LISTENING\\s+(\\d+)`, "i");
+      for (const line of out.split("\n")) {
+        const m = line.match(re);
+        if (m) pids.add(Number(m[1]));
+      }
+    } else if (cmd.startsWith("ss ")) {
+      for (const m of out.matchAll(/pid=(\d+)/g)) pids.add(Number(m[1]));
+    } else {
+      // lsof -t / fuser：一堆纯数字 pid
+      for (const tok of out.split(/\s+/)) {
+        const n = Number(tok);
+        if (Number.isInteger(n) && n > 0) pids.add(n);
+      }
+    }
+    const list = [...pids].filter((n) => n > 0);
+    if (list.length > 0) return list;
+  }
+  return null;
+}
+
+/** 全机 pid -> ppid 表；查不到返回 null（无从判断，不是「没有父进程」） */
+function listProcessParents() {
+  const cmds =
+    PLATFORM === "win32"
+      ? [
+          // wmic 在新版 Windows 上已被移除，退回 PowerShell CIM（5.1 / 7 都试）
+          "wmic process get ProcessId,ParentProcessId /format:csv",
+          'powershell -NoProfile -NonInteractive -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId | ConvertTo-Csv -NoTypeInformation"',
+          'pwsh -NoProfile -NonInteractive -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId | ConvertTo-Csv -NoTypeInformation"',
+        ]
+      : ["ps -A -o pid=,ppid="]; // macOS(BSD) 与 Linux(procps) 都认这一条
+  for (const cmd of cmds) {
+    const out = queryStdout(cmd);
+    if (out === null) continue;
+    const map = new Map();
+    if (PLATFORM === "win32") {
+      // 两个来源的列序不一样（wmic 按字母序，PowerShell 按 Select 顺序），按表头定位
+      const lines = out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      const head = lines.findIndex(
+        (l) => /processid/i.test(l) && /parentprocessid/i.test(l)
+      );
+      if (head < 0) continue;
+      const cols = lines[head]
+        .split(",")
+        .map((c) => c.replace(/"/g, "").trim().toLowerCase());
+      const pidCol = cols.indexOf("processid");
+      const ppidCol = cols.indexOf("parentprocessid");
+      if (pidCol < 0 || ppidCol < 0) continue;
+      for (const line of lines.slice(head + 1)) {
+        const cells = line.split(",").map((c) => c.replace(/"/g, "").trim());
+        const pid = Number(cells[pidCol]);
+        const ppid = Number(cells[ppidCol]);
+        if (pid > 0 && Number.isInteger(ppid)) map.set(pid, ppid);
+      }
+    } else {
+      for (const line of out.split("\n")) {
+        const m = line.trim().match(/^(\d+)\s+(\d+)$/);
+        if (m) map.set(Number(m[1]), Number(m[2]));
+      }
+    }
+    if (map.size > 0) return map;
+  }
+  return null;
+}
+
+/** 取某个 pid 的完整命令行；取不到返回 null */
+function processCommandLine(pid) {
+  const cmds =
+    PLATFORM === "win32"
+      ? [
+          `wmic process where "ProcessId=${pid}" get CommandLine /value`,
+          `powershell -NoProfile -NonInteractive -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine"`,
+          `pwsh -NoProfile -NonInteractive -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine"`,
+        ]
+      : [`ps -ww -o command= -p ${pid}`]; // -ww：不许按终端宽度截断，Chrome 的命令行很长
+  for (const cmd of cmds) {
+    const out = queryStdout(cmd);
+    if (out === null) continue;
+    const text =
+      PLATFORM === "win32" ? out.replace(/^\s*CommandLine=/im, "") : out;
+    const trimmed = text.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+}
+
+/** pid 是否在 rootPid 的进程树里（含 rootPid 本身）；沿 ppid 往上走 */
+function isInProcessTree(pid, rootPid, parents) {
+  let cur = pid;
+  for (let hops = 0; hops < 64; hops++) {
+    if (cur === rootPid) return true;
+    if (!Number.isInteger(cur) || cur <= 1) return false;
+    const next = parents.get(cur);
+    if (next === undefined || next === cur) return false;
+    cur = next;
+  }
+  return false;
+}
+
+/**
+ * 证明端口上应答的那个端点确实归本次 spawn 出来的进程所有。两件事都要成立：
+ *   ① 端口上所有 LISTEN 持有者都在 rootPid 这棵进程树里——Chrome 会另起 browser 进程，
+ *      macOS 上启动的二进制还可能 re-exec，所以比的是整棵树而不是直系 pid；反过来，
+ *      子进程继承了监听 fd 也会被 lsof 列出来，所以要求「全都在树里」而不是「有一个在」。
+ *   ② 树里确实有一个持有者带着本次启动的 --remote-debugging-port=<port>——证明应答的是
+ *      我们配出来的那个实例，而不是树里某个别的进程顺手占了这个端口。
+ * 任何一步查不出来都返回 unverifiable：宁可硬失败，也不能把「证明不了」当成「证明了」。
+ */
+function verifyPortOwnedByLaunch(port, rootPid) {
+  const fail = (code, lines) => ({ ok: false, code, lines: [`${code}: ${lines[0]}`, ...lines.slice(1)] });
+  const unverifiable = (why) =>
+    fail("CDP_OWNER_UNVERIFIABLE", [
+      `无法确认端口 ${port} 的 LISTEN 持有者归属（${why}）。`,
+      "拒绝报成功：证明不了这个端点属于本次启动，就不能把它交给后续采集。",
+      PLATFORM === "win32"
+        ? "本机需要 netstat 加 wmic 或 PowerShell 才能查进程归属。"
+        : "本机需要 lsof（或 ss / fuser）加 ps 才能查进程归属。",
+      `处理办法：装上上述工具后重跑，或手动确认 ${port} 上跑的确实是刚启动的 Chrome。`,
+    ]);
+
+  if (!rootPid) return unverifiable("spawn 没拿到 pid");
+  const listeners = listPortListenerPids(port);
+  if (!listeners) return unverifiable("查不到监听该端口的进程");
+
+  // 持有者就是 spawn 出来的那个 pid 时不必读进程表——最常见的形态（Chrome 的 browser
+  // 进程就是我们启动的那个）因此不依赖 wmic/ps 之外的任何东西
+  let outside = listeners.filter((pid) => pid !== rootPid);
+  if (outside.length > 0) {
+    const parents = listProcessParents();
+    if (!parents) return unverifiable("读不到进程表（pid/ppid）");
+    outside = outside.filter((pid) => !isInProcessTree(pid, rootPid, parents));
+  }
+  if (outside.length > 0) {
+    const holder = describePortHolder(port);
+    return fail("CDP_PORT_NOT_OURS", [
+      `端口 ${port} 的 LISTEN 持有者（pid ${outside.join(", ")}）不在本次启动的进程树里（根 pid ${rootPid}）。`,
+      "拒绝报成功：端口被别的进程握着，再往下用，每一次采集读到的都是别人的会话。",
+      ...(holder ? [`占用者：${holder}`] : []),
+      `处理办法：结束占用 ${port} 的进程后重跑，或换一个端口。`,
+    ]);
+  }
+
+  const marker = `--remote-debugging-port=${port}`;
+  let sawCommandLine = false;
+  for (const pid of listeners) {
+    const cmdline = processCommandLine(pid);
+    if (cmdline === null) continue;
+    sawCommandLine = true;
+    if (cmdline.includes(marker)) return { ok: true, pids: listeners, pid };
+  }
+  if (!sawCommandLine) return unverifiable("读不到持有者的命令行");
+  return fail("CDP_OWNER_NOT_LAUNCHED_INSTANCE", [
+    `端口 ${port} 的 LISTEN 持有者（pid ${listeners.join(", ")}）在本次启动的进程树里，但没有一个带着 ${marker}。`,
+    "拒绝报成功：应答的不是本次启动的那个 Chrome，只是同一棵树里另一个占了这个端口的进程。",
+    `处理办法：确认 ${port} 没被别的进程占用，或换一个端口重跑。`,
+  ]);
+}
+
 /** spawn 出来的 Chrome 是否还活着（exitCode/signalCode 权威，兜底 kill(pid,0)） */
 function isChildAlive(child) {
   if (!child || !child.pid) return false;
@@ -505,7 +700,10 @@ async function main() {
     }
     step("清理 SingletonLock / SingletonCookie / SingletonSocket");
     step("启动 Chrome（含 --remote-allow-origins=*, --no-first-run 等）");
-    step(`验证 http://127.0.0.1:${CDP_PORT}/json/version 来自新实例（身份已变 + 进程存活）`);
+    step(
+      `验证 http://127.0.0.1:${CDP_PORT}/json/version 来自本次启动的实例` +
+        "（身份取得到且已变 + 进程存活 + 端口的 LISTEN 持有者就在这棵进程树里）"
+    );
     ok("dry-run 完成。");
     process.exit(0);
   }
@@ -637,10 +835,16 @@ async function main() {
     process.exit(1);
   }
 
-  // 10) 等待启动并验证。光有人应答不算成功——那可能是没被关掉的旧实例。三条都过才算：
-  //     ① 第 5.5 步已确认旧端点消失过；② 新端点的 browser GUID 与重建前不同；
-  //     ③ 刚 spawn 的进程还活着（它死了，端口上应答的就一定不是本次启动的实例）。
+  // 10) 等待启动并验证。光有人应答不算成功——那可能是没被关掉的旧实例，也可能是别的进程
+  //     顺手占了这个端口。四条全过才算：
+  //     ① 新端点的 browser GUID 取得到（取不到＝无法比对，按合约不能当作相同或不同）；
+  //     ② 这个 GUID 与重建前不同（配合第 5.5 步已确认旧端点消失过）；
+  //     ③ 刚 spawn 的进程还活着（它死了，端口上应答的就一定不是本次启动的实例）；
+  //     ④ 端口的 LISTEN 持有者确实在这棵 spawn 出来的进程树里，且带着本次的
+  //        --remote-debugging-port。前三条都是间接证据——「旧端点消失过 + 身份变了 +
+  //        launcher 还活着」推不出「端口归它」，只有第 ④ 条才真的把端口和进程绑上。
   log("等待 Chrome 启动...");
+  let identityMisses = 0;
   for (let i = 1; i <= 15; i++) {
     sleepSync(2000);
     if (spawnError) {
@@ -649,7 +853,19 @@ async function main() {
     const version = await probeCDP(CDP_PORT);
     if (version) {
       const identity = cdpIdentity(version);
-      if (staleIdentity && identity && identity === staleIdentity) {
+      if (identity === null) {
+        // 端点刚起来时理论上可能先答上 HTTP，给两轮宽限；之后仍取不到就硬失败。
+        if (++identityMisses < 3) {
+          log(`   端口有应答但取不到实例身份，重试 ${identityMisses}/3...`);
+          continue;
+        }
+        abortAfterLaunch([
+          `CDP_IDENTITY_UNVERIFIABLE: 端口 ${CDP_PORT} 有 HTTP 应答，但 /json/version 里取不到实例身份（webSocketDebuggerUrl）。`,
+          "拒绝报成功：身份取不到就无法证明这是新起的实例——按合约它既不算相同也不算不同，只能当作没证出来。",
+          `处理办法：确认 ${CDP_PORT} 上跑的是 Chrome 的 CDP 端点（而不是别的 HTTP 服务），或换一个端口重跑。`,
+        ]);
+      }
+      if (staleIdentity && identity === staleIdentity) {
         abortAfterLaunch([
           `端口 ${CDP_PORT} 应答的仍是重建前那个实例（${identity}），不是新启动的 Chrome。`,
           "拒绝报成功：再往下用，每一次采集读到的都会是旧会话。",
@@ -664,6 +880,8 @@ async function main() {
           `处理办法：确认 ${CDP_PORT} 没被别的进程占用，或换一个端口重跑。`,
         ]);
       }
+      const owner = verifyPortOwnedByLaunch(CDP_PORT, childPid);
+      if (!owner.ok) abortAfterLaunch(owner.lines);
       ok(`Chrome 已成功以 CDP 模式启动（端口 ${CDP_PORT}）`);
       log(version.split("\n").slice(0, 5).join("\n"));
       process.exit(0);
