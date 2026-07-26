@@ -273,6 +273,11 @@ run_cmd_parity() {
   "tee_quoted_space": "printf x | tee 'my book/正文/第1章_x.md'",
   "cp_quoted_space": "cp draft.md \"my book/正文/第1章_x.md\"",
   "patch_add": "*** Begin Patch\n*** Add File: book/正文/第5章.md\n+正文\n*** End Patch",
+  "patch_move": "*** Begin Patch\n*** Update File: draft.md\n*** Move to: book/正文/第6章.md\n+正文\n*** End Patch",
+  "patch_move_delete": "*** Begin Patch\n*** Delete File: draft.md\n*** Move to: book/正文/第7章.md\n*** End Patch",
+  "patch_move_out": "*** Begin Patch\n*** Update File: book/正文/第8章.md\n*** Move to: draft.md\n+x\n*** End Patch",
+  "patch_delete_only": "*** Begin Patch\n*** Delete File: book/正文/第9章.md\n*** End Patch",
+  "patch_multi_move": "*** Begin Patch\n*** Add File: notes.md\n+x\n*** Update File: draft.md\n*** Move to: book/正文/第10章.md\n+正文\n*** End Patch",
   "commit_plain": "git commit -m x",
   "commit_chain": "git add . && git commit -m x",
   "commit_if": "if true; then git commit -m x; fi",
@@ -317,6 +322,19 @@ JS
     || { echo "FAIL: 带空格的引号 tee 目标未被整段取出" >&2; return 3; }
   grep -q 'cp_quoted_space :: pros=\[my book/正文/第1章_x.md\]' "$tmp/cpy.txt" \
     || { echo "FAIL: cp 的引号目标被按空白切碎，末位取到了另一本书的路径" >&2; return 3; }
+  # 防空转（apply_patch 搬家形态）：`*** Move to:` 是 Update/Delete File 段的子指令，落盘路径是
+  # 目的地。只认 Add/Update File 时「Update draft.md + Move to 书/正文/第N章.md」抽到的是源
+  # draft.md → 细纲门整条空过、写后兜底网扫的是已不存在的源（两端同错，diff 也看不出来）。
+  grep -q 'patch_move :: pros=\[\] patch=\[book/正文/第6章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: apply_patch 的 *** Move to: 目的地未进目标表（源被搬走，只有目的地落盘）" >&2; return 3; }
+  grep -q 'patch_move_delete :: pros=\[\] patch=\[book/正文/第7章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: *** Delete File: + *** Move to: 的目的地未进目标表" >&2; return 3; }
+  grep -q 'patch_move_out :: pros=\[\] patch=\[draft.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 搬出 正文/ 时源仍被当写入目标（源已不存在，只有目的地该被判）" >&2; return 3; }
+  grep -q 'patch_delete_only :: pros=\[\] patch=\[\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 纯 *** Delete File: 不该进目标表（删除不是写入，认它只会给删稿误报）" >&2; return 3; }
+  grep -q 'patch_multi_move :: pros=\[\] patch=\[notes.md|book/正文/第10章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 一份补丁里 Add 段与 Move 段的目标未同时取全（Move 只该顶替同段的源）" >&2; return 3; }
 
   # ReDoS 回归（shellWords）：调用方先按 [;&|\n] 拆段会拆开引号内的 |，留下一个不闭合的 "。
   # 旧的 /"(?:\\.|[^"])*"|'[^']*'|[^\s]+/ 里 \\. 与 [^"] 都能吃反斜杠，每个反斜杠让搜索空间翻倍，
@@ -507,7 +525,7 @@ run_cmd_parity
 rc_cmd=$?
 set -e
 case "$rc_cmd" in
-  0) echo "命令函数 parity：codex python == zcode JS（24 fixtures：正文抽取/apply-patch/git commit 侦测逐字相等，含空格/全角空格目标与 ReDoS 预算）。" ;;
+  0) echo "命令函数 parity：codex python == zcode JS（29 fixtures：正文抽取/apply-patch/git commit 侦测逐字相等，含空格/全角空格目标、apply_patch 搬家（*** Move to:）与 ReDoS 预算）。" ;;
   1) echo "命令函数 parity：跳过（无 node/python3 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac

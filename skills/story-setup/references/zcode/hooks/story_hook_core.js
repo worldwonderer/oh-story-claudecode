@@ -168,11 +168,37 @@ function extractProseTargets(command) {
   return targets
 }
 
+// apply_patch 目标抽取。只认 Add/Update 会漏掉 `*** Move to:`——它是 Update File 段的子指令
+// （apply_patch 的改名/搬家形态），落盘路径是**目的地**，源路径搬完就不存在了。此前
+// `*** Update File: draft.md` + `*** Move to: 书/正文/第9章.md` 只抽到 draft.md：细纲门放行
+// （draft.md 不是正文），写后兜底网也扫的是已经不存在的源 —— 一份没细纲的草稿能直接搬进 正文/。
+// 故 Move 用目的地**顶替**同段的源目标（不是追加：源已不在，拿它去查会误伤/空扫）。
+// Delete File 一律不入表（两端一致）：删除不是写入，proseBlockReason 对已存在的正文本就放行、
+// 删完文件也不在了没东西可扫，认它只会给「删稿」误报；但 Delete 段也能带 Move to（搬走后删源），
+// 那条 Move 的目的地照样要进表，故 Delete 只清掉待顶替的源槽位。
 function extractPatchTargets(patchText) {
   const targets = []
+  let sourceIndex = -1
   for (const line of String(patchText).split(/\r?\n/)) {
-    const match = line.trim().match(/^\*\*\* (?:Add|Update) File: (.+)$/)
-    if (match) targets.push(match[1].trim())
+    const trimmed = line.trim()
+    const file = trimmed.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/)
+    if (file) {
+      if (file[1] === "Delete") {
+        sourceIndex = -1
+        continue
+      }
+      targets.push(file[2].trim())
+      sourceIndex = targets.length - 1
+      continue
+    }
+    const move = trimmed.match(/^\*\*\* Move to: (.+)$/)
+    if (move) {
+      const destination = move[1].trim()
+      if (!destination) continue
+      if (sourceIndex >= 0) targets[sourceIndex] = destination
+      else targets.push(destination)
+      sourceIndex = -1
+    }
   }
   return targets
 }

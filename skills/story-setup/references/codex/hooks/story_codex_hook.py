@@ -561,11 +561,36 @@ def extract_prose_targets_from_command(command: str) -> list[str]:
 
 
 def extract_apply_patch_targets(command: str) -> list[str]:
+    # 与 JS 共享核 extractPatchTargets 逐字同构（parity 由 test-prose-net-parity.sh 的命令函数
+    # fixture 锁）。只认 Add/Update 会漏掉 `*** Move to:`——它是 Update File 段的子指令
+    # （apply_patch 的改名/搬家形态），落盘路径是**目的地**，源路径搬完就不存在了：一份没细纲的
+    # 草稿曾能靠 `Update File: draft.md` + `Move to: 书/正文/第9章.md` 直接搬进 正文/（细纲门放行、
+    # 写后兜底网扫的还是已不存在的源）。故 Move 用目的地**顶替**同段的源目标。
+    # Delete File 一律不入表：删除不是写入，prose_block_reason 对已存在的正文本就放行、删完文件
+    # 也不在了没东西可扫，认它只会给「删稿」误报；但 Delete 段也能带 Move to（搬走后删源），
+    # 那条 Move 的目的地照样要进表，故 Delete 只清掉待顶替的源槽位。
     targets: list[str] = []
+    source_index = -1
     for line in command.splitlines():
-        m = re.match(r"^\*\*\* (?:Add|Update) File: (.+)$", line.strip())
+        stripped = line.strip()
+        m = re.match(r"^\*\*\* (Add|Update|Delete) File: (.+)$", stripped)
         if m:
-            targets.append(m.group(1).strip())
+            if m.group(1) == "Delete":
+                source_index = -1
+                continue
+            targets.append(m.group(2).strip())
+            source_index = len(targets) - 1
+            continue
+        m = re.match(r"^\*\*\* Move to: (.+)$", stripped)
+        if m:
+            destination = m.group(1).strip()
+            if not destination:
+                continue
+            if source_index >= 0:
+                targets[source_index] = destination
+            else:
+                targets.append(destination)
+            source_index = -1
     return targets
 
 

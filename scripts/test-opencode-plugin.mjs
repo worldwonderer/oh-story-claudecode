@@ -95,6 +95,60 @@ try {
     { args: { patchText: addPatch("book/正文/第004章_补丁.md") } }
   );
 
+  // *** Move to: 是 apply_patch 的搬家/改名形态（Update/Delete File 段的子指令），落盘路径是
+  // 目的地。只认 Add/Update File 时「Update draft.md + Move to 书/正文/第N章.md」只抽到
+  // draft.md：细纲门整条空过、写后兜底网扫的还是已不存在的源，等于把无细纲草稿直接搬成新章。
+  const movePatch = (source, destination, verb = "Update") =>
+    `*** Begin Patch\n*** ${verb} File: ${source}\n*** Move to: ${destination}\n+正文第一句。\n*** End Patch\n`;
+  fs.writeFileSync("draft.md", "草稿一句。\n", "utf8");
+  await expectBlocked(
+    () =>
+      hooks["tool.execute.before"](
+        { tool: "apply_patch" },
+        { args: { patchText: movePatch("draft.md", "book/正文/第009章_搬家.md") } }
+      ),
+    "apply_patch *** Move to: must not bypass the outline guard"
+  );
+  // 判据必须落在目的地那一章（第 9 章），而不是源 draft.md（源不是正文，本就不该被判）
+  await assert.rejects(
+    () =>
+      hooks["tool.execute.before"](
+        { tool: "apply_patch" },
+        { args: { patchText: movePatch("draft.md", "book/正文/第009章_搬家.md") } }
+      ),
+    /第 9 章缺少细纲/,
+    "Move 的拦截判据必须算在目的地章号上"
+  );
+  // Delete File + Move to（搬走后删源）也是搬家：目的地同样要进表
+  await expectBlocked(
+    () =>
+      hooks["tool.execute.before"](
+        { tool: "apply_patch" },
+        { args: { patchText: movePatch("draft.md", "book/正文/第010章_搬家.md", "Delete") } }
+      ),
+    "*** Delete File: + *** Move to: must gate the destination too"
+  );
+  // 补上细纲就放行：门是补细纲能过的门，不是把 Move 一律拦死
+  fs.writeFileSync("book/大纲/细纲_第9章.md", "# 细纲\n", "utf8");
+  await hooks["tool.execute.before"](
+    { tool: "apply_patch" },
+    { args: { patchText: movePatch("draft.md", "book/正文/第009章_搬家.md") } }
+  );
+  // 反向：把正文搬出 正文/（目的地不是正文）不该被拦——源不再被当成写入目标
+  await hooks["tool.execute.before"](
+    { tool: "apply_patch" },
+    { args: { patchText: movePatch("book/正文/第002章_续写.md", "draft_out.md") } }
+  );
+  // 纯 Delete 不入表（共享核里写明的取舍）：删一个不存在、也没细纲的章号不该被误报成写正文
+  await hooks["tool.execute.before"](
+    { tool: "apply_patch" },
+    {
+      args: {
+        patchText: "*** Begin Patch\n*** Delete File: book/正文/第011章_删稿.md\n*** End Patch\n",
+      },
+    }
+  );
+
   fs.mkdirSync("short", { recursive: true });
   fs.writeFileSync("short/设定.md", "# 设定\n", "utf8");
   await expectBlocked(
@@ -151,6 +205,35 @@ try {
     nonProsePatchOutput
   );
   assert.equal(nonProsePatchOutput.output, "unchanged");
+
+  // 搬家式补丁的写后兜底：要扫的是**目的地**那一章。只认 Add/Update File 时这里抽到 draft.md，
+  // 网整条空过——搬进 正文/ 的章带着 TODO 也没人回话。
+  fs.writeFileSync(
+    "book/正文/第009章_搬家.md",
+    `${"街灯一盏盏亮起。".repeat(30)}\nTODO 此处待补`,
+    "utf8"
+  );
+  const moveAfterOutput = { output: "patch applied" };
+  await hooks["tool.execute.after"](
+    {
+      tool: "apply_patch",
+      args: { patchText: movePatch("draft.md", "book/正文/第009章_搬家.md") },
+    },
+    moveAfterOutput
+  );
+  assert.match(moveAfterOutput.output, /正文兜底检测（book\/正文\/第009章_搬家\.md）/);
+  assert.match(moveAfterOutput.output, /占位符/);
+
+  // 反向：搬出 正文/ 的补丁不该拿源去扫（源已不存在；目的地不是正文）——结果原样返回
+  const moveOutAfterOutput = { output: "unchanged" };
+  await hooks["tool.execute.after"](
+    {
+      tool: "apply_patch",
+      args: { patchText: movePatch("book/正文/第009章_搬家.md", "draft_out.md") },
+    },
+    moveOutAfterOutput
+  );
+  assert.equal(moveOutAfterOutput.output, "unchanged");
 
   // 非写类工具必须在 dispatch 前返回，不为 read/grep/... fork 一次 git rev-parse
   // （插件常驻 OpenCode 服务进程，这笔同步 execSync 会卡事件循环）。

@@ -99,7 +99,8 @@ export default (async () => {
       } else if (input.tool === "apply_patch") {
         // apply_patch 是 OpenCode 的 edit 类工具（upstream permission 与 write/edit 同组），
         // 且 gpt-5 系模型只暴露它、隐藏 write/edit——不接这个分支等于守卫整场失效。
-        // 目标抽取（*** Add/Update File:）复用共享核，与 ZCode/Codex adapter 同一份判据。
+        // 目标抽取（*** Add/Update File: 与 *** Move to: 的目的地）复用共享核，与 ZCode/Codex
+        // adapter 同一份判据；Move 必须走目的地，否则搬家式补丁能把无细纲草稿搬进 正文/。
         const patchText = (output.args?.patchText as string) || ""
         for (const t of extractPatchTargets(patchText)) targets.push(t)
       } else if (input.tool === "bash") {
@@ -134,7 +135,8 @@ export default (async () => {
         const filePath = (input.args?.filePath as string) || ""
         if (filePath) targets.push(filePath)
       } else if (input.tool === "apply_patch") {
-        // 与 before 同一套目标抽取：gpt-5 系模型只有 apply_patch，不接就等于整场没有落盘兜底。
+        // 与 before 同一套目标抽取（含 *** Move to: 的目的地——搬进 正文/ 的章节要被扫的是
+        // 目的地，源已不存在）：gpt-5 系模型只有 apply_patch，不接就等于整场没有落盘兜底。
         const patchText = (input.args?.patchText as string) || ""
         for (const t of extractPatchTargets(patchText)) targets.push(t)
       } else {
