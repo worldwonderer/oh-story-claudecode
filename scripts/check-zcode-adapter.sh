@@ -99,23 +99,41 @@ import json
 from pathlib import Path
 
 supported = {'SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'PostToolUseFailure', 'Stop'}
+# 事件 → 允许的 handler。只按集合校验 handler 名（"名字在白名单里就行"）等于放过
+# "SessionStart 挂 post-tool-prose-check" 这类整块复制粘贴后忘改 args[1] 的错：
+# story_zcode_hook.js 只看 process.argv[2] 分派，从不比对 hook_event_name，运行时表现是
+# 会话起点静默不注入上下文 / 写后检查拿到错 payload 后什么都不报。必须逐事件锁死。
+EVENT_HANDLERS = {
+    'SessionStart': {'session-start'},
+    'PreToolUse': {'pre-tool-prose-guard', 'pre-tool-commit-advisory'},
+    'PostToolUse': {'post-tool-prose-check'},
+}
 plugin = json.loads(Path('skills/story-setup/references/zcode/hooks/hooks.json').read_text())['hooks']
 config = json.loads(Path('skills/story-setup/references/zcode/config.json.patch').read_text())['hooks']
 assert config['enabled'] is True
-assert set(plugin) == {'SessionStart', 'PreToolUse', 'PostToolUse'}
+assert set(plugin) == set(EVENT_HANDLERS)
 assert set(config['events']) == set(plugin)
 assert set(plugin) <= supported
 
 def flatten(events):
-    return [hook for groups in events.values() for group in groups for hook in group['hooks']]
+    # 必须把事件名一起带出来：丢掉 event key 就没法把 handler 绑回它该服务的事件。
+    return [(event, hook) for event, groups in events.items() for group in groups for hook in group['hooks']]
 
 plugin_hooks = flatten(plugin)
 workspace_hooks = flatten(config['events'])
 assert len(plugin_hooks) == len(workspace_hooks) == 4
-for hook in plugin_hooks + workspace_hooks:
-    assert set(hook) <= {'type', 'command', 'args', 'timeoutMs'}
-    assert hook['type'] == 'process' and hook['command'] == 'node'
-    assert hook['args'][1] in {'session-start', 'pre-tool-prose-guard', 'pre-tool-commit-advisory', 'post-tool-prose-check'}
+expected_routes = {(event, handler) for event, handlers in EVENT_HANDLERS.items() for handler in handlers}
+# 两份注册各自独立对表：只改 hooks.json 不改 config.json.patch（或反之）的漂移同样要红，
+# 二者是手工分开维护的，且 check-shared-files.sh 刻意把 hooks.json 排除在字节 parity 之外。
+for source, pairs in (('hooks.json', plugin_hooks), ('config.json.patch', workspace_hooks)):
+    for event, hook in pairs:
+        assert set(hook) <= {'type', 'command', 'args', 'timeoutMs'}
+        assert hook['type'] == 'process' and hook['command'] == 'node'
+        assert hook['args'][1] in EVENT_HANDLERS[event], (
+            f'{source}: {event} 路由到了错误的 handler', hook['args'][1], sorted(EVENT_HANDLERS[event]))
+    routes = {(event, hook['args'][1]) for event, hook in pairs}
+    assert routes == expected_routes, (
+        f'{source}: event→handler 注册漂移', sorted(expected_routes - routes), sorted(routes - expected_routes))
 post_groups = plugin['PostToolUse']
 assert len(post_groups) == 1 and post_groups[0]['matcher'] == 'Bash|Write|Edit|ApplyPatch'
 # 路由测试（防"直调 runner 绕过 matcher"的假绿）：pre-tool-prose-guard 的 matcher 在 plugin
@@ -132,9 +150,9 @@ mp = prose_guard_matcher(plugin)
 assert mc is not None and mc == mp, ('pre-tool-prose-guard matcher drift between config and plugin', mc, mp)
 for tool in ('Bash', 'Write', 'Edit', 'ApplyPatch'):
     assert re.search(mc, tool), ('pre-tool-prose-guard matcher does not route tool', tool, mc)
-for hook in plugin_hooks:
+for _event, hook in plugin_hooks:
     assert hook['args'][0].startswith('${ZCODE_PLUGIN_ROOT}/')
-for hook in workspace_hooks:
+for _event, hook in workspace_hooks:
     assert hook['args'][0] == '${ZCODE_PROJECT_DIR}/.zcode/hooks/story_zcode_hook.js'
 PY
 echo "  OK supported events + strict process-hook shape"

@@ -150,11 +150,17 @@ echo "  OK TS1 hook dependency completeness"
 # 连续性检查全部静默退化，同样必须登记进自检名单。
 selfcheck_line="$(grep -E 'for hook in .*; do' "$HOOKS_DIR/session-start.sh" | head -1)"
 [ -n "$selfcheck_line" ] || fail "session-start.sh 缺少 hook 自检 for 循环"
+# 名单里最后一个 hook 后面紧跟的是 `;` 而不是空格（grep 命中行按 pattern 必然以 `; do` 收尾），
+# 直接拿原始行做 *" $base "* 会把「排在最后的、其实已登记」的 hook 误报成漏列。先把分号换成
+# 空格并两端补空格，让首位/末位都能被同一条 case 命中，而不是要求名单保持某种排序。
+selfcheck_tokens=" ${selfcheck_line//;/ } "
 while IFS= read -r hookfile; do
   base="$(basename "$hookfile")"
-  case "$selfcheck_line" in
+  case "$selfcheck_tokens" in
     *" $base "*) : ;;
-    *) fail "session-start.sh 部署自检名单漏列 hook：$base（新增 hook 须同步加入该名单）" ;;
+    # ${base} 必须加花括号：macOS bash 3.2 在 UTF-8 区域会把全角「（」的首字节并进变量名，
+    # set -u 于是抛 base?: unbound variable，真正漏列时反而看不到是哪个 hook。
+    *) fail "session-start.sh 部署自检名单漏列 hook：${base}（新增 hook 须同步加入该名单）" ;;
   esac
 done < <(find "$HOOKS_DIR" -maxdepth 1 \( -name '*.sh' -o -name '*.js' \) -type f)
 echo "  OK TS1b session-start self-check lists all hook scripts and node cores"

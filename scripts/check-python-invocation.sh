@@ -7,8 +7,9 @@
 #   "$PYBIN" -c "..."
 #
 # 本守卫拦截一切「裸调用」形态：python3 紧跟空白再接任意参数（-c / -m / <<  /
-# 脚本路径 / 引号等）。探测列表 `python3 python py` 与说明文字（python3 后紧跟
-# 反斜杠引号、破折号、箭头等，无空白）不受影响。
+# 脚本路径 / 引号等），以及不带空白的重定向形态（python3<<'PY' / python3<脚本）——
+# 后者是合法 shell、同样会落到 Store 占位程序上。探测列表 `python3 python py` 与
+# 说明文字（python3 后紧跟反斜杠引号、破折号、箭头等，无空白）不受影响。
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
@@ -17,8 +18,10 @@ if [ -z "$REPO_ROOT" ]; then
   exit 1
 fi
 
-# 裸调用形态：python3 + 空白 + 任意非空白参数（覆盖 -c / -m / << / 脚本路径 / 引号）
-PATTERN='python3[[:space:]]+[^[:space:]]'
+# 裸调用形态：python3 + 空白 + 任意非空白参数（覆盖 -c / -m / << / 脚本路径 / 引号），
+# 或 python3 紧跟 `<`（heredoc `python3<<'PY'` 与输入重定向 `python3<脚本`，无空白也照跑）。
+# `<` 之外的紧跟形态（反斜杠引号 / 破折号 / 箭头 / 斜杠）仍是说明文字，继续豁免。
+PATTERN='python3([[:space:]]+[^[:space:]]|<)'
 # 探测列表 `... in python3 python py ...` 是允许写法，从命中里剔除（兼容 PYBIN/c 等变量名）
 ALLOW='python3 python py'
 

@@ -35,6 +35,26 @@ def repository_manifest() -> object:
     return manifest
 
 
+def manifest_with(**overrides: object) -> object:
+    """按正常加载路径构造一个改过值的当前契约，用来演练 bump。"""
+    raw = json.loads((SCRIPT_DIR / "current-contract.json").read_text(encoding="utf-8"))
+    raw.update(overrides)
+    with tempfile.TemporaryDirectory() as tmp:
+        bumped_path = Path(tmp) / "bumped.json"
+        bumped_path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+        manifest, findings = VALIDATOR.load_manifest(bumped_path)
+    require(not findings and manifest is not None, "bumped manifest must stay well-formed")
+    return manifest
+
+
+def flagged_paths(manifest: object, code: str) -> set[str]:
+    return {
+        finding.path.relative_to(REPO_ROOT).as_posix()
+        for finding in VALIDATOR.validate_repository(REPO_ROOT, manifest)
+        if finding.code == code and finding.path is not None
+    }
+
+
 def test_manifest_contract() -> None:
     manifest_path = SCRIPT_DIR / "current-contract.json"
     manifest, findings = VALIDATOR.load_manifest(manifest_path)
@@ -159,6 +179,141 @@ def test_fail_fast_prose_passes() -> None:
     for label, text in good_cases.items():
         findings = semantic_findings(text)
         require(not findings, "{} should pass, got {}".format(label, findings))
+
+
+def test_sibling_bullets_do_not_lend_the_missing_condition() -> None:
+    """相邻条目各自是独立契约：fail-fast 兄弟条目不得把「主产物缺失」借给正确的读取条目。"""
+    fail_fast = "- `剧情/节奏.md` → 缺失时停止导入，不得以 `拆文报告.md`、章节摘要或故事线代替"
+    good_neighbours = {
+        "benign read after a fail-fast sibling": "- 两个主产物都存在时读取 `拆文报告.md`，仅作人类可读概览。",
+        "human-readable overview bullet": "- 故事线（人类可读概览）→ 从 `剧情/故事线.md` 读取；缺失时留空",
+        "prose block after a fail-fast bullet": "**无损检查**（任一不过即删除 `_章节摘要汇总.md`、回退逐文件扫描）：",
+    }
+    for label, good in good_neighbours.items():
+        findings = semantic_findings(fail_fast + "\n" + good + "\n")
+        require(not findings, "{} should pass, got {}".format(label, findings))
+
+    nested = (
+        "任一主产物缺失时：\n"
+        "- 先记录到追踪\n"
+        "- 再确认块状态\n"
+        "- 回退读取 `拆文报告.md` 拼出对标视图\n"
+    )
+    require(
+        "silent-primary-artifact-fallback" in finding_codes(semantic_findings(nested)),
+        "上级条目给出的缺失条件必须仍然拦住降级子项",
+    )
+    deep = "- 主产物缺失时：\n  - 导入分支：\n    - 采用 `故事线.md` 顶替。\n"
+    require(
+        "silent-primary-artifact-fallback" in finding_codes(semantic_findings(deep)),
+        "隔了一层的上级条件也要拦住降级子项",
+    )
+    wrapped = "- 若 `剧情/节奏.md` 缺失，\n  则改读 `章节/*_摘要.md` 补足节奏。\n"
+    require(
+        "silent-primary-artifact-fallback" in finding_codes(semantic_findings(wrapped)),
+        "同一条目的续行仍与条件同属一件事",
+    )
+    table_rows = (
+        "| 条件 | 行为 |\n"
+        "|---|---|\n"
+        "| `剧情/节奏.md` 缺失 | 停止 Stage 6 并报 `missing_primary_contract` |\n"
+        "| `章节/第1-3章_深度拆解.md` 缺失 | 对话潜台词段从拆文报告兜底 |\n"
+    )
+    require(
+        not semantic_findings(table_rows),
+        "表格里相邻行是独立记录，深度拆解兜底不是主产物降级：{}".format(
+            semantic_findings(table_rows)
+        ),
+    )
+    bad_row = (
+        "| 条件 | 行为 |\n"
+        "|---|---|\n"
+        "| `剧情/节奏.md` 缺失 | 回退读取 `拆文报告.md` 补足节奏 |\n"
+    )
+    require(
+        "silent-primary-artifact-fallback" in finding_codes(semantic_findings(bad_row)),
+        "同一表格行内的主产物降级必须拦住",
+    )
+
+
+def test_undecodable_markdown_is_a_named_failure() -> None:
+    """非 UTF-8 文本会让所有内容规则静默放行，必须命名报错；二进制资产照旧跳过。"""
+    rule = next(
+        r for r in VALIDATOR.LEGACY_RULES if r.code == "dotted-demo-workflow-label"
+    )
+    dotted = "# 流程说明\n\n旧编号：Step 1.2：旧编号标签\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        demo = root / "demo"
+        demo.mkdir()
+        target = demo / "流程说明.md"
+        target.write_text(dotted, encoding="utf-8")
+        require(
+            VALIDATOR.check_absent_rule(root, rule),
+            "UTF-8 的旧编号标签必须被内容规则拦住",
+        )
+        target.write_bytes(dotted.encode("gb18030"))
+        require(
+            not VALIDATOR.check_absent_rule(root, rule),
+            "内容规则读不出 GBK 文件，这正是需要专门扫描的原因",
+        )
+        require(
+            "unreadable-source-file"
+            in finding_codes(VALIDATOR.undecodable_source_findings([demo])),
+            "非 UTF-8 的契约文本必须是命名失败，不能静默跳过",
+        )
+        target.write_text(dotted, encoding="utf-8")
+        (demo / "封面.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe")
+        # 无后缀 / 非白名单后缀的二进制（.DS_Store 之类）靠 NUL 字节识别，不能误报
+        (demo / ".DS_Store").write_bytes(b"\x00\x00\x00\x01Bud1\xff\xfe")
+        require(
+            not VALIDATOR.undecodable_source_findings([demo]),
+            "二进制资产不是契约文本，必须保持静默：{}".format(
+                VALIDATOR.undecodable_source_findings([demo])
+            ),
+        )
+
+
+def test_progress_schema_pins_are_repo_wide() -> None:
+    """bump progress_schema_version 时，每个字面锚点都要被点名，不能只点 pipeline-ops.md。"""
+    current = repository_manifest().progress_schema_version
+    stale = flagged_paths(
+        manifest_with(progress_schema_version=current + 1), "progress-schema-version"
+    )
+    for relative in (
+        "skills/story-long-analyze/references/pipeline-ops.md",
+        "skills/story-long-analyze/SKILL.md",
+        "skills/story-import/SKILL.md",
+        "skills/story-setup/UPGRADING.md",
+        "demo/拆文库/盘龙/_progress.md",
+    ):
+        require(
+            relative in stale,
+            "{} 的 schema_version 锚点必须跟着 manifest 走，实际命中 {}".format(
+                relative, sorted(stale)
+            ),
+        )
+    require(
+        "CHANGELOG.md" not in stale,
+        "CHANGELOG 的历史记录不受当前值约束",
+    )
+
+
+def test_stale_scan_phase_reference_accepts_backticks() -> None:
+    """房子风格 `story-long-scan` Phase N 与裸 token 写法都要被 stale 引用扫描抓到。"""
+    current = repository_manifest().topic_decision_phase
+    stale = flagged_paths(
+        manifest_with(topic_decision_phase=current + 1),
+        "stale-topic-decision-phase-reference",
+    )
+    for relative in (
+        "skills/story-long-write/SKILL.md",
+        "skills/story-long-analyze/SKILL.md",
+    ):
+        require(
+            relative in stale,
+            "{} 的选题决策阶段引用必须被扫到，实际命中 {}".format(relative, sorted(stale)),
+        )
 
 
 def test_structured_sentinel_contract() -> None:
@@ -336,6 +491,10 @@ def main() -> int:
     test_manifest_contract()
     test_bad_fallbacks_fail()
     test_fail_fast_prose_passes()
+    test_sibling_bullets_do_not_lend_the_missing_condition()
+    test_undecodable_markdown_is_a_named_failure()
+    test_progress_schema_pins_are_repo_wide()
+    test_stale_scan_phase_reference_accepts_backticks()
     test_old_artifact_prose_silent_only()
     test_structured_sentinel_contract()
     test_structured_outline_contract()

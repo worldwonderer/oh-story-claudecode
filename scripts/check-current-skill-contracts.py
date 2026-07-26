@@ -326,6 +326,73 @@ def read_text(path: Path) -> Optional[str]:
         return None
 
 
+# 二进制资产读不出文本是正常的（demo 封面图、__pycache__ 字节码），静默跳过即可；其余文件
+# 一律按 UTF-8 文本对待。GBK/cp936 的 Markdown 会让所有内容规则一起失效——regex_hits 拿到
+# None 就当「没命中」，检查照样打 [PASS]——所以文本文件解码失败必须是命名失败，不是跳过。
+BINARY_SUFFIXES = frozenset(
+    {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".ico",
+        ".pdf",
+        ".zip",
+        ".gz",
+        ".woff",
+        ".woff2",
+        ".ttf",
+        ".otf",
+        ".mp3",
+        ".mp4",
+        ".pyc",
+        ".pyo",
+        ".so",
+        ".dylib",
+    }
+)
+
+
+def is_binary_asset(path: Path) -> bool:
+    """二进制资产（封面图、字节码、.DS_Store 之类）读不出文本是正常的。
+
+    后缀白名单之外再看有没有 NUL 字节：这样 `.DS_Store`、无后缀的二进制不会误报，而
+    GBK/cp936 的 Markdown（没有 NUL）仍会被判成必须修的文本文件。读不到字节就按文本算，
+    宁可报错也不静默放行。
+    """
+    if path.suffix.lower() in BINARY_SUFFIXES:
+        return True
+    try:
+        return b"\x00" in path.read_bytes()[:8192]
+    except OSError:
+        return False
+
+
+def undecodable_source_findings(roots: Sequence[Path]) -> List[Finding]:
+    """内容规则扫过的文本文件必须能按 UTF-8 读出来，否则整条规则静默放行。"""
+    findings: List[Finding] = []
+    seen: set[str] = set()
+    for root in roots:
+        for path in iter_files(root):
+            key = str(path.resolve())
+            if key in seen:
+                continue
+            seen.add(key)
+            if read_text(path) is not None:
+                continue
+            if is_binary_asset(path):
+                continue
+            findings.append(
+                Finding(
+                    "unreadable-source-file",
+                    "contract guards need UTF-8 text; this file cannot be read as UTF-8",
+                    path,
+                )
+            )
+    return findings
+
+
 def regex_hits(path: Path, pattern: re.Pattern[str]) -> Iterator[Finding]:
     text = read_text(path)
     if text is None:
@@ -355,17 +422,52 @@ def check_absent_rule(repo_root: Path, rule: AbsentRule) -> List[Finding]:
     return findings
 
 
-def line_context(lines: Sequence[str], index: int, lookback: int = 3) -> str:
-    """Return the local Markdown branch without crossing a heading or blank line."""
-    start = index
+# 列表项与表格行都是「一条独立记录」：条件与动作要在同一条记录（或它的上级）里才算一件事。
+BLOCK_ITEM_RE = re.compile(r"^(\s*)(?:[-*+]\s+|[0-9]+[.)]\s+|\|)")
+
+
+def _indent_width(line: str) -> int:
+    expanded = line.expandtabs(4)
+    return len(expanded) - len(expanded.lstrip())
+
+
+def _block_item_indent(line: str) -> Optional[int]:
+    """列表项 / 表格行返回其缩进；普通正文行返回 None。"""
+    match = BLOCK_ITEM_RE.match(line)
+    if match is None:
+        return None
+    return len(match.group(1).expandtabs(4))
+
+
+def logical_bullet_context(lines: Sequence[str], index: int, lookback: int = 3) -> str:
+    """Return the hit line plus the branch that actually governs it.
+
+    同一逻辑条目 = 命中行本身 + 它所属条目的续行 + 缩进更浅的上级条目或列表/表格引导句。
+    条件常写在上级（`任一主产物缺失时：` 后跟缩进子项或表格行），必须读得到；但同级兄弟条目
+    彼此是独立契约，相邻的 fail-fast 条目不得把「主产物缺失」借给本行——否则「两个主产物都
+    存在时读取 `拆文报告.md`」这类正确文档会被误判成静默降级。不跨空行与标题。
+    """
+    parts = [lines[index]]
+    own_item_indent = _block_item_indent(lines[index])
+    threshold = (
+        own_item_indent if own_item_indent is not None else _indent_width(lines[index])
+    )
     remaining = lookback
-    while start > 0 and remaining > 0:
-        candidate = lines[start - 1]
+    cursor = index - 1
+    while cursor >= 0 and remaining > 0:
+        candidate = lines[cursor]
         if not candidate.strip() or candidate.lstrip().startswith("#"):
             break
-        start -= 1
-        remaining -= 1
-    return "\n".join(lines[start : index + 1])
+        item_indent = _block_item_indent(candidate)
+        indent = item_indent if item_indent is not None else _indent_width(candidate)
+        # 上级条目（缩进更浅）或同层引导句/续行：条件对整棵子树生效，收进上下文。
+        # 其余是同级、更深的兄弟条目及其续行，与命中行无关；跳过但继续往上找上级。
+        if indent < threshold or (item_indent is None and indent <= threshold):
+            parts.insert(0, candidate)
+            remaining -= 1
+            threshold = indent
+        cursor -= 1
+    return "\n".join(parts)
 
 
 def semantic_primary_fallback_findings(
@@ -376,9 +478,10 @@ def semantic_primary_fallback_findings(
     """Find positive fallback branches for missing primary benchmark artifacts.
 
     Detection is intentionally local: a substitute source/action must occur in
-    the same line, and the missing-primary condition must be in that line or
-    its immediate Markdown-list context.  Explicit negative clauses such as
-    "不得以拆文报告代替" are accepted.
+    the same line, and the missing-primary condition must be in that line or in
+    the bullet branch that governs it (its own continuation plus shallower
+    parents).  Sibling bullets are independent contracts and never lend their
+    condition.  Explicit negative clauses such as "不得以拆文报告代替" are accepted.
     """
     findings: List[Finding] = []
     lines = text.splitlines()
@@ -406,7 +509,7 @@ def semantic_primary_fallback_findings(
         ]
         if not substitute_clauses:
             continue
-        context = line_context(lines, index)
+        context = logical_bullet_context(lines, index)
         has_missing = bool(
             primary_missing.search(context) or primary_missing_reversed.search(context)
         )
@@ -691,25 +794,77 @@ def extract_demo_outline_fields(text: str) -> set[str]:
     return fields
 
 
+SCHEMA_VERSION_PIN_RE = re.compile(r"schema_version:\s*([0-9]+)")
+
+
+def progress_schema_pin_findings(repo_root: Path, expected: int) -> List[Finding]:
+    """每个字面 `schema_version: N` 锚点都必须是当前续跑契约版本。
+
+    续跑契约同时写在 analyze 的写入/恢复段、import 的当前拆文契约、UPGRADING 当前契约段和
+    demo 基准进度文件里。只核对 pipeline-ops.md 会让 bump 之后其余文件静默留在旧版本——技能
+    包自相矛盾、续跑拒收自己写出的 `_progress.md`，而 CI 全绿。参照 `agents_version` 的做法
+    （见 upgrading_version_findings）：任何写成 `schema_version: N` 的行都必须是当前值。
+    仓库根的 CHANGELOG.md 是历史记录，故意不在扫描范围内；版本说明表的 `| 2 | 当前契约… |`
+    不写成锚点形式，本规则也不会误伤。
+    """
+    findings: List[Finding] = []
+    paths: List[Path] = []
+    for root in (repo_root / "skills", repo_root / "demo"):
+        paths.extend(path for path in iter_files(root) if path.suffix.lower() == ".md")
+    # iter_files 按名字跳过 UPGRADING.md（历史章节不该被当前值约束），但 `## v21 当前契约`
+    # 段里的续跑契约陈述与 agents_version 同理，bump 时必须跟着改。
+    paths.append(repo_root / "skills/story-setup/UPGRADING.md")
+    for path in paths:
+        text = read_text(path)
+        if text is None:
+            continue
+        for line_number, line_text in enumerate(text.splitlines(), start=1):
+            for match in SCHEMA_VERSION_PIN_RE.finditer(line_text):
+                if int(match.group(1)) == expected:
+                    continue
+                findings.append(
+                    Finding(
+                        "progress-schema-version",
+                        "every pipeline schema_version must equal {} (found {})".format(
+                            expected, match.group(1)
+                        ),
+                        path,
+                        line_number,
+                        line_text,
+                    )
+                )
+    return findings
+
+
 def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Finding]:
     findings: List[Finding] = []
+
+    scan_roots = [repo_root / "skills", repo_root / "demo"]
+    scan_roots.extend(
+        repo_root / relative_root
+        for rule in LEGACY_RULES
+        for relative_root in rule.relative_roots
+    )
+    findings.extend(undecodable_source_findings(scan_roots))
 
     for rule in LEGACY_RULES:
         findings.extend(check_absent_rule(repo_root, rule))
 
     pipeline = repo_root / "skills/story-long-analyze/references/pipeline-ops.md"
     pipeline_text = read_text(pipeline) or ""
-    schema_values = [int(value) for value in re.findall(r"schema_version:\s*([0-9]+)", pipeline_text)]
-    if not schema_values or any(value != manifest.progress_schema_version for value in schema_values):
+    if not SCHEMA_VERSION_PIN_RE.search(pipeline_text):
         findings.append(
             Finding(
                 "progress-schema-version",
                 "every pipeline schema_version must equal {} (found {})".format(
-                    manifest.progress_schema_version, schema_values or "none"
+                    manifest.progress_schema_version, "none"
                 ),
                 pipeline,
             )
         )
+    findings.extend(
+        progress_schema_pin_findings(repo_root, manifest.progress_schema_version)
+    )
     findings.extend(require_pattern(pipeline, r"章节边界", "chapter-boundary-table", "progress must keep the canonical chapter-boundary table"))
 
     setup_skill = repo_root / "skills/story-setup/SKILL.md"
@@ -761,7 +916,11 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
         for line_number, line_text in enumerate(text.splitlines(), start=1):
             if "选题决策" not in line_text:
                 continue
-            for match in re.finditer(r"story-long-scan\s+Phase\s+([0-9]+)", line_text):
+            # 技能名在本包的房子风格是反引号包裹（`story-long-scan` Phase 5），裸 token 匹配
+            # 跨不过反引号，会漏掉一半引用；两种写法都要拦。
+            for match in re.finditer(
+                r"`?story-long-scan`?[\s`]*Phase\s+([0-9]+)", line_text
+            ):
                 value = int(match.group(1))
                 if value == manifest.topic_decision_phase:
                     continue

@@ -29,26 +29,31 @@ ATX_HEADING_RE = re.compile(
     r"^[ ]{0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+[ \t]*)?$"
 )
 FENCE_OPEN_RE = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})")
+# 编号标签的统一收尾条件，替代原来枚举 `:：.、)]—–-` 的终止符白名单：
+#   * `(?!\.?[0-9])` 禁止标签被回溯截断，`Step 1.5甲` 不会退化成 `Step 1`；
+#   * `(?!\w)` 与 STEP_LABEL_RE 原有的 `\b` 语义一致（数字后的 `\b` 就是它）。
+# 白名单会让 `### Step 6（校对）` 只对引用绑定器可见、对重编号器不可见，
+# fix --write 于是绕开该标题重排兄弟标题，写出重复/乱序编号还自称 PASS。
+LABEL_END = r"(?!\.?[0-9])(?!\w)"
+# 长得像 Step 标题但标签无法解析时用它兜底报错，任何未预料的分隔符都 fail closed。
+LOOSE_STEP_HEADING_RE = re.compile(r"^Step[ \t]+[0-9]")
 STEP_HEADING_RE = re.compile(
-    r"^Step(?P<space>[ \t]+)(?P<label>[0-9]+(?:\.[0-9]+)*)"
-    r"(?=$|[ \t:：.、)\]—–-])"
+    r"^Step(?P<space>[ \t]+)(?P<label>[0-9]+(?:\.[0-9]+)*)" + LABEL_END
 )
 STEP_LABEL_RE = re.compile(
-    r"(?<![A-Za-z0-9_])Step[ \t]+(?P<label>[0-9]+(?:\.[0-9]+)*)\b"
+    r"(?<![A-Za-z0-9_])Step[ \t]+(?P<label>[0-9]+(?:\.[0-9]+)*)" + LABEL_END
 )
 DOTTED_WORKFLOW_LABEL_RE = re.compile(
     r"(?<![A-Za-z0-9_])(?P<kind>Step|Phase|Stage)[ \t]+"
-    r"(?P<label>[0-9]+\.[0-9]+(?:\.[0-9]+)*)\b"
+    r"(?P<label>[0-9]+\.[0-9]+(?:\.[0-9]+)*)" + LABEL_END
 )
 RAW_DOTTED_HEADING_RE = re.compile(
-    r"^[ ]{0,3}#{1,6}[ \t]+(?P<label>[0-9]+\.[0-9]+(?:\.[0-9]+)*)"
-    r"(?=$|[ \t:：.、)\]—–-])"
+    r"^[ ]{0,3}#{1,6}[ \t]+(?P<label>[0-9]+\.[0-9]+(?:\.[0-9]+)*)" + LABEL_END
 )
 DOTTED_BULLET_RE = re.compile(
     r"^[ \t]*[-*+][ \t]+"
     r"(?:(?:Step|Phase|Stage)[ \t]+)?"
-    r"(?P<label>[0-9]+\.[0-9]+(?:\.[0-9]+)*)"
-    r"(?=$|[ \t:：.、)\]—–-])"
+    r"(?P<label>[0-9]+\.[0-9]+(?:\.[0-9]+)*)" + LABEL_END
 )
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]\n]*\]\((?P<target>[^)\n]+)\)")
 REFERENCE_LINK_RE = re.compile(
@@ -642,6 +647,40 @@ def check_label_policy(document: Document, root: Path) -> list[Issue]:
     return issues
 
 
+def unparsable_step_heading_issues(document: Document) -> list[Issue]:
+    """Fail closed on headings that start like a Step but carry no usable label.
+
+    这类标题只对引用绑定器（STEP_LABEL_RE）可见、对重编号器（STEP_HEADING_RE）
+    不可见时，fix --write 会跳过它并重排兄弟标题，写出重复或乱序的编号，
+    而事后自检仍然报告 PASS。宁可拦住写入，也不静默漏过。
+    """
+
+    parsed_lines = {step.line_index for step in document.steps}
+    issues: list[Issue] = []
+    for heading in document.headings:
+        if heading.line_index in parsed_lines:
+            continue
+        if not LOOSE_STEP_HEADING_RE.match(heading.title):
+            continue
+        content = strip_line_ending(document.lines[heading.line_index])
+        heading_match = ATX_HEADING_RE.match(content)
+        title_start = heading_match.start(2) if heading_match else 0
+        issues.append(
+            Issue(
+                path=document.path,
+                line=heading.line_index + 1,
+                column=title_start + 1,
+                code="unparsable-step-heading",
+                message=(
+                    f"heading {heading.title!r} starts like a Step heading but its label "
+                    "cannot be renumbered; use a plain integer label such as 'Step 3: title'"
+                ),
+                blocks_fix=True,
+            )
+        )
+    return issues
+
+
 def analyze(files: Sequence[Path], root: Path) -> Analysis:
     documents: list[Document] = []
     issues: list[Issue] = []
@@ -656,6 +695,7 @@ def analyze(files: Sequence[Path], root: Path) -> Analysis:
         issues.extend(sequence_issues)
         issues.extend(reference_issues)
         issues.extend(policy_issues)
+        issues.extend(unparsable_step_heading_issues(document))
         replacements[path] = heading_replacements + reference_replacements
 
     issues.extend(anchor_reference_issues(documents, root))
@@ -818,12 +858,17 @@ def transactional_write(changes: dict[Path, str]) -> None:
             os.replace(staged[path], path)
             replaced.append(path)
 
-    except Exception as exc:
+    except BaseException as exc:
+        # 必须是 BaseException：Ctrl-C 抛出的 KeyboardInterrupt 不是 Exception，
+        # 而下面的 finally 无条件删掉所有备份，只捕获 Exception 会让提交循环中途
+        # 被打断的那次改写永久半落盘且无从恢复。与 sync-opencode.py 的提交循环一致。
         rollback_errors: list[str] = []
         for path in reversed(replaced):
             try:
                 os.replace(backups[path], path)
-            except Exception as rollback_exc:  # pragma: no cover - catastrophic I/O
+            except BaseException as rollback_exc:  # pragma: no cover - catastrophic I/O
+                # 单个文件回滚失败（或第二次 Ctrl-C）不得中断剩余文件的还原，
+                # 否则同样会留下半提交的工作树。
                 rollback_errors.append(f"{path}: {rollback_exc}")
         if rollback_errors:
             details = "; ".join(rollback_errors)
@@ -838,7 +883,7 @@ def command_fix(analysis: Analysis, root: Path, write: bool) -> int:
     if analysis.blockers:
         print_issues(analysis.blockers, root)
         print(
-            f"ABORT: {len(analysis.blockers)} unbound/ambiguous mapping issue(s); "
+            f"ABORT: {len(analysis.blockers)} blocking numbering issue(s); "
             "no files were written"
         )
         return 1

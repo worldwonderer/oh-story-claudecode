@@ -16,6 +16,9 @@ ATX_HEADING_RE = re.compile(r"^[ ]{0,3}#{1,6}[ \t]+(.*?)(?:[ \t]+#+[ \t]*)?$")
 OPEN_FENCE_RE = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})(.*)$")
 LINK_RE = re.compile(r"!?\[[^\]\n]*\]\(([^)\n]+)\)")
 INLINE_CODE_RE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
+# 还原正文里包裹路径的加粗/斜体：内容不含空白与 `*`，所以真正的通配符（`references/*.md 与
+# references/*.json`）不会被误配成一对强调符。
+EMPHASIS_PATH_RE = re.compile(r"\*{1,2}([^\s*]+)\*{1,2}")
 SKILL_PATH_RE = re.compile(
     r"(?<![A-Za-z0-9_-])(?P<path>(?:[a-z0-9_-]+/)?(?:references|scripts|assets)/"
     r"[^\s`\"')\]><「（，。；：、]+)"
@@ -32,8 +35,15 @@ AGENT_REF_RES = (
     # 不带括号/引号锚点的裸形态会把这些非引用语境误抓成 agent 引用。
     re.compile(r"[（(]subagent_type\s*[:：]\s*\"?([a-z][a-z0-9_-]*)\"?\s*[)）]"),
 )
+# 「见 SKILL.md + 章节名」是无法被链接校验的文本猜测：SKILL.md 改标题后引用会静默失效。
+# 分隔符两侧统一用 \s*——中文正文里「详见SKILL.md的阶段二流程」不带空格，恰是最常见的写法，
+# 只认 `\s+` 会让这类写法整体绕过本规则。
+# 章节名首字符排除括号/引号/竖线/井号：`见 SKILL.md「输出目录结构」`、`见 SKILL.md（…）`、
+# 表格里的 `见 SKILL.md）|` 是原样引用标题或句子收尾，不属于本规则要清理的模糊猜测。
 UNLINKED_SECTION_RE = re.compile(
-    r"(?:见|参考|参见|详见)\s*SKILL\.md\s+[^，。；;\n]+"
+    r"(?:见|参考|参见|详见)\s*SKILL\.md\s*"
+    r"[^\s，。；;、（）()「」『』【】《》〈〉\[\]{}<>#|\"'“”‘’]"
+    r"[^，。；;\n]*"
 )
 EXTERNAL_SCHEMES = ("http://", "https://", "ftp://", "mailto:", "data:", "tel:")
 DEPLOYED_RUNTIME_PREFIXES = (".claude/", ".codex/", ".opencode/")
@@ -47,14 +57,22 @@ CHANGELOG_DOCS = frozenset({"UPGRADING.md", "CHANGELOG.md"})
 EXTERNAL_URL_RE = re.compile(
     r"(?i)\b(?:https?|ftp)://[^\s<>\"'`]+"
 )
+# 花括号枚举（含逗号）是「逐个点名」，可以展开成具体路径；`{题材}` 这种单占位符不是枚举。
+BRACE_LIST_RE = re.compile(r"\{([^{}/]*,[^{}/]*)\}")
+# 跨 skill 扫描覆盖全部文本资产。模板（*.md.tmpl / *.json.patch）与前端资产同样会被
+# story-setup 部署进作者项目，漏扫等于把「skill 自包含」这条红线在部署面上放空。
 SKILL_TEXT_SUFFIXES = {
     ".cmd",
+    ".css",
+    ".html",
     ".js",
     ".json",
     ".md",
     ".mjs",
+    ".patch",
     ".py",
     ".sh",
+    ".tmpl",
     ".toml",
     ".ts",
     ".yaml",
@@ -140,6 +158,22 @@ def strip_inline_markup(line: str) -> str:
     return INLINE_CODE_RE.sub("", line)
 
 
+def path_alternatives(raw: str) -> list[str]:
+    """把点名枚举 `{a,b,c}` 展开成逐条路径。
+
+    `{story_codex_hook.py,run-story-hook.sh,run-story-hook.cmd}` 是作者逐个点名的文件，
+    等价于分别写三条引用：展开后每条都参与存在性与可达性校验。`{题材}` 这类单占位符
+    不是枚举（没有点名任何文件），保持原样交给 normalize_path_token 当通配处理。
+    """
+
+    match = BRACE_LIST_RE.search(raw)
+    if not match:
+        return [raw]
+    head, tail = raw[: match.start()], raw[match.end() :]
+    parts = [part.strip() for part in match.group(1).split(",")]
+    return [f"{head}{part}{tail}" for part in parts if part]
+
+
 def normalize_path_token(raw: str) -> tuple[str, bool]:
     token = raw.rstrip(".,;:!?，。；：！？|）】」』")
     dynamic = any(char in token for char in "*?{[")
@@ -200,17 +234,26 @@ def parse_document(path: Path) -> Document:
                 SourceRef(line=line_number, raw=strip_link_title(match.group(1)), kind="link")
             )
 
-        prose_without_code = LINK_RE.sub("", INLINE_CODE_RE.sub("", line))
+        # 外部 URL 命名远程资源，不是仓库内 skill 路径（与 cross_skill_path_issues 同一约定）：
+        # 两条扫描通道都必须先剥掉，否则 URL 尾段（.../references/x.md）会被当成本地路径误报。
+        # 正文里的加粗/斜体包裹也要还原：`**references/x.md**` 的 `*` 会被字符类吃进 token，
+        # 让它被误判成通配符并截断到父目录，从而跳过存在性校验。行内代码内不作强调还原——
+        # 反引号里的 `*` 是字面通配符。
+        prose_without_code = EMPHASIS_PATH_RE.sub(
+            r"\1", EXTERNAL_URL_RE.sub("", LINK_RE.sub("", INLINE_CODE_RE.sub("", line)))
+        )
         for match in SKILL_PATH_RE.finditer(prose_without_code):
-            document.refs.append(
-                SourceRef(line=line_number, raw=match.group("path"), kind="skill-path")
+            document.refs.extend(
+                SourceRef(line=line_number, raw=alternative, kind="skill-path")
+                for alternative in path_alternatives(match.group("path"))
             )
 
         for match in INLINE_CODE_RE.finditer(line):
-            code = match.group(1).strip()
+            code = EXTERNAL_URL_RE.sub("", match.group(1)).strip()
             for path_match in SKILL_PATH_RE.finditer(code):
-                document.refs.append(
-                    SourceRef(line=line_number, raw=path_match.group("path"), kind="skill-path")
+                document.refs.extend(
+                    SourceRef(line=line_number, raw=alternative, kind="skill-path")
+                    for alternative in path_alternatives(path_match.group("path"))
                 )
             for path_match in INLINE_MD_PATH_RE.finditer(code):
                 raw = path_match.group("path")
@@ -248,22 +291,25 @@ def resolve_ref(
     skill_dir: Path,
     root: Path,
     documents: dict[Path, Document],
-) -> tuple[Path | None, str, bool]:
+) -> tuple[Path | None, str, bool, bool]:
+    """返回（目标, 锚点, 是否本地引用, 是否通配引用）。"""
+
     raw = ref.raw.strip()
     if not raw or is_external_ref(raw):
-        return None, "", False
+        return None, "", False, False
 
     path_part, separator, fragment = raw.partition("#")
     fragment = unquote(fragment).lower() if separator else ""
+    dynamic = False
     candidates: list[Path]
     if ref.kind == "skill-path":
-        path_part, _ = normalize_path_token(path_part)
+        path_part, dynamic = normalize_path_token(path_part)
         decoded = unquote(path_part)
         candidates = [skill_dir / decoded, root / decoded, root / "skills" / decoded]
     elif not path_part:
         candidates = [document.path]
     else:
-        path_part, _ = normalize_path_token(path_part)
+        path_part, dynamic = normalize_path_token(path_part)
         decoded = unquote(path_part)
         if ref.kind == "link" and decoded.startswith("/"):
             candidates = [root / decoded.lstrip("/")]
@@ -296,7 +342,7 @@ def resolve_ref(
 
     if target.suffix.lower() == ".md" and target.is_file() and target not in documents:
         documents[target] = parse_document(target)
-    return target, fragment, True
+    return target, fragment, True, dynamic
 
 
 def is_deployed_runtime_ref(
@@ -423,7 +469,9 @@ def validate_skill(
             seen_refs.add(key)
             if is_deployed_runtime_ref(ref, document, skill_dir, agent_names):
                 continue
-            target, fragment, local = resolve_ref(ref, document, skill_dir, root, documents)
+            target, fragment, local, dynamic = resolve_ref(
+                ref, document, skill_dir, root, documents
+            )
             if not local or target is None:
                 continue
             if not inside_root(target, root):
@@ -467,7 +515,11 @@ def validate_skill(
                     )
                 )
                 continue
-            resolved_by_document.setdefault(document.path.resolve(), set()).add(target)
+            # 通配引用只声明范围（`references/*` 说的是「本 skill 的参考目录」），并没有点名
+            # 任何文件；把它解析出的目录当作可达起点会把整棵子树标成「已被引用」，
+            # dead-reference 检查对该 skill 就永久失效。点名枚举已在 path_alternatives 展开。
+            if not (dynamic and target.is_dir()):
+                resolved_by_document.setdefault(document.path.resolve(), set()).add(target)
             if fragment:
                 target_document = documents.get(target)
                 if target_document is None or fragment not in target_document.anchors:
@@ -510,6 +562,10 @@ def validate_skill(
         reached: set[Path] = set()
         queue: list[Path] = []
 
+        def is_reference_content(candidate: Path) -> bool:
+            # .gitkeep 是占位符；__pycache__ 是 .gitignore 的构建产物，都不是参考内容。
+            return candidate.name != ".gitkeep" and "__pycache__" not in candidate.parts
+
         def add_target(target: Path) -> None:
             try:
                 target.relative_to(references_dir.resolve())
@@ -518,7 +574,7 @@ def validate_skill(
             candidates = [target] if target.is_file() else sorted(path for path in target.rglob("*") if path.is_file())
             for candidate in candidates:
                 resolved = candidate.resolve()
-                if candidate.name == ".gitkeep" or resolved in reached:
+                if not is_reference_content(candidate) or resolved in reached:
                     continue
                 reached.add(resolved)
                 if candidate.suffix.lower() == ".md":
@@ -532,7 +588,7 @@ def validate_skill(
                 add_target(target)
 
         for candidate in sorted(path for path in references_dir.rglob("*") if path.is_file()):
-            if candidate.name == ".gitkeep" or candidate.resolve() in reached:
+            if not is_reference_content(candidate) or candidate.resolve() in reached:
                 continue
             issues.append(
                 Issue(
