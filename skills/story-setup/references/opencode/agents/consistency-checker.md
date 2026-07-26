@@ -10,7 +10,7 @@ permission:
   edit: deny
   bash:
     "*": deny
-    "git rev-parse *": allow
+    "git rev-parse --show-toplevel": allow
 steps: 15
 ---
 

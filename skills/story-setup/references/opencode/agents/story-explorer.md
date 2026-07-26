@@ -10,9 +10,7 @@ mode: subagent
 permission:
   read: allow
   edit: deny
-  bash:
-    "*": deny
-    "git rev-parse *": allow
+  bash: deny
 steps: 15
 ---
 
