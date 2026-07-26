@@ -5,7 +5,7 @@ const assert = require("assert");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 
 const repoRoot = path.resolve(__dirname, "..");
 const longUtilsPath = path.join(
@@ -567,6 +567,361 @@ function testHeiyanFieldDriftAndWordFormat() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// setup-cdp-chrome.js 的 --reset 闸门夹具。
+// 全程只碰 127.0.0.1 上一个临时端口，不发外部请求、不碰真 Chrome：
+//   fake-cdp.js          只答 /json/version 的假 CDP 端点，identity 由 --id 决定
+//   fake-chrome-*.js     假 Chrome：立刻退出 / 起一个新 identity 的端点并常驻
+//   cdp-preload.js       把脚本对系统的三处依赖换掉——Chrome 可执行路径的探测、
+//                        spawn 的目标、以及 pgrep/pkill（tasklist/taskkill）的语义
+// 进程存活一律走文件标记，不用真信号，Windows 上同样成立。
+// ---------------------------------------------------------------------------
+
+const FAKE_CDP = `"use strict";
+const fs = require("fs");
+const http = require("http");
+function arg(name, def) {
+  const i = process.argv.indexOf(name);
+  if (i > -1 && process.argv[i + 1] !== undefined) return process.argv[i + 1];
+  for (const a of process.argv) if (a.startsWith(name + "=")) return a.slice(name.length + 1);
+  return def;
+}
+const id = arg("--id", "fake-cdp");
+const portfile = arg("--portfile", null);
+const stopfile = arg("--stopfile", null);
+let port = Number(arg("--port", arg("--remote-debugging-port", 0)));
+if (!Number.isInteger(port) || port < 0) port = 0;
+const server = http.createServer((req, res) => {
+  if (req.url !== "/json/version") { res.writeHead(404); res.end("nope"); return; }
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({
+    Browser: id,
+    "Protocol-Version": "1.3",
+    webSocketDebuggerUrl: "ws://127.0.0.1:" + server.address().port + "/devtools/browser/" + id,
+  }));
+});
+server.listen(port, "127.0.0.1", () => {
+  if (portfile) fs.writeFileSync(portfile, String(server.address().port), "utf8");
+});
+// 停机也走文件标记：跨平台，不依赖真信号
+if (stopfile) setInterval(() => { if (fs.existsSync(stopfile)) process.exit(0); }, 50);
+`;
+
+const FAKE_CHROME_DIES = `process.exit(0);\n`;
+
+const FAKE_CHROME_FRESH = `"use strict";
+const path = require("path");
+let port = 0;
+for (const a of process.argv) {
+  const m = a.match(/^--remote-debugging-port=(\\d+)$/);
+  if (m) port = Number(m[1]);
+}
+// 用自己的 stopfile（H_STOPFILE 那个在 pkill 时就写过了，会让新端点一起来就退）
+process.argv = [process.argv[0], "fake-cdp", "--port", String(port),
+  "--id", "fresh-launched-cdp", "--stopfile", process.env.H_STOPFILE_NEW];
+require(path.join(__dirname, "fake-cdp.js"));
+`;
+
+// 假 Chrome：把端点甩给一个脱离的孙进程，自己立刻退出。spawn 出来的 pid 死了，
+// 但端口上有个「新身份」的端点在应答——identity 检查挡不住，只能靠 pid 存活检查挡。
+const FAKE_CHROME_ORPHAN = `"use strict";
+const path = require("path");
+const { spawn } = require("child_process");
+let port = 0;
+for (const a of process.argv) {
+  const m = a.match(/^--remote-debugging-port=(\\d+)$/);
+  if (m) port = Number(m[1]);
+}
+const child = spawn(
+  process.execPath,
+  [path.join(__dirname, "fake-cdp.js"), "--port", String(port), "--id", "foreign-orphan-cdp",
+   "--stopfile", process.env.H_STOPFILE_NEW],
+  { detached: true, stdio: "ignore" }
+);
+child.unref();
+setTimeout(() => process.exit(0), 300);
+`;
+
+const CDP_PRELOAD = `"use strict";
+const fs = require("fs");
+const cp = require("child_process");
+// Chrome 可执行文件的候选路径是按平台硬编码的，这里按「长得像 Chrome 可执行文件」来认，
+// 不必在测试里重抄一份平台表
+const CHROME_RE = /(?:Google Chrome|google-chrome(?:-stable)?|chrome\\.exe)$/;
+const realExistsSync = fs.existsSync;
+fs.existsSync = function (p) {
+  if (typeof p === "string" && CHROME_RE.test(p)) return true;
+  return realExistsSync.call(fs, p);
+};
+const realSpawn = cp.spawn;
+cp.spawn = function (file, args, opts) {
+  if (typeof file === "string" && CHROME_RE.test(file)) {
+    return realSpawn.call(cp, process.execPath, [process.env.H_FAKE_CHROME, ...(args || [])], opts);
+  }
+  return realSpawn.call(cp, file, args, opts);
+};
+const realExecSync = cp.execSync;
+cp.execSync = function (cmd, opts) {
+  if (/^(pgrep|tasklist)/.test(cmd)) {
+    if (process.env.H_PIDS === "old" && !realExistsSync.call(fs, process.env.H_KILLED_MARK)) {
+      return process.platform === "win32" ? '"chrome.exe","424242"' : "424242\\n";
+    }
+    const e = new Error("no process found"); // pgrep 找不到进程时的真实行为：非零退出
+    e.status = 1;
+    throw e;
+  }
+  if (/^(pkill|taskkill)/.test(cmd)) {
+    fs.writeFileSync(process.env.H_KILLED_MARK, "killed", "utf8");
+    // kill 生效的场景才真的让旧端点停下来；noop 场景模拟「kill 没起作用」
+    if (process.env.H_KILL === "real") fs.writeFileSync(process.env.H_STOPFILE, "stop", "utf8");
+    return "";
+  }
+  return realExecSync.call(cp, cmd, opts);
+};
+`;
+
+/**
+ * 跑一次 setup-cdp-chrome.js。scenario 决定 pgrep/pkill 语义与假 Chrome 行为。
+ * 返回 { status, stdout, stderr, sentinelSurvived, debugProfileSurvived }。
+ */
+function runSetupCdp(scenario) {
+  const setup = path.join(
+    repoRoot,
+    "skills/browser-cdp/scripts/setup-cdp-chrome.js"
+  );
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "story-cdp-reset-"));
+  let oldCdp = null;
+  let port = null;
+  try {
+    for (const [name, body] of [
+      ["fake-cdp.js", FAKE_CDP],
+      ["fake-chrome-dies.js", FAKE_CHROME_DIES],
+      ["fake-chrome-fresh.js", FAKE_CHROME_FRESH],
+      ["fake-chrome-orphan.js", FAKE_CHROME_ORPHAN],
+      ["cdp-preload.js", CDP_PRELOAD],
+    ]) {
+      fs.writeFileSync(path.join(tmpDir, name), body, "utf8");
+    }
+
+    // 假 HOME：源 profile + 一个已存在的 debug profile（里面的哨兵文件用来证明中止时没被删）
+    const home = path.join(tmpDir, "home");
+    const srcDefault = path.join(
+      home,
+      process.platform === "darwin"
+        ? "Library/Application Support/Google/Chrome/Default"
+        : process.platform === "win32"
+          ? "AppData/Local/Google/Chrome/User Data/Default"
+          : ".config/google-chrome/Default"
+    );
+    fs.mkdirSync(srcDefault, { recursive: true });
+    fs.writeFileSync(path.join(srcDefault, "Cookies"), "src-cookies", "utf8");
+    const debugProfile = path.join(home, "chrome-debug-profile");
+    fs.mkdirSync(path.join(debugProfile, "Default"), { recursive: true });
+    const sentinel = path.join(debugProfile, "SENTINEL");
+    fs.writeFileSync(sentinel, "must-survive-an-abort", "utf8");
+
+    // 起「旧 CDP」，让它自己挑端口并报回来——测试之间不会抢固定端口
+    const portfile = path.join(tmpDir, "port");
+    const stopfile = path.join(tmpDir, "stop");
+    oldCdp = spawn(
+      process.execPath,
+      [
+        path.join(tmpDir, "fake-cdp.js"),
+        "--port", "0",
+        "--id", "stale-existing-cdp",
+        "--portfile", portfile,
+        "--stopfile", stopfile,
+      ],
+      { stdio: "ignore" }
+    );
+    for (let i = 0; i < 200 && port === null; i++) {
+      sleepSyncMs(50);
+      if (fs.existsSync(portfile)) port = fs.readFileSync(portfile, "utf8").trim();
+    }
+    assert(port, "harness: 假旧 CDP 没起来");
+
+    const plan = {
+      staleHolder: { args: ["--reset", "--yes"], pids: "empty", kill: "noop", chrome: "fake-chrome-dies.js" },
+      genuineReset: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-fresh.js" },
+      plainReuse: { args: [], pids: "empty", kill: "noop", chrome: "fake-chrome-dies.js" },
+      orphanEndpoint: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-orphan.js" },
+    }[scenario];
+    assert(plan, `harness: 未知场景 ${scenario}`);
+
+    const result = spawnSync(
+      process.execPath,
+      ["--require", path.join(tmpDir, "cdp-preload.js"), setup, port, ...plan.args],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        timeout: 120000,
+        env: {
+          ...process.env,
+          HOME: home,
+          USERPROFILE: home,
+          LOCALAPPDATA: path.join(home, "AppData", "Local"),
+          H_FAKE_CHROME: path.join(tmpDir, plan.chrome),
+          H_PIDS: plan.pids,
+          H_KILL: plan.kill,
+          H_KILLED_MARK: path.join(tmpDir, "killed"),
+          H_STOPFILE: stopfile,
+          H_STOPFILE_NEW: path.join(tmpDir, "stop-new"),
+        },
+      }
+    );
+    return {
+      ...result,
+      port,
+      sentinelSurvived: fs.existsSync(sentinel),
+      debugProfileSurvived: fs.existsSync(debugProfile),
+    };
+  } finally {
+    // 收掉旧端点和假 Chrome 留下的常驻端点：先让它们自己按 stopfile 退（跨平台可靠），
+    // 再用 lsof/netstat 兜底，最后才删目录
+    for (const f of ["stop", "stop-new"]) {
+      try { fs.writeFileSync(path.join(tmpDir, f), "stop", "utf8"); } catch {}
+    }
+    if (oldCdp && oldCdp.pid) { try { process.kill(oldCdp.pid); } catch {} }
+    sleepSyncMs(300);
+    if (port) killPortListener(port);
+    sleepSyncMs(200);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+function sleepSyncMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/** 收掉测试期间还占着端口的假端点（尽力而为，失败不影响断言） */
+function killPortListener(port) {
+  try {
+    const out =
+      process.platform === "win32"
+        ? spawnSync("netstat", ["-ano", "-p", "tcp"], { encoding: "utf8" }).stdout || ""
+        : spawnSync("lsof", ["-ti", `tcp:${port}`, "-sTCP:LISTEN"], { encoding: "utf8" }).stdout || "";
+    const pids = new Set();
+    if (process.platform === "win32") {
+      for (const line of out.split("\n")) {
+        const m = line.match(new RegExp(`:${port}\\s+\\S+\\s+LISTENING\\s+(\\d+)`));
+        if (m) pids.add(Number(m[1]));
+      }
+    } else {
+      for (const line of out.split("\n")) {
+        const n = Number(line.trim());
+        if (n > 0) pids.add(n);
+      }
+    }
+    for (const pid of pids) { try { process.kill(pid, "SIGKILL"); } catch {} }
+  } catch {}
+}
+
+// 回归点：--reset 撞上一个关不掉的旧 CDP 时，绝不许报「重建成功」。
+// 老行为是最坏的一种结果——照样删 debug profile、照样启动，然后 probeCDP 被旧端点答上，
+// exit 0 报成功，调用方以为拿到了新浏览器，之后每一次采集读的都是旧会话。
+function testCdpResetRefusesStaleEndpoint() {
+  const run = runSetupCdp("staleHolder");
+
+  assert.strictEqual(
+    run.status,
+    1,
+    `关不掉的旧 CDP 必须让 --reset 非零退出，实际 ${run.status}:\n${run.stdout}\n${run.stderr}`
+  );
+  assert.match(run.stderr, /仍在应答，已中止/);
+  // 端口被无法识别的进程占用：必须点名说清，不能静默复用
+  assert.match(run.stderr, /端口被无法识别的进程占用/);
+
+  // 闸门在动 profile 之前——删一个还在跑的 Chrome 的 profile 本身就是破坏性的
+  assert(
+    run.sentinelSurvived,
+    "中止时不许删 debug profile（哨兵文件必须还在）"
+  );
+  assert(run.debugProfileSurvived, "中止时 debug profile 目录必须保留");
+  assert(
+    !/正在删除 debug profile/.test(run.stdout),
+    `中止路径上不该走到删 profile:\n${run.stdout}`
+  );
+  assert(
+    !/正在以 CDP 模式启动 Chrome/.test(run.stdout),
+    `端口没空出来就不该启动 Chrome:\n${run.stdout}`
+  );
+  assert(
+    !/已成功以 CDP 模式启动/.test(run.stdout),
+    `绝不许报成功:\n${run.stdout}`
+  );
+  // 旧端点的响应也不该被当成「新实例」打出来
+  assert(
+    !run.stdout.includes("stale-existing-cdp"),
+    `不该把旧实例的 /json/version 当成结果输出:\n${run.stdout}`
+  );
+}
+
+// 反向：端口真的空出来、新实例真的起来了，--reset 照样成功——闸门不是把功能关掉
+function testCdpResetSucceedsWhenPortActuallyFrees() {
+  const run = runSetupCdp("genuineReset");
+  assert.strictEqual(
+    run.status,
+    0,
+    `旧端点确实消失 + 新端点起来了，--reset 必须成功:\n${run.stdout}\n${run.stderr}`
+  );
+  assert.match(run.stdout, /已释放/);
+  assert.match(run.stdout, /正在删除 debug profile/);
+  assert.match(run.stdout, /已成功以 CDP 模式启动/);
+  // 报出来的必须是新实例的身份，不是重建前那个
+  assert(run.stdout.includes("fresh-launched-cdp"), run.stdout);
+  assert(!run.stdout.includes("stale-existing-cdp"), run.stdout);
+}
+
+// 不带 --reset/--profile 的复用快路径必须一字不变：直接复用现有 CDP、立刻退出 0
+function testCdpPlainReuseUnchanged() {
+  const run = runSetupCdp("plainReuse");
+  assert.strictEqual(run.status, 0, `复用路径必须成功:\n${run.stdout}\n${run.stderr}`);
+  assert.match(run.stdout, /CDP 已就绪，复用现有 Chrome。/);
+  assert(run.stdout.includes("stale-existing-cdp"), run.stdout);
+  // 复用就是复用：不许杀进程、不许动 profile、不许启动
+  assert(run.sentinelSurvived, "复用路径不许动 debug profile");
+  assert(!/正在停止/.test(run.stdout), run.stdout);
+  assert(!/正在删除 debug profile/.test(run.stdout), run.stdout);
+  assert(!/正在以 CDP 模式启动 Chrome/.test(run.stdout), run.stdout);
+}
+
+// 端口空出来了，但刚 spawn 的 Chrome 死了、端口被另一个进程接手：identity 变了也不算成功
+function testCdpRejectsEndpointNotFromThisLaunch() {
+  const run = runSetupCdp("orphanEndpoint");
+  assert.strictEqual(
+    run.status,
+    1,
+    `应答的端点不属于本次启动，必须非零退出:\n${run.stdout}\n${run.stderr}`
+  );
+  assert.match(run.stderr, /刚启动的 Chrome（pid \d+）已经退出/);
+  assert.match(run.stderr, /这个端点不属于本次启动的实例/);
+  assert(
+    !/已成功以 CDP 模式启动/.test(run.stdout),
+    `不许把别人的端点报成启动成功:\n${run.stdout}`
+  );
+  assert(
+    !run.stdout.includes("foreign-orphan-cdp"),
+    `不该把外来端点的 /json/version 当成结果输出:\n${run.stdout}`
+  );
+}
+
+// 静态守卫：探测 CDP 的 http.get 必须显式 agent:false。
+// Node 19+ 的 globalAgent 默认 keepAlive，而这个脚本用 sleepSync 死堵事件循环，
+// 期间服务端按 5s 空闲把池里的连接关掉；复用这条死 socket 就是 ECONNRESET，
+// 于是「端口还活着」被误判成「没人应答」——这种假阴性会直接骗过端口闸门。
+function testCdpProbeUsesFreshSocket() {
+  const src = fs.readFileSync(
+    path.join(repoRoot, "skills/browser-cdp/scripts/setup-cdp-chrome.js"),
+    "utf8"
+  );
+  const call = src.match(/http\.get\([^)]*\)/);
+  assert(call, "找不到 http.get 调用");
+  assert(
+    /agent:\s*false/.test(call[0]),
+    `探测 CDP 的 http.get 必须带 agent:false（一次一条新连接），实际: ${call[0]}`
+  );
+}
+
 testCdpUtils(longUtilsPath);
 testCdpUtils(shortUtilsPath);
 testWindowsInvocationBuilder(longUtilsPath);
@@ -578,4 +933,9 @@ testCliResultGate(longUtilsPath);
 testJjwxcDetailFailureIsolation();
 testQidianRankIsolation();
 testHeiyanFieldDriftAndWordFormat();
+testCdpProbeUsesFreshSocket();
+testCdpPlainReuseUnchanged();
+testCdpResetRefusesStaleEndpoint();
+testCdpRejectsEndpointNotFromThisLaunch();
+testCdpResetSucceedsWhenPortActuallyFrees();
 console.log("OK: scan runtime uses shell-safe CDP calls and side-effect-free scraper modules");

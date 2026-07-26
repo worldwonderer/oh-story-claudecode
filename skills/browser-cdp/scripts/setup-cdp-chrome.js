@@ -16,6 +16,9 @@
 // 说明：CDP 端口已在监听时默认直接复用现有 Chrome 并退出 0；但传了 --reset 或显式
 //       --profile 时不复用——这两个参数就是要重建 debug profile（登录态过期即走这条路），
 //       会先关闭现有 Chrome（非 TTY 下需 --yes，否则 exit 3 报 NEEDS_CONSENT）。
+//       重建路径上有两道硬闸门：关完进程后端口必须真的不再应答（否则在动 profile 之前就
+//       exit 1 中止，绝不删一个还在运行的 Chrome 的 profile）；启动后应答的实例身份必须
+//       与重建前不同且 spawn 出的进程还活着（否则拒绝报成功，避免把旧会话当新浏览器交出去）。
 //
 // 退出码:
 //   0  成功 / detect-only 完成
@@ -201,10 +204,16 @@ function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-/** HTTP GET 检查 CDP 端点。拒绝 4xx/5xx；自动 drain 防止 keep-alive 残留连接。 */
+/**
+ * HTTP GET 检查 CDP 端点。拒绝 4xx/5xx；自动 drain 掉响应体。
+ * agent:false 是必须的——Node 19+ 的 http.globalAgent 默认 keepAlive，探测用过的 socket 会留在
+ * 连接池里；而本脚本用 sleepSync 死堵事件循环（等进程退出/等启动），期间服务端按 5s 空闲把这条
+ * 连接关掉，客户端来不及处理 FIN。下一次探测复用这条死 socket 就是 ECONNRESET，于是"端口还活着"
+ * 被误判成"没人应答"。这种假阴性会直接骗过下面的端口闸门，必须一次一条新连接。
+ */
 function httpGet(url) {
   return new Promise((resolve, reject) => {
-    const req = http.get(url, { timeout: 3000 }, (res) => {
+    const req = http.get(url, { timeout: 3000, agent: false }, (res) => {
       let body = "";
       res.on("data", (chunk) => (body += chunk));
       res.on("end", () => {
@@ -229,6 +238,72 @@ async function probeCDP(port) {
     return version;
   } catch {
     return null;
+  }
+}
+
+/**
+ * 从 /json/version 响应里取一个能区分「实例」的标识。
+ * Chrome 每次启动都会换一个新的 browser GUID（webSocketDebuggerUrl 尾段），最适合做这件事。
+ * 取不到就返回 null——调用方必须把 null 当作「无法比对」，绝不能当作「相同」或「不同」。
+ */
+function cdpIdentity(version) {
+  if (!version) return null;
+  try {
+    const obj = JSON.parse(version);
+    if (obj.webSocketDebuggerUrl) return String(obj.webSocketDebuggerUrl);
+  } catch {}
+  return null;
+}
+
+/**
+ * 等 CDP 端口真的不再应答；true = 端口已空出来，false = 超时后仍有人应答。
+ * 要连续 needQuiet 次都探不到才算空——单次探测失败（瞬时重置、连接被丢）不足以解锁后面
+ * 那些破坏性操作（删 profile、启新进程）。端口真的关了的话连接是立刻被拒的，代价很小。
+ */
+async function waitForPortFree(port, maxMs = 8000, stepMs = 500, needQuiet = 2) {
+  const start = Date.now();
+  let quiet = 0;
+  for (;;) {
+    if (await probeCDP(port)) {
+      quiet = 0;
+    } else if (++quiet >= needQuiet) {
+      return true;
+    }
+    if (Date.now() - start >= maxMs) return false;
+    sleepSync(stepMs);
+  }
+}
+
+/** 尽力查出占用端口的进程，只用于诊断（查不到就返回 null，不影响判定） */
+function describePortHolder(port) {
+  const cmd =
+    PLATFORM === "win32"
+      ? `netstat -ano -p tcp | findstr LISTENING | findstr :${port}`
+      : `lsof -nP -iTCP:${port} -sTCP:LISTEN`;
+  try {
+    const out = execSync(cmd, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const line = out
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !/^COMMAND\s/.test(l))[0];
+    return line ? line.slice(0, 200) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** spawn 出来的 Chrome 是否还活着（exitCode/signalCode 权威，兜底 kill(pid,0)） */
+function isChildAlive(child) {
+  if (!child || !child.pid) return false;
+  if (child.exitCode !== null || child.signalCode !== null) return false;
+  try {
+    process.kill(child.pid, 0);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -411,20 +486,26 @@ async function main() {
     } else if (cdpAlive) {
       log("0. CDP 已就绪，但传了 --reset/--profile：实际运行不复用，按下列步骤重建");
     }
-    if (ARGS.flags.reset) log(`1. 删除 ${debugProfile}`);
+    // 步骤号按真实执行顺序动态编号：先杀进程、再确认端口空了，之后才碰 profile 目录
+    let stepNo = 0;
+    const step = (msg) => log(`${++stepNo}. ${msg}`);
     if (runningPids.length > 0) {
-      log(`2. ${ARGS.flags.yes ? "（已同意）" : "请求同意后 "}杀死 ${runningPids.length} 个 Chrome 进程`);
+      step(`${ARGS.flags.yes ? "（已同意）" : "请求同意后 "}杀死 ${runningPids.length} 个 Chrome 进程`);
     } else {
-      log("2. 无 Chrome 进程，无需杀死");
+      step("无 Chrome 进程，无需杀死");
     }
+    if (cdpAlive) {
+      step(`确认端口 ${CDP_PORT} 上的旧实例已不再应答（仍在应答则中止：不删 profile、不启动）`);
+    }
+    if (ARGS.flags.reset) step(`删除 ${debugProfile}`);
     if (hasProfile) {
-      log(`3. 复制 profile: ${defaultProfile} -> ${debugProfile}/Default`);
+      step(`复制 profile: ${defaultProfile} -> ${debugProfile}/Default`);
     } else {
-      log("3. ⚠️ 无用户 profile，将以空 profile 启动");
+      step("⚠️ 无用户 profile，将以空 profile 启动");
     }
-    log("4. 清理 SingletonLock / SingletonCookie / SingletonSocket");
-    log(`5. 启动 Chrome（含 --remote-allow-origins=*, --no-first-run 等）`);
-    log(`6. 验证 http://127.0.0.1:${CDP_PORT}/json/version`);
+    step("清理 SingletonLock / SingletonCookie / SingletonSocket");
+    step("启动 Chrome（含 --remote-allow-origins=*, --no-first-run 等）");
+    step(`验证 http://127.0.0.1:${CDP_PORT}/json/version 来自新实例（身份已变 + 进程存活）`);
     ok("dry-run 完成。");
     process.exit(0);
   }
@@ -443,6 +524,8 @@ async function main() {
     const requested = ARGS.flags.reset ? "--reset" : `--profile ${ARGS.profile}`;
     warn(`CDP 端口 ${CDP_PORT} 已在监听，但传了 ${requested}：不复用，将关闭现有 Chrome 后重建 debug profile。`);
   }
+  // 重建前那个实例的身份：第 10 步要靠它证明「应答的是新起的实例」，而不只是「有人应答」
+  const staleIdentity = cdpIdentity(existing);
 
   if (!hasProfile) {
     err(`未找到 Chrome profile: ${defaultProfile}`);
@@ -473,6 +556,35 @@ async function main() {
     } else {
       ok("Chrome 已退出。");
     }
+  }
+
+  // 5.5) 硬闸门：端口必须真的空出来，才允许动 profile 目录、才允许启动新实例。
+  //      顺序是刻意的——闸门在删 profile 之前。旧实例还活着就往下走会撞上最坏的一种结果：
+  //      先删掉一个正在运行的 Chrome 的 profile（本身就是破坏性的），新进程又因端口被占起不来，
+  //      而第 10 步的 probeCDP 恰好被旧端点答上，于是 exit 0 报「重建成功」——调用方以为拿到了
+  //      新浏览器，之后每一次采集读的都是旧会话/别人的会话。这里只能硬失败。
+  //      仅在重建前确实探到过 CDP 时才等（existing 为空时端口本来就没人应答，不给复用路径加开销）。
+  if (existing) {
+    // 杀过进程才值得给宽限期（Chrome 退出到端口真正释放有延迟）；一个 Chrome 进程都没找到时
+    // 没人被要求退出，端口不会自己空出来，确认几次还在应答就直接报错，不干等。
+    const graceMs = runningPids.length > 0 ? 8000 : 1000;
+    if (!(await waitForPortFree(CDP_PORT, graceMs))) {
+      const remain = config.listChromePids();
+      err(`CDP 端口 ${CDP_PORT} 上的旧实例仍在应答，已中止。`);
+      if (remain.length > 0) {
+        err(`原因：${remain.length} 个 Chrome 进程没能退出（kill 无效，可能权限不足或进程卡死）。`);
+      } else if (runningPids.length === 0) {
+        err("原因：端口被无法识别的进程占用——没找到任何 Chrome 进程，脚本无从关闭它。");
+      } else {
+        err("原因：Chrome 进程已退出，但端口仍被占用（另有进程守着这个端口）。");
+      }
+      const holder = describePortHolder(CDP_PORT);
+      if (holder) err(`占用者：${holder}`);
+      err("未删除、未改动 debug profile，也未启动新 Chrome——状态保持原样。");
+      err(`处理办法：手动结束占用 ${CDP_PORT} 的进程后重跑，或换一个端口（node setup-cdp-chrome.js <其他端口> ...）。`);
+      process.exit(1);
+    }
+    ok(`CDP 端口 ${CDP_PORT} 已释放。`);
   }
 
   // 6) --reset：清空 debug profile
@@ -511,14 +623,47 @@ async function main() {
   ];
   const child = spawn(chromePath, chromeArgs, { detached: true, stdio: "ignore" });
   const childPid = child.pid;
+  let spawnError = null;
+  child.on("error", (e) => { spawnError = e; });
   child.unref();
 
-  // 10) 等待启动并验证
+  /** 启动后验证没过：只清掉自己刚起的进程（端口上那个不是我们的，不该连坐杀别人的 Chrome） */
+  function abortAfterLaunch(reasons) {
+    for (const line of reasons) err(line);
+    err("正在清理刚启动的 Chrome 进程...");
+    if (childPid) {
+      try { process.kill(childPid); } catch {}
+    }
+    process.exit(1);
+  }
+
+  // 10) 等待启动并验证。光有人应答不算成功——那可能是没被关掉的旧实例。三条都过才算：
+  //     ① 第 5.5 步已确认旧端点消失过；② 新端点的 browser GUID 与重建前不同；
+  //     ③ 刚 spawn 的进程还活着（它死了，端口上应答的就一定不是本次启动的实例）。
   log("等待 Chrome 启动...");
   for (let i = 1; i <= 15; i++) {
     sleepSync(2000);
+    if (spawnError) {
+      abortAfterLaunch([`启动 Chrome 失败: ${spawnError.message}`]);
+    }
     const version = await probeCDP(CDP_PORT);
     if (version) {
+      const identity = cdpIdentity(version);
+      if (staleIdentity && identity && identity === staleIdentity) {
+        abortAfterLaunch([
+          `端口 ${CDP_PORT} 应答的仍是重建前那个实例（${identity}），不是新启动的 Chrome。`,
+          "拒绝报成功：再往下用，每一次采集读到的都会是旧会话。",
+        ]);
+      }
+      if (!isChildAlive(child)) {
+        const holder = describePortHolder(CDP_PORT);
+        abortAfterLaunch([
+          `端口 ${CDP_PORT} 上有 CDP 应答，但刚启动的 Chrome（pid ${childPid}）已经退出。`,
+          "拒绝报成功：这个端点不属于本次启动的实例。",
+          ...(holder ? [`占用者：${holder}`] : []),
+          `处理办法：确认 ${CDP_PORT} 没被别的进程占用，或换一个端口重跑。`,
+        ]);
+      }
       ok(`Chrome 已成功以 CDP 模式启动（端口 ${CDP_PORT}）`);
       log(version.split("\n").slice(0, 5).join("\n"));
       process.exit(0);
