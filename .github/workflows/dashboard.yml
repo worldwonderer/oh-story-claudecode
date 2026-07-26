@@ -5,11 +5,12 @@ on:
     branches: [main]
     paths:
       - "demo/**"
+      - "skills/story/SKILL.md"
       - "skills/story/assets/**"
       - "skills/story/scripts/dashboard-server.mjs"
-      - "tests/dashboard-server.test.mjs"
-      - "tests/e2e/**"
-      - "tests/helpers/dashboard-e2e-server.mjs"
+      - "tests/**"
+      - "README.md"
+      - ".claude-plugin/marketplace.json"
       - "package.json"
       - "package-lock.json"
       - "playwright.config.mjs"
@@ -17,11 +18,12 @@ on:
   pull_request:
     paths:
       - "demo/**"
+      - "skills/story/SKILL.md"
       - "skills/story/assets/**"
       - "skills/story/scripts/dashboard-server.mjs"
-      - "tests/dashboard-server.test.mjs"
-      - "tests/e2e/**"
-      - "tests/helpers/dashboard-e2e-server.mjs"
+      - "tests/**"
+      - "README.md"
+      - ".claude-plugin/marketplace.json"
       - "package.json"
       - "package-lock.json"
       - "playwright.config.mjs"

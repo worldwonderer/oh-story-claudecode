@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, describe, test } from "node:test";
@@ -34,14 +34,24 @@ async function createWorkspace() {
   await mkdir(resolve(root, "拆文库", "盘龙", "章节"), { recursive: true });
   await mkdir(resolve(root, "长篇", "示例书", "大纲"), { recursive: true });
   await mkdir(resolve(root, "长篇", "示例书", "正文"), { recursive: true });
-  await mkdir(resolve(root, ".git", "objects"), { recursive: true });
-  await mkdir(resolve(root, "node_modules", "fake-package"), { recursive: true });
+  // 基建目录必须落在被扫描的库/项目内部：放在工作区根下永远进不了树，
+  // 断言就成了空转，测不出忽略规则有没有失效。
+  await mkdir(resolve(root, "长篇", "示例书", ".git", "objects"), { recursive: true });
+  await mkdir(resolve(root, "长篇", "示例书", "正文", "node_modules", "fake-package"), {
+    recursive: true,
+  });
+  await mkdir(resolve(root, "拆文库", "盘龙", ".omc", "state"), { recursive: true });
   await writeFile(resolve(root, "拆文库", "盘龙", "拆文报告.md"), "# 盘龙\n", "utf8");
   await writeFile(resolve(root, "拆文库", "盘龙", "章节", "第1章.md"), "第一章", "utf8");
   await writeFile(resolve(root, "长篇", "示例书", "大纲", "总纲.md"), "# 总纲\n", "utf8");
   await writeFile(resolve(root, "长篇", "示例书", "正文", "第001章.md"), "初稿", "utf8");
-  await writeFile(resolve(root, ".git", "config"), "secret", "utf8");
-  await writeFile(resolve(root, "node_modules", "fake-package", "index.js"), "x", "utf8");
+  await writeFile(resolve(root, "长篇", "示例书", ".git", "config"), "secret", "utf8");
+  await writeFile(
+    resolve(root, "长篇", "示例书", "正文", "node_modules", "fake-package", "index.js"),
+    "x",
+    "utf8",
+  );
+  await writeFile(resolve(root, "拆文库", "盘龙", ".omc", "state", "secrets.json"), "{}", "utf8");
   await writeFile(resolve(root, "长篇", "示例书", "封面.png"), "not-an-image", "utf8");
   return root;
 }
@@ -71,13 +81,17 @@ describe("workspace scanning", () => {
     assert.equal(workspace.stats.libraries, 2);
     assert.equal(workspace.stats.projects, 1);
     assert.ok(workspace.stats.editableFiles > 100);
+    // 前端要靠这两个字段判断「树是否被截断」，缺一个就会又变成静默漏文件
+    assert.equal(workspace.limits.truncated, false);
+    assert.ok(workspace.limits.maxTreeNodes > 0);
   });
 
   test("ignores infrastructure folders and marks unsupported files read-only", async () => {
     const root = await createWorkspace();
     const workspace = await scanWorkspace(root);
     const serialized = JSON.stringify(workspace);
-    assert.doesNotMatch(serialized, /\.git|node_modules|fake-package/);
+    assert.doesNotMatch(serialized, /\.git|node_modules|fake-package|\.omc|secrets\.json/);
+    assert.match(serialized, /第001章\.md/);
 
     const project = workspace.projects[0];
     const cover = project.children.find((entry) => entry.name === "封面.png");
@@ -312,5 +326,91 @@ describe("HTTP API", () => {
     });
     assert.equal(versionless.status, 400);
     assert.equal((await versionless.json()).error.code, "missing_file_version");
+
+    // 删除同样必须带版本号：409 那道比较挡不住它（NaN > 0.5 恒为 false），
+    // 少了这条断言，去掉守卫也能一路绿灯把章节删干净。
+    const chapterPath = "长篇/示例书/正文/第001章.md";
+    const versionlessDelete = await fetch(`${baseUrl}/api/file`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: chapterPath }),
+    });
+    assert.equal(versionlessDelete.status, 400);
+    assert.equal((await versionlessDelete.json()).error.code, "missing_file_version");
+    assert.equal(await readFile(resolve(root, chapterPath), "utf8"), "初稿");
+  });
+
+  test("keeps the saved file's permission bits instead of letting umask narrow them", async (context) => {
+    if (process.platform === "win32") {
+      context.skip("Windows 不使用 POSIX 权限位");
+      return;
+    }
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+    const filePath = "长篇/示例书/正文/第001章.md";
+    const absolutePath = resolve(root, filePath);
+    await chmod(absolutePath, 0o664);
+
+    const previousUmask = process.umask(0o022);
+    try {
+      const loaded = await fetch(
+        `${baseUrl}/api/file?path=${encodeURIComponent(filePath)}`,
+      ).then((response) => response.json());
+      const saved = await fetch(`${baseUrl}/api/file`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: filePath,
+          content: "改过的正文",
+          expectedMtimeMs: loaded.mtimeMs,
+        }),
+      });
+      assert.equal(saved.status, 200);
+      assert.equal((await stat(absolutePath)).mode & 0o777, 0o664);
+    } finally {
+      process.umask(previousUmask);
+    }
+  });
+
+  test("still serves the rest of the workspace when one library directory is unreadable", async (context) => {
+    if (process.platform === "win32" || process.getuid?.() === 0) {
+      context.skip("当前平台或用户无法制造不可读目录");
+      return;
+    }
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+    const libraryRoot = resolve(root, "拆文库");
+    await chmod(libraryRoot, 0o000);
+    try {
+      const response = await fetch(`${baseUrl}/api/workspace`);
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.deepEqual(payload.libraries, []);
+      assert.deepEqual(
+        payload.projects.map((entry) => entry.path),
+        ["长篇/示例书"],
+      );
+    } finally {
+      await chmod(libraryRoot, 0o755);
+    }
+  });
+
+  test("reports an actionable error when the workspace root itself is unreadable", async (context) => {
+    if (process.platform === "win32" || process.getuid?.() === 0) {
+      context.skip("当前平台或用户无法制造不可读目录");
+      return;
+    }
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+    await chmod(root, 0o000);
+    try {
+      const response = await fetch(`${baseUrl}/api/workspace`);
+      assert.equal(response.status, 403);
+      const payload = await response.json();
+      assert.equal(payload.error.code, "workspace_unreadable");
+      assert.match(payload.error.message, /工作区目录无法读取/);
+    } finally {
+      await chmod(root, 0o755);
+    }
   });
 });

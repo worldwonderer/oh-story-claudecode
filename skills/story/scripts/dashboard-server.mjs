@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { createServer } from "node:http";
 import {
+  chmod,
   copyFile,
   lstat,
   readFile,
@@ -195,7 +196,9 @@ async function listLibraryRoots(root) {
   const standardRoot = resolve(root, "拆文库");
   const standardInfo = await lstat(standardRoot).catch(() => null);
   if (standardInfo?.isDirectory() && !standardInfo.isSymbolicLink()) {
-    const entries = await readdir(standardRoot, { withFileTypes: true });
+    // 单个拆文库读不动（权限、外挂盘掉线）时降级为空列表，其余工作区照常出树，
+    // 与 buildTreeNode / findProjectRoots 的 readdir 处理保持一致。
+    const entries = await readdir(standardRoot, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
       if (entry.isDirectory() && !entry.isSymbolicLink()) {
         roots.push({ absolutePath: resolve(standardRoot, entry.name), relativePath: `拆文库${sep}${entry.name}` });
@@ -203,7 +206,14 @@ async function listLibraryRoots(root) {
     }
   }
 
-  const rootEntries = await readdir(root, { withFileTypes: true });
+  // 工作区根目录读不动就没有任何可展示的树，直接给出可执行的报错，而不是静默返回空树。
+  const rootEntries = await readdir(root, { withFileTypes: true }).catch(() => {
+    throw new DashboardError(
+      403,
+      "workspace_unreadable",
+      `工作区目录无法读取，请检查访问权限：${root}`,
+    );
+  });
   for (const entry of rootEntries) {
     if (
       entry.name.startsWith("拆文库-") &&
@@ -288,17 +298,18 @@ export async function scanWorkspace(root) {
   const libraryPaths = libraryRoots.map((entry) => entry.absolutePath);
   const projectRoots = await findProjectRoots(realRoot, libraryPaths);
 
+  // 先扫写作项目再扫拆文库：节点预算有限时，作者自己的正文优先于参考档案。
   const state = { nodes: 0 };
-  const libraries = (
+  const projects = (
     await Promise.all(
-      libraryRoots.map((entry) =>
+      projectRoots.map((entry) =>
         buildTreeNode(realRoot, entry.absolutePath, entry.relativePath, state),
       ),
     )
   ).filter(Boolean);
-  const projects = (
+  const libraries = (
     await Promise.all(
-      projectRoots.map((entry) =>
+      libraryRoots.map((entry) =>
         buildTreeNode(realRoot, entry.absolutePath, entry.relativePath, state),
       ),
     )
@@ -317,6 +328,7 @@ export async function scanWorkspace(root) {
     limits: {
       maxFileBytes: MAX_FILE_BYTES,
       editableExtensions: [...EDITABLE_EXTENSIONS],
+      maxTreeNodes: MAX_TREE_NODES,
       truncated: state.nodes >= MAX_TREE_NODES,
     },
   };
@@ -378,6 +390,9 @@ async function readWorkspaceFile(root, requestedPath) {
 async function replaceFileAtomically(target, content, mode) {
   const temporary = resolve(dirname(target), `.${basename(target)}.story-dashboard-${randomUUID()}.tmp`);
   await writeFile(temporary, content, { encoding: "utf8", mode });
+  // open(2) 的 mode 会被进程 umask 削掉，光靠 writeFile 保不住原文件权限，
+  // 所以改名前显式补一次；个别文件系统不支持权限位，失败就按原样落盘。
+  await chmod(temporary, mode & 0o7777).catch(() => {});
   try {
     await rename(temporary, target);
   } catch (error) {
