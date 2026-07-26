@@ -66,6 +66,67 @@ try {
   assert.match(second.stdout, /Changed files: 0/);
   assert.strictEqual(fs.readFileSync(prose, "utf8"), normalized, "normalization must be idempotent");
 
+  // 混合行尾：一处孤立 CRLF 不得把全文行尾翻成 CRLF；没有标点问题就必须一个字节都不动，
+  // 否则 --check 报零问题、写入模式却改出整篇 diff，两种模式对不上。
+  const mixedEol = path.join(tmpDir, "mixed-eol.md");
+  const mixedOriginal = "他站在原地。\r\n风很大。\n雨停了。\n";
+  fs.writeFileSync(mixedEol, mixedOriginal, "utf8");
+  const mixedCheck = run(["--check", mixedEol]);
+  assert.strictEqual(mixedCheck.status, 0, mixedCheck.stdout + mixedCheck.stderr);
+  const mixedWrite = run([mixedEol]);
+  assert.strictEqual(mixedWrite.status, 0, mixedWrite.stderr);
+  assert.match(mixedWrite.stdout, /Changed files: 0/);
+  assert.strictEqual(
+    fs.readFileSync(mixedEol, "utf8"),
+    mixedOriginal,
+    "mixed line endings must survive a clean pass byte-for-byte"
+  );
+
+  // 混合行尾 + 真标点问题：只改标点，逐行行尾保持原样。
+  const mixedDirty = path.join(tmpDir, "mixed-eol-dirty.md");
+  fs.writeFileSync(mixedDirty, "他说……真的。\r\n风很大——雨停了。\n", "utf8");
+  assert.strictEqual(run([mixedDirty]).status, 0);
+  assert.strictEqual(
+    fs.readFileSync(mixedDirty, "utf8"),
+    "他说，真的。\r\n风很大，雨停了。\n",
+    "per-line endings must be preserved while punctuation is normalized"
+  );
+
+  // HTML 注释里的 `--` 不是停顿标点：`<!-- 去味:跳过 -->` 豁免标记必须原样留在正文里，
+  // 被改成 `<! 去味:跳过 ，>` 就不再是注释，会当可见文本泄进成稿。
+  const marker = path.join(tmpDir, "marker.md");
+  const markerOriginal = [
+    "# 第12章 雨夜",
+    "<!-- 去味:跳过 -->",
+    "他握紧了拳头，慢慢站起身。",
+    "<!--",
+    "跨行注释里的---与……也照旧",
+    "-->",
+    "正文……继续。<!-- 行内备注 -->",
+    "",
+  ].join("\n");
+  fs.writeFileSync(marker, markerOriginal, "utf8");
+  const markerCheck = run(["--check", marker]);
+  assert.strictEqual(markerCheck.status, 1, markerCheck.stderr);
+  assert.doesNotMatch(markerCheck.stdout, /double-hyphen/, "HTML 注释不得报 double-hyphen");
+  assert.doesNotMatch(markerCheck.stdout, /markdown-divider/, "注释内的 --- 不是正文分隔线");
+  assert.strictEqual(run([marker]).status, 0);
+  const markerNormalized = fs.readFileSync(marker, "utf8");
+  assert(markerNormalized.includes("<!-- 去味:跳过 -->"), "去味豁免标记必须原样保留");
+  assert(markerNormalized.includes("跨行注释里的---与……也照旧"), "跨行注释内容必须原样保留");
+  assert(markerNormalized.includes("<!-- 行内备注 -->"), "行内注释必须原样保留");
+  assert(markerNormalized.includes("正文，继续。"), "注释外的正文仍要归一化");
+
+  // 删空停顿符会把两侧的半角点/连字符粘成新的 `...`/`--`；一遍必须清干净，
+  // 否则成稿留着本该删掉的 ASCII 省略号，事后重跑同一步又会改动已定稿的正文。
+  const merge = path.join(tmpDir, "merge.md");
+  fs.writeFileSync(merge, "他.……..说\n-…...……-2.（！）\n", "utf8");
+  assert.strictEqual(run([merge]).status, 0);
+  assert.strictEqual(fs.readFileSync(merge, "utf8"), "他，说\n2.（！）\n");
+  const mergeRecheck = run(["--check", merge]);
+  assert.strictEqual(mergeRecheck.status, 0, "一遍归一化后 --check 必须已清零: " + mergeRecheck.stdout);
+  assert.match(run([merge]).stdout, /Changed files: 0/);
+
   const fences = path.join(tmpDir, "fences.md");
   const fencedOriginal = [
     "~~~markdown",

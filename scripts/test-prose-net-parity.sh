@@ -43,7 +43,9 @@ fails=0
 # 每条 net 正则的规范子串（足以唯一锚定该模式）+ 关键常量/阈值。必须在三份文件里都 grep -F 到。
 CANON=(
   # 软信号（拒绝语 / AI 自指）
-  '作为(一个)?(AI|人工智能|大?语言模型|智能助手|聊天助手)(?='
+  # 型号后缀可选段是 AI 自指的必需部分（作为一个AI语言模型/AI助手/AI模型/人工智能语言模型），
+  # 缺了它前视断言会紧跟在「AI」后面看到「语/助/模」，最典型的退化开场整类漏检。
+  '作为(一个)?(AI|人工智能|大?语言模型|智能助手|聊天助手)(?:语言模型|大?模型|助手|机器人)?(?='
   '我(无法|不能)(继续(写|创作|生成|下去|输出)?'
   "Sure|Certainly|Here'?s|As an AI|I (?:cannot|can't|am unable|apologize)"
   # 硬信号（占位 / 工程词 / 乱码）
@@ -97,6 +99,12 @@ run_functional() {
   "clean": "江晨睁开眼天还没亮。\n他要快要狠要赢这是唯一的活路。\n「作为AI管家，我劝你别白费力气。」\n他握紧拳头走向门口。",
   "truncate": "江晨握紧拳头慢慢走向门口。\n江晨冲过去一拳砸在",
   "refuse": "夜色压下来。\n作为AI我无法继续创作这部分内容。",
+  "ai_selfref_model": "夜色压下来。\n作为一个AI语言模型，我需要提醒您接下来的情节包含暴力描写。",
+  "ai_selfref_assistant": "他推门进来。\n作为一个AI助手，这段内容涉及敏感话题。",
+  "ai_selfref_era_ok": "作为一个人工智能时代的产物，他对孤独习以为常。\n他把灯关了。",
+  "terminal_banner_ok": "他抬起手按在光屏上。\n【叮！任务完成，奖励已发放】",
+  "terminal_ascii_quote_ok": "他站起来推开门。\n他说：\"我回来了。\"",
+  "toxic_quote_codename_ok": "他把烟头按进烟灰缸。\n这一战注定是「血屠」的开端，没人料到后来会那样。",
   "engword": "街灯一盏盏亮起。\n按照本章细纲的情节点他该出场了。",
   "repeat": "他握紧拳头一步步走过去缓缓逼近。\n他握紧拳头一步步走过去缓缓逼近。\n他终于停下了。",
   "placeholder": "他打开门。\n（此处省略三百字打斗描写）他赢了。",
@@ -182,6 +190,19 @@ JS
   grep -q '^toxic_exempt_other_nets | 第4行 工程词泄漏' "$tmp/py.txt" || { echo "FAIL: 豁免标记不应连带关掉毒句式以外的网（工程词漏检）" >&2; return 3; }
   grep '^toxic_exempt_other_nets' "$tmp/py.txt" | grep -q '毒句式' && { echo "FAIL: 豁免标记在场时毒句式仍被推回" >&2; return 3; }
   grep -q '^toxic_astral_window_ok | $' "$tmp/py.txt" || { echo "FAIL: 引号内 emoji 的占位长度未按 UTF-16 码元对齐，trailer 窗口切点漂移" >&2; return 3; }
+  grep -q '^toxic_quote_codename_ok | $' "$tmp/py.txt" || { echo "FAIL: 引号占位替 trailer-summary 的句末 [。！] 伪造终止符（占位字符落进了规则接受位）" >&2; return 3; }
+
+  # AI 自指（软信号）防空转：带型号后缀的最典型退化开场必须命中，且不带拒绝语也要命中
+  # （此前 refuse fixture 是被「生成拒绝语」规则接住的，AI 自指规则零覆盖）；复合名词不误报。
+  grep -q '^ai_selfref_model | 第2行 元信息泄漏（AI 自指）' "$tmp/py.txt" || { echo "FAIL: AI 自指未命中「作为一个AI语言模型」（无拒绝语）" >&2; return 3; }
+  grep -q '^ai_selfref_assistant | 第2行 元信息泄漏（AI 自指）' "$tmp/py.txt" || { echo "FAIL: AI 自指未命中「作为一个AI助手」" >&2; return 3; }
+  grep -q '^ai_selfref_era_ok | $' "$tmp/py.txt" || { echo "FAIL: 复合名词「人工智能时代的产物」被 AI 自指误报" >&2; return 3; }
+
+  # 截断收尾标点：】（章尾系统播报模板的收束符）与 ASCII " （ascii 引号模式的收引号）都算收束，
+  # 与深扫 oracle check-degeneration.js 的 findTruncation 一致；真截断另由 truncate fixture 锁。
+  grep -q '^terminal_banner_ok | $' "$tmp/py.txt" || { echo "FAIL: 以【…】收尾的章末系统播报被误判疑似截断" >&2; return 3; }
+  grep -q '^terminal_ascii_quote_ok | $' "$tmp/py.txt" || { echo "FAIL: 以 ASCII 收引号收尾的对话被误判疑似截断" >&2; return 3; }
+  grep -q '^truncate | 第2行 疑似截断' "$tmp/py.txt" || { echo "FAIL: 真截断（结尾无标点）未被检出" >&2; return 3; }
 
   # 转译 TS：擦除类型即可（net 函数只用 RegExp/String/Set/Array）。优先 node 原生类型擦除
   # （node ≥ 22.6 的 --experimental-strip-types），否则用本机已装的 esbuild 二进制。
@@ -247,6 +268,10 @@ run_cmd_parity() {
   "mv2": "mv 正文.md",
   "cp_flag": "cp -f a.md 正文.md",
   "mention": "grep -n book/正文/第1章.md notes.md",
+  "redirect_quoted_space": "cat draft.md > \"my book/正文/第1章_x.md\"",
+  "redirect_fullwidth_space": "cat draft.md > book/正文/第003章　开局.md",
+  "tee_quoted_space": "printf x | tee 'my book/正文/第1章_x.md'",
+  "cp_quoted_space": "cp draft.md \"my book/正文/第1章_x.md\"",
   "patch_add": "*** Begin Patch\n*** Add File: book/正文/第5章.md\n+正文\n*** End Patch",
   "commit_plain": "git commit -m x",
   "commit_chain": "git add . && git commit -m x",
@@ -282,6 +307,44 @@ JS
     diff "$tmp/cpy.txt" "$tmp/cjs.txt" >&2 || true
     return 3
   fi
+  # 防空转：带空格/全角空格的目标必须整段取出（两端同错也能 diff 通过）。字符类排 \s 会把
+  # 「第003章　开局.md」截成「第003章」、把引号排除在类外会让引号路径整条抽不到目标 → 静默放行。
+  grep -q 'redirect_quoted_space :: pros=\[my book/正文/第1章_x.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 带空格的引号重定向目标未被整段取出（引号未被尊重）" >&2; return 3; }
+  grep -q 'redirect_fullwidth_space :: pros=\[book/正文/第003章　开局.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 全角空格章名被 \\s 截断（U+3000 不是 shell 分词符）" >&2; return 3; }
+  grep -q 'tee_quoted_space :: pros=\[my book/正文/第1章_x.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 带空格的引号 tee 目标未被整段取出" >&2; return 3; }
+  grep -q 'cp_quoted_space :: pros=\[my book/正文/第1章_x.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: cp 的引号目标被按空白切碎，末位取到了另一本书的路径" >&2; return 3; }
+
+  # ReDoS 回归（shellWords）：调用方先按 [;&|\n] 拆段会拆开引号内的 |，留下一个不闭合的 "。
+  # 旧的 /"(?:\\.|[^"])*"|'[^']*'|[^\s]+/ 里 \\. 与 [^"] 都能吃反斜杠，每个反斜杠让搜索空间翻倍，
+  # 这条百余字的提交命令实测烧掉数十秒 CPU（超过 zcode hooks.json 的 timeoutMs 15000 被杀）。
+  # 线性手写分词必须毫秒级判完，故给 2 秒预算（Python 侧 shlex 本就线性，一并计时防漂移）。
+  node - "$ZCODE" > "$tmp/redos.txt" <<'JS' || return 3
+const h = require(process.argv[2])
+const cmd = 'git commit -m "fix: 正则转义覆盖 ' + Array.from({ length: 18 }, () => "\\\\x").join(" ") + ' covered | see README"'
+const t0 = Date.now()
+const hit = h.isGitCommitCommand(cmd)
+const ms = Date.now() - t0
+if (!hit) { console.error("FAIL: git commit 侦测漏判带转义/管道的提交命令"); process.exit(3) }
+if (ms > 2000) { console.error(`FAIL: shellWords 回溯爆炸（${ms}ms > 2000ms），宿主 hook 会超时被杀`); process.exit(3) }
+console.log(`redos_budget :: ${ms}ms`)
+JS
+  python3 - "$CODEX" >> "$tmp/redos.txt" <<'PY' || return 3
+import importlib.util, sys, time
+spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+cmd = 'git commit -m "fix: 正则转义覆盖 ' + " ".join([r"\\x"] * 18) + ' covered | see README"'
+t0 = time.time()
+hit = m.is_git_commit_command(cmd)
+ms = int((time.time() - t0) * 1000)
+# 失败文案走 stderr.buffer 直写 UTF-8：Windows python 的文本 stderr 是 cp1252，中文会 UnicodeEncodeError
+if not hit:
+    sys.stderr.buffer.write("FAIL: py 侧 git commit 侦测漏判带转义/管道的提交命令\n".encode("utf-8")); sys.exit(3)
+if ms > 2000:
+    sys.stderr.buffer.write(f"FAIL: py 侧 git commit 侦测退化成非线性（{ms}ms > 2000ms）\n".encode("utf-8")); sys.exit(3)
+PY
   return 0
 }
 
@@ -336,6 +399,14 @@ run_uncored_parity() {
   printf 'NAME：林远\n' > "$repo/设定/主角.md"            # 大小写变体：字段在，不告警
   printf '　名字 ：苏离\n' > "$repo/设定/配角.md"          # 全角空格补白：字段在，不告警
   printf '简介：没有名字字段\n' > "$repo/设定/反派.md"     # 缺字段：告警
+  # 角色卡收窄：只有 设定/角色|人物 子目录内的文件 + 设定/ 直属扁平角色卡才查 name 字段；
+  # 项目级设定件（关系/文风/题材定位…）与非角色子目录不查。四端（bash/OpenCode/JS/py）
+  # 同口径，这里锁 py↔js 两端，防任一端被改回「整棵 设定/ 一刀切」的假警告版本。
+  mkdir -p "$repo/设定/角色" "$repo/设定/世界观"
+  printf '简介：没有名字字段的角色卡\n' > "$repo/设定/角色/新人.md"  # 角色卡子目录：缺字段，告警
+  printf '# 角色关系图\n' > "$repo/设定/关系.md"                     # 项目级设定件：不告警
+  printf '# 文风\n' > "$repo/设定/文风.md"                           # 项目级设定件：不告警
+  printf '# 地理\n' > "$repo/设定/世界观/地理.md"                    # 非角色子目录：整目录跳过
   git -C "$repo" add -A
 
   python3 - "$CODEX" "$repo" > "$tmp/spy.txt" <<'PY'
@@ -359,10 +430,14 @@ JS
   grep -q '反派.md: 设定文件缺少 name/名字 必填字段。' "$tmp/spy.txt" || { echo "FAIL: staged warnings 未按统一文案报缺 name 字段" >&2; return 3; }
   grep -q '主角.md' "$tmp/spy.txt" && { echo "FAIL: 大写 NAME： 应视为字段已存在（大小写不敏感）" >&2; return 3; }
   grep -q '配角.md' "$tmp/spy.txt" && { echo "FAIL: 全角空格补白的 名字 ： 应视为字段已存在" >&2; return 3; }
+  grep -q '设定/角色/新人.md: 设定文件缺少 name/名字 必填字段。' "$tmp/spy.txt" || { echo "FAIL: 设定/角色 子目录下的角色卡应仍查 name 字段" >&2; return 3; }
+  grep -q '关系.md' "$tmp/spy.txt" && { echo "FAIL: 项目级设定件 关系.md 不该被当角色卡查 name" >&2; return 3; }
+  grep -q '文风.md' "$tmp/spy.txt" && { echo "FAIL: 项目级设定件 文风.md 不该被当角色卡查 name" >&2; return 3; }
+  grep -q '地理.md' "$tmp/spy.txt" && { echo "FAIL: 设定/ 下非角色子目录应整目录跳过" >&2; return 3; }
 
-  # E2: 大纲阻断判定 —— 8 组判定：长篇缺细纲(拦)/有细纲(放)、短篇缺小节大纲(拦)/无设定信号(放)、
+  # E2: 大纲阻断判定 —— 9 组判定：长篇缺细纲(拦)/有细纲(放)、短篇缺小节大纲(拦)/无设定信号(放)、
   #     毒句式欠账门（上一章有欠账拦 / 标「去味:跳过」豁免放 / 全角冒号「去味：跳过」豁免放 /
-  #     上一章含坏字节替换解码继续扫仍拦）
+  #     上一章含坏字节替换解码继续扫仍拦）、over-capture 门（{书} 看不出是书则不判，放）
   local blk="$tmp/blk"
   mkdir -p "$blk/long/正文" "$blk/long/大纲" "$blk/short" "$blk/short2" \
     "$blk/long2/正文" "$blk/long2/大纲" "$blk/long3/正文" "$blk/long3/大纲"
@@ -378,13 +453,16 @@ JS
   printf '%s\n' '# 第1章 旧' '<!-- 去味：跳过 -->' '声音不大，却带着一股狠劲。' > "$blk/long4/正文/第1章_旧.md"
   : > "$blk/long5/大纲/细纲_第2章.md"
   { printf '%s\n' '# 第1章 旧' '声音不大，却带着一股狠劲。'; printf '\xff\n'; } > "$blk/long5/正文/第1章_旧.md"
+  # over-capture：{书} 看不出是书（无 大纲/追踪/设定）时不判——相对目标按项目根拼，会话 cwd 在
+  # 书目录里就会拼出 <root>/正文/第N章.md 这种不属于任何书的路径，判了就是误伤 + 指向假细纲路径。
+  mkdir -p "$blk/bare/正文"
 
   python3 - "$CODEX" "$blk" > "$tmp/bpy.txt" <<'PY'
 import importlib.util, sys
 from pathlib import Path
 spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 root = Path(sys.argv[2])
-for rel in ["long/正文/第1章_起.md", "long/正文/第2章_承.md", "short/正文.md", "short2/正文.md", "long2/正文/第2章_新.md", "long3/正文/第2章_新.md", "long4/正文/第2章_新.md", "long5/正文/第2章_新.md"]:
+for rel in ["long/正文/第1章_起.md", "long/正文/第2章_承.md", "short/正文.md", "short2/正文.md", "long2/正文/第2章_新.md", "long3/正文/第2章_新.md", "long4/正文/第2章_新.md", "long5/正文/第2章_新.md", "bare/正文/第1章_起.md"]:
     reason = m.prose_block_reason(root, root / rel)
     sys.stdout.buffer.write((f"{rel} :: {reason if reason else '-'}\n").encode("utf-8"))
 PY
@@ -392,7 +470,7 @@ PY
 const path = require("node:path")
 const core = require(process.argv[2])
 const root = process.argv[3]
-for (const rel of ["long/正文/第1章_起.md", "long/正文/第2章_承.md", "short/正文.md", "short2/正文.md", "long2/正文/第2章_新.md", "long3/正文/第2章_新.md", "long4/正文/第2章_新.md", "long5/正文/第2章_新.md"]) {
+for (const rel of ["long/正文/第1章_起.md", "long/正文/第2章_承.md", "short/正文.md", "short2/正文.md", "long2/正文/第2章_新.md", "long3/正文/第2章_新.md", "long4/正文/第2章_新.md", "long5/正文/第2章_新.md", "bare/正文/第1章_起.md"]) {
   const reason = core.proseBlockReason(root, path.join(root, rel))
   console.log(`${rel} :: ${reason || "-"}`)
 }
@@ -410,6 +488,7 @@ JS
   grep -q 'long3/正文/第2章_新.md :: -' "$tmp/bpy.txt" || { echo "FAIL: 标「去味:跳过」豁免的上一章仍被欠账门误拦" >&2; return 3; }
   grep -q 'long4/正文/第2章_新.md :: -' "$tmp/bpy.txt" || { echo "FAIL: 全角冒号豁免标记「去味：跳过」未被欠账门认可" >&2; return 3; }
   grep -q 'long5/正文/第2章_新.md :: ⛔' "$tmp/bpy.txt" || { echo "FAIL: 上一章含坏字节时两端应替换解码继续扫（不得整体放行）" >&2; return 3; }
+  grep -q 'bare/正文/第1章_起.md :: -' "$tmp/bpy.txt" || { echo "FAIL: {书} 无 大纲/追踪/设定 信号时仍判缺细纲（over-capture 误伤，且指向不在任何书里的细纲路径）" >&2; return 3; }
   return 0
 }
 
@@ -418,7 +497,7 @@ run_functional
 rc=$?
 set -e
 case "$rc" in
-  0) echo "功能 parity：codex python 网 == opencode TS 网 == zcode JS 网（28 fixtures 逐字相等，含毒句式正反例与豁免标记）。" ;;
+  0) echo "功能 parity：codex python 网 == opencode TS 网 == zcode JS 网（39 fixtures 逐字相等，含毒句式正反例/AI 自指/截断收尾与豁免标记）。" ;;
   2) echo "功能 parity：跳过（无 TS 运行时；规范串检查已给 CI 安全保证）。" ;;
   *) fails=$((fails + 1)) ;;
 esac
@@ -428,7 +507,7 @@ run_cmd_parity
 rc_cmd=$?
 set -e
 case "$rc_cmd" in
-  0) echo "命令函数 parity：codex python == zcode JS（20 fixtures：正文抽取/apply-patch/git commit 侦测逐字相等）。" ;;
+  0) echo "命令函数 parity：codex python == zcode JS（24 fixtures：正文抽取/apply-patch/git commit 侦测逐字相等，含空格/全角空格目标与 ReDoS 预算）。" ;;
   1) echo "命令函数 parity：跳过（无 node/python3 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac
@@ -447,7 +526,7 @@ run_uncored_parity
 rc_uncored=$?
 set -e
 case "$rc_uncored" in
-  0) echo "未归核面 parity：codex python == JS core（staged warnings 大小写变体/文案 + 大纲阻断 8 组判定含毒句式欠账门/文案逐字相等）。" ;;
+  0) echo "未归核面 parity：codex python == JS core（staged warnings 大小写变体/文案 + 大纲阻断 9 组判定含毒句式欠账门/over-capture 门/文案逐字相等）。" ;;
   1) echo "未归核面 parity：跳过（无 node/python3/git 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac

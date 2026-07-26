@@ -78,6 +78,38 @@ if [ "$neg_status" -ne 0 ]; then
   exit 1
 fi
 
+# --- AI 自指（不带拒绝语）：上面正例的第29行其实是被「生成拒绝语」规则接住的，AI 自指规则
+#     本身此前零覆盖——带型号后缀的最典型退化开场（AI语言模型/AI助手/人工智能语言模型/AI模型）
+#     整类漏检也照样通过。这条只留自指、不含 我无法/我不能，逐条锁到 label 上。
+AI_SELF="$TMP_DIR/ai-selfref.md"
+cat > "$AI_SELF" <<'EOF'
+作为一个AI语言模型，我需要提醒您。
+作为一个AI助手，这段内容涉及敏感话题。
+作为一个人工智能语言模型，我会尽力帮您续写。
+作为一个AI模型，这段情节需要调整。
+他把灯关了。
+EOF
+set +e
+node "$SCRIPT" --json "$AI_SELF" > "$OUT"
+ai_self_status=$?
+set -e
+if [ "$ai_self_status" -ne 1 ]; then
+  echo "FAIL: AI 自指 fixture 应退出 1，实际 $ai_self_status" >&2
+  cat "$OUT" >&2 || true
+  exit 1
+fi
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const leaks = r.findings.filter((f) => f.type === 'placeholder-leak');
+if (leaks.length !== 4) {
+  throw new Error(`expected 4 AI 自指 findings, got ${leaks.length}: ${JSON.stringify(leaks.map((f) => `${f.line}:${f.excerpt}`))}`);
+}
+if (!leaks.every((f) => f.message.includes('AI 自指'))) {
+  throw new Error('必须由 AI 自指规则命中（不得靠拒绝语规则代劳）: ' + JSON.stringify(leaks.map((f) => f.message)));
+}
+NODE
+
 # --- 工程词泄漏 meta-leak（issue #173 comment 4814607240）---
 META_POS="$TMP_DIR/meta-positive.md"
 META_NEG="$TMP_DIR/meta-negative.md"

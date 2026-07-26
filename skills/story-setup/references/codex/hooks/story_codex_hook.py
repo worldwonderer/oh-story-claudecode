@@ -141,10 +141,15 @@ def hook_context(event: str, text: str) -> dict[str, Any]:
 # ── 轻量确定性网（与 templates/hooks/check-prose-after-write.sh 内嵌 python 同实现，保持 parity）──
 # 只兜「硬信号」（漏跑最伤、退化模型自己发现不了的）：截断 / 生成拒绝语·AI 自指 /
 # 工程词漏进正文 / 紧邻整行复读。不依赖 check-degeneration.js，是独立的轻量网。
-_NET_TERMINAL = set("。！？…”』」）)!?.~—")
+# 收尾标点集与深扫 oracle check-degeneration.js 的 findTruncation 对齐（[。！？!?…”"』」）)】]）：
+# 】 是章尾系统播报模板的收束符（agent-references/hooks-chapter.md 章尾实战模板一/四），ASCII "
+# 是 normalize-punctuation.js --quote-mode ascii 的合法收引号，两者都不该被判「疑似截断」。
+_NET_TERMINAL = set("。！？…”』」）)!?.~—】\"")
 _NET_QUOTE_OPENERS = ("「", "“", "‘", "『", '"')
 _NET_SOFT_PATTERNS = [
-    (re.compile(r'作为(一个)?(AI|人工智能|大?语言模型|智能助手|聊天助手)(?=，|,|。|、|；|;|：|:|！|!|？|\?|\s|）|\)|」|』|"|】|我|无法|不能|没法|$)'), "AI 自指"),
+    # 型号后缀（AI语言模型/AI助手/人工智能语言模型/AI模型/AI大模型）必须可选吃掉：否则前视断言
+    # 紧跟在「AI」后面看到的是「语」/「助」/「模」，最典型的退化开场整类漏检。
+    (re.compile(r'作为(一个)?(AI|人工智能|大?语言模型|智能助手|聊天助手)(?:语言模型|大?模型|助手|机器人)?(?=，|,|。|、|；|;|：|:|！|!|？|\?|\s|）|\)|」|』|"|】|我|无法|不能|没法|$)'), "AI 自指"),
     (re.compile(r"^(Sure|Certainly|Here'?s|As an AI|I (?:cannot|can't|am unable|apologize))"), "英文 AI 腔"),
     (re.compile(r"我(无法|不能)(继续(写|创作|生成|下去|输出)?|生成(内容|文本|正文)?|创作|续写|写作|完成(这个|本)?(章|篇|创作|请求)?)"), "生成拒绝语"),
 ]
@@ -171,7 +176,7 @@ def _net_is_skippable(stripped: str) -> bool:
 # ── 毒句式（确定性 AI 句式指纹，与 JS 核 toxicPhraseFindings 同构，文案以 JS 核为准）──
 # 与 check-ai-patterns.js 的同名新规则统一规格：只收确定性、低误报的句式；密度型/
 # advisory 检测归 check-ai-patterns.js 深扫。全部正则线性扫描、量词有界。台词/弹幕/
-# 系统播报不算：逐行把成对引号段等长句号占位（同 check-ai-patterns.js 的 maskQuoted），
+# 系统播报不算：逐行把成对引号段等长问号占位（见 _toxic_mask_quoted 为何用问号而不是句号），
 # 占位后仍残留引号字符（跨行对话/未闭合）的行整行跳过。
 # js↔py 由 scripts/check-hook-regex-sync.sh（规范串逐字锁）与
 # scripts/test-prose-net-parity.sh（fixture 逐字 diff）锁 parity。
@@ -201,11 +206,15 @@ _TOXIC_REVERSE_TAIL = re.compile(r".*[，,]\s*(?:而)?不是([^。！？!?\n]*)$
 
 
 def _toxic_mask_quoted(line: str) -> str:
-    # 占位长度按 UTF-16 码元计（emoji 等增补面字符算 2），与 JS 核 "。".repeat(m.length)
+    # 占位字符用「？」而不是「。」：占位既要截断各规则的 [^。！？!?…] 否定类（？与句号在每条规则的
+    # 否定类里等效），又不能落在任何规则的接受位。句号占位会替 trailer-summary 的句末 [。！] 伪造出
+    # 终止符，让「这一战注定是「血屠」的开端，…」这类引号里放代号/绰号的叙述行被误报，且报出的
+    # 『这一战注定是。』在原文里 grep 不到。
+    # 占位长度按 UTF-16 码元计（emoji 等增补面字符算 2），与 JS 核 "？".repeat(m.length)
     # 逐字对齐——否则含 emoji 台词的行两端 masked 长度不同，trailer 窗口切点漂移。
     out = line
     for rx in _TOXIC_QUOTE_SPANS:
-        out = rx.sub(lambda m: "。" * (len(m.group(0).encode("utf-16-le")) // 2), out)
+        out = rx.sub(lambda m: "？" * (len(m.group(0).encode("utf-16-le")) // 2), out)
     return out
 
 
@@ -343,11 +352,16 @@ def _is_prose_path(root: Path, abs_path: Path) -> bool:
 def find_changed_prose_files(root: Path) -> list[Path]:
     """本回合改动过的正文文件（git 改动 + untracked），用于 Stop 兜底——Codex 无 PostToolUse，
     故内容网在回合结束的 Stop 事件按 git 改动集复扫。非 git 仓库或无改动则空（best-effort）。"""
+    # diff 两支必须带 --relative（且 -- .）：不带时 git 吐的是仓库根相对路径，项目根是仓库子目录
+    # （.git 在上层）时 root/rel 拼出 <root>/<proj>/<proj>/… 这种不存在的路径，被 exists() 全量丢掉
+    # ——已提交章节的改稿因此整类漏扫，而 Codex 无 PostToolUse，这张 Stop 网是它唯一的内容网。
+    # --relative 同时把范围收窄到 -C 的子树，与 ls-files（本就 cwd 相对）口径一致；同
+    # staged_markdown_warnings 与 JS 核 stagedMarkdownWarnings。
     out: list[Path] = []
     seen: set[str] = set()
     for args in (
-        ["git", "-C", str(root), "-c", "core.quotepath=false", "diff", "--name-only", "-z", "--diff-filter=ACM"],
-        ["git", "-C", str(root), "-c", "core.quotepath=false", "diff", "--name-only", "--cached", "-z", "--diff-filter=ACM"],
+        ["git", "-C", str(root), "-c", "core.quotepath=false", "diff", "--relative", "--name-only", "-z", "--diff-filter=ACM", "--", "."],
+        ["git", "-C", str(root), "-c", "core.quotepath=false", "diff", "--relative", "--name-only", "--cached", "-z", "--diff-filter=ACM", "--", "."],
         ["git", "-C", str(root), "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard", "-z"],
     ):
         try:
@@ -480,29 +494,70 @@ def resolve_target(root: Path, target: str) -> Path:
     return p if p.is_absolute() else (root / p).resolve()
 
 
+def _shell_words(segment: str) -> list[str]:
+    """引号感知的线性分词（与 JS 核 shellWords 同构，逐字对齐）：引号内原样取字（成对引号剥掉，
+    不闭合就取到段尾），只按 ASCII 空白（空格/Tab/CR/LF）分词——U+3000 不是 shell 分词符，故不切。
+    不解 \\ 转义：resolve_target 把 \\ 当路径分隔符（Windows 路径）。"""
+    words: list[str] = []
+    current = ""
+    started = False
+    quote = ""
+    for ch in segment:
+        if quote:
+            if ch == quote:
+                quote = ""
+            else:
+                current += ch
+            continue
+        if ch in ('"', "'"):
+            quote = ch
+            started = True
+            continue
+        if ch in (" ", "\t", "\r", "\n"):
+            if started:
+                words.append(current)
+            current = ""
+            started = False
+            continue
+        started = True
+        current += ch
+    if started:
+        words.append(current)
+    return words
+
+
 def extract_prose_targets_from_command(command: str) -> list[str]:
     # Only treat a 正文 path as a write target when it is the destination of an actual
     # write op (redirection / tee / touch / cp|mv dest). Scanning the whole command would
     # flag any heredoc body, doc string, or grep pattern that merely *mentions*
     # 正文/第N章.md and wrongly deny the edit.
-    token = r"['\"]?([^\s'\"<>|;&()]*正文[^\s'\"<>|;&()]*)['\"]?"
+    # 目标 token 三形态（引号段优先）：双引号段 / 单引号段 / 裸词。此前只有一个把引号排除在字符类外
+    # 的裸词式，带空格的引号目标（> "my book/正文/第1章.md"）整条命令抽不到目标就静默放行。
+    # 裸词类只排 ASCII 空白（空格/Tab/CR/LF，shell 真正的分词符）：\s 在 python 与 js 都含 U+3000，
+    # 而全角空格不分词，用 \s 会把「第003章　开局.md」截成「第003章」而漏拦（本项目章名分隔符
+    # [_\- 　] 自带全角空格）。反斜杠转义空格（my\ book）仍不认——resolve_target 把 \ 归一成路径
+    # 分隔符（Windows 路径），在此解转义会反过来毁掉 book\正文\第1章.md。
+    bare = "[^ \t\r\n\"'<>|;&()]"
+    token = "\"([^\"]*正文[^\"]*)\"|'([^']*正文[^']*)'|['\"]?(" + bare + "*正文" + bare + "*)['\"]?"
     targets: list[str] = []
-    for m in re.finditer(r">>?\s*" + token, command):  # > dest, >> dest, cat >dest
-        targets.append(m.group(1))
+    for m in re.finditer(r">>?\s*(?:" + token + ")", command):  # > dest, >> dest, cat >dest
+        targets.append(m.group(1) or m.group(2) or m.group(3))
     # Use an explicit start/separator class, not \b: \b is Unicode-aware in Python re but ASCII-only
     # in JS, so an ASCII boundary keeps this identical to opencode plugin.ts (parity).
-    for m in re.finditer(r"(?:^|[\s;&|(){}<>])(?:tee(?:\s+-a)?|touch)\s+" + token, command):
-        targets.append(m.group(1))
+    for m in re.finditer(r"(?:^|[\s;&|(){}<>])(?:tee(?:\s+-a)?|touch)\s+(?:" + token + ")", command):
+        targets.append(m.group(1) or m.group(2) or m.group(3))
     # cp/mv: the write destination is the last positional arg of the segment. Parse it (regex can't
     # tell a 正文 source from a 正文 dest, and a trailing 2>/dev/null / >log / || breaks end-anchoring).
     for seg in re.split(r"[;&|\n]", command):
         seg = re.split(r"\d*[<>]", seg)[0]  # drop redirections (incl. 2>) and everything after
-        words = seg.split()
+        # 引号感知分词（同 JS 核 shellWords）：str.split() 会按 U+3000 和引号内空格切碎目标，
+        # 末位取到 book/正文/第1章.md —— 判到另一本书上（那本有细纲就直接放行）。
+        words = _shell_words(seg)
         if len(words) >= 2 and words[0] in ("cp", "mv"):
             positionals = [w for w in words[1:] if not w.startswith("-")]
             if positionals and "正文" in positionals[-1]:
-                targets.append(positionals[-1].strip("'\""))
-    return targets
+                targets.append(positionals[-1])
+    return [t for t in targets if t]
 
 
 def extract_apply_patch_targets(command: str) -> list[str]:
@@ -560,6 +615,12 @@ def prose_block_reason(root: Path, abs_path: Path) -> str | None:
         return None
     num = m.group(1)
     book_dir = abs_path.parent.parent
+    # over-capture 门（与 _is_prose_path / check-prose-after-write.sh 同判据）：{书}/正文/第N章.md 的
+    # {书} 必须看得出是书（大纲/追踪/设定 目录或 设定.md）。Bash/apply_patch 的相对目标按项目根拼
+    # （resolve_target），会话 cwd 在书目录里时会拼出 <root>/正文/第N章.md 这种不属于任何书的路径；
+    # 没这道门就拿 <root>/大纲 判缺细纲误伤，还把作者指向一个不在任何书里的细纲路径（宁可漏拦不可误伤）。
+    if not ((book_dir / "大纲").is_dir() or (book_dir / "追踪").is_dir() or (book_dir / "设定").is_dir() or (book_dir / "设定.md").exists()):
+        return None
     if (root / "拆文库" / book_dir.name).exists():
         return None
     outline_dir = book_dir / "大纲"
@@ -720,6 +781,36 @@ def is_git_commit_command(raw: str) -> bool:
     return False
 
 
+# 设定/ 直属的项目级设定件：artifact-protocols.md 规定的 关系.md（正文是「# 角色关系图」）、
+# 题材定位.md，以及 文风.md、题材正文提示卡.md 等，它们本来就没有 名字/姓名 字段。
+_SETTING_NON_CHARACTER_FILES = {"关系.md", "题材定位.md", "题材正文提示卡.md", "文风.md", "世界规则.md", "世界观.md", "金手指.md", "背景设定.md"}
+
+
+def _is_character_sheet_path(rel: str) -> bool:
+    """只查角色卡：整棵 设定/ 一刀切会让每次碰设定的提交都刷一屏假警告，把同框的
+    「正文硬编码角色属性」真警告埋掉。判定口径与 validate-story-commit.sh / opencode
+    pre-commit.sh 的 case 分支一一对齐（bash↔js↔py 四端同口径，别单边改回一刀切）：
+    ① 设定/角色|人物 子目录内的文件 → 角色卡；
+    ② 其余 设定/<子目录>/ → 整目录跳过（世界观/势力/报告/原理/人物关系 等）；
+    ③ 设定/ 直属的扁平文件 → 除已知项目级设定件外都算角色卡（主角.md/配角.md/反派.md 等自定义命名）。
+    bash 的 `*` 跨 `/` 匹配，`设定/角色/*|*/设定/角色/*` 等价于「路径里存在某个 设定 目录段满足该
+    分支」，所以两趟扫描（先全路径找分支①，再全路径找分支②）而不是只看第一个 设定 段就定分支——
+    后者在 设定/其他/设定/角色/x.md 这类嵌套路径上会与 bash 判定分叉。
+    与 JS core isCharacterSheetPath 同实现，py↔js 由 scripts/test-prose-net-parity.sh Part E 锁 parity。"""
+    segments = rel.split("/")
+    last = len(segments) - 1
+    # 分支①：某个 设定 段紧跟 角色/人物，且其下还有文件段
+    for i in range(last - 1):
+        if segments[i] == "设定" and segments[i + 1] in ("角色", "人物"):
+            return True
+    # 分支②：某个 设定 段后还有 ≥2 段，即落在非角色子目录里
+    for i in range(last - 1):
+        if segments[i] == "设定":
+            return False
+    # 分支③：设定 直属扁平文件（分支②已排掉更深的路径，设定 段只能是倒数第二段）
+    return last >= 1 and segments[last - 1] == "设定" and segments[last] not in _SETTING_NON_CHARACTER_FILES
+
+
 def staged_markdown_warnings(root: Path) -> str:
     try:
         proc = subprocess.run(
@@ -751,7 +842,7 @@ def staged_markdown_warnings(root: Path) -> str:
                     hits.append(f"{idx}:{line}")
             if hits:
                 warnings.append(f"⚠ {file}: 正文硬编码角色属性，应引用设定文件：\n" + "\n".join(hits))
-        if file.startswith("设定/") or "/设定/" in file:
+        if _is_character_sheet_path(file):
             if not re.search(r"^(\s|　)*(名字|姓名|名称|name)(\s|　)*(：|:)", text, re.M | re.I):
                 warnings.append(f"⚠ {file}: 设定文件缺少 name/名字 必填字段。")
     if not warnings:
@@ -784,8 +875,10 @@ def compact_summary(event: str) -> None:
     try:
         # -z + bytes so a Chinese filename under a user-global core.quotepath=false can't raise
         # UnicodeDecodeError on a Windows ANSI code page (these are counts only).
-        changed = subprocess.check_output(["git", "-C", str(root), "-c", "core.quotepath=false", "diff", "--name-only", "-z"], stderr=subprocess.DEVNULL)
-        staged = subprocess.check_output(["git", "-C", str(root), "-c", "core.quotepath=false", "diff", "--name-only", "--cached", "-z"], stderr=subprocess.DEVNULL)
+        # --relative -- . 把计数收窄到项目根子树：项目根是仓库子目录时，不带它会把上层整仓的
+        # 改动都算进来（同 find_changed_prose_files / staged_markdown_warnings 的口径）。
+        changed = subprocess.check_output(["git", "-C", str(root), "-c", "core.quotepath=false", "diff", "--relative", "--name-only", "-z", "--", "."], stderr=subprocess.DEVNULL)
+        staged = subprocess.check_output(["git", "-C", str(root), "-c", "core.quotepath=false", "diff", "--relative", "--name-only", "--cached", "-z", "--", "."], stderr=subprocess.DEVNULL)
         n_changed = len([x for x in changed.split(b"\0") if x])
         n_staged = len([x for x in staged.split(b"\0") if x])
         lines.append(f"Git: {n_changed} unstaged, {n_staged} staged")

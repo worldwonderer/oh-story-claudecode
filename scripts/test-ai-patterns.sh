@@ -299,7 +299,26 @@ const ni = r.findings.filter((f) => f.type === 'not-is-comparison');
 if (ni.length !== 1) throw new Error('引号外叙述翻转句应命中 1 处 not-is: ' + JSON.stringify(r.findings.map((f) => f.type)));
 NODE
 
-echo "issue #205 (跨空行翻转命中 / 引号内台词豁免) regression tests passed."
+# 引号不成对（多段台词只在末段收引号、全半角混用漏收）不得让 not-is 整段静默失效：
+# 引号片段按行封顶，未闭合的开引号只吃掉本行剩余部分，后面几行叙述照常参与扫描。
+FIXTURE_UNCLOSED_QUOTE="$TMP_DIR/fixture-unclosed-quote-notis.md"
+printf '%s\n' \
+  '她终于开口：“我不想再提这件事。' \
+  '他没接话。' \
+  '他不是不明白，是懒得解释。' \
+  '她低头，“算了。”' > "$FIXTURE_UNCLOSED_QUOTE"
+set +e
+node "$SCRIPT" --json "$FIXTURE_UNCLOSED_QUOTE" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const ni = r.findings.filter((f) => f.type === 'not-is-comparison');
+if (ni.length !== 1) throw new Error('未闭合引号后的叙述翻转句应命中 1 处 not-is: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}`)));
+if (ni[0].line !== 3) throw new Error('not-is 应定位到「不是」所在行 3，实际 ' + ni[0].line);
+NODE
+
+echo "issue #205 (跨空行翻转命中 / 引号内台词豁免 / 未闭合引号不吞叙述) regression tests passed."
 
 # --- issue #205：微动作复读（「了下/了一下」式轻量补语高密度=电报体指纹）---
 FIXTURE11="$TMP_DIR/fixture-micro-tic.md"
@@ -956,7 +975,10 @@ printf '%s\n' \
   '没有伴奏，没有和声，没有提词器。' \
   '他没炫技，没有那种一张嘴就飙高音的架势。他只是唱，把每个字放平。' \
   '“没有饭，没有水，我们怎么过夜？”有人喊。' \
-  '他没有回头。巷子里没有灯，他摸着墙走。' > "$FIXTURE_PARADE"
+  '他没有回头。巷子里没有灯，他摸着墙走。' \
+  '船沉没在雾里，没人回头，江面上就只有几块浮木。' \
+  '他的话被淹没在掌声里，没多久，台上就只有他一个人。' \
+  '雨下了没多久，没等她撑伞，巷子里就只有水声。' > "$FIXTURE_PARADE"
 set +e
 node "$SCRIPT" --json "$FIXTURE_PARADE" > "$OUT"
 set -e
@@ -967,7 +989,8 @@ const np = r.findings.filter((f) => f.type === 'negation-parade');
 if (np.length !== 2) throw new Error('否定排比应命中 2 处 negation-parade: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}`)));
 if (np[0].line !== 1 || np[1].line !== 2) throw new Error('negation-parade 应命中 line 1（连排）与 line 2（先否定后只是）: ' + JSON.stringify(np));
 if (!np.every((f) => f.severity === 'blocking')) throw new Error('negation-parade 应为 blocking');
-// 引号内台词（line 3）与分句独立否定（line 4）不算排比。
+// 引号内台词（line 3）与分句独立否定（line 4）不算排比；
+// 黏着语素「沉没/淹没」（line 5/6）与时间惯用语「没多久/没等」（line 6/7）不是否定项，也不算。
 NODE
 
 echo "negation-parade (否定排比) regression tests passed."
