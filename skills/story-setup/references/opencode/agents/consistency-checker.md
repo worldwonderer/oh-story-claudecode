@@ -9,8 +9,8 @@ permission:
   read: allow
   edit: deny
   bash:
-    "git rev-parse *": allow
     "*": deny
+    "git rev-parse *": allow
 steps: 15
 ---
 

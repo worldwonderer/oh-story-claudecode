@@ -102,8 +102,15 @@ def convert_claude_to_opencode(fm: dict) -> dict:
     # sandbox_mode = "read-only"（只读的是文件系统，不是「禁止一切命令」），所以这里用
     # OpenCode 的命令 glob 形式：放行 agent 正文里唯一需要的只读命令（确定项目根的
     # git rev-parse），其余一律 deny，而不是一刀切 bash: deny 把那一步也打死。
+    #
+    # 键顺序是语义的一部分，不是排版：OpenCode 的 permission/index.ts evaluate() 用
+    # `rulesets.flat().findLast(...)` 取最后一条命中的规则，即**后写的规则覆盖先写的**。
+    # 所以必须「宽 deny 在前、窄 allow 在后」；写成 {"git rev-parse *": allow, "*": deny}
+    # 会让兜底的 `*: deny` 反过来盖掉那条 allow，把正文明确要求的 git rev-parse
+    # --show-toplevel 一起打死。Python dict 保序 + format_frontmatter 按 dict 顺序输出
+    # （不排序），这里的顺序会原样落进 frontmatter。
     if "Bash" in disallowed:
-        perm["bash"] = {"git rev-parse *": "allow", "*": "deny"}
+        perm["bash"] = {"*": "deny", "git rev-parse *": "allow"}
     elif "Bash" in tools:
         perm["bash"] = "allow"
     if perm:
@@ -135,7 +142,9 @@ def format_frontmatter(fm: dict) -> str:
             lines.append("permission:")
             for pk, pv in value.items():
                 if isinstance(pv, dict):
-                    # 命令 glob 形式（如 bash）：glob 键必须加引号，裸 `*` 在 YAML 里是别名标记
+                    # 命令 glob 形式（如 bash）：glob 键必须加引号，裸 `*` 在 YAML 里是别名标记。
+                    # 严禁对这里的键排序：OpenCode 用 findLast 解析，后写的规则覆盖先写的，
+                    # 键顺序即优先级。必须按 dict 的插入顺序原样输出。
                     lines.append(f"  {pk}:")
                     for glob, action in pv.items():
                         lines.append(f'    "{glob}": {action}')

@@ -366,6 +366,8 @@ echo "  OK agent templates"
 # frontmatter 解析必须锚定独占一行的 `---`（值里的三连字符不得截断 permission/steps），
 # 且 disallowedTools 里的 Bash 必须落成真正的 bash 限制：OpenCode 里未声明的权限等于放行，
 # 只有 edit: deny 的只读 agent 仍能用 shell 重定向写正文。
+# bash glob 规则的**顺序**同样受闸：OpenCode 用 findLast 取最后一条命中的规则，
+# 宽 deny 必须在前、窄 allow 必须在后，否则 agent 正文要求的 git rev-parse 反被打死。
 python3 - "scripts/sync-opencode.py" <<'PY'
 import importlib.util
 import sys
@@ -392,16 +394,109 @@ permission = converted['permission']
 assert permission['edit'] == 'deny', converted
 bash = permission.get('bash')
 assert isinstance(bash, dict) and bash.get('*') == 'deny', f'disallowed Bash must deny: {converted}'
-assert '    "*": deny' in module.format_frontmatter(converted), module.format_frontmatter(converted)
+assert bash.get('git rev-parse *') == 'allow', f'read-only agent must keep git rev-parse: {converted}'
+
+# 只断言「存在 *: deny」是抓不住顺序倒置的（#265 review）：OpenCode 的
+# permission/index.ts evaluate() 用 `rulesets.flat().findLast(...)`，**最后一条命中的
+# 规则生效**。所以必须复刻同一套判定，断言解析后的裁决，而不是断言文本里出现了某几行。
+def wildcard_match(value: str, pattern: str) -> bool:
+    """复刻上游 Wildcard.match：glob 里的 * 匹配任意长度字符。"""
+    import re
+    regex = '^' + '.*'.join(re.escape(part) for part in pattern.split('*')) + '$'
+    return re.match(regex, value, flags=re.DOTALL) is not None
+
+
+def evaluate(rules, command: str) -> str:
+    """复刻上游 evaluate()：按顺序遍历，最后一条命中的规则覆盖之前的裁决。"""
+    verdict = 'allow'  # 上游语义：未声明即放行
+    for pattern, action in rules:
+        if wildcard_match(command, pattern):
+            verdict = action
+    return verdict
+
+
+def bash_rules_in_file_order(fm_text: str):
+    """按**文件里的书写顺序**取 bash 的 glob 规则——顺序就是优先级，不能走 dict/set。"""
+    import re
+    rules = []
+    in_bash = False
+    for line in fm_text.split('\n'):
+        if re.match(r'^\s{2}bash:\s*$', line):
+            in_bash = True
+            continue
+        if in_bash:
+            matched = re.match(r'^\s{4}"(.+)":\s*(\w+)\s*$', line)
+            if matched:
+                rules.append((matched.group(1), matched.group(2)))
+                continue
+            if line.strip():
+                in_bash = False
+    return rules
+
+
+# format_frontmatter 不得对键排序：一排序，生成器里「宽 deny 在前、窄 allow 在后」的
+# 顺序就被静默抹掉。用逆字母序的插入顺序探它。
+probe = {
+    'permission': {
+        'read': 'allow',
+        'bash': {'zzz *': 'deny', '*': 'deny', 'aaa *': 'allow'},
+    }
+}
+probe_rules = bash_rules_in_file_order(module.format_frontmatter(probe))
+assert probe_rules == [('zzz *', 'deny'), ('*', 'deny'), ('aaa *', 'allow')], (
+    f'format_frontmatter reordered permission globs (must preserve dict order): {probe_rules}'
+)
+
+# 生成器自身的输出：宽 deny 必须在前，窄 allow 必须在后
+generated_rules = bash_rules_in_file_order(module.format_frontmatter(converted))
+assert generated_rules[0] == ('*', 'deny'), (
+    f'broad deny must come FIRST (findLast: later rules win): {generated_rules}'
+)
+assert generated_rules[-1] == ('git rev-parse *', 'allow'), (
+    f'specific allow must come LAST (findLast: later rules win): {generated_rules}'
+)
+
+NEEDED = 'git rev-parse --show-toplevel'
+FORBIDDEN = (
+    'rm -rf /',
+    "python3 -c 'print(1)'",
+    'echo x > 第1章.md',
+    'bash -c "cat /etc/passwd"',
+    'git push --force',
+)
 
 read_only = {'chapter-extractor', 'consistency-checker', 'story-explorer'}
 base = Path('skills/story-setup/references/opencode/agents')
 for name in sorted(read_only):
     fm_text = (base / f'{name}.md').read_text(encoding='utf-8').split('\n---\n', 1)[0]
-    assert '"*": deny' in fm_text, f'{name}: read-only agent must deny arbitrary bash'
+    rules = bash_rules_in_file_order(fm_text)
+    assert rules, f'{name}: read-only agent must declare bash glob rules'
+    # 文本顺序断言：`"*": deny` 必须出现在 `"git rev-parse *": allow` **之前**
+    deny_at = fm_text.find('"*": deny')
+    allow_at = fm_text.find('"git rev-parse *": allow')
+    assert deny_at >= 0, f'{name}: read-only agent must deny arbitrary bash'
+    assert allow_at >= 0, f'{name}: read-only agent must allow git rev-parse'
+    assert deny_at < allow_at, (
+        f'{name}: bash rules are INVERTED — `"*": deny` must precede '
+        f'`"git rev-parse *": allow`, otherwise OpenCode findLast lets the broad '
+        f'deny override the allow and 正文要求的 {NEEDED} 被打死'
+    )
+    # 裁决断言：正文唯一需要的只读命令必须放行
+    verdict = evaluate(rules, NEEDED)
+    assert verdict == 'allow', (
+        f'{name}: OpenCode would resolve {NEEDED!r} to {verdict!r}; the agent body '
+        f'requires it to locate the project root (rules in file order: {rules})'
+    )
+    # 反向断言：闸门对真正的越权命令仍然生效，不是把限制整体拆了
+    for command in FORBIDDEN:
+        verdict = evaluate(rules, command)
+        assert verdict == 'deny', (
+            f'{name}: arbitrary bash {command!r} resolved to {verdict!r}, must be deny '
+            f'(rules in file order: {rules})'
+        )
 PY
 
-echo "  OK read-only agents deny arbitrary bash (frontmatter parsed whole)"
+echo "  OK read-only agents deny arbitrary bash but keep git rev-parse (order-aware verdict)"
 
 python3 - <<'PY'
 from pathlib import Path
