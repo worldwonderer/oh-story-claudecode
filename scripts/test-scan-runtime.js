@@ -1180,7 +1180,7 @@ function testCdpWindowsListenerParsingIsLocaleIndependent() {
     "utf8"
   );
   const block = src.match(
-    /function listPortListenerPids\(port\) \{[\s\S]*?\n\}\n\n\/\*\* 全机/
+    /function listPortListenerPids\(port\) \{[\s\S]*?\r?\n\}\r?\n\r?\n\/\*\* 全机/
   );
   assert(block, "找不到 listPortListenerPids");
   assert(
