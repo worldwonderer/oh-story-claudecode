@@ -7,7 +7,7 @@ const { spawnSync } = require("node:child_process")
 function existingDir(value) {
   if (typeof value !== "string" || !value.trim()) return null
   try {
-    const resolved = path.resolve(value)
+    const resolved = fs.realpathSync(path.resolve(value))
     return fs.statSync(resolved).isDirectory() ? resolved : null
   } catch {
     return null

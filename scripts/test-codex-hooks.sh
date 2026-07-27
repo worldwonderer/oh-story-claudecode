@@ -65,11 +65,17 @@ assert_empty "$out" "long prose with outline"
 mkdir -p "$ROOT/bare/正文" "$ROOT/cwd-book/正文" "$ROOT/cwd-book/大纲"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"bare/正文/第1章_首章.md"}}')"
 assert_denied "$out" "bare long project without scaffolding"
-out="$(run_hook pre-tool-prose-guard "{\"cwd\":\"$ROOT/cwd-book\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"正文/第8章_相对.md\"}}")"
+relative_payload="$(python3 - "$ROOT/cwd-book" <<'PY'
+import json, sys
+from pathlib import Path
+print(json.dumps({"cwd": str(Path(sys.argv[1]).resolve()), "tool_name": "Write", "tool_input": {"file_path": "正文/第8章_相对.md"}}, ensure_ascii=False))
+PY
+)"
+out="$(run_hook pre-tool-prose-guard "$relative_payload")"
 assert_denied "$out" "relative prose target from hook cwd"
 printf '%s' "$out" | grep -q 'cwd-book/大纲' || fail "relative target was not resolved from hook cwd: $out"
 : > "$ROOT/cwd-book/大纲/细纲_第8章.md"
-out="$(run_hook pre-tool-prose-guard "{\"cwd\":\"$ROOT/cwd-book\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"正文/第8章_相对.md\"}}")"
+out="$(run_hook pre-tool-prose-guard "$relative_payload")"
 assert_empty "$out" "relative prose target with cwd-local outline"
 
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Add File: book/正文/第002章_新局.md\n+正文\n*** End Patch\n"}}')"
