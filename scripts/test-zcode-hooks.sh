@@ -66,7 +66,8 @@ assert_denied "$out" "bare long project without scaffolding"
 relative_payload="$(python3 - "$ROOT/cwd-book" <<'PY'
 import json, sys
 from pathlib import Path
-print(json.dumps({"cwd": str(Path(sys.argv[1]).resolve()), "tool_name": "Write", "tool_input": {"file_path": "正文/第8章_相对.md"}}, ensure_ascii=False))
+payload = {"cwd": str(Path(sys.argv[1]).resolve()), "tool_name": "Write", "tool_input": {"file_path": "正文/第8章_相对.md"}}
+sys.stdout.buffer.write(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
 PY
 )"
 out="$(run_hook pre-tool-prose-guard "$relative_payload")"
