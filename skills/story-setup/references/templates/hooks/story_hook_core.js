@@ -154,8 +154,8 @@ function extractProseTargets(command) {
       if (target) targets.push(target)
     }
   }
-  for (const raw of command.split(/[;&|\n]/)) {
-    const segment = raw.split(/\d*[<>]/)[0]
+  for (const raw of shellSegments(command)) {
+    const segment = beforeShellRedirection(raw)
     // 引号感知分词（同 shellWords）：/\s+/ 会把 cp draft.md "my book/正文/第1章.md" 的目标切碎，
     // 末位取到 book/正文/第1章.md —— 判到另一本书上（那本有细纲就直接放行）。
     const words = shellWords(segment)
@@ -180,8 +180,9 @@ function extractPatchTargets(patchText) {
   const targets = []
   let sourceIndex = -1
   for (const line of String(patchText).split(/\r?\n/)) {
-    const trimmed = line.trim()
-    const file = trimmed.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/)
+    // apply_patch grammar 的控制行必须从第 0 列开始；diff 上下文行固定以空格开头。
+    // 先 trim 会把正文里的 ` *** Move to: notes.md` 伪装成搬家指令，顶掉真实扫描目标。
+    const file = line.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/)
     if (file) {
       if (file[1] === "Delete") {
         sourceIndex = -1
@@ -191,7 +192,7 @@ function extractPatchTargets(patchText) {
       sourceIndex = targets.length - 1
       continue
     }
-    const move = trimmed.match(/^\*\*\* Move to: (.+)$/)
+    const move = line.match(/^\*\*\* Move to: (.+)$/)
     if (move) {
       const destination = move[1].trim()
       if (!destination) continue
@@ -561,6 +562,54 @@ function shellWords(segment) {
   }
   if (started) words.push(current)
   return words
+}
+
+function shellSegments(command) {
+  const segments = []
+  let current = ""
+  let quote = ""
+  for (const ch of String(command)) {
+    if (quote) {
+      current += ch
+      if (ch === quote) quote = ""
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      current += ch
+      continue
+    }
+    if (ch === ";" || ch === "&" || ch === "|" || ch === "\n") {
+      if (current) segments.push(current)
+      current = ""
+      continue
+    }
+    current += ch
+  }
+  if (current) segments.push(current)
+  return segments
+}
+
+function beforeShellRedirection(segment) {
+  let current = ""
+  let quote = ""
+  for (const ch of String(segment)) {
+    if (quote) {
+      current += ch
+      if (ch === quote) quote = ""
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      current += ch
+      continue
+    }
+    if (ch === "<" || ch === ">") {
+      return current.replace(/\d+$/, "")
+    }
+    current += ch
+  }
+  return current
 }
 
 function isGitCommitCommand(command) {

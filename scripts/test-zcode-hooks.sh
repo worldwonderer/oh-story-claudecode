@@ -78,6 +78,22 @@ printf '%s' "$out" | grep -q 'cwd-book/大纲' || fail "relative target was not 
 out="$(run_hook pre-tool-prose-guard "$relative_payload")"
 assert_empty "$out" "relative prose target with cwd-local outline"
 
+# containment 判据必须按 Windows 路径语义覆盖：path.relative 跨盘会返回绝对路径，
+# 目录名恰好以 `..` 开头则仍在项目内。只用 startsWith("..") 会把两者同时判反。
+node - "$SOURCE" <<'JS' || fail "ZCode cwd containment is not cross-volume safe"
+const path = require("path")
+const { isPathInside } = require(process.argv[2])
+if (isPathInside("C:\\repo", "D:\\elsewhere", path.win32)) {
+  throw new Error("different Windows volume must be outside the project")
+}
+if (!isPathInside("C:\\repo", "C:\\repo\\..draft", path.win32)) {
+  throw new Error("an in-project directory named ..draft must remain inside")
+}
+if (!isPathInside("C:\\repo", "C:\\repo\\sub", path.win32)) {
+  throw new Error("ordinary in-project directory must remain inside")
+}
+JS
+
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"ApplyPatch","tool_input":{"patch":"*** Begin Patch\n*** Add File: book/正文/第002章_新局.md\n+正文\n*** End Patch"}}')"
 assert_denied "$out" "ApplyPatch prose without outline"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Bash","tool_input":{"command":"echo x | tee book/正文/第003章_命令.md"}}')"

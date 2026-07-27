@@ -125,10 +125,19 @@ function toolPayload(input) {
   return {}
 }
 
+function isPathInside(root, candidate, pathApi = path) {
+  const relation = pathApi.relative(root, candidate)
+  return relation === "" || (
+    !pathApi.isAbsolute(relation)
+    && relation !== ".."
+    && !relation.startsWith(`..${pathApi.sep}`)
+  )
+}
+
 function targetPaths(input) {
   const root = projectRoot()
   const inputCwd = existingDir(input.cwd)
-  const base = inputCwd && !path.relative(root, inputCwd).startsWith("..") ? inputCwd : root
+  const base = inputCwd && isPathInside(root, inputCwd) ? inputCwd : root
   const name = toolName(input)
   const payload = toolPayload(input)
   const rawTargets = []
@@ -197,4 +206,11 @@ function main() {
 
 if (require.main === module) main()
 
-module.exports = { continuityFindings, proseNetFindings, extractProseTargets, extractPatchTargets, isGitCommitCommand }
+module.exports = {
+  continuityFindings,
+  proseNetFindings,
+  extractProseTargets,
+  extractPatchTargets,
+  isGitCommitCommand,
+  isPathInside,
+}

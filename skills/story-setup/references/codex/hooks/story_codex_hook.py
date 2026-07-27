@@ -526,6 +526,52 @@ def _shell_words(segment: str) -> list[str]:
     return words
 
 
+def _shell_segments(command: str) -> list[str]:
+    """只在引号外按 shell 控制符切段；保留引号交给 _shell_words 去除。"""
+    segments: list[str] = []
+    current = ""
+    quote = ""
+    for ch in command:
+        if quote:
+            current += ch
+            if ch == quote:
+                quote = ""
+            continue
+        if ch in ('"', "'"):
+            quote = ch
+            current += ch
+            continue
+        if ch in (";", "&", "|", "\n"):
+            if current:
+                segments.append(current)
+            current = ""
+            continue
+        current += ch
+    if current:
+        segments.append(current)
+    return segments
+
+
+def _before_shell_redirection(segment: str) -> str:
+    """去掉首个引号外重定向及其后内容；2> 里的 fd 数字也一并去掉。"""
+    current = ""
+    quote = ""
+    for ch in segment:
+        if quote:
+            current += ch
+            if ch == quote:
+                quote = ""
+            continue
+        if ch in ('"', "'"):
+            quote = ch
+            current += ch
+            continue
+        if ch in ("<", ">"):
+            return re.sub(r"\d+$", "", current)
+        current += ch
+    return current
+
+
 def extract_prose_targets_from_command(command: str) -> list[str]:
     # Only treat a 正文 path as a write target when it is the destination of an actual
     # write op (redirection / tee / touch / cp|mv dest). Scanning the whole command would
@@ -548,8 +594,8 @@ def extract_prose_targets_from_command(command: str) -> list[str]:
         targets.append(m.group(1) or m.group(2) or m.group(3))
     # cp/mv: the write destination is the last positional arg of the segment. Parse it (regex can't
     # tell a 正文 source from a 正文 dest, and a trailing 2>/dev/null / >log / || breaks end-anchoring).
-    for seg in re.split(r"[;&|\n]", command):
-        seg = re.split(r"\d*[<>]", seg)[0]  # drop redirections (incl. 2>) and everything after
+    for raw_segment in _shell_segments(command):
+        seg = _before_shell_redirection(raw_segment)
         # 引号感知分词（同 JS 核 shellWords）：str.split() 会按 U+3000 和引号内空格切碎目标，
         # 末位取到 book/正文/第1章.md —— 判到另一本书上（那本有细纲就直接放行）。
         words = _shell_words(seg)
@@ -572,8 +618,8 @@ def extract_apply_patch_targets(command: str) -> list[str]:
     targets: list[str] = []
     source_index = -1
     for line in command.splitlines():
-        stripped = line.strip()
-        m = re.match(r"^\*\*\* (Add|Update|Delete) File: (.+)$", stripped)
+        # 控制行必须从第 0 列开始；前导空格是 apply_patch 的上下文 marker，不能 strip 掉。
+        m = re.match(r"^\*\*\* (Add|Update|Delete) File: (.+)$", line)
         if m:
             if m.group(1) == "Delete":
                 source_index = -1
@@ -581,7 +627,7 @@ def extract_apply_patch_targets(command: str) -> list[str]:
             targets.append(m.group(2).strip())
             source_index = len(targets) - 1
             continue
-        m = re.match(r"^\*\*\* Move to: (.+)$", stripped)
+        m = re.match(r"^\*\*\* Move to: (.+)$", line)
         if m:
             destination = m.group(1).strip()
             if not destination:

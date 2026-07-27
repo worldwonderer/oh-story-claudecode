@@ -175,7 +175,7 @@ test("保存途中切走文稿，结果不能落到新打开的那份上", async
   const staleB = await request.get(`/api/file?path=${encodeURIComponent(fileB)}`);
   expect((await staleB.json()).content).not.toContain(markerB.trim());
 
-  // B 自己保存时必须带 B 的版本号，不能被 A 的 mtime 污染成假冲突
+  // B 自己保存时必须带 B 的版本号，不能被 A 的版本污染成假冲突
   await page.locator("#saveButton").click();
   await expect(page.locator("#toastRegion")).toContainText("已保存《拆文报告.md》");
   await expect(page.locator("#dirtyStatus")).toContainText("已保存");
@@ -227,7 +227,7 @@ test("CRLF 稿件不会被一次改动重写换行，脏标记也能清干净", 
     .then((response) => response.json());
   const crlfContent = loaded.content.replaceAll("\r\n", "\n").replaceAll("\n", "\r\n");
   const converted = await request.put("/api/file", {
-    data: { path: filePath, content: crlfContent, expectedMtimeMs: loaded.mtimeMs },
+    data: { path: filePath, content: crlfContent, expectedVersion: loaded.version },
   });
   expect(converted.ok()).toBeTruthy();
   expect(crlfContent).toContain("\r\n");
@@ -265,7 +265,7 @@ test("LF 稿件里的孤立 CR 不会把整篇保存成 CR-only", async ({ page,
     .then((response) => response.json());
   const mixedContent = "# 文风\n第一行。\n第二行前\r第二行后。\n第三行。\n";
   const converted = await request.put("/api/file", {
-    data: { path: filePath, content: mixedContent, expectedMtimeMs: loaded.mtimeMs },
+    data: { path: filePath, content: mixedContent, expectedVersion: loaded.version },
   });
   expect(converted.ok()).toBeTruthy();
 
@@ -297,7 +297,7 @@ test("CRLF 稿件里的孤立 CR 不会反向触发整篇 LF 重写", async ({ p
     data: {
       path: filePath,
       content: "# 文风\r\n第一行。\r\n第二行前\r第二行后。\r\n第三行。",
-      expectedMtimeMs: loaded.mtimeMs,
+      expectedVersion: loaded.version,
     },
   });
   expect(converted.ok()).toBeTruthy();
@@ -382,6 +382,28 @@ test("目录树被截断时明确提示，而不是让文件凭空消失", async
   await expect(page.locator("#fileTree")).toContainText("盘龙");
   await expect(page.locator("#treeTruncationNotice")).toHaveCount(0);
   await expect(page.locator("#fileCount")).not.toContainText("+");
+});
+
+test("目录读取失败时提示权限或挂载问题，而不是伪装成空库", async ({ page }) => {
+  await page.route("**/api/workspace", async (route) => {
+    const response = await route.fetch();
+    const payload = await response.json();
+    payload.libraries = [];
+    payload.scanErrors = [
+      { path: "拆文库", code: "EACCES", message: "目录无法读取" },
+    ];
+    payload.limits = {
+      ...payload.limits,
+      truncated: true,
+      truncatedByReadError: true,
+    };
+    await route.fulfill({ response, json: payload });
+  });
+
+  await page.goto("/");
+  await expect(page.locator("#treeTruncationNotice")).toContainText("拆文库无法读取");
+  await expect(page.locator("#treeTruncationNotice")).toContainText("检查这些目录的访问权限和外挂盘挂载状态");
+  await expect(page.locator("#fileCount")).toContainText("+");
 });
 
 // 节点预算这条成因也要真跑一遍：它和深度截断共用 truncated 布尔值，

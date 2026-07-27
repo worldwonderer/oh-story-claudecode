@@ -262,6 +262,12 @@ def test_undecodable_markdown_is_a_named_failure() -> None:
             in finding_codes(VALIDATOR.undecodable_source_findings([demo])),
             "非 UTF-8 的契约文本必须是命名失败，不能静默跳过",
         )
+        target.write_text(dotted, encoding="utf-16")
+        require(
+            "unreadable-source-file"
+            in finding_codes(VALIDATOR.undecodable_source_findings([demo])),
+            "UTF-16 Markdown 含 NUL，但仍是契约文本，不能伪装成二进制资产跳过",
+        )
         target.write_text(dotted, encoding="utf-8")
         (demo / "封面.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe")
         # 无后缀 / 非白名单后缀的二进制（.DS_Store 之类）靠 NUL 字节识别，不能误报
@@ -453,6 +459,25 @@ def test_upgrading_version_contract() -> None:
     )
 
 
+def test_deeply_nested_fallback_keeps_all_governing_ancestors() -> None:
+    text = (
+        "- `剧情/节奏.md` 缺失时：\n"
+        "  - 导入阶段：\n"
+        "    - 第六阶段：\n"
+        "      - 对标视图：\n"
+        "        - 回退读取 `拆文报告.md` 拼出节奏。\n"
+    )
+    found = VALIDATOR.semantic_primary_fallback_findings(
+        text,
+        Path("deeply-nested.md"),
+        ("剧情/节奏.md",),
+    )
+    require(
+        "silent-primary-artifact-fallback" in finding_codes(found),
+        "深层列表的主产物缺失条件必须一路传到回退动作，不能在三层后丢失",
+    )
+
+
 def test_old_artifact_prose_silent_only() -> None:
     """keep C：带显式标记的旧格式大纲容忍放行，无标记的静默降级仍拦（drop A/B 不受影响）。"""
     rule = next(r for r in VALIDATOR.LEGACY_RULES if r.code == "old-artifact-prose")
@@ -494,6 +519,7 @@ def main() -> int:
     test_sibling_bullets_do_not_lend_the_missing_condition()
     test_undecodable_markdown_is_a_named_failure()
     test_progress_schema_pins_are_repo_wide()
+    test_deeply_nested_fallback_keeps_all_governing_ancestors()
     test_stale_scan_phase_reference_accepts_backticks()
     test_old_artifact_prose_silent_only()
     test_structured_sentinel_contract()

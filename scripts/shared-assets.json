@@ -34,6 +34,14 @@
       "targets": [
         "skills/story-short-scan/scripts/cdp-utils.js"
       ]
+    },
+    {
+      "name": "story-hook-core",
+      "source": "skills/story-setup/references/templates/hooks/story_hook_core.js",
+      "targets": [
+        "skills/story-setup/references/opencode/story_hook_core.js",
+        "skills/story-setup/references/zcode/hooks/story_hook_core.js"
+      ]
     }
   ]
 }

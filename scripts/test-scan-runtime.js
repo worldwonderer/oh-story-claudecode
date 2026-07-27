@@ -120,10 +120,20 @@ if (js.indexOf("onebook.php") > -1) {
     process.stderr.write("spawnSync agent-browser ETIMEDOUT\\n");
     process.exit(1);
   }
+  if (process.env.SCAN_FAKE_PARTIAL_DETAIL) {
+    out({
+      1: { id: "1", collect: "12345", words: "300000", status: "连载中" },
+      2: { id: "2", err: "detail timeout" },
+    });
+  }
   out({ 1: { id: "1", collect: "12345", words: "300000", status: "连载中" } });
 }
 if (js.indexOf("result={channels:[]}") > -1) {
-  out({ channels: [{ name: "古代言情", books: [{ title: "甲书", author: "作者甲", novelid: "1" }] }] });
+  const books = [{ title: "甲书", author: "作者甲", novelid: "1" }];
+  if (process.env.SCAN_FAKE_TWO_BOOKS) {
+    books.push({ title: "乙书", author: "作者乙", novelid: "2" });
+  }
+  out({ channels: [{ name: "古代言情", books }] });
 }
 if (js.indexOf("blocked") > -1) out({ blocked: false, reason: "" });
 if (js.indexOf("book-img-text") > -1) {
@@ -383,6 +393,12 @@ function testCliResultGate(modulePath) {
   const success = probe("runCli(() => 2, 'probe');");
   assert.strictEqual(success.status, 0, success.stderr);
 
+  const partial = probe(
+    "runCli(() => ({planned: 3, written: 2, failed: 1, partialReasons: ['one rank failed']}), 'probe');"
+  );
+  assert.strictEqual(partial.status, 2, "partial-output CLI runs need a distinct status");
+  assert.match(partial.stderr, /probe partial: wrote 2\/3; failed 1; one rank failed/);
+
   const empty = probe("runCli(() => 0, 'probe');");
   assert.strictEqual(empty.status, 1, "zero-output CLI runs must fail");
   assert.match(empty.stderr, /probe failed: no output was written/);
@@ -457,8 +473,8 @@ function testJjwxcDetailFailureIsolation() {
   });
   assert.strictEqual(
     run.status,
-    0,
-    `详情失败不该让整轮采集失败: ${run.stderr || run.stdout}`
+    2,
+    `详情失败应保留列表但标成 partial: ${run.stderr || run.stdout}`
   );
   assert.strictEqual(
     run.files.length,
@@ -466,6 +482,7 @@ function testJjwxcDetailFailureIsolation() {
     `--type all 的 6 个榜单都应落盘，实际 ${run.files.length}: ${run.files.join(", ")}`
   );
   assert.match(run.stderr, /详情批次 1（1 本）获取失败，跳过/);
+  assert.match(run.stderr, /晋江采集 partial:/);
   for (const content of run.contents) {
     assert.match(content, /数据质量：\[详情解析异常\/登录态缺失\]/);
     assert.match(content, /### #1 甲书/, "已解析的列表数据必须保住");
@@ -477,6 +494,15 @@ function testJjwxcDetailFailureIsolation() {
   assert.strictEqual(healthy.files.length, 1);
   assert.match(healthy.contents[0], /数据质量：\[OK\]/);
   assert.match(healthy.contents[0], /收藏 1\.2万/);
+
+  const partial = runScraper(scraper, ["--type", "12"], {
+    SCAN_FAKE_TWO_BOOKS: "1",
+    SCAN_FAKE_PARTIAL_DETAIL: "1",
+  });
+  assert.strictEqual(partial.status, 2, partial.stderr);
+  assert.match(partial.stderr, /晋江采集 partial:/);
+  assert.match(partial.contents[0], /详情采集：1 \/ 2/);
+  assert.match(partial.contents[0], /数据质量：\[部分详情缺失\]/);
 }
 
 // 起点：一个榜单打不开只跳这一个，剩下 9 个照采（--type all 不再被一次超时掐死）
@@ -492,10 +518,11 @@ function testQidianRankIsolation() {
   });
   assert.strictEqual(
     run.status,
-    0,
-    `单个榜单失败不该让整轮采集失败: ${run.stderr || run.stdout}`
+    2,
+    `单个榜单失败应保留其余产物但标成 partial: ${run.stderr || run.stdout}`
   );
   assert.match(run.stderr, /\[qidian\] 畅销榜 采集失败，跳过/);
+  assert.match(run.stderr, /起点采集 partial: wrote 9\/10; failed 1/);
   assert.strictEqual(
     run.files.length,
     9,

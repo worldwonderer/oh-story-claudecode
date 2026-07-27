@@ -278,7 +278,7 @@ describe("HTTP API", () => {
       body: JSON.stringify({
         path: filePath,
         content: "修改后的正文",
-        expectedMtimeMs: loaded.mtimeMs,
+        expectedVersion: loaded.version,
       }),
     });
     assert.equal(savedResponse.status, 200);
@@ -304,7 +304,7 @@ describe("HTTP API", () => {
       body: JSON.stringify({
         path: filePath,
         content: "Dashboard 里的旧内容",
-        expectedMtimeMs: loaded.mtimeMs,
+        expectedVersion: loaded.version,
       }),
     });
     assert.equal(response.status, 409);
@@ -329,7 +329,7 @@ describe("HTTP API", () => {
       },
       body: JSON.stringify({
         path: filePath,
-        expectedMtimeMs: loaded.mtimeMs,
+        expectedVersion: loaded.version,
       }),
     });
     assert.equal(rejected.status, 403);
@@ -341,7 +341,7 @@ describe("HTTP API", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         path: filePath,
-        expectedMtimeMs: loaded.mtimeMs,
+        expectedVersion: loaded.version,
       }),
     });
     assert.equal(deletedResponse.status, 200);
@@ -369,12 +369,71 @@ describe("HTTP API", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         path: filePath,
-        expectedMtimeMs: loaded.mtimeMs,
+        expectedVersion: loaded.version,
       }),
     });
     assert.equal(response.status, 409);
     assert.equal((await response.json()).error.code, "file_changed");
     assert.equal(await readFile(resolve(root, filePath), "utf8"), "外部程序的新内容");
+  });
+
+  test("accepts only one of several simultaneous saves based on the same version", async () => {
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+    const filePath = "长篇/示例书/正文/第001章.md";
+    const loaded = await fetch(
+      `${baseUrl}/api/file?path=${encodeURIComponent(filePath)}`,
+    ).then((response) => response.json());
+
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        fetch(`${baseUrl}/api/file`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: filePath,
+            content: `并发写入-${index}`,
+            expectedVersion: loaded.version,
+          }),
+        }),
+      ),
+    );
+    const statuses = responses.map((response) => response.status);
+    assert.equal(statuses.filter((status) => status === 200).length, 1, statuses);
+    assert.equal(statuses.filter((status) => status === 409).length, 7, statuses);
+    assert.match(await readFile(resolve(root, filePath), "utf8"), /^并发写入-[0-7]$/);
+  });
+
+  test("serializes simultaneous save and delete operations on the same version", async () => {
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+    const filePath = "长篇/示例书/正文/第001章.md";
+    const loaded = await fetch(
+      `${baseUrl}/api/file?path=${encodeURIComponent(filePath)}`,
+    ).then((response) => response.json());
+    const versionedPath = { path: filePath, expectedVersion: loaded.version };
+
+    const [saved, deleted] = await Promise.all([
+      fetch(`${baseUrl}/api/file`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...versionedPath, content: "保存胜出时的正文" }),
+      }),
+      fetch(`${baseUrl}/api/file`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(versionedPath),
+      }),
+    ]);
+    assert.deepEqual([saved.status, deleted.status].sort(), [200, 409]);
+    if (saved.status === 200) {
+      assert.equal(await readFile(resolve(root, filePath), "utf8"), "保存胜出时的正文");
+    } else {
+      await assert.rejects(
+        readFile(resolve(root, filePath), "utf8"),
+        (error) => error?.code === "ENOENT",
+      );
+    }
   });
 
   test("rejects unsupported files, traversal, and malformed JSON", async () => {
@@ -444,7 +503,7 @@ describe("HTTP API", () => {
         body: JSON.stringify({
           path: filePath,
           content: "改过的正文",
-          expectedMtimeMs: loaded.mtimeMs,
+          expectedVersion: loaded.version,
         }),
       });
       assert.equal(saved.status, 200);
@@ -468,6 +527,12 @@ describe("HTTP API", () => {
       assert.equal(response.status, 200);
       const payload = await response.json();
       assert.deepEqual(payload.libraries, []);
+      assert.equal(payload.limits.truncated, true);
+      assert.equal(payload.limits.truncatedByReadError, true);
+      assert.deepEqual(
+        payload.scanErrors.map(({ path, code }) => ({ path, code })),
+        [{ path: "拆文库", code: "EACCES" }],
+      );
       assert.deepEqual(
         payload.projects.map((entry) => entry.path),
         ["长篇/示例书"],

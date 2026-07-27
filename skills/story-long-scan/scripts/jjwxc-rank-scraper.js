@@ -151,7 +151,7 @@ function fetchDetails(port, ids) {
   if (failedChunks > 0) {
     console.error(`  ⚠ 共 ${failedChunks} 个详情批次失败，这部分书只有列表数据。`);
   }
-  return map;
+  return { map, failedChunks };
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +233,7 @@ function scrapeRank(port, rankTypeId, channelId) {
   let detailMap = {};
   let detailPlanned = 0;
   let detailOk = 0;
+  let detailFailedChunks = 0;
   if (!LIST_ONLY) {
     const picked = [];
     for (const ch of data.channels) {
@@ -250,9 +251,12 @@ function scrapeRank(port, rankTypeId, channelId) {
       // 详情是列表的增补，不是前提：整段失败也要保住已解析好的列表落盘
       // （下面的质量门会把 detailOk===0 标成 [详情解析异常/登录态缺失]）
       try {
-        detailMap = fetchDetails(port, picked);
+        const detailResult = fetchDetails(port, picked);
+        detailMap = detailResult.map;
+        detailFailedChunks = detailResult.failedChunks;
       } catch (detailErr) {
         detailMap = {};
+        detailFailedChunks = Math.max(1, Math.ceil(picked.length / DETAIL_CHUNK));
         console.error(`  ⚠ 详情补采整体失败，仅保留列表数据: ${detailErr.message}`);
       }
       detailOk = Object.values(detailMap).filter((d) => d && d.collect).length;
@@ -262,9 +266,16 @@ function scrapeRank(port, rankTypeId, channelId) {
 
   // 质量状态：详情开启时，收藏数命中率是核心信号
   let quality = "[OK]";
+  const detailPartial =
+    !LIST_ONLY &&
+    detailPlanned > 0 &&
+    (detailFailedChunks > 0 || detailOk < detailPlanned);
   if (!LIST_ONLY && detailPlanned > 0 && detailOk === 0) {
     quality = "[详情解析异常/登录态缺失]";
     console.error(`  ⚠ 详情全部无收藏数：可能页面结构变动或需登录，已在文件头标注。`);
+  } else if (detailPartial) {
+    quality = "[部分详情缺失]";
+    console.error(`  ⚠ 详情仅命中 ${detailOk}/${detailPlanned}，已按部分结果标注。`);
   } else if (LIST_ONLY) {
     quality = "[仅列表-无核心指标]";
   }
@@ -315,20 +326,38 @@ function scrapeRank(port, rankTypeId, channelId) {
     }
   }
 
-  return lines.join("\n");
+  return {
+    content: lines.join("\n"),
+    partial: detailPartial,
+    partialReason: detailPartial
+      ? `${rt.label}: detail ${detailOk}/${detailPlanned}, failed chunks ${detailFailedChunks}`
+      : "",
+  };
 }
 
 function main() {
   const rankTypes = RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
   const channels = [CHANNEL]; // 晋江频道 ID 需从页面获取，默认全站
   let written = 0;
+  let failed = 0;
+  let partial = false;
+  const partialReasons = [];
 
   for (const rt of rankTypes) {
     for (const ch of channels) {
       // per-榜单隔离：一个榜单出错不该掐掉 --type all 后面的榜单（与番茄/刺猬猫一致）
       try {
-        const content = scrapeRank(PORT, rt, ch);
-        if (!content) continue;
+        const result = scrapeRank(PORT, rt, ch);
+        if (!result) {
+          failed++;
+          const rtInfo = RANK_TYPES.find((r) => r.id === rt);
+          partialReasons.push(`${rtInfo ? rtInfo.label : rt}: no usable data`);
+          continue;
+        }
+        if (result.partial) {
+          partial = true;
+          if (result.partialReason) partialReasons.push(result.partialReason);
+        }
 
         const rtInfo = RANK_TYPES.find((r) => r.id === rt);
         const date = localDateStamp();
@@ -336,18 +365,27 @@ function main() {
         const filename = `晋江${rtInfo.label}_${chLabel}_${date}.md`;
         fs.mkdirSync(OUTDIR, { recursive: true });
         const filepath = path.join(OUTDIR, filename);
-        fs.writeFileSync(filepath, content, "utf-8");
+        fs.writeFileSync(filepath, result.content, "utf-8");
         written++;
         console.log(`  ✓ 已保存: ${filepath}`);
       } catch (rankErr) {
+        failed++;
         const rtInfo = RANK_TYPES.find((r) => r.id === rt);
+        const message = rankErr && rankErr.message ? rankErr.message : String(rankErr);
+        partialReasons.push(`${rtInfo ? rtInfo.label : rt}: ${message}`);
         console.error(
-          `[jjwxc] ${rtInfo ? rtInfo.label : rt} 采集失败，跳过: ${rankErr && rankErr.message ? rankErr.message : rankErr}`
+          `[jjwxc] ${rtInfo ? rtInfo.label : rt} 采集失败，跳过: ${message}`
         );
       }
     }
   }
-  return written;
+  return {
+    planned: rankTypes.length * channels.length,
+    written,
+    failed,
+    partial: partial || failed > 0,
+    partialReasons,
+  };
 }
 
 if (require.main === module) {

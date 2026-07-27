@@ -24,9 +24,16 @@ EMPHASIS_PATH_RE = re.compile(
     r"(?P<path>(?:[a-z0-9_-]+/)?(?:references|scripts|assets)/[^\s*]+)"
     r"(?P=marker)(?![A-Za-z0-9_./-])"
 )
+SKILL_PATH_PREFIX = r"(?:[a-z0-9_-]+/)?(?:references|scripts|assets)/"
+# 中文说明常把多个路径写成 `references/*.md与assets/*.json`。重复体必须在“连接词 +
+# 下一个路径前缀”前停住，否则首个 match 会把整串吞掉，normalize_path_token 再于第一个
+# `*` 截成 references/，后面的缺失路径永远没有独立参与校验。
 SKILL_PATH_RE = re.compile(
-    r"(?<![A-Za-z0-9_-])(?P<path>(?:[a-z0-9_-]+/)?(?:references|scripts|assets)/"
-    r"[^\s`\"')\]><「（，。；：、]+)"
+    r"(?<![A-Za-z0-9_-])(?P<path>"
+    + SKILL_PATH_PREFIX
+    + r"(?:(?!(?:与|和|及|、)"
+    + SKILL_PATH_PREFIX
+    + r")[^\s`\"')\]><「（，。；：、])+)"
 )
 ASCII_MD_RE = re.compile(r"^[a-z0-9_-]+\.md$")
 INLINE_MD_PATH_RE = re.compile(

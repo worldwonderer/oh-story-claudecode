@@ -17,7 +17,7 @@ import {
 } from "node:fs/promises";
 import { extname, basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const ASSET_DIR = fileURLToPath(new URL("../assets/", import.meta.url));
@@ -42,6 +42,7 @@ const MAX_REQUEST_BYTES = MAX_FILE_BYTES + 64 * 1024;
 const MAX_TREE_DEPTH = 10;
 const MAX_TREE_NODES = 5000;
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+const FILE_MUTATION_TAILS = new Map();
 
 const CONTENT_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -71,6 +72,41 @@ function toPosixPath(value) {
 
 function isEditableFile(name) {
   return EDITABLE_EXTENSIONS.has(extname(name).toLowerCase());
+}
+
+function fileVersion(content) {
+  return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+async function withSerializedFileMutation(absolutePath, operation) {
+  const previous = FILE_MUTATION_TAILS.get(absolutePath) || Promise.resolve();
+  let release;
+  const gate = new Promise((accept) => {
+    release = accept;
+  });
+  const tail = previous.catch(() => {}).then(() => gate);
+  FILE_MUTATION_TAILS.set(absolutePath, tail);
+  await previous.catch(() => {});
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (FILE_MUTATION_TAILS.get(absolutePath) === tail) {
+      FILE_MUTATION_TAILS.delete(absolutePath);
+    }
+  }
+}
+
+function recordScanError(scanErrors, root, absolutePath, error) {
+  const errorPath = toPosixPath(relative(root, absolutePath)) || ".";
+  if (scanErrors.some((entry) => entry.path === errorPath)) {
+    return;
+  }
+  scanErrors.push({
+    path: errorPath,
+    code: typeof error?.code === "string" ? error.code : "READ_ERROR",
+    message: `目录无法读取，请检查访问权限或挂载状态：${errorPath}`,
+  });
 }
 
 function shouldIgnoreDirectory(name) {
@@ -149,7 +185,10 @@ async function buildTreeNode(root, absolutePath, relativePath, state, depth = 0)
   }
   state.nodes += 1;
 
-  const info = await lstat(absolutePath).catch(() => null);
+  const info = await lstat(absolutePath).catch((error) => {
+    recordScanError(state.scanErrors, root, absolutePath, error);
+    return null;
+  });
   if (!info || info.isSymbolicLink()) {
     return null;
   }
@@ -167,7 +206,10 @@ async function buildTreeNode(root, absolutePath, relativePath, state, depth = 0)
     return null;
   }
 
-  const entries = await readdir(absolutePath, { withFileTypes: true }).catch(() => []);
+  const entries = await readdir(absolutePath, { withFileTypes: true }).catch((error) => {
+    recordScanError(state.scanErrors, root, absolutePath, error);
+    return [];
+  });
   const children = [];
   for (const entry of entries) {
     if (entry.isDirectory() && shouldIgnoreDirectory(entry.name)) {
@@ -198,14 +240,17 @@ async function buildTreeNode(root, absolutePath, relativePath, state, depth = 0)
   };
 }
 
-async function listLibraryRoots(root) {
+async function listLibraryRoots(root, scanErrors) {
   const roots = [];
   const standardRoot = resolve(root, "拆文库");
   const standardInfo = await lstat(standardRoot).catch(() => null);
   if (standardInfo?.isDirectory() && !standardInfo.isSymbolicLink()) {
-    // 单个拆文库读不动（权限、外挂盘掉线）时降级为空列表，其余工作区照常出树，
-    // 与 buildTreeNode / findProjectRoots 的 readdir 处理保持一致。
-    const entries = await readdir(standardRoot, { withFileTypes: true }).catch(() => []);
+    // 单个拆文库读不动时保留其他项目，但把残缺扫描显式带回前端；空数组只能表达“确实为空”，
+    // 不能再同时承担权限错误/外挂盘掉线，否则作者会把不可见文稿误当成不存在。
+    const entries = await readdir(standardRoot, { withFileTypes: true }).catch((error) => {
+      recordScanError(scanErrors, root, standardRoot, error);
+      return [];
+    });
     for (const entry of entries) {
       if (entry.isDirectory() && !entry.isSymbolicLink()) {
         roots.push({ absolutePath: resolve(standardRoot, entry.name), relativePath: `拆文库${sep}${entry.name}` });
@@ -240,12 +285,22 @@ function isUnderAnyPath(candidate, blockedPaths) {
   return blockedPaths.some((blocked) => isPathInside(candidate, blocked));
 }
 
-async function findProjectRoots(root, libraryPaths, currentPath = root, depth = 0, projects = []) {
+async function findProjectRoots(
+  root,
+  libraryPaths,
+  scanErrors,
+  currentPath = root,
+  depth = 0,
+  projects = [],
+) {
   if (depth > 3 || isUnderAnyPath(currentPath, libraryPaths)) {
     return projects;
   }
 
-  const entries = await readdir(currentPath, { withFileTypes: true }).catch(() => []);
+  const entries = await readdir(currentPath, { withFileTypes: true }).catch((error) => {
+    recordScanError(scanErrors, root, currentPath, error);
+    return [];
+  });
   const childDirectoryNames = new Set(
     entries.filter((entry) => entry.isDirectory() && !entry.isSymbolicLink()).map((entry) => entry.name),
   );
@@ -264,6 +319,7 @@ async function findProjectRoots(root, libraryPaths, currentPath = root, depth = 
     await findProjectRoots(
       root,
       libraryPaths,
+      scanErrors,
       resolve(currentPath, entry.name),
       depth + 1,
       projects,
@@ -301,26 +357,29 @@ function summarizeTrees(libraries, projects) {
 
 export async function scanWorkspace(root) {
   const realRoot = await existingRealRoot(root);
-  const libraryRoots = await listLibraryRoots(realRoot);
+  const scanErrors = [];
+  const libraryRoots = await listLibraryRoots(realRoot, scanErrors);
   const libraryPaths = libraryRoots.map((entry) => entry.absolutePath);
-  const projectRoots = await findProjectRoots(realRoot, libraryPaths);
+  const projectRoots = await findProjectRoots(realRoot, libraryPaths, scanErrors);
 
-  // 先扫写作项目再扫拆文库：节点预算有限时，作者自己的正文优先于参考档案。
-  const state = { nodes: 0, nodeLimitHit: false, depthLimitHit: false };
-  const projects = (
-    await Promise.all(
-      projectRoots.map((entry) =>
-        buildTreeNode(realRoot, entry.absolutePath, entry.relativePath, state),
-      ),
-    )
-  ).filter(Boolean);
-  const libraries = (
-    await Promise.all(
-      libraryRoots.map((entry) =>
-        buildTreeNode(realRoot, entry.absolutePath, entry.relativePath, state),
-      ),
-    )
-  ).filter(Boolean);
+  // 共享节点预算必须顺序消费：Promise.all 会让“哪本书先抢到剩余预算”取决于文件系统调度，
+  // 同一个工作区刷新两次可能展示不同子树。仍保持写作项目优先于参考档案。
+  const state = { nodes: 0, nodeLimitHit: false, depthLimitHit: false, scanErrors };
+  const buildRoots = async (roots) => {
+    const trees = [];
+    for (const entry of roots) {
+      const tree = await buildTreeNode(
+        realRoot,
+        entry.absolutePath,
+        entry.relativePath,
+        state,
+      );
+      if (tree) trees.push(tree);
+    }
+    return trees;
+  };
+  const projects = await buildRoots(projectRoots);
+  const libraries = await buildRoots(libraryRoots);
 
   libraries.sort(compareTreeEntries);
   projects.sort(compareTreeEntries);
@@ -331,6 +390,7 @@ export async function scanWorkspace(root) {
     },
     libraries,
     projects,
+    scanErrors,
     stats: summarizeTrees(libraries, projects),
     limits: {
       maxFileBytes: MAX_FILE_BYTES,
@@ -339,9 +399,10 @@ export async function scanWorkspace(root) {
       maxTreeDepth: MAX_TREE_DEPTH,
       // truncated 仍是前端读的总闸门，但成因要分开报：「文件太多」和「目录套太深」
       // 对作者是两种处置办法，混成一句话等于让人照着错的办法搬文件。
-      truncated: state.nodeLimitHit || state.depthLimitHit,
+      truncated: state.nodeLimitHit || state.depthLimitHit || scanErrors.length > 0,
       truncatedByNodes: state.nodeLimitHit,
       truncatedByDepth: state.depthLimitHit,
+      truncatedByReadError: scanErrors.length > 0,
     },
   };
 }
@@ -396,6 +457,7 @@ async function readWorkspaceFile(root, requestedPath) {
     content,
     size: Buffer.byteLength(content),
     mtimeMs: info.mtimeMs,
+    version: fileVersion(content),
   };
 }
 
@@ -427,55 +489,80 @@ async function saveWorkspaceFile(root, payload) {
   if (Buffer.byteLength(payload.content) > MAX_FILE_BYTES) {
     throw new DashboardError(413, "file_too_large", "文件超过 2 MiB，无法保存");
   }
-  if (!Number.isFinite(payload.expectedMtimeMs)) {
+  if (!/^[a-f0-9]{64}$/.test(payload.expectedVersion || "")) {
     throw new DashboardError(400, "missing_file_version", "保存请求缺少文件版本，请重新载入后再试");
   }
 
-  const { absolutePath, info } = await resolveWorkspacePath(root, payload.path, {
+  const initial = await resolveWorkspacePath(root, payload.path, {
     editableOnly: true,
   });
-  if (Math.abs(info.mtimeMs - payload.expectedMtimeMs) > 0.5) {
-    throw new DashboardError(
-      409,
-      "file_changed",
-      "文件已被其他程序修改。请重新载入后再保存，避免覆盖新内容。",
-    );
-  }
+  return withSerializedFileMutation(initial.absolutePath, async () => {
+    let current;
+    try {
+      current = await resolveWorkspacePath(root, payload.path, { editableOnly: true });
+    } catch (error) {
+      if (error instanceof DashboardError && error.code === "file_not_found") {
+        throw new DashboardError(409, "file_changed", "文件已被其他程序删除。请刷新目录后再保存。");
+      }
+      throw error;
+    }
+    const currentContent = await readFile(current.absolutePath, "utf8");
+    if (fileVersion(currentContent) !== payload.expectedVersion) {
+      throw new DashboardError(
+        409,
+        "file_changed",
+        "文件已被其他程序修改。请重新载入后再保存，避免覆盖新内容。",
+      );
+    }
 
-  await replaceFileAtomically(absolutePath, payload.content, info.mode);
-  const updated = await stat(absolutePath);
-  return {
-    ok: true,
-    path: toPosixPath(relative(await existingRealRoot(root), absolutePath)),
-    size: updated.size,
-    mtimeMs: updated.mtimeMs,
-  };
+    await replaceFileAtomically(current.absolutePath, payload.content, current.info.mode);
+    const updated = await stat(current.absolutePath);
+    return {
+      ok: true,
+      path: toPosixPath(relative(current.realRoot, current.absolutePath)),
+      size: updated.size,
+      mtimeMs: updated.mtimeMs,
+      version: fileVersion(payload.content),
+    };
+  });
 }
 
 async function deleteWorkspaceFile(root, payload) {
   if (!payload || typeof payload !== "object") {
     throw new DashboardError(400, "invalid_payload", "缺少删除参数");
   }
-  if (!Number.isFinite(payload.expectedMtimeMs)) {
+  if (!/^[a-f0-9]{64}$/.test(payload.expectedVersion || "")) {
     throw new DashboardError(400, "missing_file_version", "删除请求缺少文件版本，请重新载入后再试");
   }
 
-  const { absolutePath, info } = await resolveWorkspacePath(root, payload.path, {
+  const initial = await resolveWorkspacePath(root, payload.path, {
     editableOnly: true,
   });
-  if (Math.abs(info.mtimeMs - payload.expectedMtimeMs) > 0.5) {
-    throw new DashboardError(
-      409,
-      "file_changed",
-      "文件已被其他程序修改。请重新载入后再删除，避免误删新版本。",
-    );
-  }
+  return withSerializedFileMutation(initial.absolutePath, async () => {
+    let current;
+    try {
+      current = await resolveWorkspacePath(root, payload.path, { editableOnly: true });
+    } catch (error) {
+      if (error instanceof DashboardError && error.code === "file_not_found") {
+        throw new DashboardError(409, "file_changed", "文件已被其他程序删除。请刷新目录后再操作。");
+      }
+      throw error;
+    }
+    const currentContent = await readFile(current.absolutePath, "utf8");
+    if (fileVersion(currentContent) !== payload.expectedVersion) {
+      throw new DashboardError(
+        409,
+        "file_changed",
+        "文件已被其他程序修改。请重新载入后再删除，避免误删新版本。",
+      );
+    }
 
-  await unlink(absolutePath);
-  return {
-    ok: true,
-    path: toPosixPath(relative(await existingRealRoot(root), absolutePath)),
-  };
+    await unlink(current.absolutePath);
+    return {
+      ok: true,
+      path: toPosixPath(relative(current.realRoot, current.absolutePath)),
+    };
+  });
 }
 
 async function serveStaticFile(requestPath, response) {

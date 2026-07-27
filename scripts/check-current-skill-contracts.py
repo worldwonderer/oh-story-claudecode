@@ -353,6 +353,31 @@ BINARY_SUFFIXES = frozenset(
     }
 )
 
+TEXT_SUFFIXES = frozenset(
+    {
+        ".cmd",
+        ".css",
+        ".csv",
+        ".html",
+        ".ini",
+        ".js",
+        ".json",
+        ".md",
+        ".mjs",
+        ".patch",
+        ".py",
+        ".sh",
+        ".svg",
+        ".tmpl",
+        ".toml",
+        ".ts",
+        ".txt",
+        ".xml",
+        ".yaml",
+        ".yml",
+    }
+)
+
 
 def is_binary_asset(path: Path) -> bool:
     """二进制资产（封面图、字节码、.DS_Store 之类）读不出文本是正常的。
@@ -363,6 +388,10 @@ def is_binary_asset(path: Path) -> bool:
     """
     if path.suffix.lower() in BINARY_SUFFIXES:
         return True
+    # UTF-16 文本同样含大量 NUL；已知文本后缀必须先按契约文本处理，让 UTF-8 解码失败成为
+    # 命名错误。NUL sniff 只服务于 .DS_Store / 未知扩展二进制，不能覆盖文件类型事实。
+    if path.suffix.lower() in TEXT_SUFFIXES:
+        return False
     try:
         return b"\x00" in path.read_bytes()[:8192]
     except OSError:
@@ -439,7 +468,7 @@ def _block_item_indent(line: str) -> Optional[int]:
     return len(match.group(1).expandtabs(4))
 
 
-def logical_bullet_context(lines: Sequence[str], index: int, lookback: int = 3) -> str:
+def logical_bullet_context(lines: Sequence[str], index: int) -> str:
     """Return the hit line plus the branch that actually governs it.
 
     同一逻辑条目 = 命中行本身 + 它所属条目的续行 + 缩进更浅的上级条目或列表/表格引导句。
@@ -452,9 +481,8 @@ def logical_bullet_context(lines: Sequence[str], index: int, lookback: int = 3) 
     threshold = (
         own_item_indent if own_item_indent is not None else _indent_width(lines[index])
     )
-    remaining = lookback
     cursor = index - 1
-    while cursor >= 0 and remaining > 0:
+    while cursor >= 0:
         candidate = lines[cursor]
         if not candidate.strip() or candidate.lstrip().startswith("#"):
             break
@@ -464,7 +492,6 @@ def logical_bullet_context(lines: Sequence[str], index: int, lookback: int = 3) 
         # 其余是同级、更深的兄弟条目及其续行，与命中行无关；跳过但继续往上找上级。
         if indent < threshold or (item_indent is None and indent <= threshold):
             parts.insert(0, candidate)
-            remaining -= 1
             threshold = indent
         cursor -= 1
     return "\n".join(parts)

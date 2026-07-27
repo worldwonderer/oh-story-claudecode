@@ -192,15 +192,33 @@ function localDateStamp(date) {
 }
 
 /**
- * Run a scraper entrypoint and turn "completed without writing anything" into
- * a real CLI failure. Entrypoints return the number of output files written.
+ * Run a scraper entrypoint and turn empty/partial output into machine-readable
+ * CLI status. Legacy entrypoints may return an integer; multi-target scrapers
+ * return {planned,written,failed,partial,partialReasons}.
  */
 function runCli(main, label) {
   Promise.resolve()
     .then(main)
-    .then((written) => {
-      if (!Number.isInteger(written) || written < 1) {
+    .then((result) => {
+      const outcome = Number.isInteger(result)
+        ? { planned: result, written: result, failed: 0, partial: false, partialReasons: [] }
+        : result;
+      if (!outcome || !Number.isInteger(outcome.written) || outcome.written < 1) {
         throw new Error("no output was written");
+      }
+      const failed = Number.isInteger(outcome.failed) ? outcome.failed : 0;
+      const planned = Number.isInteger(outcome.planned)
+        ? outcome.planned
+        : outcome.written + failed;
+      const reasons = Array.isArray(outcome.partialReasons)
+        ? outcome.partialReasons.filter(Boolean).map(String)
+        : [];
+      if (outcome.partial || failed > 0) {
+        const details = [`wrote ${outcome.written}/${planned}`];
+        if (failed > 0) details.push(`failed ${failed}`);
+        details.push(...reasons);
+        console.error(`${label} partial: ${details.join("; ")}`);
+        process.exitCode = 2;
       }
     })
     .catch((error) => {

@@ -484,13 +484,20 @@ async function main() {
 
   const rankTypes = RANKTYPE === "all" ? RANK_TYPES.map((r) => r.id) : [RANKTYPE];
   let written = 0;
+  let failed = 0;
+  const partialReasons = [];
 
   for (const rt of rankTypes) {
     // per-榜单隔离：移动端 SSR 失败后的 CDP 回退会直接抛（ab() 不吞错），
     // 一个榜单的瞬时失败不该掐掉 --type all 后面的榜单（与番茄/刺猬猫一致）
     try {
       const content = await scrapeRank(rt);
-      if (!content) continue;
+      if (!content) {
+        failed++;
+        const rtInfo = RANK_TYPES.find((r) => r.id === rt);
+        partialReasons.push(`${rtInfo ? rtInfo.label : rt}: no usable data`);
+        continue;
+      }
 
       const rtInfo = RANK_TYPES.find((r) => r.id === rt);
       const date = localDateStamp();
@@ -501,13 +508,22 @@ async function main() {
       written++;
       console.log(`  ✓ 已保存: ${filepath}`);
     } catch (rankErr) {
+      failed++;
       const rtInfo = RANK_TYPES.find((r) => r.id === rt);
+      const message = rankErr && rankErr.message ? rankErr.message : String(rankErr);
+      partialReasons.push(`${rtInfo ? rtInfo.label : rt}: ${message}`);
       console.error(
-        `[qidian] ${rtInfo ? rtInfo.label : rt} 采集失败，跳过: ${rankErr && rankErr.message ? rankErr.message : rankErr}`
+        `[qidian] ${rtInfo ? rtInfo.label : rt} 采集失败，跳过: ${message}`
       );
     }
   }
-  return written;
+  return {
+    planned: rankTypes.length,
+    written,
+    failed,
+    partial: failed > 0,
+    partialReasons,
+  };
 }
 
 if (require.main === module) {
