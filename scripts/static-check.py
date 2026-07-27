@@ -16,9 +16,14 @@ ATX_HEADING_RE = re.compile(r"^[ ]{0,3}#{1,6}[ \t]+(.*?)(?:[ \t]+#+[ \t]*)?$")
 OPEN_FENCE_RE = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})(.*)$")
 LINK_RE = re.compile(r"!?\[[^\]\n]*\]\(([^)\n]+)\)")
 INLINE_CODE_RE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
-# 还原正文里包裹路径的加粗/斜体：内容不含空白与 `*`，所以真正的通配符（`references/*.md 与
-# references/*.json`）不会被误配成一对强调符。
-EMPHASIS_PATH_RE = re.compile(r"\*{1,2}([^\s*]+)\*{1,2}")
+# 只还原“强调符完整包住一条 skill 内路径”的形态。开始/结束 marker 必须同宽，
+# 且两边不能粘着 ASCII 路径字符；这样 CJK 连写的 references/*.md与references/*.json
+# 不会把两个 glob 星号跨片段配成一对强调符。
+EMPHASIS_PATH_RE = re.compile(
+    r"(?<![A-Za-z0-9_./-])(?P<marker>\*{1,2})"
+    r"(?P<path>(?:[a-z0-9_-]+/)?(?:references|scripts|assets)/[^\s*]+)"
+    r"(?P=marker)(?![A-Za-z0-9_./-])"
+)
 SKILL_PATH_RE = re.compile(
     r"(?<![A-Za-z0-9_-])(?P<path>(?:[a-z0-9_-]+/)?(?:references|scripts|assets)/"
     r"[^\s`\"')\]><「（，。；：、]+)"
@@ -240,7 +245,7 @@ def parse_document(path: Path) -> Document:
         # 让它被误判成通配符并截断到父目录，从而跳过存在性校验。行内代码内不作强调还原——
         # 反引号里的 `*` 是字面通配符。
         prose_without_code = EMPHASIS_PATH_RE.sub(
-            r"\1", EXTERNAL_URL_RE.sub("", LINK_RE.sub("", INLINE_CODE_RE.sub("", line)))
+            r"\g<path>", EXTERNAL_URL_RE.sub("", LINK_RE.sub("", INLINE_CODE_RE.sub("", line)))
         )
         for match in SKILL_PATH_RE.finditer(prose_without_code):
             document.refs.extend(

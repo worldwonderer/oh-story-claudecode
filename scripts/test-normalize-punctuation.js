@@ -117,6 +117,24 @@ try {
   assert(markerNormalized.includes("<!-- 行内备注 -->"), "行内注释必须原样保留");
   assert(markerNormalized.includes("正文，继续。"), "注释外的正文仍要归一化");
 
+  // 未闭合注释不是“从这里到 EOF 都合法豁免”：必须具名报错，后续正文仍参与检查/归一化。
+  // 否则一个误写的 `<!--` 会让整篇的 `……` / `---` 在 --check 下静默 exit 0。
+  const unclosedComment = path.join(tmpDir, "unclosed-comment.md");
+  fs.writeFileSync(
+    unclosedComment,
+    "# 第13章\n<!-- 临时备注\n正文……继续。\n---\n",
+    "utf8"
+  );
+  const unclosedCheck = run(["--check", unclosedComment]);
+  assert.strictEqual(unclosedCheck.status, 1, unclosedCheck.stdout + unclosedCheck.stderr);
+  assert.match(unclosedCheck.stdout, /html-comment-unclosed/);
+  assert.match(unclosedCheck.stdout, /ellipsis|markdown-divider/);
+  assert.strictEqual(run([unclosedComment]).status, 0);
+  const unclosedNormalized = fs.readFileSync(unclosedComment, "utf8");
+  assert(unclosedNormalized.includes("<!-- 临时备注"), "未闭合注释起始符不应被改坏");
+  assert(unclosedNormalized.includes("正文，继续。"), "未闭合注释后的正文仍须归一化");
+  assert(!unclosedNormalized.includes("\n---\n"), "未闭合注释后的正文分隔线仍须移除");
+
   // 删空停顿符会把两侧的半角点/连字符粘成新的 `...`/`--`；一遍必须清干净，
   // 否则成稿留着本该删掉的 ASCII 省略号，事后重跑同一步又会改动已定稿的正文。
   const merge = path.join(tmpDir, "merge.md");

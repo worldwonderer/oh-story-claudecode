@@ -58,6 +58,18 @@ assert_denied "$out" "long prose without outline"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第001章_开端.md"}}')"
 assert_empty "$out" "long prose with outline"
 
+# 新书还没有大纲/追踪/设定脚手架时也必须 fail closed；相对目标按 hook cwd 解析，
+# 不能为了掩盖错误的项目根拼接而把核心守卫削成 fail open。
+mkdir -p "$ROOT/bare/正文" "$ROOT/cwd-book/正文" "$ROOT/cwd-book/大纲"
+out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"bare/正文/第1章_首章.md"}}')"
+assert_denied "$out" "bare long project without scaffolding"
+out="$(run_hook pre-tool-prose-guard "{\"cwd\":\"$ROOT/cwd-book\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"正文/第8章_相对.md\"}}")"
+assert_denied "$out" "relative prose target from hook cwd"
+printf '%s' "$out" | grep -q 'cwd-book/大纲' || fail "relative target was not resolved from hook cwd: $out"
+: > "$ROOT/cwd-book/大纲/细纲_第8章.md"
+out="$(run_hook pre-tool-prose-guard "{\"cwd\":\"$ROOT/cwd-book\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"正文/第8章_相对.md\"}}")"
+assert_empty "$out" "relative prose target with cwd-local outline"
+
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"ApplyPatch","tool_input":{"patch":"*** Begin Patch\n*** Add File: book/正文/第002章_新局.md\n+正文\n*** End Patch"}}')"
 assert_denied "$out" "ApplyPatch prose without outline"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Bash","tool_input":{"command":"echo x | tee book/正文/第003章_命令.md"}}')"

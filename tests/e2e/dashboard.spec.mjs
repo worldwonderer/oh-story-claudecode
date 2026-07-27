@@ -258,6 +258,68 @@ test("CRLF 稿件不会被一次改动重写换行，脏标记也能清干净", 
   expect(saved.size).toBe(Buffer.byteLength(crlfContent) + Buffer.byteLength("改"));
 });
 
+test("LF 稿件里的孤立 CR 不会把整篇保存成 CR-only", async ({ page, request }) => {
+  const filePath = "长篇/让你管账号，你高燃混剪炸全网/设定/文风.md";
+  const loaded = await request
+    .get(`/api/file?path=${encodeURIComponent(filePath)}`)
+    .then((response) => response.json());
+  const mixedContent = "# 文风\n第一行。\n第二行前\r第二行后。\n第三行。\n";
+  const converted = await request.put("/api/file", {
+    data: { path: filePath, content: mixedContent, expectedMtimeMs: loaded.mtimeMs },
+  });
+  expect(converted.ok()).toBeTruthy();
+
+  await page.goto("/");
+  await page.getByRole("tab", { name: /写作项目/ }).click();
+  await page.locator("#treeSearch").fill("文风");
+  await page.locator(`.file-row[data-path='${filePath}']`).click();
+  await expect(page.locator("#editorTitle")).toHaveText("文风.md");
+
+  await page.locator("#editorInput").press("End");
+  await page.locator("#editorInput").pressSequentially("改");
+  await page.locator("#saveButton").click();
+  await expect(page.locator("#dirtyStatus")).toContainText("已保存");
+
+  const saved = await request
+    .get(`/api/file?path=${encodeURIComponent(filePath)}`)
+    .then((response) => response.json());
+  expect(saved.content).toContain("\n");
+  expect(saved.content).not.toContain("\r");
+  expect(saved.content.split("\n")).toHaveLength(6);
+});
+
+test("CRLF 稿件里的孤立 CR 不会反向触发整篇 LF 重写", async ({ page, request }) => {
+  const filePath = "长篇/让你管账号，你高燃混剪炸全网/设定/文风.md";
+  const loaded = await request
+    .get(`/api/file?path=${encodeURIComponent(filePath)}`)
+    .then((response) => response.json());
+  const converted = await request.put("/api/file", {
+    data: {
+      path: filePath,
+      content: "# 文风\r\n第一行。\r\n第二行前\r第二行后。\r\n第三行。",
+      expectedMtimeMs: loaded.mtimeMs,
+    },
+  });
+  expect(converted.ok()).toBeTruthy();
+
+  await page.goto("/");
+  await page.getByRole("tab", { name: /写作项目/ }).click();
+  await page.locator("#treeSearch").fill("文风");
+  await page.locator(`.file-row[data-path='${filePath}']`).click();
+  const editor = page.locator("#editorInput");
+  await editor.press("End");
+  await editor.pressSequentially("\n改");
+  await page.locator("#saveButton").click();
+  await expect(page.locator("#dirtyStatus")).toContainText("已保存");
+
+  const saved = await request
+    .get(`/api/file?path=${encodeURIComponent(filePath)}`)
+    .then((response) => response.json());
+  expect(saved.content).toContain("\r\n");
+  expect(saved.content.replaceAll("\r\n", "")).not.toContain("\r");
+  expect(saved.content.split("\r\n")).toHaveLength(6);
+});
+
 test("打开文稿不会收起正在翻的目录", async ({ page }) => {
   const rowPath = "长篇/让你管账号，你高燃混剪炸全网/大纲/细纲_第002章.md";
   await page.goto("/");

@@ -40,6 +40,7 @@
 const { execSync, spawn } = require("child_process");
 const fs = require("fs");
 const http = require("http");
+const net = require("net");
 const os = require("os");
 const path = require("path");
 const readline = require("readline");
@@ -243,6 +244,24 @@ async function probeCDP(port) {
   }
 }
 
+/** 原始 TCP 探测：HTTP 500/畸形 JSON 仍表示端口被占用，不能据此解锁 profile 破坏操作。 */
+function probeTcp(port, timeoutMs = 1000) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: "127.0.0.1", port });
+    let settled = false;
+    const done = (listening) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(listening);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => done(true));
+    socket.once("error", () => done(false));
+    socket.once("timeout", () => done(false));
+  });
+}
+
 /**
  * 从 /json/version 响应里取一个能区分「实例」的标识。
  * Chrome 每次启动都会换一个新的 browser GUID（webSocketDebuggerUrl 尾段），最适合做这件事。
@@ -258,15 +277,14 @@ function cdpIdentity(version) {
 }
 
 /**
- * 等 CDP 端口真的不再应答；true = 端口已空出来，false = 超时后仍有人应答。
- * 要连续 needQuiet 次都探不到才算空——单次探测失败（瞬时重置、连接被丢）不足以解锁后面
- * 那些破坏性操作（删 profile、启新进程）。端口真的关了的话连接是立刻被拒的，代价很小。
+ * 等 TCP 端口真的不再监听；true = 端口已空出来，false = 超时后仍有人监听。
+ * 不能用 probeCDP：HTTP 500/畸形响应只说明“不是健康 CDP”，不说明“端口空闲”。
  */
 async function waitForPortFree(port, maxMs = 8000, stepMs = 500, needQuiet = 2) {
   const start = Date.now();
   let quiet = 0;
   for (;;) {
-    if (await probeCDP(port)) {
+    if (await probeTcp(port)) {
       quiet = 0;
     } else if (++quiet >= needQuiet) {
       return true;
@@ -318,29 +336,46 @@ function queryStdout(cmd) {
  * 工具缺失或看不见，一律返回 null 表示「无从判断」，绝不能被当成「没人占用」而放行。
  */
 function listPortListenerPids(port) {
-  const cmds =
+  const queries =
     PLATFORM === "win32"
-      ? ["netstat -ano -p tcp"]
+      ? [
+          {
+            kind: "pid",
+            cmd: `powershell -NoProfile -NonInteractive -Command "Get-NetTCPConnection -State Listen -LocalPort ${port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess"`,
+          },
+          {
+            kind: "pid",
+            cmd: `pwsh -NoProfile -NonInteractive -Command "Get-NetTCPConnection -State Listen -LocalPort ${port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess"`,
+          },
+          { kind: "netstat", cmd: "netstat -ano -p tcp" },
+        ]
       : [
-          `lsof -nP -iTCP:${port} -sTCP:LISTEN -t`,
+          { kind: "pid", cmd: `lsof -nP -iTCP:${port} -sTCP:LISTEN -t` },
           // Linux 上 lsof 经常不预装，用 ss / fuser 兜底
-          `ss -H -ltnp "sport = :${port}"`,
-          `fuser -n tcp ${port}`,
+          { kind: "ss", cmd: `ss -H -ltnp "sport = :${port}"` },
+          { kind: "pid", cmd: `fuser -n tcp ${port}` },
         ];
-  for (const cmd of cmds) {
+  for (const { kind, cmd } of queries) {
     const out = queryStdout(cmd);
     if (out === null) continue;
     const pids = new Set();
-    if (PLATFORM === "win32") {
-      const re = new RegExp(`:${port}\\s+\\S+\\s+LISTENING\\s+(\\d+)`, "i");
+    if (kind === "netstat") {
+      // 不读取本地化的状态文字。监听行的稳定形状是 TCP + 本地目标端口 +
+      // foreign port 0 + 最后一列 Owning PID；已建立连接的 foreign port 非 0。
       for (const line of out.split("\n")) {
-        const m = line.match(re);
-        if (m) pids.add(Number(m[1]));
+        const fields = line.trim().split(/\s+/);
+        if (fields.length < 5 || fields[0].toUpperCase() !== "TCP") continue;
+        const localPort = Number((fields[1].match(/:(\d+)$/) || [])[1]);
+        const foreignPort = Number((fields[2].match(/:(\d+)$/) || [])[1]);
+        const pid = Number(fields[fields.length - 1]);
+        if (localPort === port && foreignPort === 0 && Number.isInteger(pid) && pid > 0) {
+          pids.add(pid);
+        }
       }
-    } else if (cmd.startsWith("ss ")) {
+    } else if (kind === "ss") {
       for (const m of out.matchAll(/pid=(\d+)/g)) pids.add(Number(m[1]));
     } else {
-      // lsof -t / fuser：一堆纯数字 pid
+      // PowerShell OwningProcess / lsof -t / fuser：一堆纯数字 pid
       for (const tok of out.split(/\s+/)) {
         const n = Number(tok);
         if (Number.isInteger(n) && n > 0) pids.add(n);
@@ -431,6 +466,11 @@ function isInProcessTree(pid, rootPid, parents) {
   return false;
 }
 
+function commandLineHasArgument(commandLine, argument) {
+  const escaped = argument.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[\\s"'])${escaped}(?=$|[\\s"'])`).test(commandLine);
+}
+
 /**
  * 证明端口上应答的那个端点确实归本次 spawn 出来的进程所有。两件事都要成立：
  *   ① 端口上所有 LISTEN 持有者都在 rootPid 这棵进程树里——Chrome 会另起 browser 进程，
@@ -480,7 +520,7 @@ function verifyPortOwnedByLaunch(port, rootPid) {
     const cmdline = processCommandLine(pid);
     if (cmdline === null) continue;
     sawCommandLine = true;
-    if (cmdline.includes(marker)) return { ok: true, pids: listeners, pid };
+    if (commandLineHasArgument(cmdline, marker)) return { ok: true, pids: listeners, pid };
   }
   if (!sawCommandLine) return unverifiable("读不到持有者的命令行");
   return fail("CDP_OWNER_NOT_LAUNCHED_INSTANCE", [
@@ -499,6 +539,57 @@ function isChildAlive(child) {
     return true;
   } catch {
     return false;
+  }
+}
+
+function isPidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 只清理由本次 spawn 拉起的进程树；绝不调用全局 killChrome 连坐用户的其他窗口。 */
+function terminateLaunchTree(rootPid) {
+  if (!Number.isInteger(rootPid) || rootPid <= 0) return;
+  if (PLATFORM === "win32") {
+    try {
+      execSync(`taskkill /F /T /PID ${rootPid}`, { stdio: "ignore" });
+    } catch {}
+    return;
+  }
+
+  const parents = listProcessParents();
+  const tree = [];
+  if (parents) {
+    for (const pid of parents.keys()) {
+      if (pid !== process.pid && isInProcessTree(pid, rootPid, parents)) tree.push(pid);
+    }
+  }
+  if (!tree.includes(rootPid)) tree.push(rootPid);
+
+  // 子孙先停、launcher 最后停，避免 detached listener 在父进程先死后被 reparent 而丢失归属。
+  const depth = (pid) => {
+    let current = pid;
+    for (let hops = 0; hops < 64; hops++) {
+      if (current === rootPid) return hops;
+      const next = parents?.get(current);
+      if (!next || next === current) return -1;
+      current = next;
+    }
+    return -1;
+  };
+  tree.sort((left, right) => depth(right) - depth(left));
+  for (const pid of tree) {
+    try { process.kill(pid, "SIGTERM"); } catch {}
+  }
+  sleepSync(200);
+  for (const pid of tree) {
+    if (!isPidAlive(pid)) continue;
+    try { process.kill(pid, "SIGKILL"); } catch {}
   }
 }
 
@@ -664,10 +755,13 @@ async function main() {
 
   if (ARGS.flags.dryRun) {
     const cdpAlive = !!(await probeCDP(CDP_PORT));
+    const tcpOccupied = await probeTcp(CDP_PORT);
     // --reset / 显式 --profile 会跳过复用（见下方第 3 步），dry-run 必须照实说
     const willReuse = cdpAlive && !ARGS.flags.reset && !ARGS.profileExplicit;
-    const cdpNote = !cdpAlive
+    const cdpNote = !tcpOccupied
       ? "未监听"
+      : !cdpAlive
+        ? "有 TCP 监听，但不是健康 CDP（实际运行会在动 profile 前硬失败）"
       : willReuse
         ? "已就绪（实际运行时会直接复用）"
         : "已就绪（但传了 --reset/--profile，实际运行会重建，不复用）";
@@ -689,9 +783,7 @@ async function main() {
     } else {
       step("无 Chrome 进程，无需杀死");
     }
-    if (cdpAlive) {
-      step(`确认端口 ${CDP_PORT} 上的旧实例已不再应答（仍在应答则中止：不删 profile、不启动）`);
-    }
+    step(`用 TCP 确认端口 ${CDP_PORT} 已释放（任何监听仍在都中止：不删 profile、不启动）`);
     if (ARGS.flags.reset) step(`删除 ${debugProfile}`);
     if (hasProfile) {
       step(`复制 profile: ${defaultProfile} -> ${debugProfile}/Default`);
@@ -713,6 +805,7 @@ async function main() {
   //    让用户跑 --reset，而那时 CDP 恰恰是活着的（过期是从这个会话里发现的）。若照旧复用，
   //    这两个参数会被静默丢掉，还以 exit 0 报"成功"。因此这两种情况不复用，继续往下重建。
   const existing = await probeCDP(CDP_PORT);
+  const portWasListening = await probeTcp(CDP_PORT);
   if (existing) {
     if (!ARGS.flags.reset && !ARGS.profileExplicit) {
       ok("CDP 已就绪，复用现有 Chrome。");
@@ -750,7 +843,9 @@ async function main() {
     }
     const remain = config.listChromePids();
     if (remain.length > 0) {
-      warn(`仍有 ${remain.length} 个 Chrome 进程未退出，继续尝试启动（可能失败）`);
+      err(`仍有 ${remain.length} 个 Chrome 进程未退出，已中止。`);
+      err("未删除、未改动 debug profile，也未启动新 Chrome——状态保持原样。");
+      process.exit(1);
     } else {
       ok("Chrome 已退出。");
     }
@@ -761,27 +856,30 @@ async function main() {
   //      先删掉一个正在运行的 Chrome 的 profile（本身就是破坏性的），新进程又因端口被占起不来，
   //      而第 10 步的 probeCDP 恰好被旧端点答上，于是 exit 0 报「重建成功」——调用方以为拿到了
   //      新浏览器，之后每一次采集读的都是旧会话/别人的会话。这里只能硬失败。
-  //      仅在重建前确实探到过 CDP 时才等（existing 为空时端口本来就没人应答，不给复用路径加开销）。
-  if (existing) {
-    // 杀过进程才值得给宽限期（Chrome 退出到端口真正释放有延迟）；一个 Chrome 进程都没找到时
-    // 没人被要求退出，端口不会自己空出来，确认几次还在应答就直接报错，不干等。
-    const graceMs = runningPids.length > 0 ? 8000 : 1000;
-    if (!(await waitForPortFree(CDP_PORT, graceMs))) {
-      const remain = config.listChromePids();
-      err(`CDP 端口 ${CDP_PORT} 上的旧实例仍在应答，已中止。`);
-      if (remain.length > 0) {
-        err(`原因：${remain.length} 个 Chrome 进程没能退出（kill 无效，可能权限不足或进程卡死）。`);
-      } else if (runningPids.length === 0) {
-        err("原因：端口被无法识别的进程占用——没找到任何 Chrome 进程，脚本无从关闭它。");
-      } else {
-        err("原因：Chrome 进程已退出，但端口仍被占用（另有进程守着这个端口）。");
-      }
-      const holder = describePortHolder(CDP_PORT);
-      if (holder) err(`占用者：${holder}`);
-      err("未删除、未改动 debug profile，也未启动新 Chrome——状态保持原样。");
-      err(`处理办法：手动结束占用 ${CDP_PORT} 的进程后重跑，或换一个端口（node setup-cdp-chrome.js <其他端口> ...）。`);
-      process.exit(1);
+  //      无论 /json/version 是否健康都执行：HTTP 500 也可能正占着端口。
+  // 杀过进程才值得给宽限期；没有已识别 Chrome 时，占用者不会自己退出，快速确认后失败。
+  const graceMs = runningPids.length > 0 ? 8000 : 1000;
+  if (!(await waitForPortFree(CDP_PORT, graceMs))) {
+    const remain = config.listChromePids();
+    err(
+      existing
+        ? `CDP 端口 ${CDP_PORT} 上的旧实例仍在应答，已中止。`
+        : `CDP 端口 ${CDP_PORT} 仍被占用、未释放，已中止。`
+    );
+    if (remain.length > 0) {
+      err(`原因：${remain.length} 个 Chrome 进程没能退出（kill 无效，可能权限不足或进程卡死）。`);
+    } else if (runningPids.length === 0) {
+      err("原因：端口被无法识别的进程占用——没找到任何 Chrome 进程，脚本无从关闭它。");
+    } else {
+      err("原因：Chrome 进程已退出，但另有进程仍守着这个端口。");
     }
+    const holder = describePortHolder(CDP_PORT);
+    if (holder) err(`占用者：${holder}`);
+    err("未删除、未改动 debug profile，也未启动新 Chrome——状态保持原样。");
+    err(`处理办法：手动结束占用 ${CDP_PORT} 的进程后重跑，或换一个端口（node setup-cdp-chrome.js <其他端口> ...）。`);
+    process.exit(1);
+  }
+  if (portWasListening) {
     ok(`CDP 端口 ${CDP_PORT} 已释放。`);
   }
 
@@ -829,9 +927,7 @@ async function main() {
   function abortAfterLaunch(reasons) {
     for (const line of reasons) err(line);
     err("正在清理刚启动的 Chrome 进程...");
-    if (childPid) {
-      try { process.kill(childPid); } catch {}
-    }
+    terminateLaunchTree(childPid);
     process.exit(1);
   }
 
@@ -892,10 +988,7 @@ async function main() {
   // 11) 失败清理：杀死刚才启动的孤儿 Chrome
   err("30 秒内未能启动 Chrome CDP 环境。");
   err("正在清理刚启动的 Chrome 进程...");
-  if (childPid) {
-    try { process.kill(childPid); } catch {}
-  }
-  config.killChrome();
+  terminateLaunchTree(childPid);
   err("可能原因：");
   err("  - Chrome 不支持 --remote-debugging-port");
   err(`  - 端口 ${CDP_PORT} 已被其他进程占用`);

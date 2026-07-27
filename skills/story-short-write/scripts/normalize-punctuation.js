@@ -103,12 +103,30 @@ function normalizeDocument(input, quoteMode) {
   let inFrontMatter = hasYamlFrontMatter(lines);
   let quoteOpen = false;
   let commentOpen = false;
+  let commentStart = null;
+  const commentCloseAhead = new Array(lines.length + 1).fill(false);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    commentCloseAhead[index] = lines[index].includes('-->') || commentCloseAhead[index + 1];
+  }
 
   for (let index = 0; index < lines.length; index += 1) {
     const lineNo = index + 1;
     const ending = endings[index];
     let line = lines[index];
     const trimmed = line.trim();
+
+    // 未闭合的 `<!--` 不能把余下整篇伪装成注释。确认 EOF 前已无 `-->` 时，
+    // 在起始位置具名报错，并从当前行恢复正文扫描；起始符所在行仍原样保护。
+    if (commentOpen && !commentCloseAhead[index]) {
+      findings.push({
+        line: commentStart?.line || lineNo,
+        column: commentStart?.column || 1,
+        type: 'html-comment-unclosed',
+        message: 'HTML 注释未闭合；后续内容仍按正文检查。',
+      });
+      commentOpen = false;
+      commentStart = null;
+    }
 
     if (inFrontMatter) {
       outputLines.push(line + ending);
@@ -140,10 +158,16 @@ function normalizeDocument(input, quoteMode) {
       continue;
     }
 
+    const commentOpenBefore = commentOpen;
     const punctuationResult = normalizePausePunctuation(line, lineNo, commentOpen);
     findings.push(...punctuationResult.findings);
     line = punctuationResult.line;
     commentOpen = punctuationResult.commentOpen;
+    if (!commentOpenBefore && commentOpen) {
+      commentStart = { line: lineNo, column: Math.max(1, line.lastIndexOf('<!--') + 1) };
+    } else if (!commentOpen) {
+      commentStart = null;
+    }
 
     const quoteResult = normalizeQuotes(line, quoteMode, quoteOpen, lineNo);
     findings.push(...quoteResult.findings);
@@ -151,6 +175,15 @@ function normalizeDocument(input, quoteMode) {
     quoteOpen = quoteResult.quoteOpen;
 
     outputLines.push(line + ending);
+  }
+
+  if (commentOpen) {
+    findings.push({
+      line: commentStart?.line || lines.length,
+      column: commentStart?.column || 1,
+      type: 'html-comment-unclosed',
+      message: 'HTML 注释未闭合；后续内容仍按正文检查。',
+    });
   }
 
   return {

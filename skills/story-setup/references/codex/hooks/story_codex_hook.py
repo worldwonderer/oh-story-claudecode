@@ -488,10 +488,10 @@ def session_start() -> None:
         emit(hook_context("SessionStart", "\n".join(messages)))
 
 
-def resolve_target(root: Path, target: str) -> Path:
+def resolve_target(root: Path, target: str, base: Path | None = None) -> Path:
     normalized = target.replace("\\", "/")
     p = Path(normalized)
-    return p if p.is_absolute() else (root / p).resolve()
+    return p if p.is_absolute() else ((base or root) / p).resolve()
 
 
 def _shell_words(segment: str) -> list[str]:
@@ -596,6 +596,13 @@ def extract_apply_patch_targets(command: str) -> list[str]:
 
 def target_paths_from_hook(obj: dict[str, Any]) -> list[Path]:
     root = project_root()
+    base = root
+    if HOOK_CWD and HOOK_CWD.is_dir():
+        try:
+            HOOK_CWD.relative_to(root)
+            base = HOOK_CWD
+        except ValueError:
+            pass
     tool_name = str(obj.get("tool_name") or "")
     tool_input = obj.get("tool_input") if isinstance(obj.get("tool_input"), dict) else {}
     assert isinstance(tool_input, dict)
@@ -611,7 +618,7 @@ def target_paths_from_hook(obj: dict[str, Any]) -> list[Path]:
         else:
             raw_targets.extend(extract_apply_patch_targets(command))
             raw_targets.extend(extract_prose_targets_from_command(command))
-    return [resolve_target(root, t) for t in raw_targets if t]
+    return [resolve_target(root, t, base) for t in raw_targets if t]
 
 
 def prose_block_reason(root: Path, abs_path: Path) -> str | None:
@@ -640,12 +647,8 @@ def prose_block_reason(root: Path, abs_path: Path) -> str | None:
         return None
     num = m.group(1)
     book_dir = abs_path.parent.parent
-    # over-capture 门（与 _is_prose_path / check-prose-after-write.sh 同判据）：{书}/正文/第N章.md 的
-    # {书} 必须看得出是书（大纲/追踪/设定 目录或 设定.md）。Bash/apply_patch 的相对目标按项目根拼
-    # （resolve_target），会话 cwd 在书目录里时会拼出 <root>/正文/第N章.md 这种不属于任何书的路径；
-    # 没这道门就拿 <root>/大纲 判缺细纲误伤，还把作者指向一个不在任何书里的细纲路径（宁可漏拦不可误伤）。
-    if not ((book_dir / "大纲").is_dir() or (book_dir / "追踪").is_dir() or (book_dir / "设定").is_dir() or (book_dir / "设定.md").exists()):
-        return None
+    # 新书可能在任何大纲/追踪/设定脚手架存在前就首建正文；核心守卫必须 fail closed。
+    # 相对路径由 HOOK_CWD 解析，不能靠削弱这条 canonical guard 来掩盖 cwd 语义。
     if (root / "拆文库" / book_dir.name).exists():
         return None
     outline_dir = book_dir / "大纲"

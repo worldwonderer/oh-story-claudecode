@@ -15,21 +15,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# 只读 agent 的 bash 白名单：**完整命令字面量**，绝不能写成 `git rev-parse *` 这类前缀 glob。
-# 上游 opencode v1.18.5 packages/opencode/src/tool/shell.ts 的 source()：
-#     (node.parent?.type === "redirected_statement" ? node.parent.text : node.text).trim()
-# 命令一旦带重定向，送去鉴权的 pattern 就是**整条 redirected_statement**（含 `> 路径`）；
-# 而 packages/opencode/src/util/wildcard.ts 的 match() 会把结尾的 ` *` 编译成 `( .*)?`。
-# 两者叠加，前缀 glob 会连
-#     git rev-parse --show-toplevel > book/正文/第001章.md
-# 一起放行——声明了 edit: deny 的只读 agent 就能用重定向截断并覆写作者的正文。
-# 只放完整命令字面量后，重定向 / 追加 / stderr 重定向 / 管道 / 串联变体全部落回兜底 `*: deny`。
-BASH_ALLOWLIST = ("git rev-parse --show-toplevel",)
-
-
 # agent 正文里表达 shell 步骤的唯一写法：「执行 `<命令>`」（模板全仓库仅此一种）。
-# 用它把「正文要求执行什么」抽成显式清单，而不是反过来拿白名单去正文里碰运气搜——
-# 后者对白名单外的新命令是瞎的，会静默生成一个 bash: deny、跑到一半才失败的 agent。
+# 只读 agent 若出现这种指令，生成直接失败：OpenCode shell.ts 只检查 command 的直接父节点，
+# 即使“完整命令字面量”白名单也会被 `( command ) > 正文.md` 的 subshell 外层重定向绕过。
 BODY_COMMAND_RE = re.compile(r"执行 `([^`]+)`")
 
 
@@ -38,7 +26,7 @@ def body_bash_commands(body: str) -> list[str]:
 
     刻意不用「agent 名字硬编码集合」——那正是早前审计在 generate-codex-agents.py 里点名的
     反模式：名单与正文各自漂移，新加了指令的 agent 拿不到权限、删了指令的 agent 白留着权限。
-    这里以正文为唯一事实来源；抽出来的命令再由 assert_bash_permission() 逐条核对是否真放行。
+    这里以正文为唯一事实来源；只读 agent 抽到任何命令都会在转换阶段中断。
     """
     commands: list[str] = []
     for match in BODY_COMMAND_RE.finditer(body):
@@ -46,108 +34,6 @@ def body_bash_commands(body: str) -> list[str]:
         if command and command not in commands:
             commands.append(command)
     return commands
-
-
-def _wildcard_match(value: str, pattern: str) -> bool:
-    """复刻上游 util/wildcard.ts 的 match()。
-
-    步骤顺序与上游一致：先转义正则元字符（`*`/`?` 不在转义集里），再 `*`→`.*`、`?`→`.`，
-    最后把结尾的 ` .*` 改写成 `( .*)?`（上游注释：让 "ls *" 同时匹配 "ls"）。
-    正是最后这一步让前缀 glob 吃下带重定向的整条语句，所以复刻时一步都不能省。
-    """
-    value = value.replace("\\", "/")
-    pattern = pattern.replace("\\", "/")
-    escaped = re.sub(r"[.+^${}()|\[\]\\]", r"\\\g<0>", pattern)
-    escaped = escaped.replace("*", ".*").replace("?", ".")
-    if escaped.endswith(" .*"):
-        escaped = escaped[:-3] + "( .*)?"
-    return re.match("^" + escaped + "$", value, flags=re.DOTALL) is not None
-
-
-def bash_ruleset(bash) -> list[tuple[str, str]]:
-    """复刻上游 permission/index.ts 的 fromConfig()：标量→单条 `*` 规则；映射→按书写顺序展开。"""
-    if bash is None:
-        return []
-    if isinstance(bash, str):
-        return [("*", bash)]
-    return list(bash.items())
-
-
-def evaluate_bash(rules: list[tuple[str, str]], pattern: str) -> str:
-    """复刻上游 evaluate()：`rulesets.flat().findLast(...)`，**最后一条命中的规则生效**。
-
-    一条都不命中时上游返回 `{action: "ask"}`——既不是 allow 也不是 deny，会弹权限询问。
-    """
-    action = "ask"
-    for rule_pattern, rule_action in rules:
-        if _wildcard_match(pattern, rule_pattern):
-            action = rule_action
-    return action
-
-
-def resolve_shell(rules: list[tuple[str, str]], patterns: list[str]) -> str:
-    """复刻上游 Permission.ask()：任一 pattern 判 deny 即整条命令拒绝，全 allow 才放行。"""
-    verdict = "allow"
-    for pattern in patterns:
-        action = evaluate_bash(rules, pattern)
-        if action == "deny":
-            return "deny"
-        if action != "allow":
-            verdict = "ask"
-    return verdict
-
-
-def escape_variants(command: str) -> list[tuple[str, list[str]]]:
-    """白名单命令的越权变体 →（展示用命令, 上游 collect() 会产生的 pattern 列表）。
-
-    上游对每个 tree-sitter `command` 节点各产生一个 pattern；带重定向的节点取整条
-    redirected_statement 的文本。这里按同一口径建模，前三条正是 review 点名的 `>`/`>>`/`2>`。
-    """
-    target = "book/正文/第001章.md"
-    return [
-        (f"{command} > {target}", [f"{command} > {target}"]),
-        (f"{command} >> {target}", [f"{command} >> {target}"]),
-        (f"{command} 2> {target}", [f"{command} 2> {target}"]),
-        (f"{command} | tee {target}", [command, f"tee {target}"]),
-        (f"{command} && cat > {target}", [command, f"cat > {target}"]),
-        (f"{command}; rm -rf /", [command, "rm -rf /"]),
-    ]
-
-
-def assert_bash_permission(name: str, bash, mentioned: list[str], restricted: bool) -> None:
-    """生成期自检：正文要求的每条命令都必须真放行，且放行不得被重定向变体撬开。
-
-    `mentioned` 是正文里出现的**全部**命令，不是白名单过滤后的子集——正文新增了一条需要
-    shell 的指令而 BASH_ALLOWLIST 没收录时，它会在这里判成 deny 并指名道姓地打断生成，
-    而不是静默产出一个跑不动的 agent。
-    """
-    rules = bash_ruleset(bash)
-    for command in mentioned:
-        action = evaluate_bash(rules, command)
-        # bash 未声明时上游判 ask（rules 为空），那是权限询问而非拒绝，不算漏授权。
-        if action == "deny" or (rules and action != "allow"):
-            raise ValueError(
-                f"{name}: 正文要求执行 `{command}`，但生成的 bash 权限把它判成 {action}；"
-                f"确认该命令确实只读之后，把**完整命令字面量**加进 BASH_ALLOWLIST"
-                f"（严禁加前缀 glob）。当前白名单：{list(BASH_ALLOWLIST)}，当前规则：{rules}"
-            )
-    if not restricted:
-        return
-    for command in mentioned:
-        for shown, patterns in escape_variants(command):
-            action = resolve_shell(rules, patterns)
-            if action != "deny":
-                raise ValueError(
-                    f"{name}: 只读 agent 的 bash 白名单被撬开——`{shown}` 判成 {action}，应为 deny。"
-                    f"白名单只能放完整命令字面量，不能用前缀 glob（当前规则：{rules}）"
-                )
-    for command in ("rm -rf /", "git push", "git rev-parse HEAD", "cat > 第1章.md"):
-        action = resolve_shell(rules, [command])
-        if action != "deny":
-            raise ValueError(
-                f"{name}: 只读 agent 必须拒绝任意 bash，但 `{command}` 判成 {action}"
-                f"（当前规则：{rules}）"
-            )
 
 
 def parse_frontmatter(content: str) -> tuple[dict, str]:
@@ -235,37 +121,22 @@ def convert_claude_to_opencode(fm: dict, body: str) -> dict:
     elif has_write:
         perm["edit"] = "allow"
 
-    # bash 同样走 "disallowedTools 优先"：OpenCode 里未声明 bash 权限时 evaluate() 返回
-    # `ask`（既非 allow 也非 deny），只落 edit: deny 的只读 agent 一路确认下去仍能用 shell
-    # 重定向写文件。Codex 侧同源 agent 用的是 sandbox_mode = "read-only"（只读的是文件系统，
-    # 不是「禁止一切命令」），所以这里用 OpenCode 的命令 glob 形式：只放行该 agent 正文里
-    # 确实要求执行的只读命令，其余一律 deny。
-    #
-    # 授权粒度是**完整命令字面量**（见 BASH_ALLOWLIST 处的上游机制说明）：前缀 glob
-    # `git rev-parse *` 会连 `git rev-parse --show-toplevel > 正文.md` 一起放行。
-    #
-    # 键顺序是语义的一部分，不是排版：OpenCode 的 permission/index.ts evaluate() 用
-    # `rulesets.flat().findLast(...)` 取最后一条命中的规则，即**后写的规则覆盖先写的**。
-    # 所以必须「宽 deny 在前、窄 allow 在后」；写成 {"git rev-parse --show-toplevel": allow,
-    # "*": deny} 会让兜底的 `*: deny` 反过来盖掉那条 allow，把正文明确要求的命令一起打死。
-    # Python dict 保序 + format_frontmatter 按 dict 顺序输出（不排序），顺序原样落进 frontmatter。
+    # bash 同样走 "disallowedTools 优先"。OpenCode 未声明 bash 权限时默认为 ask；只读 agent
+    # 必须写成标量 deny，让上游 disabled() 直接摘掉 bash 工具。不要加“只读命令”白名单：
+    # shell.ts 只鉴权 command 的直接父节点，`( allowlisted-command ) > 正文.md` 会把外层重定向
+    # 藏在 subshell 外，字面量白名单也守不住文件系统边界。
     mentioned_bash = body_bash_commands(body)
-    granted_bash = [command for command in mentioned_bash if command in BASH_ALLOWLIST]
     restricted_bash = "Bash" in disallowed
     if restricted_bash:
-        if granted_bash:
-            bash_rules = {"*": "deny"}
-            for command in granted_bash:
-                bash_rules[command] = "allow"
-            perm["bash"] = bash_rules
-        else:
-            # 正文里没有任何需要 shell 的步骤 → 一条都不放。标量 deny 还额外触发上游
-            # permission/index.ts 的 disabled()（findLast 命中的规则 pattern === "*" 且
-            # action === "deny"），把 bash 工具整个从该 agent 的工具表里摘掉。
-            perm["bash"] = "deny"
+        if mentioned_bash:
+            raise ValueError(
+                f"{name or '<unnamed>'}: 只读 agent 禁止 Bash，但正文要求执行 "
+                + "、".join(f"`{command}`" for command in mentioned_bash)
+                + "；改写正文以使用宿主已提供的工作区和 Read/Glob/Grep，不得开放 shell 例外。"
+            )
+        perm["bash"] = "deny"
     elif "Bash" in tools:
         perm["bash"] = "allow"
-    assert_bash_permission(str(name) or "<unnamed>", perm.get("bash"), mentioned_bash, restricted_bash)
     if perm:
         result["permission"] = perm
 

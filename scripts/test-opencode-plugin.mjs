@@ -58,6 +58,43 @@ try {
     { args: { filePath: "book/正文/第001章_开局.md" } }
   );
 
+  fs.mkdirSync("bare/正文", { recursive: true });
+  await expectBlocked(
+    () =>
+      hooks["tool.execute.before"](
+        { tool: "write" },
+        { args: { filePath: "bare/正文/第1章_首章.md" } }
+      ),
+    "bare long project without scaffolding must fail closed"
+  );
+
+  fs.mkdirSync("cwd-book/正文", { recursive: true });
+  fs.mkdirSync("cwd-book/大纲", { recursive: true });
+  await assert.rejects(
+    () =>
+      hooks["tool.execute.before"](
+        { tool: "bash" },
+        {
+          args: {
+            command: "cat draft.md > 正文/第8章_相对.md",
+            workdir: path.join(tmp, "cwd-book"),
+          },
+        }
+      ),
+    /cwd-book\/大纲/,
+    "relative Bash target must resolve from the tool workdir"
+  );
+  fs.writeFileSync("cwd-book/大纲/细纲_第8章.md", "# 细纲\n", "utf8");
+  await hooks["tool.execute.before"](
+    { tool: "bash" },
+    {
+      args: {
+        command: "cat draft.md > 正文/第8章_相对.md",
+        workdir: path.join(tmp, "cwd-book"),
+      },
+    }
+  );
+
   fs.writeFileSync("book/正文/第002章_续写.md", "已有正文。\n", "utf8");
   await hooks["tool.execute.before"](
     { tool: "edit" },

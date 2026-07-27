@@ -589,13 +589,14 @@ function arg(name, def) {
 const id = arg("--id", "fake-cdp");
 const portfile = arg("--portfile", null);
 const stopfile = arg("--stopfile", null);
+const status = Number(arg("--status", 200));
 // --no-identity：照答 /json/version，但不给 webSocketDebuggerUrl，模拟「身份取不到」
 const noIdentity = process.argv.indexOf("--no-identity") > -1;
 let port = Number(arg("--port", arg("--remote-debugging-port", 0)));
 if (!Number.isInteger(port) || port < 0) port = 0;
 const server = http.createServer((req, res) => {
   if (req.url !== "/json/version") { res.writeHead(404); res.end("nope"); return; }
-  res.writeHead(200, { "Content-Type": "application/json" });
+  res.writeHead(status, { "Content-Type": "application/json" });
   const payload = { Browser: id, "Protocol-Version": "1.3" };
   if (!noIdentity) {
     payload.webSocketDebuggerUrl =
@@ -637,7 +638,8 @@ for (const a of process.argv) {
 }
 const child = spawn(
   process.execPath,
-  [path.join(__dirname, "fake-cdp.js"), "--port", String(port), "--id", "foreign-orphan-cdp",
+  [path.join(__dirname, "fake-cdp.js"), "--port", String(port),
+   "--remote-debugging-port=" + String(port) + "0", "--id", "foreign-orphan-cdp",
    "--stopfile", process.env.H_STOPFILE_NEW],
   { detached: true, stdio: "ignore" }
 );
@@ -760,7 +762,7 @@ cp.execSync = function (cmd, opts) {
     e.status = 1;
     throw e;
   }
-  if (/^(pkill|taskkill)/.test(cmd)) {
+  if (/^pkill/.test(cmd) || /^taskkill\\s+\\/F\\s+\\/IM\\s+chrome\\.exe/i.test(cmd)) {
     fs.writeFileSync(process.env.H_KILLED_MARK, "killed", "utf8");
     // kill 生效的场景才真的让旧端点停下来；noop 场景模拟「kill 没起作用」
     if (process.env.H_KILL === "real") fs.writeFileSync(process.env.H_STOPFILE, "stop", "utf8");
@@ -814,6 +816,19 @@ function runSetupCdp(scenario) {
     const sentinel = path.join(debugProfile, "SENTINEL");
     fs.writeFileSync(sentinel, "must-survive-an-abort", "utf8");
 
+    const plan = {
+      staleHolder: { args: ["--reset", "--yes"], pids: "empty", kill: "noop", chrome: "fake-chrome-dies.js" },
+      unhealthyHolder: { args: ["--reset", "--yes"], pids: "empty", kill: "noop", chrome: "fake-chrome-dies.js", oldStatus: 500 },
+      genuineReset: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-fresh.js" },
+      plainReuse: { args: [], pids: "empty", kill: "noop", chrome: "fake-chrome-dies.js" },
+      orphanEndpoint: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-orphan.js" },
+      foreignHeldPort: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-foreign-alive.js" },
+      outsideTreeHolder: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-outside-tree.js" },
+      childHoldsPort: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-child-browser.js" },
+      nullIdentity: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-no-identity.js" },
+    }[scenario];
+    assert(plan, `harness: 未知场景 ${scenario}`);
+
     // 起「旧 CDP」，让它自己挑端口并报回来——测试之间不会抢固定端口
     const portfile = path.join(tmpDir, "port");
     const stopfile = path.join(tmpDir, "stop");
@@ -825,6 +840,7 @@ function runSetupCdp(scenario) {
         "--id", "stale-existing-cdp",
         "--portfile", portfile,
         "--stopfile", stopfile,
+        "--status", String(plan.oldStatus || 200),
       ],
       { stdio: "ignore" }
     );
@@ -833,18 +849,6 @@ function runSetupCdp(scenario) {
       if (fs.existsSync(portfile)) port = fs.readFileSync(portfile, "utf8").trim();
     }
     assert(port, "harness: 假旧 CDP 没起来");
-
-    const plan = {
-      staleHolder: { args: ["--reset", "--yes"], pids: "empty", kill: "noop", chrome: "fake-chrome-dies.js" },
-      genuineReset: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-fresh.js" },
-      plainReuse: { args: [], pids: "empty", kill: "noop", chrome: "fake-chrome-dies.js" },
-      orphanEndpoint: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-orphan.js" },
-      foreignHeldPort: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-foreign-alive.js" },
-      outsideTreeHolder: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-outside-tree.js" },
-      childHoldsPort: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-child-browser.js" },
-      nullIdentity: { args: ["--reset", "--yes"], pids: "old", kill: "real", chrome: "fake-chrome-no-identity.js" },
-    }[scenario];
-    assert(plan, `harness: 未知场景 ${scenario}`);
 
     const result = spawnSync(
       process.execPath,
@@ -872,6 +876,7 @@ function runSetupCdp(scenario) {
       port,
       sentinelSurvived: fs.existsSync(sentinel),
       debugProfileSurvived: fs.existsSync(debugProfile),
+      listenerAliveBeforeCleanup: canConnectTcp(port),
     };
   } finally {
     // 收掉旧端点和假 Chrome 留下的常驻端点：先让它们自己按 stopfile 退（跨平台可靠），
@@ -889,6 +894,22 @@ function runSetupCdp(scenario) {
 
 function sleepSyncMs(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/** 同步探测 TCP 端口，专门用于在 harness finally 清理前观察被测脚本是否收掉了启动树。 */
+function canConnectTcp(port) {
+  const probe = spawnSync(
+    process.execPath,
+    [
+      "-e",
+      "const net=require('net');const s=net.createConnection({host:'127.0.0.1',port:Number(process.argv[1])});" +
+        "s.setTimeout(500);s.once('connect',()=>{s.destroy();process.exit(0)});" +
+        "s.once('error',()=>process.exit(1));s.once('timeout',()=>{s.destroy();process.exit(1)});",
+      String(port),
+    ],
+    { stdio: "ignore", timeout: 2000 }
+  );
+  return probe.status === 0;
 }
 
 /** 收掉测试期间还占着端口的假端点（尽力而为，失败不影响断言） */
@@ -952,6 +973,22 @@ function testCdpResetRefusesStaleEndpoint() {
     !run.stdout.includes("stale-existing-cdp"),
     `不该把旧实例的 /json/version 当成结果输出:\n${run.stdout}`
   );
+}
+
+// 回归点：/json/version 返回 500 时 probeCDP 为 null，但 TCP 端口仍被旧服务占着。
+// “不是健康 CDP”绝不等于“端口空闲”；破坏 profile 之前必须用原始 TCP 探测确认端口已释放。
+function testCdpResetRefusesUnhealthyTcpHolder() {
+  const run = runSetupCdp("unhealthyHolder");
+  assert.strictEqual(
+    run.status,
+    1,
+    `旧端口仍监听但 /json/version=500 时必须非零退出:\n${run.stdout}\n${run.stderr}`
+  );
+  assert(run.sentinelSurvived, "不健康监听者仍占端口时不许删除 debug profile");
+  assert(run.debugProfileSurvived, "不健康监听者仍占端口时 debug profile 必须保留");
+  assert(!/正在删除 debug profile/.test(run.stdout), run.stdout);
+  assert(!/正在以 CDP 模式启动 Chrome/.test(run.stdout), run.stdout);
+  assert.match(run.stderr, /端口.*仍被占用|端口.*未释放/);
 }
 
 // 反向：端口真的空出来、新实例真的起来了（端口就绑在 spawn 出来的那个进程上，
@@ -1046,6 +1083,10 @@ function testCdpRejectsForeignHolderWhileLauncherAlive() {
     !run.stdout.includes("foreign-orphan-cdp"),
     `不该把外来端点的 /json/version 当成结果输出:\n${run.stdout}`
   );
+  assert(
+    !run.listenerAliveBeforeCleanup,
+    "启动后归属校验失败时必须清理整棵本次启动的进程树，不能只杀 launcher 留下 detached listener"
+  );
 }
 
 // 回归点：端口被一个不在本次 spawn 进程树里的进程握着（launcher 照样活着），
@@ -1133,6 +1174,25 @@ function testCdpProbeUsesFreshSocket() {
   );
 }
 
+function testCdpWindowsListenerParsingIsLocaleIndependent() {
+  const src = fs.readFileSync(
+    path.join(repoRoot, "skills/browser-cdp/scripts/setup-cdp-chrome.js"),
+    "utf8"
+  );
+  const block = src.match(
+    /function listPortListenerPids\(port\) \{[\s\S]*?\n\}\n\n\/\*\* 全机/
+  );
+  assert(block, "找不到 listPortListenerPids");
+  assert(
+    /Get-NetTCPConnection/.test(block[0]),
+    "Windows 监听者查询应优先使用 Get-NetTCPConnection 的结构化 OwningProcess"
+  );
+  assert(
+    !/LISTENING\\\\s/.test(block[0]),
+    "netstat fallback 不得依赖英文状态字 LISTENING（本地化 Windows 会使用其他文字）"
+  );
+}
+
 testCdpUtils(longUtilsPath);
 testCdpUtils(shortUtilsPath);
 testWindowsInvocationBuilder(longUtilsPath);
@@ -1145,8 +1205,10 @@ testJjwxcDetailFailureIsolation();
 testQidianRankIsolation();
 testHeiyanFieldDriftAndWordFormat();
 testCdpProbeUsesFreshSocket();
+testCdpWindowsListenerParsingIsLocaleIndependent();
 testCdpPlainReuseUnchanged();
 testCdpResetRefusesStaleEndpoint();
+testCdpResetRefusesUnhealthyTcpHolder();
 testCdpRejectsEndpointNotFromThisLaunch();
 testCdpRejectsForeignHolderWhileLauncherAlive();
 testCdpRejectsPortHeldOutsideSpawnedTree();

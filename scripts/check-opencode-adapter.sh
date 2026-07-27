@@ -364,10 +364,10 @@ PY
 echo "  OK agent templates"
 
 # frontmatter 解析必须锚定独占一行的 `---`（值里的三连字符不得截断 permission/steps），
-# 且 disallowedTools 里的 Bash 必须落成真正的 bash 限制：OpenCode 未声明 bash 权限时
-# evaluate() 返回 ask（不是 deny），只有 edit: deny 的只读 agent 一路确认下去仍能重定向写正文。
-# 授权粒度受闸：只能放**完整命令字面量**，写成 `git rev-parse *` 这类前缀 glob 时，上游
-# shell.ts 的 source() 会把带 `> 路径` 的整条 redirected_statement 送去匹配，前缀 glob 照收。
+# 且 disallowedTools 里的 Bash 必须落成真正的标量 deny：OpenCode 未声明 bash 权限时
+# evaluate() 返回 ask（不是 deny），只有 edit: deny 的只读 agent 仍能借 shell 重定向写正文。
+# 不给任何“只读命令”例外：上游 shell.ts 只把 command 的**直接父节点** redirected_statement
+# 纳入鉴权，`( allowlisted-command ) > 正文.md` 的 command 直接父节点是 subshell，能绕过字面量白名单。
 python3 - "scripts/sync-opencode.py" <<'PY'
 import importlib.util
 import sys
@@ -397,15 +397,15 @@ except TypeError:
 else:
     raise AssertionError('convert_claude_to_opencode must require the agent body (no default)')
 
-# 正文明确要求执行该命令 → 兜底 deny 在前、**完整命令字面量** allow 在后
-needy = module.convert_claude_to_opencode(
-    fm, '**确定项目根目录：** 执行 `git rev-parse --show-toplevel`，失败则用当前工作目录。\n'
-)
-assert needy['permission']['edit'] == 'deny', needy
-assert list(needy['permission']['bash'].items()) == [
-    ('*', 'deny'),
-    ('git rev-parse --show-toplevel', 'allow'),
-], f'read-only agent needing the command must get exactly it, deny first: {needy}'
+# 只读 agent 的正文若要求执行命令，生成器必须大声失败，而不是暗开 shell 例外。
+try:
+    module.convert_claude_to_opencode(
+        fm, '**确定项目根目录：** 执行 `git rev-parse --show-toplevel`，失败则用当前工作目录。\n'
+    )
+except ValueError as error:
+    assert 'git rev-parse --show-toplevel' in str(error), error
+else:
+    raise AssertionError('restricted agent instructions must not require Bash')
 
 # 正文没提该命令 → 一条都不放（标量 deny 还会让上游 disabled() 把 bash 工具整个摘掉）
 plain = module.convert_claude_to_opencode(fm, '只读 agent，正文没有任何 shell 步骤\n')
@@ -414,35 +414,13 @@ assert plain['permission']['bash'] == 'deny', (
 )
 
 # 生成器必须**大声失败**，而不是默默产出一个跑不动或被撬开的 agent。
-# 1) 正文要求了一条白名单里没有的命令 → 生成必须中断并点名该命令
+# 正文要求任何 shell 命令 → 生成必须中断并点名该命令
 try:
     module.convert_claude_to_opencode(fm, '**准备环境：** 执行 `npm install`，然后开始检查。\n')
 except ValueError as error:
     assert 'npm install' in str(error), error
 else:
     raise AssertionError('generator must fail loudly when the body needs an ungranted command')
-
-# 2) 授权被整体抹掉（正文要它、规则不给）→ 同样中断
-try:
-    module.assert_bash_permission('probe', {'*': 'deny'}, ['git rev-parse --show-toplevel'], True)
-except ValueError:
-    pass
-else:
-    raise AssertionError('generator must fail loudly when a required command resolves to deny')
-
-# 这一条正是 #265 二轮 review 的根因：前缀 glob 经 Wildcard.match 变成 `git rev-parse( .*)?`，
-# 会把 `git rev-parse --show-toplevel > 正文.md` 一起放行。生成器必须拒绝这种规则形状。
-try:
-    module.assert_bash_permission(
-        'probe',
-        {'*': 'deny', 'git rev-parse *': 'allow'},
-        ['git rev-parse --show-toplevel'],
-        True,
-    )
-except ValueError:
-    pass
-else:
-    raise AssertionError('generator must reject a prefix glob that a redirection can escape')
 
 
 def bash_rules_in_file_order(fm_text: str):
@@ -485,17 +463,12 @@ assert probe_rules == [('zzz cmd', 'deny'), ('*', 'deny'), ('aaa cmd', 'allow')]
     f'format_frontmatter reordered permission globs (must preserve dict order): {probe_rules}'
 )
 
-# 生成器自身的输出：宽 deny 必须在前，精确 allow 必须在后
-generated_rules = bash_rules_in_file_order(module.format_frontmatter(needy))
-assert generated_rules[0] == ('*', 'deny'), (
-    f'broad deny must come FIRST (findLast: later rules win): {generated_rules}'
-)
-assert generated_rules[-1] == ('git rev-parse --show-toplevel', 'allow'), (
-    f'specific allow must come LAST (findLast: later rules win): {generated_rules}'
-)
+# 生成器自身的输出：只读 agent 必须是不可覆盖的标量 deny。
+generated_rules = bash_rules_in_file_order(module.format_frontmatter(plain))
+assert generated_rules == [('*', 'deny')], generated_rules
 PY
 
-echo "  OK generator derives the bash allowlist from the agent body and fails loudly"
+echo "  OK generator makes read-only Bash unavailable and rejects contradictory instructions"
 
 # 生成产物的**裁决矩阵**（#265 二轮 review）。这里独立复刻上游 opencode v1.18.5 的判定，
 # 刻意不复用 sync-opencode.py 里的同名函数——复用的话，复刻本身写错时测试会跟着一起错：
@@ -570,6 +543,10 @@ ESCAPES = [
     (f'{NEEDED} > {TARGET}', [f'{NEEDED} > {TARGET}']),
     (f'{NEEDED} >> {TARGET}', [f'{NEEDED} >> {TARGET}']),
     (f'{NEEDED} 2> {TARGET}', [f'{NEEDED} 2> {TARGET}']),
+    # 上游 source() 只检查 command 的直接父节点。套一层 subshell/compound 后，collect()
+    # 看见的 pattern 仍是裸 NEEDED，外层重定向没有进入鉴权 pattern。
+    (f'( {NEEDED} ) > {TARGET}', [NEEDED]),
+    (f'{{ {NEEDED}; }} > {TARGET}', [NEEDED]),
     (f'{NEEDED} | tee {TARGET}', [NEEDED, f'tee {TARGET}']),
     (f'{NEEDED} && cat > {TARGET}', [NEEDED, f'cat > {TARGET}']),
     (f'{NEEDED}; rm -rf /', [NEEDED, 'rm -rf /']),
@@ -582,30 +559,16 @@ ESCAPES = [
 ]
 
 read_only = {'chapter-extractor', 'consistency-checker', 'story-explorer'}
-# 只有正文里真的写了「执行 git rev-parse --show-toplevel」的 agent 才拿得到这条命令；
-# 授权由 sync-opencode.py 的 needed_bash_commands() 从正文推导，这里是它的验收面。
-needs_toplevel = {'consistency-checker'}
 base = Path('skills/story-setup/references/opencode/agents')
 for name in sorted(read_only):
     fm_text = (base / f'{name}.md').read_text(encoding='utf-8').split('\n---\n', 1)[0]
     rules = bash_rules_in_file_order(fm_text)
     assert rules, f'{name}: read-only agent must declare a bash restriction'
-    # 兜底 deny 必须在最前：evaluate() 用 findLast，后写的规则覆盖先写的。
-    assert rules[0] == ('*', 'deny'), (
-        f'{name}: broad deny must come FIRST (findLast: later rules win): {rules}'
+    assert rules == [('*', 'deny')], (
+        f'{name}: read-only Bash must be a scalar deny without exceptions: {rules}'
     )
-    # 形状闸门：白名单只能是完整命令字面量，出现前缀 glob 就等于放行重定向变体。
-    for pattern, _action in rules:
-        assert pattern == '*' or not pattern.endswith(' *'), (
-            f'{name}: bash 白名单出现前缀 glob {pattern!r}；Wildcard.match 会把它编译成 '
-            f'`{pattern[:-2]}( .*)?`，连 `{NEEDED} > {TARGET}` 一起放行。只允许完整命令字面量'
-        )
-    # 正向：正文要求该命令的 agent 必须真能跑它，其余两个连裸命令也不给
-    want = 'allow' if name in needs_toplevel else 'deny'
-    got = resolve(rules, [NEEDED])
-    assert got == want, (
-        f'{name}: bare {NEEDED!r} resolved to {got!r}, expected {want!r} '
-        f'(rules in file order: {rules})'
+    assert resolve(rules, [NEEDED]) == 'deny', (
+        f'{name}: bare {NEEDED!r} must also be denied'
     )
     # 反向：重定向/追加/stderr 重定向/管道/串联，以及任意越权命令，一律 deny
     for shown, patterns in ESCAPES:
@@ -616,7 +579,7 @@ for name in sorted(read_only):
         )
 PY
 
-echo "  OK read-only agents deny every redirection/pipe/chain escape (upstream-faithful verdicts)"
+echo "  OK read-only agents deny bare commands plus redirection/subshell/pipe/chain escapes"
 
 # 生成必须幂等：跑两遍产物一致。否则 --check 会在无人改模板时随机报 out-of-sync。
 python3 - "scripts/sync-opencode.py" "$TMP_DIR" <<'PY'

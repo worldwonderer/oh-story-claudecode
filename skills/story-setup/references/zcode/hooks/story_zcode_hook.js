@@ -127,6 +127,8 @@ function toolPayload(input) {
 
 function targetPaths(input) {
   const root = projectRoot()
+  const inputCwd = existingDir(input.cwd)
+  const base = inputCwd && !path.relative(root, inputCwd).startsWith("..") ? inputCwd : root
   const name = toolName(input)
   const payload = toolPayload(input)
   const rawTargets = []
@@ -141,7 +143,7 @@ function targetPaths(input) {
   for (const key of ["patch", "content", "text"]) {
     if (typeof payload[key] === "string" && /applypatch|patch/i.test(name)) rawTargets.push(...extractPatchTargets(payload[key]))
   }
-  return [...new Set(rawTargets.filter(Boolean).map((value) => resolveTarget(root, value)))]
+  return [...new Set(rawTargets.filter(Boolean).map((value) => resolveTarget(root, value, base)))]
 }
 
 function preToolProseGuard() {

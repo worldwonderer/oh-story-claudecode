@@ -118,8 +118,26 @@ function countCharacters(content) {
 // textarea 的 value 永远是 LF：读盘时先归一化，写盘时再换回原文件的换行符，
 // 否则 CRLF 稿件会被一次改动整篇重写，而且脏标记永远对不上、清不掉。
 function detectEol(content) {
-  if (content.includes("\r\n")) return "\r\n";
-  if (content.includes("\r")) return "\r";
+  let crlf = 0;
+  let lf = 0;
+  let cr = 0;
+  for (let index = 0; index < content.length; index += 1) {
+    if (content[index] === "\r") {
+      if (content[index + 1] === "\n") {
+        crlf += 1;
+        index += 1;
+      } else {
+        cr += 1;
+      }
+    } else if (content[index] === "\n") {
+      lf += 1;
+    }
+  }
+  // 按 LF/CRLF 的主流风格回写；只有纯 CR 文件才保留 CR。一个粘贴进来的孤立 CR
+  // 不能把每个 LF 都扩散成 CR，反过来也不能让 CRLF 稿件整篇变成 LF。
+  if (crlf > lf) return "\r\n";
+  if (lf > 0) return "\n";
+  if (cr > 0) return "\r";
   return "\n";
 }
 

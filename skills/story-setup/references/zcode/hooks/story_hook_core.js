@@ -23,9 +23,9 @@ function safeRelative(root, target) {
   }
 }
 
-function resolveTarget(root, target) {
+function resolveTarget(root, target, base = root) {
   const normalized = String(target || "").replace(/\\/g, "/")
-  return path.isAbsolute(normalized) ? path.resolve(normalized) : path.resolve(root, normalized)
+  return path.isAbsolute(normalized) ? path.resolve(normalized) : path.resolve(base || root, normalized)
 }
 
 function firstLine(file) {
@@ -221,11 +221,9 @@ function proseBlockReason(root, absolute) {
   if (!match) return null
   const chapter = match[1]
   const book = path.dirname(path.dirname(absolute))
-  // over-capture 门（与 isProsePath / check-prose-after-write.sh 同判据）：{书}/正文/第N章.md 的
-  // {书} 必须看得出是书（大纲/追踪/设定 目录或 设定.md）。Bash/apply_patch 的相对目标按项目根拼
-  // （resolveTarget），会话 cwd 在书目录里时会拼出 <root>/正文/第N章.md 这种不属于任何书的路径；
-  // 没这道门就拿 <root>/大纲 判缺细纲误伤，还把作者指向一个不在任何书里的细纲路径（宁可漏拦不可误伤）。
-  if (!["大纲", "追踪", "设定"].some((name) => existingDir(path.join(book, name))) && !fs.existsSync(path.join(book, "设定.md"))) return null
+  // 这是守卫的 canonical case：agent 可能在任何脚手架存在前就首建 {书}/正文/第N章.md。
+  // 是否“像一本书”不能作为放行条件；相对路径误判应在宿主 adapter 按 cwd 正确解析，而不是
+  // 让核心守卫 fail open。
   if (fs.existsSync(path.join(root, "拆文库", path.basename(book)))) return null
   const outlineDir = path.join(book, "大纲")
   let found = false

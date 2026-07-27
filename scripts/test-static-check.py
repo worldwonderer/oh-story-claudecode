@@ -178,6 +178,23 @@ def test_fenced_examples_do_not_leak_into_validation() -> None:
         assert "[unknown-agent]" not in result.stdout, result.stdout
 
 
+def test_cjk_joined_globs_are_not_misread_as_emphasis_paths() -> None:
+    with tempfile.TemporaryDirectory(prefix="story-static-cjk-glob-") as tmp:
+        root = Path(tmp)
+        build_agent_catalog(root)
+        write(
+            root / "skills/demo/SKILL.md",
+            "---\nname: demo\ndescription: Demo\n---\n# Demo\n\n"
+            "批量读取 references/*.md与references/*.json，再汇总结果。\n",
+        )
+        write(root / "skills/demo/references/example.md", "# Example\n")
+        write(root / "skills/demo/references/example.json", "{}\n")
+
+        result = run(root)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "[broken-link-path]" not in result.stdout, result.stdout
+
+
 def test_fullwidth_paren_agent_refs_are_validated() -> None:
     with tempfile.TemporaryDirectory(prefix="story-static-fullwidth-agent-") as tmp:
         root = Path(tmp)
@@ -451,6 +468,7 @@ def main() -> None:
     test_unlinked_section_covers_cjk_without_spaces()
     test_templates_and_web_assets_are_scanned_for_cross_skill_paths()
     test_emphasized_paths_are_still_existence_checked()
+    test_cjk_joined_globs_are_not_misread_as_emphasis_paths()
     test_wildcard_mentions_do_not_hide_dead_references()
     test_brace_enumerations_name_each_file()
     test_launcher_reports_missing_git_repository()

@@ -31,6 +31,24 @@ function projectRoot(): string {
   }
 }
 
+function targetBase(root: string, args?: Record<string, unknown>): string {
+  const raw = args?.workdir || args?.cwd
+  if (typeof raw !== "string" || !raw.trim()) return root
+  let candidate = path.resolve(root, raw)
+  let canonicalRoot = path.resolve(root)
+  try {
+    if (!fs.statSync(candidate).isDirectory()) return root
+    candidate = fs.realpathSync(candidate)
+    canonicalRoot = fs.realpathSync(root)
+  } catch {
+    return root
+  }
+  const relative = path.relative(canonicalRoot, candidate)
+  return relative && (relative === ".." || relative.startsWith(`..${path.sep}`))
+    ? root
+    : candidate
+}
+
 function tryGit(root: string, args: string): string {
   try {
     return execSync(`git ${args}`, {
@@ -115,8 +133,9 @@ export default (async () => {
       if (targets.length === 0) return
 
       const root = projectRoot()
+      const base = targetBase(root, output.args || input.args)
       for (const target of [...new Set(targets)]) {
-        const reason = proseBlockReason(root, resolveTarget(root, target))
+        const reason = proseBlockReason(root, resolveTarget(root, target, base))
         if (reason) {
           throw new Error(`${reason}（此操作无法通过 Bash/命令行绕过。）`)
         }
@@ -144,10 +163,11 @@ export default (async () => {
       }
       if (targets.length === 0) return
       const root = projectRoot()
+      const base = targetBase(root, input.args)
       try {
         const notes: string[] = []
         for (const target of [...new Set(targets)]) {
-          const note = proseAfterWrite(root, resolveTarget(root, target))
+          const note = proseAfterWrite(root, resolveTarget(root, target, base))
           if (note) notes.push(note)
         }
         if (notes.length && typeof output.output === "string") {

@@ -978,7 +978,8 @@ printf '%s\n' \
   '他没有回头。巷子里没有灯，他摸着墙走。' \
   '船沉没在雾里，没人回头，江面上就只有几块浮木。' \
   '他的话被淹没在掌声里，没多久，台上就只有他一个人。' \
-  '雨下了没多久，没等她撑伞，巷子里就只有水声。' > "$FIXTURE_PARADE"
+  '雨下了没多久，没等她撑伞，巷子里就只有水声。' \
+  '他没等她开口，没等她反应，只是转身走了。' > "$FIXTURE_PARADE"
 set +e
 node "$SCRIPT" --json "$FIXTURE_PARADE" > "$OUT"
 set -e
@@ -986,11 +987,12 @@ node - "$OUT" <<'NODE'
 const fs = require('fs');
 const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const np = r.findings.filter((f) => f.type === 'negation-parade');
-if (np.length !== 2) throw new Error('否定排比应命中 2 处 negation-parade: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}`)));
-if (np[0].line !== 1 || np[1].line !== 2) throw new Error('negation-parade 应命中 line 1（连排）与 line 2（先否定后只是）: ' + JSON.stringify(np));
+if (np.length !== 3) throw new Error('否定排比应命中 3 处 negation-parade: ' + JSON.stringify(r.findings.map((f) => `${f.type}@${f.line}`)));
+if (np[0].line !== 1 || np[1].line !== 2 || np[2].line !== 8) throw new Error('negation-parade 应命中 line 1/2 与重复「没等」的 line 8: ' + JSON.stringify(np));
 if (!np.every((f) => f.severity === 'blocking')) throw new Error('negation-parade 应为 blocking');
 // 引号内台词（line 3）与分句独立否定（line 4）不算排比；
-// 黏着语素「沉没/淹没」（line 5/6）与时间惯用语「没多久/没等」（line 6/7）不是否定项，也不算。
+// 黏着语素「沉没/淹没」（line 5/6）与单个时间惯用语「没多久」（line 6/7）不算；
+// 但重复「没等 A，没等 B，只是 C」本身就是目标排比，不能被时间短语豁免吞掉。
 NODE
 
 echo "negation-parade (否定排比) regression tests passed."
