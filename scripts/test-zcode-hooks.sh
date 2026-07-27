@@ -63,13 +63,14 @@ assert_empty "$out" "long prose with outline"
 mkdir -p "$ROOT/bare/正文" "$ROOT/cwd-book/正文" "$ROOT/cwd-book/大纲"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"bare/正文/第1章_首章.md"}}')"
 assert_denied "$out" "bare long project without scaffolding"
-relative_payload="$(python3 - "$ROOT/cwd-book" <<'PY'
-import json, sys
-from pathlib import Path
-payload = {"cwd": str(Path(sys.argv[1]).resolve()), "tool_name": "Write", "tool_input": {"file_path": "正文/第8章_相对.md"}}
-sys.stdout.buffer.write(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
-PY
-)"
+relative_payload="$(node -e '
+const path = require("path")
+process.stdout.write(JSON.stringify({
+  cwd: path.resolve(process.argv[1]),
+  tool_name: "Write",
+  tool_input: { file_path: "正文/第8章_相对.md" },
+}))
+' "$ROOT/cwd-book")"
 out="$(run_hook pre-tool-prose-guard "$relative_payload")"
 assert_denied "$out" "relative prose target from hook cwd"
 printf '%s' "$out" | grep -q 'cwd-book/大纲' || fail "relative target was not resolved from hook cwd: $out"
