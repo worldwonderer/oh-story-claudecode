@@ -226,10 +226,14 @@ cat > "$root/book/追踪/上下文.md" <<'CTX'
 - 章: 第1章
 CTX
 touch "$root/拆文库/sample/_progress.md"
+# 负向 fixture：已拆完的书不得再被报成「未完成」（裸数 _progress.md 会永久误报）。
+mkdir -p "$root/拆文库/done"
+printf '# 深度拆解进度：done\n\n- 最终状态：completed\n- schema_version: 2\n' > "$root/拆文库/done/_progress.md"
 
 out_start="$(run_from_nested "$root" session-start.sh || true)"
 echo "$out_start" | grep -q '当前位置' || fail "session-start did not resolve active book from project root"
 echo "$out_start" | grep -q '未完成拆文' || fail "session-start did not resolve 拆文库 from project root"
+echo "$out_start" | grep -q '有 1 个未完成拆文' || fail "session-start counted completed 拆文 as unfinished"
 if echo "$out_start" | grep -q '参考资料包缺失'; then
   fail "session-start reported missing reference bundle after deployed refs were copied"
 fi

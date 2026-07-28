@@ -98,9 +98,11 @@ done
 # 3. 全局拆文未完成检测（项目级，非书目级）
 GLOBAL_PROGRESS_OUTPUT=""
 if [ -d "$ROOT/拆文库" ]; then
-  while IFS= read -r -d '' progress_file; do
+  # 同 session-start：按「最终状态」过滤，拆完的书不再报（裸数文件会永久误报）。
+  while IFS= read -r progress_file; do
+    [ -n "$progress_file" ] || continue
     GLOBAL_PROGRESS_OUTPUT+="[WARN] 拆文未完成：${progress_file#$ROOT/}，运行 /story-long-analyze 继续。${NL}"
-  done < <(find "$ROOT/拆文库" -name "_progress.md" -print0 2>/dev/null || true)
+  done < <(discover_incomplete_analyses "$ROOT")
 fi
 if [ -n "$GLOBAL_PROGRESS_OUTPUT" ]; then
   OUTPUT+="$GLOBAL_PROGRESS_OUTPUT"

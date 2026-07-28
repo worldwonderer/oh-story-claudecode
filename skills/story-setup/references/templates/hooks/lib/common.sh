@@ -64,6 +64,35 @@ discover_active_book() {
   fi
 }
 
+# analysis_incomplete <_progress.md 路径> — 判断一份拆文进度是否仍未完成（返回 0 表示未完成）
+# 判据取「最终状态」字段：completed / completed_with_errors 视为已完成，其余状态
+# （pending / paused_after_stage1）以及字段缺失、文件为空、读取失败一律按未完成处理——
+# 宁可多提醒一次，也不让真断在半路的拆文静默消失（空文件正是管道刚起步就被打断的形态）。
+# LC_ALL=C 下全角冒号按字节匹配，故写成 (：|:) 而非字符组 [：:]：字符组会把全角标点按字节拆开。
+analysis_incomplete() {
+  local status
+  status=$(LC_ALL=C grep -m1 -E '最终状态(：|:)' "$1" 2>/dev/null || true)
+  [ -n "$status" ] || return 0
+  case "$status" in
+    *completed*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+# discover_incomplete_analyses <项目根> — 列出 拆文库/ 下仍未完成的 _progress.md
+# 输出：换行分隔的绝对路径（与 discover_all_books 同口径）。拆文库不存在时输出空。
+discover_incomplete_analyses() {
+  local root="$1"
+  [ -d "$root/拆文库" ] || return 0
+  { find "$root/拆文库" -name "_progress.md" -print 2>/dev/null || true; } | while IFS= read -r progress_file; do
+    [ -n "$progress_file" ] || continue
+    if analysis_incomplete "$progress_file"; then printf '%s\n' "$progress_file"; fi
+  done
+  # 显式收 0：循环体最后一次判定若落在「已完成」上，while 会把 1 带出来，调用方
+  # 一旦开了 pipefail（各 hook 都开）就会被 set -e 打断。用 if 包住 + return 0 双保险。
+  return 0
+}
+
 # discover_all_books — 多本书查询（项目内所有书目）
 # 输出：换行分隔的绝对目录路径列表（不含重复）。
 # 使用场景：detect-story-gaps —— 需要遍历项目内所有书目做缺口检测。

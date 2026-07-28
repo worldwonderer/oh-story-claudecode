@@ -52,6 +52,8 @@
 - `_progress.md` 恢复只接受 `schema_version: 2` 与章节边界表，不再执行隐式历史迁移。
 - Codex hooks 升级使用稳定管理身份替换注册；会先移除旧直调 Python 命令与已有 launcher 命令，再写入当前 6 个注册，不会双重执行。
 - 定制 hook 如果调用了已删除的 `discover_book_dir()`，请改为 `discover_active_book()`。当前版不再保留该兼容别名。
+- `拆文库/` 的「未完成拆文」提醒按 `_progress.md` 的「最终状态」过滤：`completed` / `completed_with_errors` 不再计入，会话起点与缺口检测只报真正断在半路的拆解（此前裸数文件，拆完的书会被永久误报）。判定逻辑收在 `lib/common.sh` 的 `analysis_incomplete()` / `discover_incomplete_analyses()`，定制 hook 可直接复用。
+- 被动版本更新提醒的 24h 节流现在管的是提示本身：此前只节流网络请求，缓存里有 latest 时同一个版本每开一次会话都会提醒一次。取不到 GitHub 时写入负缓存，不再每次会话空等 5 秒 curl。
 
 ## 升级步骤
 

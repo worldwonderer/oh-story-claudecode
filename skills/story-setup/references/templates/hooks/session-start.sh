@@ -129,7 +129,8 @@ fi
 if [ -d "$ROOT/拆文库" ]; then
   # 同上：子目录不可读时 find 退 1，pipefail 把它变成整条管道的退出码，set -e 就在这里
   # 终止脚本、一个字节都不输出。`|| true` + 数字兜底保证只是这一项降级、其余提示照常送达。
-  PROGRESS_COUNT=$(find "$ROOT/拆文库" -name "_progress.md" 2>/dev/null | wc -l | tr -d ' ' || true)
+  # 只数「最终状态」不是 completed 的那些：裸数 _progress.md 会把拆完的书永久报成未完成。
+  PROGRESS_COUNT=$(discover_incomplete_analyses "$ROOT" | wc -l | tr -d ' ' || true)
   case "$PROGRESS_COUNT" in ''|*[!0-9]*) PROGRESS_COUNT=0 ;; esac
   if [ "$PROGRESS_COUNT" -gt 0 ]; then
     OUTPUT+="[INFO] 拆文库/ 中有 $PROGRESS_COUNT 个未完成拆文。运行 /story-long-analyze 或 /story-short-analyze。${NL}"
@@ -155,11 +156,18 @@ story_update_check() {
     latest=$(sed -n '2p' "$cache" 2>/dev/null || echo "")
   fi
   case "$last" in ''|*[!0-9]*) last=0;; esac
-  if [ "$((now - last))" -ge 86400 ] || [ -z "$latest" ]; then
+  local checked=0
+  if [ "$((now - last))" -ge 86400 ]; then
+    checked=1
     latest=$(curl -fsS --max-time 5 "https://api.github.com/repos/worldwonderer/oh-story-claudecode/releases/latest" 2>/dev/null \
       | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | grep -o '[0-9][0-9.]*' | head -1) || latest=""
-    [ -n "$latest" ] && printf '%s\n%s\n' "$now" "$latest" > "$cache" 2>/dev/null || true
+    # 成功失败都写时间戳：失败时 latest 留空当负缓存，否则取不到 GitHub 的环境每次开会话
+    # 都要白等 5 秒 curl，且永远等不到提醒。
+    printf '%s\n%s\n' "$now" "$latest" > "$cache" 2>/dev/null || true
   fi
+  # 提示本身也要节流：缓存里的 latest 会一直有值，若不看 checked，同一个版本每开一次会话
+  # 就提醒一次，与「每 24h 至多一次」的承诺不符（原实现只节流了网络请求）。
+  [ "$checked" -eq 1 ] || return 0
   [ -n "$latest" ] || return 0
   if [ "$latest" != "$cur" ] && [ "$(printf '%s\n%s\n' "$cur" "$latest" | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)" = "$latest" ]; then
     OUTPUT+="[INFO] 网文工具箱有新版本 v${latest}（当前 v${cur}）。更新：npx skills add worldwonderer/oh-story-claudecode -y -g 后重跑 /story-setup；或对 /story 说“检查更新”。关掉提醒：export STORY_NO_UPDATE_CHECK=1${NL}"
