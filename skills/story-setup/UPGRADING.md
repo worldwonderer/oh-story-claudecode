@@ -52,8 +52,8 @@
 - `_progress.md` 恢复只接受 `schema_version: 2` 与章节边界表，不再执行隐式历史迁移。
 - Codex hooks 升级使用稳定管理身份替换注册；会先移除旧直调 Python 命令与已有 launcher 命令，再写入当前 6 个注册，不会双重执行。
 - 定制 hook 如果调用了已删除的 `discover_book_dir()`，请改为 `discover_active_book()`。当前版不再保留该兼容别名。
-- `拆文库/` 的「未完成拆文」提醒按 `_progress.md` 的「最终状态」过滤：`completed` / `completed_with_errors` 不再计入，会话起点与缺口检测只报真正断在半路的拆解（此前裸数文件，拆完的书会被永久误报）。判定逻辑收在 `lib/common.sh` 的 `analysis_incomplete()` / `discover_incomplete_analyses()`，定制 hook 可直接复用。
-- 被动版本更新提醒的 24h 节流现在管的是提示本身：此前只节流网络请求，缓存里有 latest 时同一个版本每开一次会话都会提醒一次。取不到 GitHub 时写入负缓存，不再每次会话空等 5 秒 curl。
+- `拆文库/` 的「未完成拆文」提醒按 `_progress.md` 的「最终状态」取值过滤：`completed` / `completed_with_errors` 不计入，其余取值与字段缺失、空文件、不可读一律按未完成上报。判定收在 `lib/common.sh` 的 `discover_incomplete_analyses()`。
+- 被动版本更新提醒按 24h 节流提示本身；取不到 GitHub 时写入负缓存，同一窗口内不重复请求。
 
 ## 升级步骤
 
@@ -225,6 +225,8 @@
 - 各分支都要求落在句末断言位，避免吃进条件从句（等这一切结束了，…）、动补（说明得非常清楚）、成语跨匹配（命中注定）、系表（结果是注定的）、及物用法（才结束了这个话题）与场内报幕（宣布…圆满落幕）——这些形状已作为负例 fixture 钉进 `scripts/test-ai-patterns.sh`。
 - 校准（文末 600 字窗口，命中逐条人工复核）：qimao 章中段 20000 章命中 1 处（0.005%）、heiyan 整篇 3999 篇命中 22 处（0.550%，全部是上列禁用形态）；同批既有 `trailer-ending` 分别命中 1.345% / 6.602%。短篇整篇即收口，基线天然高于长篇章中段，故两个总体分别报数。
 - **细纲模板改问落幕动作（#255）**：`story-architect` 细纲模板、`story-long-write` 与 `story-import` 的细纲字段、`rules/story-outline.md` 的必填项描述，「结尾 / 结尾设定」统一从「收束到什么状态」改成「最后落在谁的什么动作、画面或台词上」，规格本身不再是总结句形状。依据是真人语料实测：长篇章末句里，对话收尾约 29%、动作或画面约 26%、疑问或省略号悬停约 6%，明确的状态总结只占约 1%，章末最后一段字数中位 23 字——真实章节多是停在一个具体动作上，并不做收束。
+- **会话起点两处提醒修正（#173）**：`拆文库/` 的「未完成拆文」提醒改按 `_progress.md` 的「最终状态」取值过滤，`completed` / `completed_with_errors` 不再计入——原实现裸数文件，拆完的书每次会话都被报一次；判定收进 `lib/common.sh` 的 `analysis_incomplete()` / `discover_incomplete_analyses()`，`session-start.sh` 与 `detect-story-gaps.sh` 共用。取值只认冒号后的状态本身，模板占位符与 `pending（上次 completed 后重跑）` 这类括注按未完成处理，宁可多报不漏报。
+- **被动版本更新提醒按 24h 节流提示本身（#173）**：原实现只节流网络请求，缓存里有 latest 时同一个版本每开一次会话提醒一次；另外 curl 失败不写缓存，取不到 GitHub 的环境每次会话空等 5 秒且收不到提醒，现改为失败也写时间戳作负缓存。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v20 部署，且 agent 模板改动只在会话启动时注册。
 
 ### v20

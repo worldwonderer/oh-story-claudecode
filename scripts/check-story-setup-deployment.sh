@@ -248,6 +248,11 @@ out_gaps="$(run_from_nested "$root" detect-story-gaps.sh || true)"
 if [ -n "$out_gaps" ] && echo "$out_gaps" | grep -q "$root/nested"; then
   fail "detect-story-gaps leaked nested cwd paths"
 fi
+# 与 session-start 同口径：未完成的要报、已完成的不许报（两边各自读取 拆文库/，需各自钉死）。
+echo "$out_gaps" | grep -q '拆文未完成：拆文库/sample/_progress.md' || fail "detect-story-gaps missed unfinished 拆文"
+if echo "$out_gaps" | grep -q '拆文库/done/_progress.md'; then
+  fail "detect-story-gaps counted completed 拆文 as unfinished"
+fi
 
 fallback_root="$TMP_DIR/git-fallback"
 mkdir -p "$fallback_root/book/追踪" "$fallback_root/book/正文" "$fallback_root/book/大纲"

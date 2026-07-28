@@ -70,11 +70,20 @@ discover_active_book() {
 # 宁可多提醒一次，也不让真断在半路的拆文静默消失（空文件正是管道刚起步就被打断的形态）。
 # LC_ALL=C 下全角冒号按字节匹配，故写成 (：|:) 而非字符组 [：:]：字符组会把全角标点按字节拆开。
 analysis_incomplete() {
-  local status
-  status=$(LC_ALL=C grep -m1 -E '最终状态(：|:)' "$1" 2>/dev/null || true)
-  [ -n "$status" ] || return 0
-  case "$status" in
-    *completed*) return 1 ;;
+  local value
+  # 只认冒号后的状态值本身：拿整行做 *completed* 子串判断，会把模板占位符
+  # `{pending/paused_after_stage1/completed/completed_with_errors}` 和
+  # `pending（上次 completed 后重跑）` 这类括注误判成已完成，把真断在半路的拆文静默抹掉。
+  #
+  # 全角字符只许出现在 LC_ALL=C grep 的单引号模式里，绝不能进参数扩展或 case 模式：
+  # GBK 区域下 bash 按双字节解码脚本源码，全角冒号的尾字节会和紧邻的 `}` 配成一个字符、
+  # 把右花括号吃掉，`${x#*：}` 这种写法会让整个 common.sh 语法错误、所有 hook 一起哑掉。
+  # 字符组同理（[：:] 会被按字节拆开），故用 (：|:) 交替。
+  value=$(LC_ALL=C grep -m1 -oE '最终状态(：|:)[[:space:]]*[A-Za-z_]+' "$1" 2>/dev/null \
+    | LC_ALL=C grep -oE '[A-Za-z_]+$' || true)
+  [ -n "$value" ] || return 0
+  case "$value" in
+    completed|completed_with_errors) return 1 ;;
     *) return 0 ;;
   esac
 }
