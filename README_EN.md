@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-07-25 -->
+<!-- Last synced with README.md: 2026-07-28 -->
 
 **English** | [中文](README.md)
 
@@ -18,11 +18,11 @@ Professional authors follow a three-step method:
 
 Built around four pillars: reverse-engineering hits · plot modularization · layered state management · human-AI collaboration.
 
+> Starting in v0.7.2: a local workbench `/story dashboard` — zero production dependencies, bound to `127.0.0.1` only, showing `拆文库/` and writing projects as separate file trees with search, Markdown preview, lightweight editing and conflict protection; a fix for stiff prose and summary-style chapter endings caused by copying the outline's shape (an outline specifies *what happens*, not the shape of the prose); and two long-standing session-start false alarms fixed (finished deconstructions repeatedly reported as unfinished, version reminders firing every session). **This release ships `agents_version` 21** — deployed projects must rerun `/story-setup` and start a new session, otherwise neither v0.7.1's nor this release's prose and hook changes take effect.
+>
 > Starting in v0.7.1: a thorough fix for choppy "telegraph" prose — sentences read more naturally (subtractive write-time rules + story-deslop de-resistance + a suite-wide short-sentence-cult sweep, calibrated against real bestseller corpus and multi-genre tests), plus a fanfic / existing-worldview naming guardrail. Deployed projects should rerun `/story-setup` and start a new session.
 >
 > Starting in v0.7.0: two more runtimes — native ZCode 3.3.4 (install the repo as a marketplace/plugin, `story-setup target_cli=zcode`) and Reasonix Phase 1 (skills + native plugin manifest); hook cores unified onto a shared node core with a six-runtime parity lock; long-form unifies the five old names (plot-strand / loop-card / …) into "剧情单元" (plot unit) and feeds decomposition output into volume/chapter outlines; the anti-AI-tone gate is now mechanized — the post-write prose net auto-scans deterministic toxic phrasings, and a "toxic-phrase debt gate" blocks the next chapter until the previous one is cleared (stateless, node-missing fails open, opt out explicitly with `<!-- 去味:跳过 -->`). Deployed projects should rerun `/story-setup` and start a new session.
->
-> Starting in v0.6.22: long-form prose gains per-genre "prose prompt cards" — 32 番茄-genre voice cards recalled into the writer at draft time (card text never leaks into prose), plus outline-boundary and per-chapter formula gates against padding; short-form adds a submission layer `submission-craft` (Zhihu Yanxuan / mini-program / Fanqie platform tones, lead-in polish, paywall breakpoint design); suite-wide skill docs deduplicated by ~33KB; story-setup adds generic Web AI deployment. Deployed projects should rerun `/story-setup` and start a new session.
 >
 > For earlier versions, see [CHANGELOG.md](CHANGELOG.md).
 
