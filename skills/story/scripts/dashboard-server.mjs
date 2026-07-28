@@ -362,10 +362,17 @@ export async function scanWorkspace(root) {
   const libraryPaths = libraryRoots.map((entry) => entry.absolutePath);
   const projectRoots = await findProjectRoots(realRoot, libraryPaths, scanErrors);
 
-  // 共享节点预算必须顺序消费：Promise.all 会让“哪本书先抢到剩余预算”取决于文件系统调度，
-  // 同一个工作区刷新两次可能展示不同子树。仍保持写作项目优先于参考档案。
-  const state = { nodes: 0, nodeLimitHit: false, depthLimitHit: false, scanErrors };
-  const buildRoots = async (roots) => {
+  // 写作项目和拆文库是两个独立入口：任一侧文件过多时，只截断自身，
+  // 不能耗尽共享预算后让另一侧看起来像是空的。
+  const createTreeState = () => ({
+    nodes: 0,
+    nodeLimitHit: false,
+    depthLimitHit: false,
+    scanErrors,
+  });
+  const projectState = createTreeState();
+  const libraryState = createTreeState();
+  const buildRoots = async (roots, state) => {
     const trees = [];
     for (const entry of roots) {
       const tree = await buildTreeNode(
@@ -378,8 +385,10 @@ export async function scanWorkspace(root) {
     }
     return trees;
   };
-  const projects = await buildRoots(projectRoots);
-  const libraries = await buildRoots(libraryRoots);
+  const projects = await buildRoots(projectRoots, projectState);
+  const libraries = await buildRoots(libraryRoots, libraryState);
+  const nodeLimitHit = projectState.nodeLimitHit || libraryState.nodeLimitHit;
+  const depthLimitHit = projectState.depthLimitHit || libraryState.depthLimitHit;
 
   libraries.sort(compareTreeEntries);
   projects.sort(compareTreeEntries);
@@ -399,9 +408,9 @@ export async function scanWorkspace(root) {
       maxTreeDepth: MAX_TREE_DEPTH,
       // truncated 仍是前端读的总闸门，但成因要分开报：「文件太多」和「目录套太深」
       // 对作者是两种处置办法，混成一句话等于让人照着错的办法搬文件。
-      truncated: state.nodeLimitHit || state.depthLimitHit || scanErrors.length > 0,
-      truncatedByNodes: state.nodeLimitHit,
-      truncatedByDepth: state.depthLimitHit,
+      truncated: nodeLimitHit || depthLimitHit || scanErrors.length > 0,
+      truncatedByNodes: nodeLimitHit,
+      truncatedByDepth: depthLimitHit,
       truncatedByReadError: scanErrors.length > 0,
     },
   };

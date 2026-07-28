@@ -81,8 +81,11 @@ async function createOversizedWorkspace(fileCount = 5010) {
   const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-oversized-"));
   temporaryDirectories.push(root);
   const body = resolve(root, "长篇", "巨书", "正文");
+  const library = resolve(root, "拆文库", "盘龙");
   await mkdir(resolve(root, "长篇", "巨书", "大纲"), { recursive: true });
   await mkdir(body, { recursive: true });
+  await mkdir(resolve(library, "章节"), { recursive: true });
+  await writeFile(resolve(library, "拆文报告.md"), "# 盘龙\n", "utf8");
   for (let start = 0; start < fileCount; start += 200) {
     await Promise.all(
       Array.from({ length: Math.min(200, fileCount - start) }, (_, offset) =>
@@ -166,6 +169,11 @@ describe("workspace scanning", () => {
     assert.equal(workspace.limits.truncatedByNodes, true);
     assert.equal(workspace.limits.truncatedByDepth, false);
     assert.ok(workspace.stats.files <= workspace.limits.maxTreeNodes);
+    assert.deepEqual(
+      workspace.libraries.map((entry) => entry.path),
+      ["拆文库/盘龙"],
+    );
+    assert.match(JSON.stringify(workspace.libraries), /拆文报告\.md/);
   });
 
   test("ignores infrastructure folders and marks unsupported files read-only", async () => {
