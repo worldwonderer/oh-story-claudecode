@@ -59,6 +59,26 @@ async function createWorkspace() {
   return root;
 }
 
+async function createProjectDiscoveryWorkspace() {
+  const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-projects-"));
+  temporaryDirectories.push(root);
+
+  await mkdir(resolve(root, "长篇", "标准长篇", "正文"), { recursive: true });
+  await mkdir(resolve(root, "短篇", "标准短篇"), { recursive: true });
+  await writeFile(resolve(root, "短篇", "标准短篇", "正文.md"), "正文", "utf8");
+  await writeFile(resolve(root, "短篇", "标准短篇", "小节大纲.md"), "大纲", "utf8");
+  await writeFile(resolve(root, "短篇", "标准短篇", "设定.md"), "设定", "utf8");
+
+  await mkdir(resolve(root, "普通资料"), { recursive: true });
+  await writeFile(resolve(root, "普通资料", "正文.md"), "不是短篇工程", "utf8");
+
+  await mkdir(resolve(root, "拆文库", "伪项目"), { recursive: true });
+  await writeFile(resolve(root, "拆文库", "伪项目", "正文.md"), "拆文原文", "utf8");
+  await writeFile(resolve(root, "拆文库", "伪项目", "设定.md"), "拆文资料", "utf8");
+
+  return root;
+}
+
 // 一个目录超过单页 200 项即可验证分页；不用再造 5000 个文件测试全量树预算。
 async function createOversizedWorkspace(fileCount = 205) {
   const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-oversized-"));
@@ -95,6 +115,38 @@ async function startServer(root) {
 }
 
 describe("workspace scanning", () => {
+  test("recognizes standard long and short projects without treating loose files or libraries as projects", async () => {
+    const root = await createProjectDiscoveryWorkspace();
+    const workspace = await scanWorkspace(root);
+
+    assert.deepEqual(
+      workspace.projects.map((entry) => entry.path),
+      ["短篇/标准短篇", "长篇/标准长篇"],
+    );
+    assert.deepEqual(workspace.libraries.map((entry) => entry.path), ["拆文库/伪项目"]);
+    assert.ok(!workspace.projects.some((entry) => entry.path === "普通资料"));
+    assert.ok(!workspace.projects.some((entry) => entry.path.startsWith("拆文库/")));
+  });
+
+  test("does not use symlinked short-story marker files", async (context) => {
+    const root = await createProjectDiscoveryWorkspace();
+    const candidate = resolve(root, "短篇", "符号链接标记");
+    await mkdir(candidate, { recursive: true });
+    await writeFile(resolve(candidate, "设定.md"), "设定", "utf8");
+    try {
+      await symlink(resolve(root, "短篇", "标准短篇", "正文.md"), resolve(candidate, "正文.md"));
+    } catch (error) {
+      if (error?.code === "EPERM") {
+        context.skip("当前平台不允许创建测试符号链接");
+        return;
+      }
+      throw error;
+    }
+
+    const workspace = await scanWorkspace(root);
+    assert.ok(!workspace.projects.some((entry) => entry.path === "短篇/符号链接标记"));
+  });
+
   test("discovers roots without recursively serializing every manuscript", async () => {
     const workspace = await scanWorkspace(resolve("demo"));
     assert.deepEqual(
