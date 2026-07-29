@@ -39,9 +39,10 @@ const IGNORED_DIRECTORIES = new Set([
 ]);
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_REQUEST_BYTES = MAX_FILE_BYTES + 64 * 1024;
-const MAX_TREE_DEPTH = 10;
-const MAX_TREE_NODES_PER_CATEGORY = 5000;
-const MAX_TREE_NODES = MAX_TREE_NODES_PER_CATEGORY * 2;
+const DIRECTORY_PAGE_SIZE = 200;
+const MAX_SEARCH_RESULTS = 100;
+const MAX_SEARCH_NODES = 5000;
+const MAX_SEARCH_DEPTH = 20;
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 const FILE_MUTATION_TAILS = new Map();
 
@@ -173,71 +174,124 @@ export async function resolveWorkspacePath(root, requestedPath, options = {}) {
   return { absolutePath: candidate, realRoot, info };
 }
 
-async function buildTreeNode(root, absolutePath, relativePath, state, depth = 0) {
-  // 两个上限都会真的丢文件，必须各自留痕：靠 state.nodes 反推截断只能看见节点预算，
-  // 目录太深被剪掉的子树会一声不响地消失，作者还以为文稿本来就不存在。
-  if (state.nodes >= MAX_TREE_NODES_PER_CATEGORY) {
-    state.nodeLimitHit = true;
-    return null;
-  }
-  if (depth > MAX_TREE_DEPTH) {
-    state.depthLimitHit = true;
-    return null;
-  }
-  state.nodes += 1;
-
-  const info = await lstat(absolutePath).catch((error) => {
-    recordScanError(state.scanErrors, root, absolutePath, error);
-    return null;
-  });
-  if (!info || info.isSymbolicLink()) {
-    return null;
-  }
-
-  if (info.isFile()) {
-    return {
-      name: basename(absolutePath),
-      path: toPosixPath(relativePath),
-      type: "file",
-      editable: isEditableFile(absolutePath) && info.size <= MAX_FILE_BYTES,
-      size: info.size,
-    };
-  }
-  if (!info.isDirectory()) {
-    return null;
-  }
-
-  const entries = await readdir(absolutePath, { withFileTypes: true }).catch((error) => {
-    recordScanError(state.scanErrors, root, absolutePath, error);
-    return [];
-  });
-  const children = [];
-  for (const entry of entries) {
-    if (entry.isDirectory() && shouldIgnoreDirectory(entry.name)) {
-      continue;
-    }
-    if (entry.isSymbolicLink()) {
-      continue;
-    }
-    const childRelative = relativePath ? `${relativePath}${sep}${entry.name}` : entry.name;
-    const child = await buildTreeNode(
-      root,
-      resolve(absolutePath, entry.name),
-      childRelative,
-      state,
-      depth + 1,
-    );
-    if (child) {
-      children.push(child);
-    }
-  }
-  children.sort(compareTreeEntries);
-
+function directoryNode(absolutePath, relativePath) {
   return {
-    name: relativePath ? basename(absolutePath) : basename(root),
+    name: basename(absolutePath),
     path: toPosixPath(relativePath),
     type: "directory",
-    children,
+    children: [],
+    loaded: false,
+  };
+}
+
+function assertRelativeWorkspacePath(requestedPath, label = "路径") {
+  if (typeof requestedPath !== "string" || requestedPath.length === 0) {
+    throw new DashboardError(400, "invalid_path", `${label}不能为空`);
+  }
+  if (
+    requestedPath.includes("\0") ||
+    isAbsolute(requestedPath) ||
+    /^[A-Za-z]:[\\/]/.test(requestedPath)
+  ) {
+    throw new DashboardError(403, "path_outside_workspace", "只允许访问工作区内的相对路径");
+  }
+}
+
+export async function resolveWorkspaceDirectory(root, requestedPath) {
+  assertRelativeWorkspacePath(requestedPath, "目录路径");
+  const realRoot = await existingRealRoot(root);
+  const candidate = resolve(realRoot, requestedPath);
+  if (!isPathInside(candidate, realRoot)) {
+    throw new DashboardError(403, "path_outside_workspace", "路径超出工作区");
+  }
+  if (requestedPath.split(/[\\/]+/).some((segment) => shouldIgnoreDirectory(segment))) {
+    throw new DashboardError(403, "directory_hidden", "该目录不会显示在 Dashboard 中");
+  }
+
+  const info = await lstat(candidate).catch((error) => {
+    if (error?.code === "ENOENT") {
+      throw new DashboardError(404, "directory_not_found", "目录不存在");
+    }
+    throw error;
+  });
+  if (info.isSymbolicLink()) {
+    throw new DashboardError(403, "symlink_not_readable", "Dashboard 不读取符号链接目录");
+  }
+  if (!info.isDirectory()) {
+    throw new DashboardError(400, "not_a_directory", "目标不是目录");
+  }
+
+  const resolvedDirectory = await realpath(candidate);
+  if (!isPathInside(resolvedDirectory, realRoot)) {
+    throw new DashboardError(403, "path_outside_workspace", "符号链接指向工作区外部");
+  }
+  return { absolutePath: candidate, realRoot };
+}
+
+function parseDirectoryCursor(value) {
+  if (value === null || value === "") return 0;
+  if (!/^\d+$/.test(value)) {
+    throw new DashboardError(400, "invalid_cursor", "目录游标无效");
+  }
+  const cursor = Number(value);
+  if (!Number.isSafeInteger(cursor)) {
+    throw new DashboardError(400, "invalid_cursor", "目录游标无效");
+  }
+  return cursor;
+}
+
+function visibleDirectoryEntries(entries) {
+  return entries
+    .filter(
+      (entry) =>
+        !entry.isSymbolicLink() &&
+        (!entry.isDirectory() || !shouldIgnoreDirectory(entry.name)),
+    )
+    .sort((left, right) =>
+      compareTreeEntries(
+        { name: left.name, type: left.isDirectory() ? "directory" : "file" },
+        { name: right.name, type: right.isDirectory() ? "directory" : "file" },
+      ),
+    );
+}
+
+export async function listWorkspaceDirectory(root, requestedPath, cursorValue = null) {
+  const { absolutePath, realRoot } = await resolveWorkspaceDirectory(root, requestedPath);
+  const cursor = parseDirectoryCursor(cursorValue);
+  const entries = await readdir(absolutePath, { withFileTypes: true }).catch(() => {
+    throw new DashboardError(
+      403,
+      "directory_unreadable",
+      `目录无法读取，请检查访问权限或挂载状态：${toPosixPath(requestedPath)}`,
+    );
+  });
+  const visibleEntries = visibleDirectoryEntries(entries);
+  const page = visibleEntries.slice(cursor, cursor + DIRECTORY_PAGE_SIZE);
+  const nodes = (
+    await Promise.all(
+      page.map(async (entry) => {
+        const childAbsolute = resolve(absolutePath, entry.name);
+        const childRelative = relative(realRoot, childAbsolute);
+        if (entry.isDirectory()) {
+          return directoryNode(childAbsolute, childRelative);
+        }
+        const info = await lstat(childAbsolute).catch(() => null);
+        if (!info?.isFile() || info.isSymbolicLink()) return null;
+        return {
+          name: entry.name,
+          path: toPosixPath(childRelative),
+          type: "file",
+          editable: isEditableFile(childAbsolute) && info.size <= MAX_FILE_BYTES,
+          size: info.size,
+        };
+      }),
+    )
+  ).filter(Boolean);
+  const nextOffset = cursor + page.length;
+  return {
+    path: toPosixPath(relative(realRoot, absolutePath)),
+    entries: nodes,
+    nextCursor: nextOffset < visibleEntries.length ? String(nextOffset) : null,
   };
 }
 
@@ -329,70 +383,26 @@ async function findProjectRoots(
   return projects;
 }
 
-function summarizeTrees(libraries, projects) {
-  const uniqueFiles = new Set();
-  let editableFiles = 0;
-
-  function visit(node) {
-    if (node.type === "file") {
-      if (!uniqueFiles.has(node.path)) {
-        uniqueFiles.add(node.path);
-        if (node.editable) {
-          editableFiles += 1;
-        }
-      }
-      return;
-    }
-    node.children.forEach(visit);
-  }
-
-  libraries.forEach(visit);
-  projects.forEach(visit);
-  return {
-    libraries: libraries.length,
-    projects: projects.length,
-    files: uniqueFiles.size,
-    editableFiles,
-  };
-}
-
-export async function scanWorkspace(root) {
-  const realRoot = await existingRealRoot(root);
+async function discoverWorkspaceRoots(realRoot) {
   const scanErrors = [];
   const libraryRoots = await listLibraryRoots(realRoot, scanErrors);
   const libraryPaths = libraryRoots.map((entry) => entry.absolutePath);
   const projectRoots = await findProjectRoots(realRoot, libraryPaths, scanErrors);
+  return { libraryRoots, projectRoots, scanErrors };
+}
 
-  // 写作项目和拆文库是两个独立入口：任一侧文件过多时，只截断自身，
-  // 不能耗尽共享预算后让另一侧看起来像是空的。
-  const createTreeState = () => ({
-    nodes: 0,
-    nodeLimitHit: false,
-    depthLimitHit: false,
-    scanErrors,
-  });
-  const projectState = createTreeState();
-  const libraryState = createTreeState();
-  const buildRoots = async (roots, state) => {
-    const trees = [];
-    for (const entry of roots) {
-      const tree = await buildTreeNode(
-        realRoot,
-        entry.absolutePath,
-        entry.relativePath,
-        state,
-      );
-      if (tree) trees.push(tree);
-    }
-    return trees;
-  };
-  const projects = await buildRoots(projectRoots, projectState);
-  const libraries = await buildRoots(libraryRoots, libraryState);
-  const nodeLimitHit = projectState.nodeLimitHit || libraryState.nodeLimitHit;
-  const depthLimitHit = projectState.depthLimitHit || libraryState.depthLimitHit;
-
+export async function scanWorkspace(root) {
+  const realRoot = await existingRealRoot(root);
+  const { libraryRoots, projectRoots, scanErrors } = await discoverWorkspaceRoots(realRoot);
+  const libraries = libraryRoots.map((entry) =>
+    directoryNode(entry.absolutePath, entry.relativePath),
+  );
+  const projects = projectRoots.map((entry) =>
+    directoryNode(entry.absolutePath, entry.relativePath),
+  );
   libraries.sort(compareTreeEntries);
   projects.sort(compareTreeEntries);
+
   return {
     workspace: {
       name: basename(realRoot),
@@ -401,23 +411,109 @@ export async function scanWorkspace(root) {
     libraries,
     projects,
     scanErrors,
-    stats: summarizeTrees(libraries, projects),
+    stats: {
+      libraries: libraries.length,
+      projects: projects.length,
+      files: null,
+      editableFiles: null,
+      onDemand: true,
+    },
     limits: {
       maxFileBytes: MAX_FILE_BYTES,
       editableExtensions: [...EDITABLE_EXTENSIONS],
-      maxTreeNodes: MAX_TREE_NODES,
-      maxTreeNodesPerCategory: MAX_TREE_NODES_PER_CATEGORY,
-      maxTreeDepth: MAX_TREE_DEPTH,
-      // truncated 仍是前端读的总闸门，但成因要分开报：「文件太多」和「目录套太深」
-      // 对作者是两种处置办法，混成一句话等于让人照着错的办法搬文件。
-      truncated: nodeLimitHit || depthLimitHit || scanErrors.length > 0,
-      truncatedByNodes: nodeLimitHit,
-      truncatedByNodesByCategory: {
-        projects: projectState.nodeLimitHit,
-        libraries: libraryState.nodeLimitHit,
-      },
-      truncatedByDepth: depthLimitHit,
+      directoryPageSize: DIRECTORY_PAGE_SIZE,
+      maxSearchResults: MAX_SEARCH_RESULTS,
+      truncated: scanErrors.length > 0,
+      truncatedByNodes: false,
+      truncatedByDepth: false,
       truncatedByReadError: scanErrors.length > 0,
+    },
+  };
+}
+
+export async function searchWorkspace(root, queryValue, scopeValue) {
+  const query = typeof queryValue === "string" ? queryValue.trim() : "";
+  if (!query || query.length > 100) {
+    throw new DashboardError(400, "invalid_query", "搜索词长度必须在 1–100 个字符之间");
+  }
+  if (!["libraries", "projects"].includes(scopeValue)) {
+    throw new DashboardError(400, "invalid_scope", "搜索范围必须是拆文库或写作项目");
+  }
+
+  const realRoot = await existingRealRoot(root);
+  const { libraryRoots, projectRoots, scanErrors } = await discoverWorkspaceRoots(realRoot);
+  const roots = scopeValue === "libraries" ? libraryRoots : projectRoots;
+  const normalizedQuery = query.toLocaleLowerCase("zh-CN");
+  const state = {
+    nodes: 0,
+    truncated: false,
+    results: [],
+    scanErrors,
+  };
+
+  async function visit(absolutePath, relativePath, depth) {
+    if (state.results.length >= MAX_SEARCH_RESULTS || state.nodes >= MAX_SEARCH_NODES) {
+      state.truncated = true;
+      return;
+    }
+    if (depth > MAX_SEARCH_DEPTH) {
+      state.truncated = true;
+      return;
+    }
+    state.nodes += 1;
+
+    const info = await lstat(absolutePath).catch((error) => {
+      recordScanError(state.scanErrors, realRoot, absolutePath, error);
+      return null;
+    });
+    if (!info || info.isSymbolicLink()) return;
+    if (info.isFile()) {
+      const path = toPosixPath(relativePath);
+      if (path.toLocaleLowerCase("zh-CN").includes(normalizedQuery)) {
+        state.results.push({
+          name: basename(absolutePath),
+          path,
+          type: "file",
+          editable: isEditableFile(absolutePath) && info.size <= MAX_FILE_BYTES,
+          size: info.size,
+        });
+      }
+      return;
+    }
+    if (!info.isDirectory()) return;
+
+    const entries = await readdir(absolutePath, { withFileTypes: true }).catch((error) => {
+      recordScanError(state.scanErrors, realRoot, absolutePath, error);
+      return [];
+    });
+    for (const entry of visibleDirectoryEntries(entries)) {
+      if (state.results.length >= MAX_SEARCH_RESULTS || state.nodes >= MAX_SEARCH_NODES) {
+        state.truncated = true;
+        break;
+      }
+      await visit(
+        resolve(absolutePath, entry.name),
+        relativePath ? `${relativePath}${sep}${entry.name}` : entry.name,
+        depth + 1,
+      );
+    }
+  }
+
+  for (const entry of roots) {
+    await visit(entry.absolutePath, entry.relativePath, 0);
+    if (state.truncated) break;
+  }
+  state.results.sort(compareTreeEntries);
+  return {
+    query,
+    scope: scopeValue,
+    results: state.results,
+    truncated: state.truncated,
+    scanErrors,
+    limits: {
+      maxResults: MAX_SEARCH_RESULTS,
+      maxNodes: MAX_SEARCH_NODES,
+      maxDepth: MAX_SEARCH_DEPTH,
     },
   };
 }
@@ -635,6 +731,30 @@ export function createDashboardServer({ root, allowNetwork = false }) {
       }
       if (request.method === "GET" && url.pathname === "/api/workspace") {
         sendJson(response, 200, await scanWorkspace(workspaceRoot));
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/tree") {
+        sendJson(
+          response,
+          200,
+          await listWorkspaceDirectory(
+            workspaceRoot,
+            url.searchParams.get("path") || "",
+            url.searchParams.get("cursor"),
+          ),
+        );
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/api/search") {
+        sendJson(
+          response,
+          200,
+          await searchWorkspace(
+            workspaceRoot,
+            url.searchParams.get("q") || "",
+            url.searchParams.get("scope") || "",
+          ),
+        );
         return;
       }
       if (request.method === "GET" && url.pathname === "/api/file") {

@@ -569,6 +569,28 @@ kbd {
   border-left: 1px solid var(--line);
 }
 
+.tree-inline-status {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  color: var(--ink-500);
+  font-size: 11px;
+}
+
+.tree-inline-status button {
+  padding: 4px 0;
+  color: var(--blue-600);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.tree-inline-status button:hover {
+  text-decoration: underline;
+}
+
 .file-row {
   width: 100%;
   height: 34px;

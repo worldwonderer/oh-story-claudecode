@@ -54,19 +54,24 @@ test("用现有 demo 浏览拆文库、搜索项目并编辑保存", async ({ pa
 
   await page.getByRole("tab", { name: /写作项目/ }).click();
   await expect(page.locator("#treeTruncationNotice")).toHaveCount(0);
+  await expect(page.locator("#fileTree")).not.toContainText("关系.md");
+  await page.locator("summary").filter({ hasText: "设定" }).click();
   await expect(page.locator("#fileTree")).toContainText("关系.md");
   const unfilteredRows = await page.locator("#fileTree .file-row").count();
-  expect(unfilteredRows).toBeGreaterThan(10);
+  expect(unfilteredRows).toBeGreaterThan(1);
 
-  // 搜索必须真的筛掉不相关的文稿：只断言命中项还在，等于放过了「过滤形同虚设」
+  // 搜索由服务端按需扫描，未展开「角色」目录也必须找到江晨。
   await page.locator("#treeSearch").fill("江晨");
   await expect(page.locator("#fileTree")).toContainText("江晨.md");
   await expect(page.locator("#fileTree")).not.toContainText("关系.md");
   await expect(page.locator("#fileTree")).not.toContainText("细纲_第003章");
   await expect(page.locator("#fileTree")).not.toContainText("盘龙");
   expect(await page.locator("#fileTree .file-row").count()).toBeLessThan(unfilteredRows);
+  await page.locator("#refreshButton").click();
+  await expect(page.locator("#toastRegion")).toContainText("工作区目录已刷新");
+  await expect(page.locator("#fileTree")).toContainText("江晨.md");
 
-  // 清空搜索后整棵树要回来（Escape 由浏览器清输入框，这里看的是树本身）
+  // 清空搜索后回到已加载目录，作者刚展开的「设定」不能被收起。
   await page.locator("#treeSearch").press("Escape");
   await expect(page.locator("#treeSearch")).toHaveValue("");
   await expect(page.locator("#fileTree")).toContainText("关系.md");
@@ -83,9 +88,9 @@ test("从真实 demo 删除文稿前明确确认并刷新文件树", async ({ pa
   ];
   const filePath = retryFiles[testInfo.retry];
   await page.goto("/");
-  await expect(page.locator("#fileCount")).not.toHaveText("—");
+  await expect(page.locator("#fileCount")).toContainText("+");
   const initialFileCount = Number(
-    (await page.locator("#fileCount").textContent()).replaceAll(",", ""),
+    (await page.locator("#fileCount").textContent()).replace(/[,+]/g, ""),
   );
   expect(Number.isFinite(initialFileCount)).toBeTruthy();
 
@@ -107,7 +112,7 @@ test("从真实 demo 删除文稿前明确确认并刷新文件树", async ({ pa
   expect(dismissed.message).toContain("无法撤销");
 
   await expect(page.locator(`.file-row[data-path='${filePath}']`)).toHaveCount(1);
-  await expect(page.locator("#fileCount")).toHaveText(String(initialFileCount));
+  await expect(page.locator("#fileCount")).toHaveText(`${initialFileCount}+`);
   await expect(page.locator("#editorTitle")).toHaveText(fileName);
   const survived = await request.get(`/api/file?path=${encodeURIComponent(filePath)}`);
   expect(survived.status()).toBe(200);
@@ -126,7 +131,7 @@ test("从真实 demo 删除文稿前明确确认并刷新文件树", async ({ pa
   await expect(page.locator("#toastRegion")).toContainText("已删除");
   await expect(page.locator("#editorEmpty")).toBeVisible();
   await expect(page.locator(`.file-row[data-path='${filePath}']`)).toHaveCount(0);
-  await expect(page.locator("#fileCount")).toHaveText(String(initialFileCount - 1));
+  await expect(page.locator("#fileCount")).toHaveText(`${initialFileCount - 1}+`);
 
   const deleted = await request.get(`/api/file?path=${encodeURIComponent(filePath)}`);
   expect(deleted.status()).toBe(404);
@@ -346,12 +351,9 @@ test("打开文稿不会收起正在翻的目录", async ({ page }) => {
   await expect(row).toBeVisible();
 });
 
-// 提示条必须由真实扫描触发：改写响应把 truncated 拍成 true 只能证明模板会渲染，
-// 服务端根本没上报截断这种漏文件的 bug 照样从这条断言底下溜过去。
-test("目录树被截断时明确提示，而不是让文件凭空消失", async ({ page, request }) => {
+test("深目录不再被首屏扫描深度剪掉，搜索时仍能按需找到", async ({ page, request }) => {
   const workspace = await request.get("/api/workspace").then((response) => response.json());
   const projectPath = workspace.projects[0].path;
-  // 在真实 fixture 的正文下套满 12 层，越过服务端 MAX_TREE_DEPTH，扫描会真的剪掉子树
   const nestedRoot = resolve(workspace.workspace.path, projectPath, "正文", "深卷");
   const nestedLeaf = resolve(
     nestedRoot,
@@ -363,25 +365,13 @@ test("目录树被截断时明确提示，而不是让文件凭空消失", async
     await writeFile(resolve(nestedLeaf, "埋掉的一章.md"), "深处的正文", "utf8");
 
     await page.goto("/");
-    await expect(page.locator("#treeTruncationNotice")).toContainText("有目录套得太深");
-    await expect(page.locator("#treeTruncationNotice")).toContainText("更深处的文稿没有列出");
-    await expect(page.locator("#treeTruncationNotice")).toContainText("搜索也只覆盖已列出的部分");
-    await expect(page.locator("#fileCount")).toContainText("+");
-
-    // 被剪掉的文稿确实不在树里，也搜不到——提示条说的就是这件事
     await page.getByRole("tab", { name: /写作项目/ }).click();
     await page.locator("#treeSearch").fill("埋掉的一章");
-    await expect(page.locator("#fileTree .file-row")).toHaveCount(0);
-    await expect(page.locator("#fileTree")).toContainText("没有找到");
+    await expect(page.locator("#fileTree")).toContainText("埋掉的一章.md");
+    await expect(page.locator("#treeTruncationNotice")).toHaveCount(0);
   } finally {
     await rm(nestedRoot, { recursive: true, force: true });
   }
-
-  // 深目录挪走后提示条必须自己消失，否则就是恒亮的噪音而不是告警
-  await page.goto("/");
-  await expect(page.locator("#fileTree")).toContainText("盘龙");
-  await expect(page.locator("#treeTruncationNotice")).toHaveCount(0);
-  await expect(page.locator("#fileCount")).not.toContainText("+");
 });
 
 test("目录读取失败时提示权限或挂载问题，而不是伪装成空库", async ({ page }) => {
@@ -403,41 +393,49 @@ test("目录读取失败时提示权限或挂载问题，而不是伪装成空�
   await page.goto("/");
   await expect(page.locator("#treeTruncationNotice")).toContainText("拆文库无法读取");
   await expect(page.locator("#treeTruncationNotice")).toContainText("检查这些目录的访问权限和外挂盘挂载状态");
-  await expect(page.locator("#fileCount")).toContainText("+");
+  await expect(page.locator("#fileCount")).toHaveAttribute(
+    "title",
+    "文稿随目录展开按需加载，不预先遍历整个工作区",
+  );
 });
 
-// 节点预算这条成因也要真跑一遍：它和深度截断共用 truncated 布尔值，
-// 只测一条就分不出「文案是否跟着成因走」，作者会拿到错的处置建议。
-test("文件顶到节点上限时提示的是减量，而不是拍平目录", async ({ page, request }) => {
+test("宽目录按页加载，点击更多后继续追加而不丢失首批文件", async ({ page, request }) => {
   const workspace = await request.get("/api/workspace").then((response) => response.json());
-  const body = resolve(workspace.workspace.path, workspace.projects[0].path, "正文");
-  const created = [];
+  const project = resolve(workspace.workspace.path, workspace.projects[0].path);
+  const volume = resolve(project, "批量卷");
 
   try {
-    // 比单类节点预算多出一截，项目扫描必然在列完之前用光自身预算
-    for (let start = 0; start < 5010; start += 200) {
+    await mkdir(volume, { recursive: true });
+    for (let start = 0; start < 205; start += 100) {
       await Promise.all(
-        Array.from({ length: Math.min(200, 5010 - start) }, (_, offset) => {
-          const target = resolve(body, `凑数_第${String(start + offset + 1).padStart(5, "0")}章.md`);
-          created.push(target);
-          return writeFile(target, "凑数", "utf8");
-        }),
+        Array.from({ length: Math.min(100, 205 - start) }, (_, offset) =>
+          writeFile(
+            resolve(volume, `第${String(start + offset + 1).padStart(5, "0")}章.md`),
+            "凑数",
+            "utf8",
+          ),
+        ),
       );
     }
 
     await page.goto("/");
-    await expect(page.locator("#treeTruncationNotice")).toContainText("写作项目文件太多");
-    await expect(page.locator("#treeTruncationNotice")).toContainText(
-      "写作项目和拆文库每类最多列出 5,000 个节点",
+    await page.getByRole("tab", { name: /写作项目/ }).click();
+    await page.locator("summary").filter({ hasText: "批量卷" }).click();
+    const first = page.locator(
+      `.file-row[data-path='${workspace.projects[0].path}/批量卷/第00001章.md']`,
     );
-    await expect(page.locator("#treeTruncationNotice")).not.toContainText("有目录套得太深");
-    await expect(page.locator("#fileCount")).toContainText("+");
+    const last = page.locator(
+      `.file-row[data-path='${workspace.projects[0].path}/批量卷/第00205章.md']`,
+    );
+    await expect(first).toBeVisible();
+    await expect(last).toHaveCount(0);
+    await page.getByRole("button", { name: "加载更多" }).click();
+    await expect(first).toBeVisible();
+    await expect(last).toBeVisible();
+    await expect(page.getByRole("button", { name: "加载更多" })).toHaveCount(0);
   } finally {
-    await Promise.all(created.map((target) => rm(target, { force: true })));
+    await rm(volume, { recursive: true, force: true });
   }
-
-  await page.goto("/");
-  await expect(page.locator("#treeTruncationNotice")).toHaveCount(0);
 });
 
 test("@mobile 手机视口仍可从真实长篇项目打开大纲", async ({ page }) => {

@@ -7,9 +7,12 @@ import {
   DashboardError,
   browserLaunchCommand,
   createDashboardServer,
+  listWorkspaceDirectory,
   pathsReferToSameFile,
+  resolveWorkspaceDirectory,
   resolveWorkspacePath,
   scanWorkspace,
+  searchWorkspace,
 } from "../skills/story/scripts/dashboard-server.mjs";
 
 const temporaryDirectories = [];
@@ -56,77 +59,28 @@ async function createWorkspace() {
   return root;
 }
 
-// 真造一棵超过 MAX_TREE_DEPTH 的目录：深度上限是靠 buildTreeNode 剪子树实现的，
-// 只有走真实 scanWorkspace 才能测出「文件被剪掉却不报截断」这类静默漏文件。
-async function createDeepWorkspace(nesting = 12) {
-  const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-deep-"));
-  temporaryDirectories.push(root);
-  const projectRoot = resolve(root, "长篇", "深书");
-  await mkdir(resolve(projectRoot, "大纲"), { recursive: true });
-  await mkdir(resolve(projectRoot, "正文"), { recursive: true });
-  await writeFile(resolve(projectRoot, "正文", "第001章.md"), "初稿", "utf8");
-  // 正文 从项目根算起是第 1 层，再往下套 nesting 层，最深的文稿必然越过深度上限
-  const deepDirectory = resolve(
-    projectRoot,
-    "正文",
-    ...Array.from({ length: nesting }, (_, index) => `卷${index + 1}`),
-  );
-  await mkdir(deepDirectory, { recursive: true });
-  await writeFile(resolve(deepDirectory, "埋掉的一章.md"), "深处的正文", "utf8");
-  return root;
-}
-
-// 分别给项目和拆文库造宽目录，验证每类预算互不挤占且总量契约一致。
-async function createOversizedWorkspace(projectFileCount = 5010, libraryFileCount = 0) {
+// 一个目录超过单页 200 项即可验证分页；不用再造 5000 个文件测试全量树预算。
+async function createOversizedWorkspace(fileCount = 205) {
   const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-oversized-"));
   temporaryDirectories.push(root);
   const body = resolve(root, "长篇", "巨书", "正文");
   const library = resolve(root, "拆文库", "盘龙");
-  const libraryChapters = resolve(library, "章节");
   await mkdir(resolve(root, "长篇", "巨书", "大纲"), { recursive: true });
   await mkdir(body, { recursive: true });
-  await mkdir(libraryChapters, { recursive: true });
+  await mkdir(resolve(library, "章节"), { recursive: true });
   await writeFile(resolve(library, "拆文报告.md"), "# 盘龙\n", "utf8");
-
-  async function writeNumberedFiles(directory, fileCount, prefix) {
-    for (let start = 0; start < fileCount; start += 200) {
-      await Promise.all(
-        Array.from({ length: Math.min(200, fileCount - start) }, (_, offset) =>
-          writeFile(
-            resolve(directory, `${prefix}${String(start + offset + 1).padStart(5, "0")}.md`),
-            "初稿",
-            "utf8",
-          ),
+  for (let start = 0; start < fileCount; start += 200) {
+    await Promise.all(
+      Array.from({ length: Math.min(200, fileCount - start) }, (_, offset) =>
+        writeFile(
+          resolve(body, `第${String(start + offset + 1).padStart(5, "0")}章.md`),
+          "初稿",
+          "utf8",
         ),
-      );
-    }
+      ),
+    );
   }
-  await writeNumberedFiles(body, projectFileCount, "第");
-  await writeNumberedFiles(libraryChapters, libraryFileCount, "摘要_");
   return root;
-}
-
-function countTreeNodes(trees) {
-  let count = 0;
-  function visit(node) {
-    count += 1;
-    if (node.type === "directory") node.children.forEach(visit);
-  }
-  trees.forEach(visit);
-  return count;
-}
-
-function countTreeFiles(trees) {
-  let count = 0;
-  function visit(node) {
-    if (node.type === "file") {
-      count += 1;
-      return;
-    }
-    node.children.forEach(visit);
-  }
-  trees.forEach(visit);
-  return count;
 }
 
 async function startServer(root) {
@@ -141,7 +95,7 @@ async function startServer(root) {
 }
 
 describe("workspace scanning", () => {
-  test("discovers canonical demo libraries and the real writing project", async () => {
+  test("discovers roots without recursively serializing every manuscript", async () => {
     const workspace = await scanWorkspace(resolve("demo"));
     assert.deepEqual(
       workspace.libraries.map((entry) => entry.path),
@@ -153,106 +107,53 @@ describe("workspace scanning", () => {
     );
     assert.equal(workspace.stats.libraries, 2);
     assert.equal(workspace.stats.projects, 1);
-    assert.ok(workspace.stats.editableFiles > 100);
-    // 前端要靠这几个字段判断「树是否被截断」，缺一个就会又变成静默漏文件
+    assert.equal(workspace.stats.editableFiles, null);
+    assert.equal(workspace.stats.onDemand, true);
+    assert.ok(workspace.libraries.every((entry) => entry.loaded === false));
+    assert.ok(workspace.projects.every((entry) => entry.children.length === 0));
+    assert.doesNotMatch(JSON.stringify(workspace), /第020章_老兵的礼物/);
     assert.equal(workspace.limits.truncated, false);
-    assert.equal(workspace.limits.truncatedByNodes, false);
-    assert.deepEqual(workspace.limits.truncatedByNodesByCategory, {
-      projects: false,
-      libraries: false,
-    });
-    assert.equal(workspace.limits.truncatedByDepth, false);
-    assert.equal(
-      workspace.limits.maxTreeNodes,
-      workspace.limits.maxTreeNodesPerCategory * 2,
-    );
-    assert.ok(workspace.limits.maxTreeDepth > 0);
+    assert.equal(workspace.limits.directoryPageSize, 200);
   });
 
-  test("reports truncation when the depth cap prunes a subtree", async () => {
-    const root = await createDeepWorkspace();
-    const workspace = await scanWorkspace(root);
-
-    // 深度上限确实剪掉了文稿，那就必须报截断：这里报 false 就是让文件凭空消失
-    assert.equal(workspace.limits.truncated, true);
-    assert.equal(workspace.limits.truncatedByDepth, true);
-    assert.equal(workspace.limits.truncatedByNodes, false);
-    // 只有深度触顶，节点预算根本没打满，别把两种成因搅在一起
-    assert.ok(workspace.limits.maxTreeDepth > 0);
-
-    const serialized = JSON.stringify(workspace);
-    assert.doesNotMatch(serialized, /埋掉的一章/);
-    // 剪掉深处子树不能连带毁掉整棵树：浅层正文和项目本身都要照常列出
-    assert.match(serialized, /第001章\.md/);
-    assert.equal(workspace.projects.length, 1);
-  });
-
-  test("keeps depth truncation quiet when every file fits inside the cap", async () => {
-    const root = await createDeepWorkspace(6);
-    const workspace = await scanWorkspace(root);
-
-    // 没越线就不能报截断，否则提示条恒亮，等于又变成没人看的噪音
-    assert.equal(workspace.limits.truncated, false);
-    assert.equal(workspace.limits.truncatedByDepth, false);
-    assert.match(JSON.stringify(workspace), /埋掉的一章/);
-  });
-
-  test("reports truncation when the node budget runs out", async () => {
-    const root = await createOversizedWorkspace();
-    const workspace = await scanWorkspace(root);
-
-    assert.equal(workspace.limits.truncated, true);
-    assert.equal(workspace.limits.truncatedByNodes, true);
-    assert.deepEqual(workspace.limits.truncatedByNodesByCategory, {
-      projects: true,
-      libraries: false,
-    });
-    assert.equal(workspace.limits.truncatedByDepth, false);
-    assert.ok(workspace.stats.files <= workspace.limits.maxTreeNodes);
-    assert.deepEqual(
-      workspace.libraries.map((entry) => entry.path),
-      ["拆文库/盘龙"],
-    );
-    assert.match(JSON.stringify(workspace.libraries), /拆文报告\.md/);
-  });
-
-  test("keeps both categories inside independent budgets when both are oversized", async () => {
-    const root = await createOversizedWorkspace(5010, 5010);
-    const workspace = await scanWorkspace(root);
-    const projectNodes = countTreeNodes(workspace.projects);
-    const libraryNodes = countTreeNodes(workspace.libraries);
-
-    assert.deepEqual(workspace.limits.truncatedByNodesByCategory, {
-      projects: true,
-      libraries: true,
-    });
-    assert.equal(workspace.limits.truncatedByNodes, true);
-    assert.equal(workspace.limits.maxTreeNodesPerCategory, 5000);
-    assert.equal(workspace.limits.maxTreeNodes, 10000);
-    assert.ok(projectNodes <= workspace.limits.maxTreeNodesPerCategory);
-    assert.ok(libraryNodes <= workspace.limits.maxTreeNodesPerCategory);
-    assert.ok(projectNodes + libraryNodes <= workspace.limits.maxTreeNodes);
-    assert.ok(workspace.stats.files <= workspace.limits.maxTreeNodes);
-    assert.equal(
-      workspace.stats.files,
-      countTreeFiles(workspace.projects) + countTreeFiles(workspace.libraries),
-    );
-    assert.ok(workspace.projects.length > 0);
-    assert.ok(workspace.libraries.length > 0);
-  });
-
-  test("ignores infrastructure folders and marks unsupported files read-only", async () => {
+  test("loads only one directory level and keeps infrastructure folders hidden", async () => {
     const root = await createWorkspace();
-    const workspace = await scanWorkspace(root);
-    const serialized = JSON.stringify(workspace);
+    const page = await listWorkspaceDirectory(root, "长篇/示例书");
+    const serialized = JSON.stringify(page);
     assert.doesNotMatch(serialized, /\.git|node_modules|fake-package|\.omc|secrets\.json/);
-    assert.match(serialized, /第001章\.md/);
-
-    const project = workspace.projects[0];
-    const cover = project.children.find((entry) => entry.name === "封面.png");
+    assert.doesNotMatch(serialized, /第001章\.md/);
+    assert.deepEqual(
+      page.entries.filter((entry) => entry.type === "directory").map((entry) => entry.name),
+      ["大纲", "正文"],
+    );
+    const cover = page.entries.find((entry) => entry.name === "封面.png");
     assert.equal(cover.editable, false);
-    assert.equal(workspace.stats.libraries, 1);
-    assert.equal(workspace.stats.projects, 1);
+    assert.equal(page.nextCursor, null);
+  });
+
+  test("paginates a wide directory without dropping or duplicating files", async () => {
+    const root = await createOversizedWorkspace();
+    const path = "长篇/巨书/正文";
+    const first = await listWorkspaceDirectory(root, path);
+    const second = await listWorkspaceDirectory(root, path, first.nextCursor);
+    assert.equal(first.entries.length, 200);
+    assert.equal(first.nextCursor, "200");
+    assert.equal(second.entries.length, 5);
+    assert.equal(second.nextCursor, null);
+    assert.equal(new Set([...first.entries, ...second.entries].map((entry) => entry.path)).size, 205);
+  });
+
+  test("searches unloaded descendants on demand and respects the active collection", async () => {
+    const root = await createWorkspace();
+    const projects = await searchWorkspace(root, "第001章", "projects");
+    assert.deepEqual(projects.results.map((entry) => entry.path), [
+      "长篇/示例书/正文/第001章.md",
+    ]);
+    const libraries = await searchWorkspace(root, "第1章", "libraries");
+    assert.deepEqual(libraries.results.map((entry) => entry.path), [
+      "拆文库/盘龙/章节/第1章.md",
+    ]);
+    assert.equal(projects.truncated, false);
   });
 });
 
@@ -265,6 +166,10 @@ describe("path boundary", () => {
     );
     await assert.rejects(
       resolveWorkspacePath(root, "/etc/hosts"),
+      (error) => error instanceof DashboardError && error.code === "path_outside_workspace",
+    );
+    await assert.rejects(
+      resolveWorkspaceDirectory(root, "../outside"),
       (error) => error instanceof DashboardError && error.code === "path_outside_workspace",
     );
   });
@@ -332,6 +237,43 @@ describe("CLI portability", () => {
 });
 
 describe("HTTP API", () => {
+  test("serves lazy roots, directory pages, and on-demand search", async () => {
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+
+    const workspace = await fetch(`${baseUrl}/api/workspace`).then((response) => response.json());
+    assert.deepEqual(workspace.projects[0].children, []);
+    assert.doesNotMatch(JSON.stringify(workspace), /第001章\.md/);
+
+    const tree = await fetch(
+      `${baseUrl}/api/tree?path=${encodeURIComponent("长篇/示例书")}`,
+    ).then((response) => response.json());
+    assert.deepEqual(
+      tree.entries.filter((entry) => entry.type === "directory").map((entry) => entry.name),
+      ["大纲", "正文"],
+    );
+
+    const search = await fetch(
+      `${baseUrl}/api/search?q=${encodeURIComponent("第001章")}&scope=projects`,
+    ).then((response) => response.json());
+    assert.deepEqual(search.results.map((entry) => entry.path), [
+      "长篇/示例书/正文/第001章.md",
+    ]);
+
+    const traversal = await fetch(
+      `${baseUrl}/api/tree?path=${encodeURIComponent("../outside")}`,
+    );
+    assert.equal(traversal.status, 403);
+    const invalidCursor = await fetch(
+      `${baseUrl}/api/tree?path=${encodeURIComponent("长篇/示例书")}&cursor=next`,
+    );
+    assert.equal(invalidCursor.status, 400);
+    const hiddenDirectory = await fetch(
+      `${baseUrl}/api/tree?path=${encodeURIComponent("长篇/示例书/.git")}`,
+    );
+    assert.equal(hiddenDirectory.status, 403);
+  });
+
   test("loads and atomically saves an editable file", async () => {
     const root = await createWorkspace();
     const baseUrl = await startServer(root);
