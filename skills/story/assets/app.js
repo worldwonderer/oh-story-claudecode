@@ -290,7 +290,15 @@ function truncationMessage(limits, scanErrors = []) {
   const byNodes = typeof limits.truncatedByNodes === "boolean" ? limits.truncatedByNodes : !byDepth;
   const reasons = [];
   if (byNodes) {
-    reasons.push(`工作区文件太多，目录树只列到 ${formatNumber(limits.maxTreeNodes)} 条上限，部分文稿没有列出`);
+    const categoryFlags = limits.truncatedByNodesByCategory;
+    const categories = [];
+    if (categoryFlags?.projects) categories.push("写作项目");
+    if (categoryFlags?.libraries) categories.push("拆文库");
+    const subject = categories.length ? `${categories.join("和")}文件太多` : "工作区文件太多";
+    const budget = Number.isFinite(limits.maxTreeNodesPerCategory)
+      ? `写作项目和拆文库每类最多列出 ${formatNumber(limits.maxTreeNodesPerCategory)} 个节点`
+      : `目录树只列到 ${formatNumber(limits.maxTreeNodes)} 条上限`;
+    reasons.push(`${subject}，${budget}，部分文稿没有列出`);
   }
   if (byDepth) {
     const depthLimit = Number.isFinite(limits.maxTreeDepth)

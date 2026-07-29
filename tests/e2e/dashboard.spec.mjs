@@ -414,7 +414,7 @@ test("文件顶到节点上限时提示的是减量，而不是拍平目录", as
   const created = [];
 
   try {
-    // 比 MAX_TREE_NODES 多出一截，扫描必然在列完之前用光预算
+    // 比单类节点预算多出一截，项目扫描必然在列完之前用光自身预算
     for (let start = 0; start < 5010; start += 200) {
       await Promise.all(
         Array.from({ length: Math.min(200, 5010 - start) }, (_, offset) => {
@@ -426,8 +426,10 @@ test("文件顶到节点上限时提示的是减量，而不是拍平目录", as
     }
 
     await page.goto("/");
-    await expect(page.locator("#treeTruncationNotice")).toContainText("工作区文件太多");
-    await expect(page.locator("#treeTruncationNotice")).toContainText("条上限");
+    await expect(page.locator("#treeTruncationNotice")).toContainText("写作项目文件太多");
+    await expect(page.locator("#treeTruncationNotice")).toContainText(
+      "写作项目和拆文库每类最多列出 5,000 个节点",
+    );
     await expect(page.locator("#treeTruncationNotice")).not.toContainText("有目录套得太深");
     await expect(page.locator("#fileCount")).toContainText("+");
   } finally {

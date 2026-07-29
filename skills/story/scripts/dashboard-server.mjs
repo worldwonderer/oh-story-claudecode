@@ -40,7 +40,8 @@ const IGNORED_DIRECTORIES = new Set([
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_REQUEST_BYTES = MAX_FILE_BYTES + 64 * 1024;
 const MAX_TREE_DEPTH = 10;
-const MAX_TREE_NODES = 5000;
+const MAX_TREE_NODES_PER_CATEGORY = 5000;
+const MAX_TREE_NODES = MAX_TREE_NODES_PER_CATEGORY * 2;
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 const FILE_MUTATION_TAILS = new Map();
 
@@ -175,7 +176,7 @@ export async function resolveWorkspacePath(root, requestedPath, options = {}) {
 async function buildTreeNode(root, absolutePath, relativePath, state, depth = 0) {
   // 两个上限都会真的丢文件，必须各自留痕：靠 state.nodes 反推截断只能看见节点预算，
   // 目录太深被剪掉的子树会一声不响地消失，作者还以为文稿本来就不存在。
-  if (state.nodes >= MAX_TREE_NODES) {
+  if (state.nodes >= MAX_TREE_NODES_PER_CATEGORY) {
     state.nodeLimitHit = true;
     return null;
   }
@@ -405,11 +406,16 @@ export async function scanWorkspace(root) {
       maxFileBytes: MAX_FILE_BYTES,
       editableExtensions: [...EDITABLE_EXTENSIONS],
       maxTreeNodes: MAX_TREE_NODES,
+      maxTreeNodesPerCategory: MAX_TREE_NODES_PER_CATEGORY,
       maxTreeDepth: MAX_TREE_DEPTH,
       // truncated 仍是前端读的总闸门，但成因要分开报：「文件太多」和「目录套太深」
       // 对作者是两种处置办法，混成一句话等于让人照着错的办法搬文件。
       truncated: nodeLimitHit || depthLimitHit || scanErrors.length > 0,
       truncatedByNodes: nodeLimitHit,
+      truncatedByNodesByCategory: {
+        projects: projectState.nodeLimitHit,
+        libraries: libraryState.nodeLimitHit,
+      },
       truncatedByDepth: depthLimitHit,
       truncatedByReadError: scanErrors.length > 0,
     },

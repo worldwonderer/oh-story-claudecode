@@ -76,28 +76,57 @@ async function createDeepWorkspace(nesting = 12) {
   return root;
 }
 
-// 节点预算同样会真的丢文件，用一棵扁平但超量的项目树顶到 MAX_TREE_NODES。
-async function createOversizedWorkspace(fileCount = 5010) {
+// 分别给项目和拆文库造宽目录，验证每类预算互不挤占且总量契约一致。
+async function createOversizedWorkspace(projectFileCount = 5010, libraryFileCount = 0) {
   const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-oversized-"));
   temporaryDirectories.push(root);
   const body = resolve(root, "长篇", "巨书", "正文");
   const library = resolve(root, "拆文库", "盘龙");
+  const libraryChapters = resolve(library, "章节");
   await mkdir(resolve(root, "长篇", "巨书", "大纲"), { recursive: true });
   await mkdir(body, { recursive: true });
-  await mkdir(resolve(library, "章节"), { recursive: true });
+  await mkdir(libraryChapters, { recursive: true });
   await writeFile(resolve(library, "拆文报告.md"), "# 盘龙\n", "utf8");
-  for (let start = 0; start < fileCount; start += 200) {
-    await Promise.all(
-      Array.from({ length: Math.min(200, fileCount - start) }, (_, offset) =>
-        writeFile(
-          resolve(body, `第${String(start + offset + 1).padStart(5, "0")}章.md`),
-          "初稿",
-          "utf8",
+
+  async function writeNumberedFiles(directory, fileCount, prefix) {
+    for (let start = 0; start < fileCount; start += 200) {
+      await Promise.all(
+        Array.from({ length: Math.min(200, fileCount - start) }, (_, offset) =>
+          writeFile(
+            resolve(directory, `${prefix}${String(start + offset + 1).padStart(5, "0")}.md`),
+            "初稿",
+            "utf8",
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
+  await writeNumberedFiles(body, projectFileCount, "第");
+  await writeNumberedFiles(libraryChapters, libraryFileCount, "摘要_");
   return root;
+}
+
+function countTreeNodes(trees) {
+  let count = 0;
+  function visit(node) {
+    count += 1;
+    if (node.type === "directory") node.children.forEach(visit);
+  }
+  trees.forEach(visit);
+  return count;
+}
+
+function countTreeFiles(trees) {
+  let count = 0;
+  function visit(node) {
+    if (node.type === "file") {
+      count += 1;
+      return;
+    }
+    node.children.forEach(visit);
+  }
+  trees.forEach(visit);
+  return count;
 }
 
 async function startServer(root) {
@@ -128,8 +157,15 @@ describe("workspace scanning", () => {
     // 前端要靠这几个字段判断「树是否被截断」，缺一个就会又变成静默漏文件
     assert.equal(workspace.limits.truncated, false);
     assert.equal(workspace.limits.truncatedByNodes, false);
+    assert.deepEqual(workspace.limits.truncatedByNodesByCategory, {
+      projects: false,
+      libraries: false,
+    });
     assert.equal(workspace.limits.truncatedByDepth, false);
-    assert.ok(workspace.limits.maxTreeNodes > 0);
+    assert.equal(
+      workspace.limits.maxTreeNodes,
+      workspace.limits.maxTreeNodesPerCategory * 2,
+    );
     assert.ok(workspace.limits.maxTreeDepth > 0);
   });
 
@@ -167,6 +203,10 @@ describe("workspace scanning", () => {
 
     assert.equal(workspace.limits.truncated, true);
     assert.equal(workspace.limits.truncatedByNodes, true);
+    assert.deepEqual(workspace.limits.truncatedByNodesByCategory, {
+      projects: true,
+      libraries: false,
+    });
     assert.equal(workspace.limits.truncatedByDepth, false);
     assert.ok(workspace.stats.files <= workspace.limits.maxTreeNodes);
     assert.deepEqual(
@@ -174,6 +214,31 @@ describe("workspace scanning", () => {
       ["拆文库/盘龙"],
     );
     assert.match(JSON.stringify(workspace.libraries), /拆文报告\.md/);
+  });
+
+  test("keeps both categories inside independent budgets when both are oversized", async () => {
+    const root = await createOversizedWorkspace(5010, 5010);
+    const workspace = await scanWorkspace(root);
+    const projectNodes = countTreeNodes(workspace.projects);
+    const libraryNodes = countTreeNodes(workspace.libraries);
+
+    assert.deepEqual(workspace.limits.truncatedByNodesByCategory, {
+      projects: true,
+      libraries: true,
+    });
+    assert.equal(workspace.limits.truncatedByNodes, true);
+    assert.equal(workspace.limits.maxTreeNodesPerCategory, 5000);
+    assert.equal(workspace.limits.maxTreeNodes, 10000);
+    assert.ok(projectNodes <= workspace.limits.maxTreeNodesPerCategory);
+    assert.ok(libraryNodes <= workspace.limits.maxTreeNodesPerCategory);
+    assert.ok(projectNodes + libraryNodes <= workspace.limits.maxTreeNodes);
+    assert.ok(workspace.stats.files <= workspace.limits.maxTreeNodes);
+    assert.equal(
+      workspace.stats.files,
+      countTreeFiles(workspace.projects) + countTreeFiles(workspace.libraries),
+    );
+    assert.ok(workspace.projects.length > 0);
+    assert.ok(workspace.libraries.length > 0);
   });
 
   test("ignores infrastructure folders and marks unsupported files read-only", async () => {
