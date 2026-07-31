@@ -103,6 +103,39 @@ async function createOversizedWorkspace(fileCount = 205) {
   return root;
 }
 
+async function createDeepSearchWorkspace() {
+  const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-deep-search-"));
+  temporaryDirectories.push(root);
+  const deepRoot = resolve(root, "A深项目", "正文");
+  const targetRoot = resolve(root, "B目标项目", "正文");
+  await mkdir(
+    resolve(deepRoot, ...Array.from({ length: 25 }, (_, index) => `第${index + 1}层`)),
+    { recursive: true },
+  );
+  await mkdir(targetRoot, { recursive: true });
+  await writeFile(resolve(targetRoot, "第001章.md"), "目标正文", "utf8");
+  return root;
+}
+
+async function createSearchBudgetWorkspace(fileCount = 5005) {
+  const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-search-budget-"));
+  temporaryDirectories.push(root);
+  const body = resolve(root, "预算项目", "正文");
+  await mkdir(body, { recursive: true });
+  for (let start = 0; start < fileCount; start += 250) {
+    await Promise.all(
+      Array.from({ length: Math.min(250, fileCount - start) }, (_, offset) =>
+        writeFile(
+          resolve(body, `普通文件_${String(start + offset + 1).padStart(5, "0")}.md`),
+          "正文",
+          "utf8",
+        ),
+      ),
+    );
+  }
+  return root;
+}
+
 async function startServer(root) {
   const server = createDashboardServer({ root });
   await new Promise((accept, reject) => {
@@ -147,6 +180,23 @@ describe("workspace scanning", () => {
     assert.ok(!workspace.projects.some((entry) => entry.path === "短篇/符号链接标记"));
   });
 
+  test("uses a stable dot path when the workspace itself is a short-story project", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "oh-story-dashboard-root-project-"));
+    temporaryDirectories.push(root);
+    await writeFile(resolve(root, "正文.md"), "正文", "utf8");
+    await writeFile(resolve(root, "小节大纲.md"), "大纲", "utf8");
+    await writeFile(resolve(root, "设定.md"), "设定", "utf8");
+
+    const workspace = await scanWorkspace(root);
+    assert.deepEqual(workspace.projects.map((entry) => entry.path), ["."]);
+    const page = await listWorkspaceDirectory(root, ".");
+    assert.equal(page.path, ".");
+    assert.deepEqual(
+      page.entries.map((entry) => entry.name),
+      ["设定.md", "小节大纲.md", "正文.md"],
+    );
+  });
+
   test("discovers roots without recursively serializing every manuscript", async () => {
     const workspace = await scanWorkspace(resolve("demo"));
     assert.deepEqual(
@@ -171,9 +221,8 @@ describe("workspace scanning", () => {
   test("loads only one directory level and keeps infrastructure folders hidden", async () => {
     const root = await createWorkspace();
     const page = await listWorkspaceDirectory(root, "长篇/示例书");
-    const serialized = JSON.stringify(page);
-    assert.doesNotMatch(serialized, /\.git|node_modules|fake-package|\.omc|secrets\.json/);
-    assert.doesNotMatch(serialized, /第001章\.md/);
+    assert.doesNotMatch(JSON.stringify(page), /\.git/);
+    assert.doesNotMatch(JSON.stringify(page), /第001章\.md/);
     assert.deepEqual(
       page.entries.filter((entry) => entry.type === "directory").map((entry) => entry.name),
       ["大纲", "正文"],
@@ -181,6 +230,17 @@ describe("workspace scanning", () => {
     const cover = page.entries.find((entry) => entry.name === "封面.png");
     assert.equal(cover.editable, false);
     assert.equal(page.nextCursor, null);
+
+    const bodyPage = await listWorkspaceDirectory(root, "长篇/示例书/正文");
+    assert.deepEqual(bodyPage.entries.map((entry) => entry.name), ["第001章.md"]);
+    assert.doesNotMatch(JSON.stringify(bodyPage), /node_modules|fake-package/);
+
+    const libraryPage = await listWorkspaceDirectory(root, "拆文库/盘龙");
+    assert.deepEqual(
+      libraryPage.entries.map((entry) => entry.name),
+      ["章节", "拆文报告.md"],
+    );
+    assert.doesNotMatch(JSON.stringify(libraryPage), /\.omc|secrets\.json/);
   });
 
   test("paginates a wide directory without dropping or duplicating files", async () => {
@@ -206,6 +266,42 @@ describe("workspace scanning", () => {
       "拆文库/盘龙/章节/第1章.md",
     ]);
     assert.equal(projects.truncated, false);
+    const pathOnly = await searchWorkspace(root, "示例书", "projects");
+    assert.deepEqual(pathOnly.results, []);
+  });
+
+  test("continues searching later projects after one subtree exceeds the depth limit", async () => {
+    const root = await createDeepSearchWorkspace();
+    const result = await searchWorkspace(root, "第001章", "projects");
+    assert.deepEqual(result.results.map((entry) => entry.path), [
+      "B目标项目/正文/第001章.md",
+    ]);
+    assert.equal(result.truncated, true);
+    assert.deepEqual(result.truncation, {
+      byResults: false,
+      byNodes: false,
+      byDepth: true,
+    });
+  });
+
+  test("reports result-limit and node-budget truncation independently", async () => {
+    const resultRoot = await createOversizedWorkspace(205);
+    const byResults = await searchWorkspace(resultRoot, "第", "projects");
+    assert.equal(byResults.results.length, 100);
+    assert.deepEqual(byResults.truncation, {
+      byResults: true,
+      byNodes: false,
+      byDepth: false,
+    });
+
+    const budgetRoot = await createSearchBudgetWorkspace();
+    const byNodes = await searchWorkspace(budgetRoot, "不存在的文件名", "projects");
+    assert.deepEqual(byNodes.results, []);
+    assert.deepEqual(byNodes.truncation, {
+      byResults: false,
+      byNodes: true,
+      byDepth: false,
+    });
   });
 });
 

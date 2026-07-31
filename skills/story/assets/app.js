@@ -11,7 +11,7 @@ const state = {
   deleting: false,
   searching: false,
   searchResults: [],
-  searchTruncated: false,
+  searchTruncation: null,
   searchSequence: 0,
   searchTimer: null,
   // 记住作者手动展开/收起过的目录，重绘文件树时不要把人正在翻的章节文件夹关掉
@@ -242,11 +242,11 @@ function createTreeEntry(node, depth = 0) {
     }
     details.append(list);
     item.append(details);
-    if (shouldOpen && !node.loaded && !node.loading && !node.loadQueued) {
+    if (shouldOpen && !node.loaded && !node.loading && !node.loadError && !node.loadQueued) {
       node.loadQueued = true;
       window.queueMicrotask(() => {
         node.loadQueued = false;
-        if (!node.loaded && !node.loading) loadDirectory(node);
+        if (!node.loaded && !node.loading && !node.loadError) loadDirectory(node);
       });
     }
     return item;
@@ -336,6 +336,28 @@ function syncActiveRow() {
   });
 }
 
+function searchTruncationMessage() {
+  const status = state.searchTruncation;
+  if (!status) return "";
+  const messages = [];
+  if (status.byResults) {
+    messages.push(
+      `匹配结果超过 ${formatNumber(status.limits.maxResults)} 条，仅显示最先找到的部分，请输入更精确的文件名`,
+    );
+  }
+  if (status.byNodes) {
+    messages.push(
+      `搜索达到 ${formatNumber(status.limits.maxNodes)} 个节点的扫描上限，后续目录尚未检查，请直接展开目标目录查找`,
+    );
+  }
+  if (status.byDepth) {
+    messages.push(
+      `部分目录超过 ${formatNumber(status.limits.maxDepth)} 层，更深处未搜索；其他项目已继续搜索`,
+    );
+  }
+  return messages.join("；");
+}
+
 function renderTree() {
   elements.fileTree.replaceChildren();
   elements.treeLoading.hidden = true;
@@ -362,9 +384,19 @@ function renderTree() {
       ? `没有找到“${query}”`
       : state.activeView === "libraries"
         ? "工作区里还没有拆文库。运行拆文 skill 后，档案会出现在这里。"
-        : "还没有识别到写作项目。包含正文、大纲、设定或追踪目录的书会显示在这里。";
+        : "还没有识别到写作项目。长篇需包含正文、大纲、设定或追踪目录；短篇需包含正文.md，并同时包含小节大纲.md或设定.md。";
     message.append(text);
     elements.fileTree.append(message);
+    const truncation = searchTruncationMessage();
+    if (query && truncation) {
+      const status = document.createElement("div");
+      status.className = "tree-message";
+      status.setAttribute("role", "status");
+      const statusText = document.createElement("p");
+      statusText.textContent = truncation;
+      status.append(statusText);
+      elements.fileTree.append(status);
+    }
     return;
   }
 
@@ -373,58 +405,24 @@ function renderTree() {
     const item = createTreeEntry(node);
     if (item) list.append(item);
   });
-  if (query && state.searchTruncated) {
+  const truncation = searchTruncationMessage();
+  if (query && truncation) {
     const status = document.createElement("li");
     status.className = "tree-inline-status";
-    status.textContent = "结果较多，仅显示前 100 条。请缩小搜索范围。";
+    status.setAttribute("role", "status");
+    status.textContent = truncation;
     list.append(status);
   }
   elements.fileTree.append(list);
 }
 
-// 节点预算打满要减量，目录套太深要把嵌套拍平：两种截断的处置办法不同，
-// 混成同一句话等于让作者照着错的办法搬文稿，所以按后端报的成因分别成句。
-function truncationMessage(limits, scanErrors = []) {
-  const byDepth = Boolean(limits.truncatedByDepth);
-  const byReadError = Boolean(limits.truncatedByReadError);
-  // 老版本后端只给 truncated 一个布尔值，没有成因时按节点上限解释，保持旧文案不回退成空话。
-  const byNodes = typeof limits.truncatedByNodes === "boolean" ? limits.truncatedByNodes : !byDepth;
-  const reasons = [];
-  if (byNodes) {
-    const categoryFlags = limits.truncatedByNodesByCategory;
-    const categories = [];
-    if (categoryFlags?.projects) categories.push("写作项目");
-    if (categoryFlags?.libraries) categories.push("拆文库");
-    const subject = categories.length ? `${categories.join("和")}文件太多` : "工作区文件太多";
-    const budget = Number.isFinite(limits.maxTreeNodesPerCategory)
-      ? `写作项目和拆文库每类最多列出 ${formatNumber(limits.maxTreeNodesPerCategory)} 个节点`
-      : `目录树只列到 ${formatNumber(limits.maxTreeNodes)} 条上限`;
-    reasons.push(`${subject}，${budget}，部分文稿没有列出`);
-  }
-  if (byDepth) {
-    const depthLimit = Number.isFinite(limits.maxTreeDepth)
-      ? `（超过 ${formatNumber(limits.maxTreeDepth)} 层）`
-      : "";
-    reasons.push(`有目录套得太深${depthLimit}，更深处的文稿没有列出`);
-  }
-  if (byReadError) {
-    const paths = scanErrors.map((entry) => entry.path).filter(Boolean);
-    const shown = paths.slice(0, 3).join("、") || "部分目录";
-    const more = paths.length > 3 ? `等 ${formatNumber(paths.length)} 处` : "";
-    reasons.push(`${shown}${more}无法读取，其中的文稿没有列出`);
-  }
-  let advice = "请把旧卷或拆文库挪到别处，或直接在编辑器里打开缺失的文件。";
-  if (byReadError) {
-    advice = "请检查这些目录的访问权限和外挂盘挂载状态，恢复后刷新目录。";
-  } else if (byNodes && byDepth) {
-    advice = "请把旧卷或拆文库挪到别处、并把过深的子目录拍平，或直接在编辑器里打开缺失的文件。";
-  } else if (byDepth) {
-    advice = "请把过深的子目录拍平，或直接在编辑器里打开缺失的文件。";
-  }
-  return `${reasons.join("；")}，搜索也只覆盖已列出的部分。${advice}`;
+function truncationMessage(scanErrors = []) {
+  const paths = scanErrors.map((entry) => entry.path).filter(Boolean);
+  const shown = paths.slice(0, 3).join("、") || "部分目录";
+  const more = paths.length > 3 ? `等 ${formatNumber(paths.length)} 处` : "";
+  return `${shown}${more}无法读取，其中的文稿没有列出。请检查这些目录的访问权限和外挂盘挂载状态，恢复后刷新目录。`;
 }
 
-// 扫描碰到上限时目录树和搜索都只覆盖已列出的部分，必须明说，不能让作者以为文件不存在
 function renderTruncationNotice(limits, scanErrors) {
   if (!limits?.truncated) {
     elements.truncationNotice?.remove();
@@ -440,7 +438,7 @@ function renderTruncationNotice(limits, scanErrors) {
     elements.treePanel.insertBefore(notice, elements.fileTree);
     elements.truncationNotice = notice;
   }
-  elements.truncationNotice.querySelector("p").textContent = truncationMessage(limits, scanErrors);
+  elements.truncationNotice.querySelector("p").textContent = truncationMessage(scanErrors);
 }
 
 function renderWorkspace() {
@@ -466,7 +464,7 @@ async function loadWorkspace({ announce = false } = {}) {
   try {
     state.workspace = await requestJson("/api/workspace");
     state.searchResults = [];
-    state.searchTruncated = false;
+    state.searchTruncation = null;
     state.searching = Boolean(state.filter.trim());
     renderWorkspace();
     if (state.filter.trim()) scheduleSearch();
@@ -755,11 +753,16 @@ async function searchWorkspace(query, sequence) {
     );
     if (sequence !== state.searchSequence) return;
     state.searchResults = result.results;
-    state.searchTruncated = result.truncated;
+    state.searchTruncation = result.truncated
+      ? {
+          ...(result.truncation || { byResults: true, byNodes: false, byDepth: false }),
+          limits: result.limits,
+        }
+      : null;
   } catch (error) {
     if (sequence !== state.searchSequence) return;
     state.searchResults = [];
-    state.searchTruncated = false;
+    state.searchTruncation = null;
     showToast(error.message, "error");
   } finally {
     if (sequence === state.searchSequence) {
@@ -777,7 +780,7 @@ function scheduleSearch() {
   if (!query) {
     state.searching = false;
     state.searchResults = [];
-    state.searchTruncated = false;
+    state.searchTruncation = null;
     renderTree();
     return;
   }

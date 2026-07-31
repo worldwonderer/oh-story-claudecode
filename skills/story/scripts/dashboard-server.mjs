@@ -179,7 +179,7 @@ export async function resolveWorkspacePath(root, requestedPath, options = {}) {
 function directoryNode(absolutePath, relativePath) {
   return {
     name: basename(absolutePath),
-    path: toPosixPath(relativePath),
+    path: relativePath ? toPosixPath(relativePath) : ".",
     type: "directory",
     children: [],
     loaded: false,
@@ -206,7 +206,10 @@ export async function resolveWorkspaceDirectory(root, requestedPath) {
   if (!isPathInside(candidate, realRoot)) {
     throw new DashboardError(403, "path_outside_workspace", "路径超出工作区");
   }
-  if (requestedPath.split(/[\\/]+/).some((segment) => shouldIgnoreDirectory(segment))) {
+  if (
+    requestedPath !== "." &&
+    requestedPath.split(/[\\/]+/).some((segment) => shouldIgnoreDirectory(segment))
+  ) {
     throw new DashboardError(403, "directory_hidden", "该目录不会显示在 Dashboard 中");
   }
 
@@ -291,7 +294,7 @@ export async function listWorkspaceDirectory(root, requestedPath, cursorValue = 
   ).filter(Boolean);
   const nextOffset = cursor + page.length;
   return {
-    path: toPosixPath(relative(realRoot, absolutePath)),
+    path: toPosixPath(relative(realRoot, absolutePath)) || ".",
     entries: nodes,
     nextCursor: nextOffset < visibleEntries.length ? String(nextOffset) : null,
   };
@@ -435,8 +438,6 @@ export async function scanWorkspace(root) {
       directoryPageSize: DIRECTORY_PAGE_SIZE,
       maxSearchResults: MAX_SEARCH_RESULTS,
       truncated: scanErrors.length > 0,
-      truncatedByNodes: false,
-      truncatedByDepth: false,
       truncatedByReadError: scanErrors.length > 0,
     },
   };
@@ -457,18 +458,24 @@ export async function searchWorkspace(root, queryValue, scopeValue) {
   const normalizedQuery = query.toLocaleLowerCase("zh-CN");
   const state = {
     nodes: 0,
-    truncated: false,
+    truncatedByResults: false,
+    truncatedByNodes: false,
+    truncatedByDepth: false,
     results: [],
     scanErrors,
   };
 
   async function visit(absolutePath, relativePath, depth) {
-    if (state.results.length >= MAX_SEARCH_RESULTS || state.nodes >= MAX_SEARCH_NODES) {
-      state.truncated = true;
+    if (state.results.length >= MAX_SEARCH_RESULTS) {
+      state.truncatedByResults = true;
+      return;
+    }
+    if (state.nodes >= MAX_SEARCH_NODES) {
+      state.truncatedByNodes = true;
       return;
     }
     if (depth > MAX_SEARCH_DEPTH) {
-      state.truncated = true;
+      state.truncatedByDepth = true;
       return;
     }
     state.nodes += 1;
@@ -480,7 +487,7 @@ export async function searchWorkspace(root, queryValue, scopeValue) {
     if (!info || info.isSymbolicLink()) return;
     if (info.isFile()) {
       const path = toPosixPath(relativePath);
-      if (path.toLocaleLowerCase("zh-CN").includes(normalizedQuery)) {
+      if (basename(absolutePath).toLocaleLowerCase("zh-CN").includes(normalizedQuery)) {
         state.results.push({
           name: basename(absolutePath),
           path,
@@ -498,8 +505,12 @@ export async function searchWorkspace(root, queryValue, scopeValue) {
       return [];
     });
     for (const entry of visibleDirectoryEntries(entries)) {
-      if (state.results.length >= MAX_SEARCH_RESULTS || state.nodes >= MAX_SEARCH_NODES) {
-        state.truncated = true;
+      if (state.results.length >= MAX_SEARCH_RESULTS) {
+        state.truncatedByResults = true;
+        break;
+      }
+      if (state.nodes >= MAX_SEARCH_NODES) {
+        state.truncatedByNodes = true;
         break;
       }
       await visit(
@@ -512,14 +523,21 @@ export async function searchWorkspace(root, queryValue, scopeValue) {
 
   for (const entry of roots) {
     await visit(entry.absolutePath, entry.relativePath, 0);
-    if (state.truncated) break;
+    if (state.truncatedByResults || state.truncatedByNodes) break;
   }
   state.results.sort(compareTreeEntries);
+  const truncated =
+    state.truncatedByResults || state.truncatedByNodes || state.truncatedByDepth;
   return {
     query,
     scope: scopeValue,
     results: state.results,
-    truncated: state.truncated,
+    truncated,
+    truncation: {
+      byResults: state.truncatedByResults,
+      byNodes: state.truncatedByNodes,
+      byDepth: state.truncatedByDepth,
+    },
     scanErrors,
     limits: {
       maxResults: MAX_SEARCH_RESULTS,

@@ -399,6 +399,90 @@ test("目录读取失败时提示权限或挂载问题，而不是伪装成空�
   );
 });
 
+test("顶层目录自动加载失败后停止重取，只在用户点击时重试", async ({ page }) => {
+  let treeRequests = 0;
+  await page.route("**/api/workspace", async (route) => {
+    const response = await route.fetch();
+    const payload = await response.json();
+    payload.libraries = [
+      {
+        name: "坏档案",
+        path: "拆文库/坏档案",
+        type: "directory",
+        children: [],
+        loaded: false,
+      },
+    ];
+    payload.stats.libraries = 1;
+    await route.fulfill({ response, json: payload });
+  });
+  await page.route("**/api/tree?*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get("path") !== "拆文库/坏档案") {
+      await route.continue();
+      return;
+    }
+    treeRequests += 1;
+    await route.fulfill({
+      status: 403,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "directory_unreadable",
+          message: "目录无法读取，请检查访问权限或挂载状态：拆文库/坏档案",
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  const retry = page.getByRole("button", { name: "目录加载失败，点击重试" });
+  await expect(retry).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(treeRequests).toBe(1);
+  await expect(page.locator("#toastRegion .toast")).toHaveCount(1);
+
+  await retry.click();
+  await expect.poll(() => treeRequests).toBe(2);
+  await page.waitForTimeout(300);
+  expect(treeRequests).toBe(2);
+  await expect(retry).toBeVisible();
+});
+
+test("搜索零命中时仍按具体原因显示截断警告", async ({ page }) => {
+  await page.route("**/api/search?*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        query: "不存在的文件",
+        scope: "projects",
+        results: [],
+        truncated: true,
+        truncation: {
+          byResults: false,
+          byNodes: true,
+          byDepth: false,
+        },
+        scanErrors: [],
+        limits: {
+          maxResults: 100,
+          maxNodes: 5000,
+          maxDepth: 20,
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("tab", { name: /写作项目/ }).click();
+  await page.locator("#treeSearch").fill("不存在的文件");
+  await expect(page.locator("#fileTree")).toContainText("没有找到“不存在的文件”");
+  await expect(page.locator("#fileTree")).toContainText(
+    "搜索达到 5,000 个节点的扫描上限，后续目录尚未检查",
+  );
+});
+
 test("宽目录按页加载，点击更多后继续追加而不丢失首批文件", async ({ page, request }) => {
   const workspace = await request.get("/api/workspace").then((response) => response.json());
   const project = resolve(workspace.workspace.path, workspace.projects[0].path);
