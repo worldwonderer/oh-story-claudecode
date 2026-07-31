@@ -6,7 +6,7 @@ metadata: {"openclaw":{"requires":{"env":["GPT_IMAGE_API_KEY"],"bins":["curl","j
 ---
 # story-cover：小说封面生成
 
-你是小说封面设计师。根据书名和题材，调用 GPT-Image-2 一次性生成包含书名和作者名的完整封面。
+你是小说封面设计师。根据书名和题材，调用 GPT-Image-2（或兼容的图像生成服务，例如通过 `COVER_PROVIDER=minimax` 走 MiniMax `/v1/image_generation`）一次性生成包含书名和作者名的完整封面。
 
 **核心原则：封面是读者的第一印象，一眼传达题材和氛围。**
 
@@ -14,15 +14,21 @@ metadata: {"openclaw":{"requires":{"env":["GPT_IMAGE_API_KEY"],"bins":["curl","j
 
 ## 环境变量
 
+> **API 兼容性**：默认走 OpenAI Images 兼容形状（`/v1/images/generations` 文生图、`/v1/images/edits` 图生图，返回 `data[0].b64_json`）。设置 `COVER_PROVIDER=minimax` 后改走 MiniMax `/v1/image_generation`（POST JSON，请求体带 `model`/`prompt`，比例用 `aspect_ratio` 或 `width`/`height`，响应在 `data.image_urls` 返回图片 URL，URL 默认 24 小时过期），文生图与图生图共用同一 endpoint，下文「文生图」「图生图」步骤分别给出两种 provider 的调用分支。MiniMax 区域 endpoint：全球 `https://api.minimax.io/v1/image_generation`、中国 `https://api.minimaxi.com/v1/image_generation`，用 `GPT_IMAGE_BASE_URL` 覆盖到对应区域根（去掉末尾 `/image_generation`）即可切换区域。
+
 | 变量 | 必填 | 默认 | 说明 |
 |:-----|:----:|:-----|:-----|
-| `GPT_IMAGE_API_KEY` | ✅ | — | OpenAI 或兼容代理的 API Key |
-| `GPT_IMAGE_BASE_URL` | | `https://api.openai.com/v1` | 兼容代理时改这个 |
-| `GPT_IMAGE_MODEL` | | `gpt-image-2` | 仅在测试新模型时覆盖 |
-| `GPT_IMAGE_SIZE` | | `1024x1536` | 目标比例提示（番茄 3:4→`768x1024`，默认 2:3→`1024x1536`）。官方 gpt-image-2 认任意 16 倍数尺寸（比例≤3:1），但**很多中转代理会忽略 size、按预设返回约 2:3**（已实测）——平台尺寸不靠它，由「导出平台上传尺寸」步骤兜底 |
+| `GPT_IMAGE_API_KEY` | ✅ | — | OpenAI / 兼容代理 / MiniMax 的 API Key |
+| `GPT_IMAGE_BASE_URL` | | `https://api.openai.com/v1` | 兼容代理时改这个；MiniMax 全球 `https://api.minimax.io/v1`、中国 `https://api.minimaxi.com/v1` |
+| `GPT_IMAGE_MODEL` | | `gpt-image-2` | 仅在测试新模型时覆盖；MiniMax 用 `image-01`（默认）或 `image-01-live` |
+| `COVER_PROVIDER` | | `openai` | 选 `openai`（默认，OpenAI Images 兼容）或 `minimax` |
+| `GPT_IMAGE_SIZE` | | `1024x1536` | OpenAI 兼容形状的目标尺寸提示（番茄 3:4→`768x1024`，默认 2:3→`1024x1536`）。官方 gpt-image-2 认任意 16 倍数尺寸（比例≤3:1），但**很多中转代理会忽略 size、按预设返回约 2:3**（已实测）——平台尺寸不靠它，由「导出平台上传尺寸」步骤兜底。MiniMax 不读它，比例改用 `MINIMAX_ASPECT_RATIO` |
+| `MINIMAX_ASPECT_RATIO` | | `2:3` | 仅 `COVER_PROVIDER=minimax` 时生效，传给 MiniMax 的 `aspect_ratio`（番茄 3:4→`3:4`，默认竖版→`2:3`）。若同时设 `MINIMAX_WIDTH`/`MINIMAX_HEIGHT` 则改用 `width`/`height` |
+| `MINIMAX_WIDTH` / `MINIMAX_HEIGHT` | | — | 仅 `COVER_PROVIDER=minimax` 时生效，传给 MiniMax 的精确像素；设置后优先于 `aspect_ratio` |
+| `MINIMAX_RESPONSE_FORMAT` | | `url` | 仅 `COVER_PROVIDER=minimax` 时生效，`url`（默认，读 `data.image_urls`）或 `base64`（读 `data[0].b64_json`）|
 | `UPLOAD_SIZE` | | — | 平台固定上传像素（番茄 `600x800`）；设置后由「导出平台上传尺寸」步骤居中裁剪+缩放出上传版（不变形、不依赖出图尺寸） |
 | `BOOK_DIR` | ✅ | — | 输出目录，建议 `./covers/<书名>` |
-| `REF_IMAGE` | | — | 参考图本地路径或 URL；设置后走 `images/edits` 图生图 |
+| `REF_IMAGE` | | — | 参考图本地路径或 URL；设置后走图生图 |
 
 ---
 
@@ -143,6 +149,8 @@ Professional book cover, high detail digital painting, portrait [平台比例：
 
 两种调用方式二选一：未设置 `REF_IMAGE` → 走「文生图」；设置了 → 走「图生图」。
 
+> 下面两个步骤里的脚本都通过 `COVER_PROVIDER` 在 OpenAI Images 兼容形状（默认）与 MiniMax `/v1/image_generation` 之间切换；两个分支共用前面的版本号、输出路径与错误兜底，仅在请求体与响应解析处分流。MiniMax 文生图与图生图共用 `/v1/image_generation`，图生图把参考图以 `subject_reference` 字段（base64）随请求体一起 POST。
+
 #### 文生图（默认）
 
 ```bash
@@ -152,6 +160,7 @@ set -euo pipefail
 BASE_URL="${GPT_IMAGE_BASE_URL:-https://api.openai.com/v1}"
 MODEL="${GPT_IMAGE_MODEL:-gpt-image-2}"
 SIZE="${GPT_IMAGE_SIZE:-1024x1536}"
+COVER_PROVIDER="${COVER_PROVIDER:-openai}"
 BOOK_DIR="${BOOK_DIR:?请先 export BOOK_DIR=./covers/<书名>}"
 
 mkdir -p "$BOOK_DIR/封面"
@@ -163,28 +172,65 @@ OUT="$BOOK_DIR/封面/封面_v${i}.png"
 RESP=$(mktemp)
 trap 'rm -f "$RESP"' EXIT
 
-# 用 jq 拼 JSON 体，避免 PROMPT 里的引号/换行/中文把 shell 字符串撑破
-BODY=$(jq -n \
-  --arg m "$MODEL" \
-  --arg p "$PROMPT" \
-  --arg s "$SIZE" \
-  '{model:$m, prompt:$p, size:$s}')
-
-curl -fsS --max-time 180 --retry 2 --retry-delay 5 \
-  "$BASE_URL/images/generations" \
-  -H "Authorization: Bearer $GPT_IMAGE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "$BODY" > "$RESP"
-
-# API 出错时早退，避免把 error JSON 当成 base64 写成损坏 PNG
-if jq -e '.error' "$RESP" >/dev/null 2>&1; then
-  echo "API error:" >&2
-  jq '.error' "$RESP" >&2
-  exit 1
-fi
+case "$COVER_PROVIDER" in
+  minimax)
+    # MiniMax POST /v1/image_generation，比例优先 width/height，否则 aspect_ratio；
+    # 响应在 data.image_urls（response_format=url）或 data[0].b64_json（response_format=base64）。
+    MODEL="${GPT_IMAGE_MODEL:-image-01}"
+    MM_FMT="${MINIMAX_RESPONSE_FORMAT:-url}"
+    EXTRA=(--arg fmt "$MM_FMT")
+    if [ -n "${MINIMAX_WIDTH:-}" ] && [ -n "${MINIMAX_HEIGHT:-}" ]; then
+      EXTRA+=(--arg width "$MINIMAX_WIDTH" --arg height "$MINIMAX_HEIGHT")
+    else
+      EXTRA+=(--arg aspect_ratio "${MINIMAX_ASPECT_RATIO:-2:3}")
+    fi
+    BODY=$(jq -n \
+      --arg m "$MODEL" \
+      --arg p "$PROMPT" \
+      "${EXTRA[@]}" \
+      '{model:$m, prompt:$p, response_format:$fmt} + ($ARGS.named)')
+    curl -fsS --max-time 180 --retry 2 --retry-delay 5 \
+      "$BASE_URL/image_generation" \
+      -H "Authorization: Bearer $GPT_IMAGE_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$BODY" > "$RESP"
+    if jq -e '.base_resp.status_code != 0' "$RESP" >/dev/null 2>&1; then
+      echo "API error:" >&2; jq '.base_resp // .' "$RESP" >&2; exit 1
+    fi
+    if [ "$MM_FMT" = "base64" ]; then
+      URL=""
+    else
+      URL="$(jq -er '.data.image_urls[0] // empty' "$RESP")"
+    fi
+    if [ -n "$URL" ]; then
+      curl -fsSL --max-time 120 -o "$OUT" "$URL"
+    else
+      jq -er '.data[0].b64_json // empty' "$RESP" | base64 --decode > "$OUT"
+    fi
+    ;;
+  *)
+    # OpenAI Images 兼容形状：POST /v1/images/generations，响应 data[0].b64_json。
+    BODY=$(jq -n \
+      --arg m "$MODEL" \
+      --arg p "$PROMPT" \
+      --arg s "$SIZE" \
+      '{model:$m, prompt:$p, size:$s}')
+    curl -fsS --max-time 180 --retry 2 --retry-delay 5 \
+      "$BASE_URL/images/generations" \
+      -H "Authorization: Bearer $GPT_IMAGE_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$BODY" > "$RESP"
+    # API 出错时早退，避免把 error JSON 当成 base64 写成损坏 PNG
+    if jq -e '.error' "$RESP" >/dev/null 2>&1; then
+      echo "API error:" >&2
+      jq '.error' "$RESP" >&2
+      exit 1
+    fi
+    jq -er '.data[0].b64_json // empty' "$RESP" | base64 --decode > "$OUT"
+    ;;
+esac
 
 # `// empty` 让缺失字段输出空串而非 "null"，配合下面的 -s 检查避免写出 3 字节假 PNG
-jq -er '.data[0].b64_json // empty' "$RESP" | base64 --decode > "$OUT"
 [ -s "$OUT" ] || { echo "empty or malformed output: $OUT" >&2; head -c 300 "$RESP" >&2; exit 1; }
 
 # 落地提示词副本，方便迭代时基于上一次微调
@@ -205,6 +251,7 @@ set -euo pipefail
 BASE_URL="${GPT_IMAGE_BASE_URL:-https://api.openai.com/v1}"
 MODEL="${GPT_IMAGE_MODEL:-gpt-image-2}"
 SIZE="${GPT_IMAGE_SIZE:-1024x1536}"
+COVER_PROVIDER="${COVER_PROVIDER:-openai}"
 BOOK_DIR="${BOOK_DIR:?请先 export BOOK_DIR=./covers/<书名>}"
 REF_IMAGE="${REF_IMAGE:?请先 export REF_IMAGE=本地路径或 URL}"
 
@@ -231,22 +278,61 @@ case "$REF_IMAGE" in
     ;;
 esac
 
-curl -fsS --max-time 240 --retry 2 --retry-delay 5 \
-  "$BASE_URL/images/edits" \
-  -H "Authorization: Bearer $GPT_IMAGE_API_KEY" \
-  --form-string "model=$MODEL" \
-  --form-string "size=$SIZE" \
-  --form-string "prompt=$PROMPT" \
-  -F "image=@$REF_LOCAL" > "$RESP"
-
-if jq -e '.error' "$RESP" >/dev/null 2>&1; then
-  echo "API error:" >&2
-  jq '.error' "$RESP" >&2
-  exit 1
-fi
+case "$COVER_PROVIDER" in
+  minimax)
+    # MiniMax 图生图：同一 /v1/image_generation，参考图随 subject_reference（base64）一起 POST。
+    MODEL="${GPT_IMAGE_MODEL:-image-01}"
+    MM_FMT="${MINIMAX_RESPONSE_FORMAT:-url}"
+    REF_B64="$(base64 -w 0 "$REF_LOCAL" 2>/dev/null || base64 -i "$REF_LOCAL")"
+    EXTRA=(--arg fmt "$MM_FMT" --arg subj "$REF_B64")
+    if [ -n "${MINIMAX_WIDTH:-}" ] && [ -n "${MINIMAX_HEIGHT:-}" ]; then
+      EXTRA+=(--arg width "$MINIMAX_WIDTH" --arg height "$MINIMAX_HEIGHT")
+    else
+      EXTRA+=(--arg aspect_ratio "${MINIMAX_ASPECT_RATIO:-2:3}")
+    fi
+    BODY=$(jq -n \
+      --arg m "$MODEL" \
+      --arg p "$PROMPT" \
+      "${EXTRA[@]}" \
+      '{model:$m, prompt:$p, response_format:$fmt, subject_reference:{image:$subj}} + ($ARGS.named)')
+    curl -fsS --max-time 240 --retry 2 --retry-delay 5 \
+      "$BASE_URL/image_generation" \
+      -H "Authorization: Bearer $GPT_IMAGE_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$BODY" > "$RESP"
+    if jq -e '.base_resp.status_code != 0' "$RESP" >/dev/null 2>&1; then
+      echo "API error:" >&2; jq '.base_resp // .' "$RESP" >&2; exit 1
+    fi
+    if [ "$MM_FMT" = "base64" ]; then
+      URL=""
+    else
+      URL="$(jq -er '.data.image_urls[0] // empty' "$RESP")"
+    fi
+    if [ -n "$URL" ]; then
+      curl -fsSL --max-time 120 -o "$OUT" "$URL"
+    else
+      jq -er '.data[0].b64_json // empty' "$RESP" | base64 --decode > "$OUT"
+    fi
+    ;;
+  *)
+    # OpenAI Images 兼容形状：multipart/form-data，响应 data[0].b64_json。
+    curl -fsS --max-time 240 --retry 2 --retry-delay 5 \
+      "$BASE_URL/images/edits" \
+      -H "Authorization: Bearer $GPT_IMAGE_API_KEY" \
+      --form-string "model=$MODEL" \
+      --form-string "size=$SIZE" \
+      --form-string "prompt=$PROMPT" \
+      -F "image=@$REF_LOCAL" > "$RESP"
+    if jq -e '.error' "$RESP" >/dev/null 2>&1; then
+      echo "API error:" >&2
+      jq '.error' "$RESP" >&2
+      exit 1
+    fi
+    jq -er '.data[0].b64_json // empty' "$RESP" | base64 --decode > "$OUT"
+    ;;
+esac
 
 # `// empty` 让缺失字段输出空串而非 "null"，配合 -s 检查避免写出 3 字节假 PNG
-jq -er '.data[0].b64_json // empty' "$RESP" | base64 --decode > "$OUT"
 [ -s "$OUT" ] || { echo "empty or malformed output: $OUT" >&2; head -c 300 "$RESP" >&2; exit 1; }
 
 printf '%s\n' "$PROMPT"    > "${OUT%.png}.prompt.txt"
