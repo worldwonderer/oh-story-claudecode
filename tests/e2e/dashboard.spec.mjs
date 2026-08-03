@@ -463,6 +463,7 @@ test("搜索零命中时仍按具体原因显示截断警告", async ({ page }) 
           byResults: false,
           byNodes: true,
           byDepth: false,
+          byReadError: false,
         },
         scanErrors: [],
         limits: {
@@ -477,10 +478,49 @@ test("搜索零命中时仍按具体原因显示截断警告", async ({ page }) 
   await page.goto("/");
   await page.getByRole("tab", { name: /写作项目/ }).click();
   await page.locator("#treeSearch").fill("不存在的文件");
-  await expect(page.locator("#fileTree")).toContainText("没有找到“不存在的文件”");
+  await expect(page.locator("#fileTree")).toContainText(
+    "搜索未完成，暂时无法确认是否存在“不存在的文件”",
+  );
   await expect(page.locator("#fileTree")).toContainText(
     "搜索达到 5,000 个节点的扫描上限，后续目录尚未检查",
   );
+});
+
+test("搜索零命中但目录读取失败时显示权限或挂载提示", async ({ page }) => {
+  await page.route("**/api/search?*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        query: "目标章",
+        scope: "projects",
+        results: [],
+        truncated: true,
+        truncation: {
+          byResults: false,
+          byNodes: false,
+          byDepth: false,
+          byReadError: true,
+        },
+        scanErrors: [{ path: "示例书/正文/受限卷", code: "EACCES" }],
+        limits: {
+          maxResults: 100,
+          maxNodes: 5000,
+          maxDepth: 20,
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("tab", { name: /写作项目/ }).click();
+  await page.locator("#treeSearch").fill("目标章");
+  await expect(page.locator("#fileTree")).toContainText(
+    "搜索未完成，暂时无法确认是否存在“目标章”",
+  );
+  await expect(page.locator("#fileTree")).toContainText("示例书/正文/受限卷无法读取");
+  await expect(page.locator("#fileTree")).toContainText("访问权限或外挂盘挂载状态");
+  await expect(page.locator("#fileTree")).not.toContainText("没有找到“目标章”");
 });
 
 test("宽目录按页加载，点击更多后继续追加而不丢失首批文件", async ({ page, request }) => {

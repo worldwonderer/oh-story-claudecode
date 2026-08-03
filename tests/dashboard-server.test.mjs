@@ -281,6 +281,7 @@ describe("workspace scanning", () => {
       byResults: false,
       byNodes: false,
       byDepth: true,
+      byReadError: false,
     });
   });
 
@@ -292,6 +293,7 @@ describe("workspace scanning", () => {
       byResults: true,
       byNodes: false,
       byDepth: false,
+      byReadError: false,
     });
 
     const budgetRoot = await createSearchBudgetWorkspace();
@@ -301,7 +303,42 @@ describe("workspace scanning", () => {
       byResults: false,
       byNodes: true,
       byDepth: false,
+      byReadError: false,
     });
+  });
+
+  test("marks search results incomplete when an unloaded descendant is unreadable", async (context) => {
+    if (process.platform === "win32" || process.getuid?.() === 0) {
+      context.skip("当前平台或用户无法制造不可读目录");
+      return;
+    }
+    const root = await createWorkspace();
+    const restricted = resolve(root, "长篇", "示例书", "正文", "受限卷");
+    await mkdir(restricted, { recursive: true });
+    await writeFile(resolve(restricted, "目标章.md"), "不可读取的正文", "utf8");
+    await chmod(restricted, 0o000);
+    try {
+      const baseUrl = await startServer(root);
+      const response = await fetch(
+        `${baseUrl}/api/search?q=${encodeURIComponent("目标章")}&scope=projects`,
+      );
+      assert.equal(response.status, 200);
+      const result = await response.json();
+      assert.deepEqual(result.results, []);
+      assert.equal(result.truncated, true);
+      assert.deepEqual(result.truncation, {
+        byResults: false,
+        byNodes: false,
+        byDepth: false,
+        byReadError: true,
+      });
+      assert.deepEqual(
+        result.scanErrors.map(({ path, code }) => ({ path, code })),
+        [{ path: "长篇/示例书/正文/受限卷", code: "EACCES" }],
+      );
+    } finally {
+      await chmod(restricted, 0o755);
+    }
   });
 });
 

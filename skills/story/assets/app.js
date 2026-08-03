@@ -355,6 +355,14 @@ function searchTruncationMessage() {
       `部分目录超过 ${formatNumber(status.limits.maxDepth)} 层，更深处未搜索；其他项目已继续搜索`,
     );
   }
+  if (status.byReadError) {
+    const paths = status.scanErrors.map((entry) => entry.path).filter(Boolean);
+    const shown = paths.slice(0, 3).join("、") || "部分目录";
+    const more = paths.length > 3 ? `等 ${formatNumber(paths.length)} 处` : "";
+    messages.push(
+      `${shown}${more}无法读取，搜索结果可能不完整。请检查目录访问权限或外挂盘挂载状态`,
+    );
+  }
   return messages.join("；");
 }
 
@@ -381,7 +389,9 @@ function renderTree() {
     message.className = "tree-message";
     const text = document.createElement("p");
     text.textContent = query
-      ? `没有找到“${query}”`
+      ? state.searchTruncation
+        ? `搜索未完成，暂时无法确认是否存在“${query}”`
+        : `没有找到“${query}”`
       : state.activeView === "libraries"
         ? "工作区里还没有拆文库。运行拆文 skill 后，档案会出现在这里。"
         : "还没有识别到写作项目。长篇需包含正文、大纲、设定或追踪目录；短篇需包含正文.md，并同时包含小节大纲.md或设定.md。";
@@ -755,7 +765,13 @@ async function searchWorkspace(query, sequence) {
     state.searchResults = result.results;
     state.searchTruncation = result.truncated
       ? {
-          ...(result.truncation || { byResults: true, byNodes: false, byDepth: false }),
+          ...(result.truncation || {
+            byResults: true,
+            byNodes: false,
+            byDepth: false,
+            byReadError: false,
+          }),
+          scanErrors: result.scanErrors || [],
           limits: result.limits,
         }
       : null;

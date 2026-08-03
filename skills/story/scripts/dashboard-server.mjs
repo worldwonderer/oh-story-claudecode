@@ -527,7 +527,10 @@ export async function searchWorkspace(root, queryValue, scopeValue) {
   }
   state.results.sort(compareTreeEntries);
   const truncated =
-    state.truncatedByResults || state.truncatedByNodes || state.truncatedByDepth;
+    state.truncatedByResults ||
+    state.truncatedByNodes ||
+    state.truncatedByDepth ||
+    state.scanErrors.length > 0;
   return {
     query,
     scope: scopeValue,
@@ -537,6 +540,7 @@ export async function searchWorkspace(root, queryValue, scopeValue) {
       byResults: state.truncatedByResults,
       byNodes: state.truncatedByNodes,
       byDepth: state.truncatedByDepth,
+      byReadError: state.scanErrors.length > 0,
     },
     scanErrors,
     limits: {
