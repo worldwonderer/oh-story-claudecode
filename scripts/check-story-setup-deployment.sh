@@ -60,7 +60,7 @@ write_sentinel() {
   local root="$1"
   cat > "$root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
-agents_version: 21
+agents_version: 22
 setup_skill_version: 1.2.7
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
@@ -283,7 +283,7 @@ setup_git_repo "$bad_sentinel_root"
 copy_hooks "$bad_sentinel_root"
 cat > "$bad_sentinel_root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
-agents_version: 21
+agents_version: 22
 setup_skill_version: 1.2.7
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
@@ -305,7 +305,7 @@ resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
 stale_previous_out="$(run_from_nested "$stale_previous_root" session-start.sh 2>&1 || true)"
-echo "$stale_previous_out" | grep -q '低于 v21' || fail "session-start did not warn for agents_version 17 stale v21 deployment"
+echo "$stale_previous_out" | grep -q '低于 v22' || fail "session-start did not warn for agents_version 17 stale v22 deployment"
 
 newer_project_root="$TMP_DIR/newer-project"
 mkdir -p "$newer_project_root/.claude/skills/story-setup/references/agent-references"
@@ -313,14 +313,14 @@ setup_git_repo "$newer_project_root"
 copy_hooks "$newer_project_root"
 cat > "$newer_project_root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
-agents_version: 22
+agents_version: 23
 setup_skill_version: 1.3.0
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
 newer_project_out="$(run_from_nested "$newer_project_root" session-start.sh 2>&1 || true)"
-echo "$newer_project_out" | grep -q '高于本 hook 支持的 v21' || fail "session-start did not reject agents_version 22 downgrade"
+echo "$newer_project_out" | grep -q '高于本 hook 支持的 v22' || fail "session-start did not reject agents_version 23 downgrade"
 echo "$newer_project_out" | grep -q '不要降级覆盖' || fail "session-start did not explain future-version safety"
 
 mixed_version_root="$TMP_DIR/mixed-version"
@@ -330,7 +330,7 @@ copy_hooks "$mixed_version_root"
 touch "$mixed_version_root/.claude/skills/story-setup/references/agent-references/dummy.md"
 cat > "$mixed_version_root/.story-deployed" <<'SENTINEL'
 deployed_at: 2026-05-24T00:00:00Z
-agents_version: 21
+agents_version: 22
 setup_skill_version: 1.2.6
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
@@ -338,11 +338,11 @@ references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
 mixed_version_out="$(run_from_nested "$mixed_version_root" session-start.sh 2>&1 || true)"
 # agents_version 是唯一运行时过期权威；setup_skill_version 落后不触发重部署（设计如此）
-if echo "$mixed_version_out" | grep -q '低于 v21'; then
-  fail "session-start incorrectly nagged '低于 v21' for current agents_version=21 just because setup_skill_version lags"
+if echo "$mixed_version_out" | grep -q '低于 v22'; then
+  fail "session-start incorrectly nagged '低于 v22' for current agents_version=22 just because setup_skill_version lags"
 fi
 if echo "$mixed_version_out" | grep -q '高于本 hook'; then
-  fail "session-start incorrectly nagged '高于本 hook' for current agents_version=21 just because setup_skill_version lags"
+  fail "session-start incorrectly nagged '高于本 hook' for current agents_version=22 just because setup_skill_version lags"
 fi
 
 echo "  OK TS5 sentinel diagnostics"
@@ -437,12 +437,12 @@ echo "  OK TS9 settings JSON"
 # agent 模板要带住关键行为规则。原先还夹着一批「UPGRADING.md/README 必须写到某句话」
 # 的文档完整性断言——那种改一个词就红、测的是措辞不是行为，已随 check-story-long-write-contract.sh
 # 一并去掉，发版是否补 UPGRADING 由发版清单和人把关，不靠 CI 钉死措辞。
-assert_grep 'AGENTS_VERSION.*-lt 21|AGENTS_VERSION" -lt 21' "$HOOKS_DIR/session-start.sh" "session-start must warn for agents_version 20 under v21 deployment"
-assert_grep 'AGENTS_VERSION.*-gt 21|AGENTS_VERSION" -gt 21' "$HOOKS_DIR/session-start.sh" "session-start must reject agents_version 22 downgrade"
-assert_grep 'agents_version.*小于 `21`|版本 < 21' "$SKILL_DIR/SKILL.md" "story-setup redeploy branch must treat agents_version 20 as stale"
-assert_grep 'agents_version.*大于 `21`' "$SKILL_DIR/SKILL.md" "story-setup must stop before downgrading a newer deployment"
-assert_grep 'agents_version.*小于 `21`|小于 .21' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must treat agents_version 20 as stale"
-assert_grep 'agents_version.*大于 `21`' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must not run old contracts against a newer deployment"
+assert_grep 'AGENTS_VERSION.*-lt 22|AGENTS_VERSION" -lt 22' "$HOOKS_DIR/session-start.sh" "session-start must warn for agents_version 21 under v22 deployment"
+assert_grep 'AGENTS_VERSION.*-gt 22|AGENTS_VERSION" -gt 22' "$HOOKS_DIR/session-start.sh" "session-start must reject agents_version 23 downgrade"
+assert_grep 'agents_version.*小于 `22`|版本 < 22' "$SKILL_DIR/SKILL.md" "story-setup redeploy branch must treat agents_version 21 as stale"
+assert_grep 'agents_version.*大于 `22`' "$SKILL_DIR/SKILL.md" "story-setup must stop before downgrading a newer deployment"
+assert_grep 'agents_version.*小于 `22`|小于 .22' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must treat agents_version 21 as stale"
+assert_grep 'agents_version.*大于 `22`' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must not run old contracts against a newer deployment"
 assert_grep '^version:[[:space:]]*1\.2\.7$' "$SKILL_FILE" "story-setup frontmatter must match the deployed setup version"
 assert_grep '剧情/情绪模块\.md.*missing_primary_contract|missing_primary_contract.*剧情/情绪模块\.md' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must require the current emotion-module artifact"
 assert_grep '剧情/节奏\.md.*missing_primary_contract|missing_primary_contract.*剧情/节奏\.md' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must require the current rhythm artifact"

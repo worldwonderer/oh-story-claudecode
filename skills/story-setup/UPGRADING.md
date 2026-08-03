@@ -3,9 +3,9 @@
 ## 当前版本
 
 - `setup_skill_version: 1.2.7`
-- `agents_version: 21`
+- `agents_version: 22`
 
-`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `21`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `21`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v21 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
+`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `22`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `22`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v22 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
 
 ## 升级策略
 
@@ -43,7 +43,7 @@
 - `{书名}/设定/`、`大纲/`、`追踪/`
 - `.active-book`
 
-## v21 当前契约
+## v22 当前契约
 
 - 写作与导入只接受当前拆文产物：`剧情/情绪模块.md` 与 `剧情/节奏.md` 缺失时 fail-fast，并给出重跑 Stage 3+ / 重新导入的修复动作。
 - 新建、补建、改纲的细纲只接受完整章节蓝图：缺少阶段位置、结构公式、禁止提前释放、内容概括、情节安排、人物关系、情节细化或结尾设定时，先补齐再写。旧版细纲缺这些字段不阻塞日更，回退消费旧字段（核心事件、情节点序列、目标情绪、章首/章尾钩子、字数目标）。
@@ -58,12 +58,21 @@
 ## 升级步骤
 
 1. 在项目根目录重新运行 story-setup。
-2. 确认 `.story-deployed` 写入 `agents_version: 21` 与 `setup_skill_version: 1.2.7`。
+2. 确认 `.story-deployed` 写入 `agents_version: 22` 与 `setup_skill_version: 1.2.7`。
 3. 确认目标 CLI 的 agents、hooks/rules 和 reference bundle 都通过安装验证。
 4. 新开会话，使 custom agents 与 hooks 按当前文件重新注册。
 5. 若已有拆文库或细纲不满足当前契约，先重新拆解/导入或补齐细纲，再继续写作。
 
 ## 版本变更
+
+### v22 (当前)
+
+- `.story-deployed` 的 `agents_version` 升级到 `22`（`setup_skill_version` 仍为 `1.2.7`）。
+- **章节概要改叙事化（#276）**：`chapter-extractor` 模板的「概要」字段不再要求用「因为…所以…」串联关键事件。改为按事件发生顺序连贯讲清发生了什么、为什么发生、结果如何，优先写进改变剧情走向的动作与结果、反常信息、会延续到后续章节的伏笔线索和有辨识度的具体细节（数字、原话、反常现象）；同一连接词不反复串联，仍禁空泛评价与主观解读。质量检查第 1 条与 Domain Boundary 同步改写，概要仍保持 `**概要**：` 行首单行形态（Stage 2 收尾的无损拼接校验依赖它）。
+- **原文引用改精选（#275）**：情节点的主要证据改为 P 行白描——谁做了什么、结果如何、原文给出的起因、伏笔线索必须写全，P 行新增独立的白描字段（此前只有并行 agent 路径缺这一段，与串行模板不一致）。原文引用不再逐点铺满，只给关键转折 / 关键台词 / 写法样本保留，每章至多 8 条，≤400 字连续切片；段落过长或分散时改用 `原文定位：{5-15字原句片段}`。质量检查第 5 条与 JSON schema 的 `summary` / `plot_points` 同步；自检条数标称从「10 条」更正为实际的 12 条。
+- **两条路径统一**：并行 chapter-extractor 与 solo/direct 串行降级此前是两份漂移的规范，而 ZCode / OpenClaw / Reasonix / generic 只能走串行。`story-long-analyze/references/output-templates.md` 补齐白描铁律、基调与主题标签消歧、原文引用精选规则和 Stage 2 输出自检，串行路径不再需要读取 `chapter-extractor.md`（那些端读不到它）。
+- **新增一条机械硬检查**：Stage 2 落盘后校验每个 `P` 行都有白描字段（`grep -cE '^P[0-9]+ [^|]+\|[^|]+\| *涉及'` == 情节点数）。引用改精选后白描承担事实回查，缺失即判质量失败并升级 sonnet 重试。
+- 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v21 部署，且 agent 模板改动只在会话启动时注册。
 
 ### v2
 
@@ -217,7 +226,7 @@
 - **去AI味闸口机器化（无状态）**：写后正文网新增确定性毒句式检测（不是A而是B 全家族/声线反差/否定排比/预告收尾），写正文落盘即自动扫描并推回命中，Claude/ZCode/OpenCode/Codex 四端同一共享核；写下一章前新增「毒句式欠账门」——上一章有未清 blocking 命中且未标 `<!-- 去味:跳过 -->` 豁免时拦截（判据现算自文件本身，不落任何状态文件，node 缺失或解析失败一律放行）；豁免标记冒号全半角均认，且同时使写后网跳过该章毒句式推回（其余网照常）；`check-ai-patterns.js` 同步新增 voice-contrast / negation-parade / reverse-not-is / trailer-ending（blocking，经真人语料零误报校准）与 quote-emphasis-tic（advisory）；SKILL 侧最毒句式速查内联进写作步骤、新增「写后同轮清零」要求，OpenClaw/generic 无 hook 平台由 AGENTS 模板自锁条款兜底。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v18 部署。
 
-### v21 (当前)
+### v21
 
 - `.story-deployed` 的 `agents_version` 升级到 `21`（`setup_skill_version` 仍为 `1.2.7`）。
 - **章尾状态总结体进写前闸门（#255）**：部署 hook 的毒句式欠账门新增 `trailer-summary` 规则，与既有 `trailer-ending` 共用文末 600 字窗口，命中「这一夜注定… / 这一切都结束了 / 新的人生才刚刚开始 / 命运的齿轮 / 就这样，一切都结束了」这类把细纲「结尾设定·收束状态」原样写成总结句的收尾——收的都是 `banned-words.md` 已按名禁掉的形态。写下一章前必须清零，`<!-- 去味:跳过 -->` 仍可豁免。四端（Claude / OpenCode / ZCode 共享 JS 核 + Codex Python）同步，`check-ai-patterns.js` 四份副本同规则。
