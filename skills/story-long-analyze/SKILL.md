@@ -254,7 +254,7 @@ Agent(
 
 ### Agent 不可用降级
 
-以下任一情况，Stage 2 自动退回串行模式，由主线程按 chapter-extractor 方法论逐章处理（结果同样套 output-templates.md 的章节摘要模板，质量不受影响，只是改为串行、速度略慢）。**两条路径的要求是同一份**：串行时概要写法、情节点白描、原文引用精选规则和输出自检都按 [output-templates.md](references/output-templates.md)「Stage 2 章节摘要+情节点」执行；上面的机械硬检查串行同样要跑。
+以下任一情况，Stage 2 自动退回串行模式，由主线程逐章处理（质量不受影响，只是改为串行、速度略慢）。**两条路径的要求是同一份**：串行时概要写法、情节点白描、原文引用精选规则和输出自检都按 [output-templates.md](references/output-templates.md)「Stage 2 章节摘要+情节点」执行；上面的机械硬检查串行同样要跑。串行没有 sonnet 升级重试这条路——硬检查命中时由主线程按失败项重写本章摘要 1 次，仍不过按 `⚠️ 跳过` 记入 `_progress.md` 「失败记录」表。
 
 - **agent 未部署**：agent 目录（优先 `.claude/agents/`，其次 `.opencode/agents/`，再检查 `.codex/agents/`）下的 `chapter-extractor.md` 或 `.codex/agents/chapter-extractor.toml` 不存在。`.claude/agents/` 通常不随仓库提交，应重新运行 `/story-setup` 完成当前适配器部署，不跨 Skill 读取模板源。
 - **环境不支持 spawn 子代理**：本 skill 正运行在某个子代理上下文中，无法再起下一层 agent。
