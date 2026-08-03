@@ -1,12 +1,12 @@
 ---
 name: story-cover
 version: 1.0.0
-description: "小说封面生成。根据书名、作者名自动分析题材风格，调用 GPT-Image-2 直接生成含标题和署名的专业级网文封面。触发方式：/story-cover、/封面、「帮我做个封面」「生成封面图」「做个小说封面」「封面设计」。"
-metadata: {"openclaw":{"requires":{"env":["GPT_IMAGE_API_KEY"],"bins":["curl","jq","base64"]},"primaryEnv":"GPT_IMAGE_API_KEY","source":"https://github.com/worldwonderer/oh-story-claudecode"}}
+description: "小说封面生成。根据书名、作者名自动分析题材风格，通过 GPT-Image-2 或 Atlas Cloud 生成含标题和署名的专业级网文封面。触发方式：/story-cover、/封面、「帮我做个封面」「生成封面图」「做个小说封面」「封面设计」。"
+metadata: {"openclaw":{"requires":{"bins":["curl","jq","base64","node"]},"source":"https://github.com/worldwonderer/oh-story-claudecode"}}
 ---
 # story-cover：小说封面生成
 
-你是小说封面设计师。根据书名和题材，调用 GPT-Image-2 一次性生成包含书名和作者名的完整封面。
+你是小说封面设计师。根据书名和题材，通过 GPT-Image-2 或 Atlas Cloud 一次性生成包含书名和作者名的完整封面。
 
 **核心原则：封面是读者的第一印象，一眼传达题材和氛围。**
 
@@ -16,10 +16,15 @@ metadata: {"openclaw":{"requires":{"env":["GPT_IMAGE_API_KEY"],"bins":["curl","j
 
 | 变量 | 必填 | 默认 | 说明 |
 |:-----|:----:|:-----|:-----|
-| `GPT_IMAGE_API_KEY` | ✅ | — | OpenAI 或兼容代理的 API Key |
+| `COVER_IMAGE_PROVIDER` | | `gpt-image` | `gpt-image` 或 `atlas` |
+| `GPT_IMAGE_API_KEY` | 选一 | — | `gpt-image` provider 的 API Key |
 | `GPT_IMAGE_BASE_URL` | | `https://api.openai.com/v1` | 兼容代理时改这个 |
 | `GPT_IMAGE_MODEL` | | `gpt-image-2` | 仅在测试新模型时覆盖 |
 | `GPT_IMAGE_SIZE` | | `1024x1536` | 目标比例提示（番茄 3:4→`768x1024`，默认 2:3→`1024x1536`）。官方 gpt-image-2 认任意 16 倍数尺寸（比例≤3:1），但**很多中转代理会忽略 size、按预设返回约 2:3**（已实测）——平台尺寸不靠它，由「导出平台上传尺寸」步骤兜底 |
+| `ATLASCLOUD_API_KEY` | 选一 | — | `atlas` provider 的 Atlas Cloud API Key |
+| `ATLASCLOUD_API_BASE_URL` | | `https://api.atlascloud.ai/api/v1` | Atlas Cloud 媒体生成 API；仅在代理或私有网关场景覆盖 |
+| `ATLASCLOUD_IMAGE_MODEL` | | `bytedance/seedream-v5.0-lite` | Atlas Cloud 图片模型 ID |
+| `ATLASCLOUD_IMAGE_SIZE` | | `1664*2496` | Atlas 输出尺寸；番茄 3:4 用 `2592*3456`，默认 2:3 用 `1664*2496` |
 | `UPLOAD_SIZE` | | — | 平台固定上传像素（番茄 `600x800`）；设置后由「导出平台上传尺寸」步骤居中裁剪+缩放出上传版（不变形、不依赖出图尺寸） |
 | `BOOK_DIR` | ✅ | — | 输出目录，建议 `./covers/<书名>` |
 | `REF_IMAGE` | | — | 参考图本地路径或 URL；设置后走 `images/edits` 图生图 |
@@ -37,10 +42,10 @@ metadata: {"openclaw":{"requires":{"env":["GPT_IMAGE_API_KEY"],"bins":["curl","j
 
 **按目标平台定封面尺寸**：番茄上传 600×800 是 **3:4**（不是 2:3），出图比例不对、平台二次裁剪就会切掉书名/笔名。
 
-| 平台 | 上传尺寸 | 比例 | 生成 `GPT_IMAGE_SIZE`（尽量） |
-|:-----|:--------|:-----|:-------------------|
-| 番茄小说 | 600×800 | 3:4 | `768x1024` |
-| 其他平台（默认竖版） | 按平台规格 | 2:3 | `1024x1536` |
+| 平台 | 上传尺寸 | 比例 | `GPT_IMAGE_SIZE`（尽量） | `ATLASCLOUD_IMAGE_SIZE` |
+|:-----|:--------|:-----|:------------------------|:------------------------|
+| 番茄小说 | 600×800 | 3:4 | `768x1024` | `2592*3456` |
+| 其他平台（默认竖版） | 按平台规格 | 2:3 | `1024x1536` | `1664*2496` |
 
 `export GPT_IMAGE_SIZE` 给目标比例（官方按它出图，很多代理会忽略、返回约 2:3）；平台有固定上传像素再 `export UPLOAD_SIZE`（番茄 `600x800`）。**平台尺寸最终由「导出平台上传尺寸」步骤居中裁剪+缩放保证，不依赖代理认不认 size。** 平台与题材风格见 [references/cover-styles.md](references/cover-styles.md)。
 
@@ -138,6 +143,43 @@ Professional book cover, high detail digital painting, portrait [平台比例：
 - 用 `digital painting style` 而非 `photo`，避免真人照片感
 
 ### Step 4：调用 API 并保存
+
+先读取 `COVER_IMAGE_PROVIDER`。默认 `gpt-image` 保持原流程；显式设为 `atlas` 时使用 Atlas Cloud 异步图片生成。两个 provider 只需配置对应的一把 API Key。
+
+#### Atlas Cloud 文生图
+
+Atlas Cloud 路径使用 `bytedance/seedream-v5.0-lite`，该模型擅长海报排版和多语言文字渲染。当前 preset 只处理文生图；设置了 `REF_IMAGE` 时继续使用下方 GPT-Image 图生图流程，不能静默忽略参考图。
+
+```bash
+set -euo pipefail
+[ "${COVER_IMAGE_PROVIDER:-gpt-image}" = "atlas" ] || { echo "当前 provider 不是 atlas" >&2; exit 1; }
+: "${ATLASCLOUD_API_KEY:?请设置 export ATLASCLOUD_API_KEY=你的key}"
+: "${PROMPT:?请先 export PROMPT=构建提示词步骤拼好的完整提示词}"
+: "${BOOK_DIR:?请先 export BOOK_DIR=./covers/<书名>}"
+[ -z "${REF_IMAGE:-}" ] || { echo "Atlas Cloud 当前 preset 仅支持文生图；有参考图时请使用 gpt-image provider" >&2; exit 1; }
+
+mkdir -p "$BOOK_DIR/封面"
+i=1
+while [ -f "$BOOK_DIR/封面/封面_v${i}.png" ]; do i=$((i+1)); done
+OUT="$BOOK_DIR/封面/封面_v${i}.png"
+
+# ATLAS_SCRIPT 是当前 story-cover skill 目录下 scripts/atlas-image.mjs 的绝对路径。
+ATLAS_SCRIPT="${ATLAS_SCRIPT:?请设置为 story-cover/scripts/atlas-image.mjs 的绝对路径}"
+node "$ATLAS_SCRIPT" \
+  --prompt "$PROMPT" \
+  --output "$OUT" \
+  --model "${ATLASCLOUD_IMAGE_MODEL:-bytedance/seedream-v5.0-lite}" \
+  --size "${ATLASCLOUD_IMAGE_SIZE:-1664*2496}"
+
+file "$OUT"
+ls -lt "$BOOK_DIR/封面/"
+```
+
+客户端会提交任务、轮询到 `completed`/`succeeded`、下载结果并校验 PNG/JPEG 文件签名；API 错误、失败状态和三分钟超时都会非零退出，不会留下伪图片。
+
+#### GPT-Image 文生图 / 图生图
+
+仅当 `COVER_IMAGE_PROVIDER=gpt-image`（默认值）时执行本节；Atlas Cloud 生成成功后直接进入 Step 5。
 
 `gpt-image-2` 始终返回 base64，请求体不要带 `response_format`（旧 DALL-E 参数，gpt-image 系列不支持）。`$PROMPT` 为「构建提示词」步骤拼出的完整提示词。
 

@@ -15,7 +15,7 @@ Reasonix 会从项目 `.agents/skills`（部署时创建的指向 `skills/` 的 
 | 长篇扫榜 | story-long-scan | 长篇小说榜单与市场趋势 |
 | 短篇扫榜 | story-short-scan | 短篇小说榜单与情绪风口 |
 | 去 AI 味 | story-deslop | 去除 AI 写作痕迹 |
-| 封面 | story-cover | 生成封面图；需要 `GPT_IMAGE_API_KEY` |
+| 封面 | story-cover | 生成封面图；需要所选 provider 的 API Key |
 | 审查 | story-review | 多视角审查；Reasonix 默认 solo/direct fallback |
 | 导入 | story-import | 逆向导入已有小说到项目结构 |
 | 网文工具箱 | story | 模糊意图自动分发 |
@@ -28,7 +28,7 @@ Reasonix 会从项目 `.agents/skills`（部署时创建的指向 `skills/` 的 
 - 暂不部署 Reasonix hooks/custom agents：写正文前大纲守卫、commit 提醒、session/compact 自动注入在 Reasonix 下不是硬拦截，只作为 skill 内软约束执行。
 - 涉及专业 Agent 的 Skill（story-review 多视角、story-long-write 的 narrative-writer/story-architect 等）按 solo/direct fallback 执行，并在结果里说明降级。
 - Windows 未启用 symlink 时改走根 `reasonix-plugin.json` 原生 plugin 安装。
-- `story-cover` 依赖 `GPT_IMAGE_API_KEY`，未配置时该 skill 不可用。
+- `story-cover` 使用 `COVER_IMAGE_PROVIDER=gpt-image|atlas` 选择 provider，并在运行时校验对应的 `GPT_IMAGE_API_KEY` 或 `ATLASCLOUD_API_KEY`。
 
 ## 文件结构
 
