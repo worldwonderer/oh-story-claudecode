@@ -451,6 +451,15 @@ def continuity_findings(root: Path) -> list[str]:
             if newest > ctx_m + 1:
                 latest = max(chapters, key=lambda c: c.stat().st_mtime).name
                 msgs.append(f"[continuity] {safe_rel(root, book)}：正文已更新到「{latest}」但 追踪/上下文.md 更早，续写会断线——补更 上下文.md/伏笔.md 再继续。")
+        # ①b 写作简报预算：上下文.md 每章整份重写，硬上限 12288 字节。超限说明历史回流进了热文件，
+        # 而它每章都被全读——不治会退化成 O(N^2)。只报不拦，处置是搬进 追踪/章记/ 不是删。
+        if ctx.exists():
+            try:
+                ctx_size = ctx.stat().st_size
+            except Exception:
+                ctx_size = 0
+            if ctx_size > 12288:
+                msgs.append(f"[continuity] {safe_rel(root, book)}：追踪/上下文.md 已 {round(ctx_size / 1024)}KB，超出写作简报预算 12KB——把越界区块搬进 追踪/章记/ 后整份重写简报，别继续追加。")
         # ② 标题去重（按文件名 第N章_标题 的标题部分）
         titles: dict[str, list[str]] = {}
         for c in chapters:

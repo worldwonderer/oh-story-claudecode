@@ -27,7 +27,7 @@ Codex CLI 中优先通过 `$skill-name` 或 `/skills` 调用；自然语言也�
 - `{书名}/正文.md` — 短篇小说正文
 - `{书名}/设定/` — 角色设定、世界设定
 - `{书名}/大纲/` — 卷纲、细纲
-- `{书名}/追踪/` — 上下文.md、伏笔.md、时间线.md、角色状态.md
+- `{书名}/追踪/` — 上下文.md（写作简报，续写每章整份读）、章记/、卷史.md、伏笔.md、时间线.md、角色状态.md（后四项日更不读，按需查询用）
 - `{书名}/对标/` — 对标作品分析
 
 ## Codex 项目约定
@@ -35,7 +35,7 @@ Codex CLI 中优先通过 `$skill-name` 或 `/skills` 调用；自然语言也�
 - Codex custom agents 部署在 `.codex/agents/*.toml`，需要新开 Codex 会话后才会稳定可用。
 - Codex hooks 部署在 `.codex/hooks.json` 和 `.codex/hooks/`；项目 `.codex/` 层需要被信任，非 managed hooks 还需要在 `/hooks` 中 review/trust 后才会运行。
 - 写正文前必须先有对应大纲：长篇 `大纲/细纲_第N章*.md`，短篇 `小节大纲.md`。Codex hooks 会做机械守卫，但 skill 流程本身也必须遵守。
-- Compact 后优先读取 `{书名}/追踪/上下文.md` 恢复当前写作进度。
+- Compact 后优先读取 `{书名}/追踪/上下文.md` 恢复当前写作状态。
 
 ## 协作规则
 

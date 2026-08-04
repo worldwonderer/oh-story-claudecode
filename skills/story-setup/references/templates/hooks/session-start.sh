@@ -114,13 +114,13 @@ if [ -n "$BRANCH" ]; then
   HAS_CONTENT=true
 fi
 
-# 上下文.md 摘要（只看当前位置部分，前 10 行）
+# 上下文.md 摘要（只看当前位置部分；新模板前 7 行是标题与说明，取 18 行才覆盖到 ## 当前位置 整块（≤8 字段 + 注释行））
 BOOK_DIR=$(discover_active_book)
 if [ -n "$BOOK_DIR" ] && [ -f "$BOOK_DIR/追踪/上下文.md" ]; then
   OUTPUT+="--- 当前位置 ---${NL}"
   # `2>/dev/null || true` 不能省：[ -f ] 对「存在但读不到」也为真，此时 head 退非零，
   # set -e 会就地终止脚本——OUTPUT 到文末才 flush，上面所有 [WARN] 会连同 stderr 一起丢光。
-  SNAPSHOT=$(head -10 "$BOOK_DIR/追踪/上下文.md" 2>/dev/null || true)
+  SNAPSHOT=$(head -18 "$BOOK_DIR/追踪/上下文.md" 2>/dev/null || true)
   OUTPUT+="${SNAPSHOT}${NL}---${NL}${NL}"
   HAS_CONTENT=true
 fi
