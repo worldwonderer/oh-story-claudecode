@@ -50,6 +50,8 @@ jobs:
         run: bash scripts/test-prose-net-parity.sh
       - name: Story continuity backstop regression
         run: bash scripts/test-story-continuity.sh
+      - name: Tracking workflow contract regression
+        run: python3 scripts/test-tracking-workflow-contracts.py
       - name: Check story-setup deployment
         run: bash scripts/check-story-setup-deployment.sh
       - name: Check Claude Code adapter

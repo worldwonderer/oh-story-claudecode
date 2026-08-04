@@ -120,13 +120,13 @@ function continuityFindings(root) {
       } catch {}
     }
 
-    // 写作简报预算：上下文.md 每章整份重写，硬上限 12288 字节。超限说明历史回流进了热文件，
-    // 而它每章都被全读——不治会退化成 O(N^2)。只报不拦，处置是搬进 追踪/章记/ 不是删。
+    // 写作状态摘要预算：上下文.md 每章整份重写，硬上限 12288 字节。超限说明旧记录又被写进了每章必读文件。
+    // 若不处理，每章读取量会随章节数增长，最终达到 O(N^2)。这里只提醒、不阻止；应把超出规定的区块移到 追踪/逐章记录/。
     if (fs.existsSync(context)) {
       try {
         const contextSize = fs.statSync(context).size
         if (contextSize > 12288) {
-          messages.push(`[continuity] ${safeRelative(root, book)}：追踪/上下文.md 已 ${Math.round(contextSize / 1024)}KB，超出写作简报预算 12KB——把越界区块搬进 追踪/章记/ 后整份重写简报，别继续追加。`)
+          messages.push(`[continuity] ${safeRelative(root, book)}：追踪/上下文.md 已 ${Math.round(contextSize / 1024)}KB，超出写作状态摘要预算 12KB——把超出规定的区块移到 追踪/逐章记录/，再整份重写状态摘要，不要继续追加。`)
         }
       } catch {}
     }

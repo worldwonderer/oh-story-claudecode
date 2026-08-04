@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-07-28 -->
+<!-- Last synced with README.md: 2026-08-04 -->
 
 **English** | [中文](README.md)
 
@@ -301,13 +301,13 @@ The file system separates settings, outlines, prose, and tracking into independe
 │       ├── Settings/           # Structured world settings (synced from analyze)
 │       ├── 文风.md              # Benchmark voice used before daily writing
 │       └── Report.md            # Analyze skill output
-├── Tracking/                # Continuity management (brief + per-chapter records)
-│   ├── Context.md           # Writing brief (for compact recovery; fully read/rewritten each chapter)
-│   ├── Chapter_Records/     # Per-chapter authoritative records (one small file per chapter)
-│   ├── Volume_History.md    # Ten-chapter digests + per-volume overview
+├── Tracking/                # Continuity management (status summary + per-chapter records)
+│   ├── Context.md           # Writing status summary (for compact recovery; fully read/rewritten each chapter)
+│   ├── Chapter_Records/     # Complete records for each chapter (one small file per chapter)
+│   ├── Stage_Summaries.md   # Ten-chapter digests + per-volume overview
 │   ├── Foreshadowing.md     # Foreshadowing planted/resolved status table (cross-volume)
 │   ├── Timeline.md          # In-story timeline (full-book)
-│   └── Character_Status.md  # Character change event stream (per-chapter)
+│   └── Character_Status.md  # Per-chapter character change records
 ├── References/              # story-researcher output
 │   └── {topic}.md           # Split by research topic
 ```
