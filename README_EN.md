@@ -304,6 +304,7 @@ The file system separates settings, outlines, prose, and tracking into independe
 ├── Tracking/                # Continuity management (status summary + per-chapter records)
 │   ├── Context.md           # Writing status summary (for compact recovery; fully read/rewritten each chapter)
 │   ├── Chapter_Records/     # Complete records for each chapter (one small file per chapter)
+│   ├── Pending_Items/       # Unresolved cross-chapter items (one small file each; at most six read per chapter)
 │   ├── Stage_Summaries.md   # Ten-chapter digests + per-volume overview
 │   ├── Foreshadowing.md     # Foreshadowing planted/resolved status table (cross-volume)
 │   ├── Timeline.md          # In-story timeline (full-book)

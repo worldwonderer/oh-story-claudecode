@@ -126,7 +126,7 @@ function continuityFindings(root) {
       try {
         const contextSize = fs.statSync(context).size
         if (contextSize > 12288) {
-          messages.push(`[continuity] ${safeRelative(root, book)}：追踪/上下文.md 已 ${Math.round(contextSize / 1024)}KB，超出写作状态摘要预算 12KB——把超出规定的区块移到 追踪/逐章记录/，再整份重写状态摘要，不要继续追加。`)
+          messages.push(`[continuity] ${safeRelative(root, book)}：追踪/上下文.md 已 ${Math.ceil(contextSize / 1024)}KB，超出写作状态摘要预算 12KB——把超出规定的区块移到 追踪/逐章记录/，再整份重写状态摘要，不要继续追加。`)
         }
       } catch {}
     }
