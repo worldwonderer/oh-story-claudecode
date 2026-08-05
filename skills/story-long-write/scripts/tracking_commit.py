@@ -132,6 +132,18 @@ def byte_size(text: str) -> int:
     return len(text.encode("utf-8"))
 
 
+def emit(text: str, *, error: bool = False) -> None:
+    """Write UTF-8 bytes directly.
+
+    Windows 的文本 stdout 是 cp1252（含中文即 UnicodeEncodeError），stderr 默认
+    backslashreplace（中文被转义成反斜杠码位，作者看不懂）。两条路都要绕开。
+    """
+    stream = sys.stderr if error else sys.stdout
+    stream.flush()
+    stream.buffer.write((text + "\n").encode("utf-8"))
+    stream.buffer.flush()
+
+
 def read_json(path: Path) -> object:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -983,21 +995,21 @@ def write_views(tracking: Path, views: dict[str, str]) -> None:
 
 def warn_sizes(views: dict[str, str], delta_payload: str | None = None) -> None:
     if delta_payload is not None and byte_size(delta_payload) > DELTA_TARGET_BYTES:
-        print(
+        emit(
             f"WARNING: chapter delta is {byte_size(delta_payload)} bytes; target is <= {DELTA_TARGET_BYTES}",
-            file=sys.stderr,
+            error=True,
         )
     context_size = byte_size(views["上下文.md"])
     if context_size > CONTEXT_TARGET_BYTES:
-        print(f"WARNING: hot context is {context_size} bytes; target is <= {CONTEXT_TARGET_BYTES}", file=sys.stderr)
+        emit(f"WARNING: hot context is {context_size} bytes; target is <= {CONTEXT_TARGET_BYTES}", error=True)
     for relative, payload in views.items():
         if not relative.startswith("角色状态/"):
             continue
         size = byte_size(payload)
         if size > SNAPSHOT_TARGET_BYTES:
-            print(
+            emit(
                 f"WARNING: character snapshot {Path(relative).stem} is {size} bytes; target is <= {SNAPSHOT_TARGET_BYTES}",
-                file=sys.stderr,
+                error=True,
             )
 
 
@@ -1016,10 +1028,10 @@ def initialize(project: Path, document: object) -> dict[str, Any]:
     atomic_write_text(state_path(project), state_payload)
     warn_sizes(views)
     if archived:
-        print(
+        emit(
             f"NOTE: 旧追踪结构已原样移入 追踪/{RETIRED_ARCHIVE_DIR}/：{', '.join(archived)}；"
             "当前状态以本次 init 输入为准，旧文件不参与解析。",
-            file=sys.stderr,
+            error=True,
         )
     return state
 
@@ -1109,9 +1121,9 @@ def main() -> int:
         else:
             result = check_project(args.project)
     except (TrackingError, OSError, UnicodeError) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        emit(f"ERROR: {exc}", error=True)
         return 2
-    print(
+    emit(
         json.dumps(
             {
                 "last_committed_chapter": result["last_committed_chapter"],

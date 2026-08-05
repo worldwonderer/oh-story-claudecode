@@ -592,8 +592,9 @@ PY
 import importlib.util, sys
 from pathlib import Path
 spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+# findings 运行期含中文；Windows 文本 stdout 是 cp1252，必须走 buffer 直写 UTF-8。
 for finding in m.continuity_findings(Path(sys.argv[2])):
-    print(finding)
+    sys.stdout.buffer.write((finding + "\n").encode("utf-8"))
 PY
   node - "$CLAUDE_CORE" "$hot" > "$tmp/hjs.txt" <<'JS'
 const core = require(process.argv[2])
