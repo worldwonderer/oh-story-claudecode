@@ -100,7 +100,7 @@ assert_empty "$out" "existing prose rewrite"
 printf '%s\n' '{"schema_version":4,"state_revision":1,"last_committed_chapter":0}' > "$ROOT/book/追踪/_tracking-state.json"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第009章_已存在.md","content":"改稿"}}')"
 assert_denied "$out" "existing prose rewrite with mismatched derived state"
-printf '%s' "$out" | grep -q '重跑原 tracking_commit.py commit' || fail "state mismatch denial missed retry action: $out"
+printf '%s' "$out" | grep -q 'mode=revision 事务重建派生视图' || fail "state mismatch denial missed retry action: $out"
 write_clean_state "$ROOT/book"
 
 mkdir -p "$ROOT/short"

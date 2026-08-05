@@ -132,7 +132,7 @@ try {
         { tool: "edit" },
         { args: { filePath: "book/正文/第002章_续写.md" } }
       ),
-    /重跑原 tracking_commit\.py commit/,
+    /mode=revision 事务重建派生视图/,
     "existing prose revision must be blocked while derived state is inconsistent"
   );
   writeCleanState("book", 3);

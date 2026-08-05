@@ -110,8 +110,12 @@ case "$BASE" in
     NUM="$(printf '%s' "$BASE" | sed -n 's/^第0*\([0-9][0-9]*\)章.*/\1/p')"
     [ -z "$NUM" ] && exit 0
     BOOK_DIR="$(dirname "$(dirname "$ABS")")"
-    # story-import 迁移：已有 拆文库/{书名}/ 分析源时放行（细纲由章节摘要反推、晚于正文迁移）
-    [ -d "$ROOT/拆文库/$(basename "$BOOK_DIR")" ] && exit 0
+    # story-import 迁移：已有 拆文库/{书名}/ 分析源时放行（细纲由章节摘要反推、晚于正文迁移）。
+    # 一旦 追踪/_tracking-state.json 存在即进入当前追踪协议，不再因为保留了 拆文库/ 分析资产
+    # 而永久绕过守卫（与 story_hook_core.js 的同一判定保持一致）。
+    if [ -d "$ROOT/拆文库/$(basename "$BOOK_DIR")" ] && [ ! -f "$BOOK_DIR/追踪/_tracking-state.json" ]; then
+      exit 0
+    fi
     OUTLINE_DIR="$BOOK_DIR/大纲"
     FOUND=""
     if [ -d "$OUTLINE_DIR" ]; then

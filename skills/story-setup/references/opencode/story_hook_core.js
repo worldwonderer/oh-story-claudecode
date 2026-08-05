@@ -124,12 +124,15 @@ function trackingCheckpointIssue(book, requireState = false, expectedLastCommitt
   } catch {}
   if (contextRevision !== document.state_revision) {
     const shown = contextRevision === null ? "缺失" : contextRevision
-    return `追踪/上下文.md 状态修订 ${shown} 与 _tracking-state.json 的 ${document.state_revision} 不一致；重跑原 tracking_commit.py commit`
+    return `追踪/上下文.md 状态修订 ${shown} 与 _tracking-state.json 的 ${document.state_revision} 不一致；重新提交该章的 mode=revision 事务重建派生视图（expected_state_revision 取 check 报出的当前值）`
   }
   if (expectedLastCommitted !== null) {
     if (!Number.isInteger(document.last_committed_chapter)) {
       return `追踪/_tracking-state.json 缺少整数 last_committed_chapter；停止写正文并重新 /story-import`
     }
+    // 章号已在追踪范围内 = 回炉/改名/留原稿备份，不是首建新章：文件名新但章节早已提交过，
+    // 顺序校验对它恒为假（workflow-revision 的「备份原稿」步骤必然命中），跳过。
+    if (expectedLastCommitted < document.last_committed_chapter) return null
     if (document.last_committed_chapter !== expectedLastCommitted) {
       return `追踪已提交到第${document.last_committed_chapter}章，首建第${expectedLastCommitted + 1}章前必须先提交第${expectedLastCommitted}章追踪事务`
     }
@@ -169,7 +172,7 @@ function continuityFindings(root) {
       try {
         const contextSize = fs.statSync(context).size
         if (contextSize > 12288) {
-          messages.push(`[continuity] ${safeRelative(root, book)}：追踪/上下文.md 已 ${contextSize} 字节，超出写作状态摘要预算 12288 字节——用 tracking_commit.py 重建续写状态卡，不要继续追加。`)
+          messages.push(`[continuity] ${safeRelative(root, book)}：追踪/上下文.md 已 ${contextSize} 字节，超出写作状态摘要预算 12288 字节——提交一份 mode=revision 事务让 tracking_commit.py 整份重建，不要手改也不要继续追加。`)
         }
       } catch {}
     }

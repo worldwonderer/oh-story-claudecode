@@ -572,7 +572,7 @@ JS
   grep -q 'missing :: .*_tracking-state.json 缺失' "$tmp/cpy.txt" || { echo "FAIL: 缺失 state 未 fail closed" >&2; return 3; }
   grep -q 'malformed :: .*无法解析' "$tmp/cpy.txt" || { echo "FAIL: 坏 JSON 未 fail closed" >&2; return 3; }
   grep -q 'old :: .*schema_version=4' "$tmp/cpy.txt" || { echo "FAIL: 旧 schema 未 fail closed" >&2; return 3; }
-  grep -q 'mismatch :: .*状态修订.*重跑原 tracking_commit.py commit' "$tmp/cpy.txt" || { echo "FAIL: 派生 revision 不一致未给同事务重跑动作" >&2; return 3; }
+  grep -q 'mismatch :: .*状态修订.*mode=revision 事务重建派生视图' "$tmp/cpy.txt" || { echo "FAIL: 派生 revision 不一致未给 mode=revision 重建动作" >&2; return 3; }
   grep -q 'norevision :: .*缺少整数 state_revision' "$tmp/cpy.txt" || { echo "FAIL: 缺 state_revision 未 fail closed" >&2; return 3; }
   grep -q 'nolast :: .*缺少整数 last_committed_chapter' "$tmp/cpy.txt" || { echo "FAIL: 缺 last_committed 未 fail closed" >&2; return 3; }
   grep -q 'behind :: .*必须先提交第7章追踪事务' "$tmp/cpy.txt" || { echo "FAIL: 落后章号未 fail closed" >&2; return 3; }

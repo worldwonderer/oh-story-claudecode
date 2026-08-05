@@ -61,13 +61,35 @@
 2. 确认 `.story-deployed` 写入 `agents_version: 22` 与 `setup_skill_version: 1.2.7`。
 3. 确认目标 CLI 的 agents、hooks/rules 和 reference bundle 都通过安装验证。
 4. 新开会话，使 custom agents 与 hooks 按当前文件重新注册。
-5. 若已有拆文库或细纲不满足当前契约，先重新拆解/导入或补齐细纲，再继续写作。
+5. **长篇在写项目必做**：检查每本书的 `追踪/_tracking-state.json` 是否存在。不存在就是旧追踪结构，按下方「追踪模型迁移」重建，否则写下一章会被拦。
+6. 若已有拆文库或细纲不满足当前契约，先重新拆解/导入或补齐细纲，再继续写作。
+
+## 追踪模型迁移（v0.7.2 及更早的长篇项目必读）
+
+长篇追踪从「模型自由写多个 Markdown」改成 **`追踪/_tracking-state.json` 单一结构化权威 + `scripts/tracking_commit.py` 事务写入**。所有 Markdown（续写状态卡、逐章记录、角色快照、伏笔表、时间线双视图）都是由工具整份生成的派生视图，不再手写。
+
+判断与后果：
+
+| 情况 | 表现 |
+|------|------|
+| `追踪/_tracking-state.json` 存在且 `check` 通过 | 正常，无需处理 |
+| 缺 `_tracking-state.json` 但已有正文 | 日更停止；OpenCode / ZCode / Codex 上写正文被 hook 直接拦截 |
+| 存在但派生视图被手改 | `check` 报 `derived view differs from _tracking-state.json` |
+
+迁移**不需要重跑全书拆解**：正文、`设定/`、`大纲/`、`拆文库/` 都不受影响，只重建 `追踪/`。执行 `/story-import` 的「旧追踪项目迁移」——数出最后完整章号 `N`，从旧追踪文件与最近几章正文重建当前状态，构造 `last_chapter=N` 的初始化事务跑 `tracking_commit.py init`。旧追踪结构会被按原样整体移入 `追踪/_旧追踪存档/`，不删除、不参与解析。
+
+退役结构：`_tracking-meta.json`、`时间线/事件库.json` 及更早追踪文件不再被解析，`commit` 与 `check` 遇到会直接拒绝。
+
+日常写作的两条硬约束：所有追踪写入都走 `tracking_commit.py`；派生视图被改动后用该章的 `mode=revision` 事务整份重建，不手改。
 
 ## 版本变更
 
 ### v22 (当前)
 
 - `.story-deployed` 的 `agents_version` 升级到 `22`（`setup_skill_version` 仍为 `1.2.7`）。
+- **长篇追踪改单一权威事务模型（破坏性）**：`追踪/_tracking-state.json` 成为唯一结构化权威，所有追踪写入走 `scripts/tracking_commit.py`；续写状态卡固定 7 栏、硬上限 12288 字节，全书历史进 `追踪/逐章记录/第NNN章.md`，伏笔/时间线/角色状态降为派生视图。旧追踪结构与 `_tracking-meta.json`、`时间线/事件库.json` 一并退役，不提供兼容层。**v0.7.2 及更早的长篇项目必须按上方「追踪模型迁移」重建 `追踪/` 才能继续写**，正文与其它目录不受影响。
+- 三端写正文守卫（OpenCode / ZCode / Codex）新增追踪检查点硬阻断：state 缺失、schema 不是 4、续写状态卡修订与 state 不一致、或首建新章时上一章事务未提交，都会拦下写正文。
+- `story-explorer` 与 `consistency-checker` 获得 Bash 权限（只为运行 `tracking_commit.py check`），仍禁 Write/Edit。
 - **章节概要改叙事化（#276）**：`chapter-extractor` 模板的「概要」字段不再要求用「因为…所以…」串联关键事件。改为按事件发生顺序连贯讲清发生了什么、为什么发生、结果如何，优先写进改变剧情走向的动作与结果、反常信息、会延续到后续章节的伏笔线索和有辨识度的具体细节（数字、原话、反常现象）；同一连接词不反复串联，仍禁空泛评价与主观解读。质量检查第 1 条与 Domain Boundary 同步改写，概要仍保持 `**概要**：` 行首单行形态（Stage 2 收尾的无损拼接校验依赖它）。
 - **原文引用改精选（#275）**：情节点的主要证据改为 P 行白描——谁做了什么、结果如何、原文给出的起因、伏笔线索必须写全，P 行新增独立的白描字段（此前只有并行 agent 路径缺这一段，与串行模板不一致）。原文引用不再逐点铺满，只给关键转折 / 关键台词 / 写法样本保留，每章至多 8 条，≤400 字连续切片；段落过长或分散时改用 `原文定位：{5-15字原句片段}`。质量检查第 5 条与 JSON schema 的 `summary` / `plot_points` 同步；自检条数标称从「10 条」更正为实际的 12 条。
 - **两条路径统一**：并行 chapter-extractor 与 solo/direct 串行降级此前是两份漂移的规范，而 ZCode / OpenClaw / Reasonix / generic 只能走串行。`story-long-analyze/references/output-templates.md` 补齐白描铁律、基调与主题标签消歧、原文引用精选规则和 Stage 2 输出自检，串行路径不再需要读取 `chapter-extractor.md`（那些端读不到它）。

@@ -235,7 +235,7 @@ def test_hooks_fail_closed_on_invalid_tracking_checkpoints() -> None:
                 "_tracking-state.json 缺失",
                 "schema_version=4",
                 "state_revision",
-                "重跑原 tracking_commit.py commit",
+                "mode=revision 事务重建派生视图",
                 "重新 /story-import",
                 "last_committed_chapter",
                 "必须先提交",

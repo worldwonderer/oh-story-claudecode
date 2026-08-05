@@ -95,7 +95,7 @@ steps: 15
 
 ### character_status 流程
 
-1. 运行当前 story-long-write skill 根的 `scripts/tracking_commit.py check --project {项目根}`，只消费其紧凑 JSON 输出；失败时在 `gaps` 返回 `tracking_state_invalid`，不读取完整 state，也不把派生视图当成已确认状态。
+1. 读 `追踪/_tracking-state.json` 取 `schema_version` / `state_revision` / `last_committed_chapter`，并与 `追踪/上下文.md` 头部的 `状态修订：{N}` 比对（本 agent 无 Bash，不跑 `tracking_commit.py`；逐字级派生视图校验由调用方在主会话跑 `check` 负责）；两者对不上或字段缺失时在 `gaps` 返回 `tracking_state_invalid`，不把派生视图当成已确认状态。
 2. `Read 追踪/角色状态/{角色名}.md`，直接取得截至最后提交章的身份、位置、目标、状态、能力资源、关键关系、已知信息和未结事项。
 3. `Read 设定/角色/{角色名}.md` 取得静态人设；静态设定不得覆盖动态快照。
 4. 只有查询明确要求“为什么变成这样/哪章变化”时，才 `Grep "{角色名}" 追踪/逐章记录/` 并读取命中小文件；当前状态查询不扫描全历史。
@@ -137,7 +137,7 @@ steps: 15
 
 ### progress 流程
 
-1. 运行当前 story-long-write skill 根的 `scripts/tracking_commit.py check --project {项目根}`，从紧凑 JSON 取得最后提交章和状态修订号，不把完整 state 载入 prompt。
+1. 读 `追踪/_tracking-state.json` 取 `schema_version` / `state_revision` / `last_committed_chapter`，并与 `追踪/上下文.md` 头部的 `状态修订：{N}` 比对（本 agent 无 Bash，不跑 `tracking_commit.py`；逐字级派生视图校验由调用方在主会话跑 `check` 负责），取得最后提交章和状态修订号。
 2. `Read 追踪/上下文.md` 获取当前位置、下一章承诺和连贯性风险。
 3. 任一文件缺失或章号不一致时返回 blocking gap，不扫描正文猜测进度。
 
@@ -203,7 +203,7 @@ steps: 15
 
 ### context_load 流程（综合查询）
 
-1. 运行当前 story-long-write skill 根的 `scripts/tracking_commit.py check --project {项目根}`；失败时返回 `tracking_state_invalid` 与 blocking gap，不读取完整 state、不继续组装写作包。
+1. 读 `追踪/_tracking-state.json` 取 `schema_version` / `state_revision` / `last_committed_chapter`，并与 `追踪/上下文.md` 头部的 `状态修订：{N}` 比对（本 agent 无 Bash，不跑 `tracking_commit.py`；逐字级派生视图校验由调用方在主会话跑 `check` 负责）；对不上时返回 `tracking_state_invalid` 与 blocking gap，不继续组装写作包。
 2. `Read 追踪/上下文.md`；它必须恰好包含 `当前位置 / 长期约束 / 核心角色状态 / 活跃伏笔 / 近三章速记 / 下一章承诺 / 连贯性风险` 7 个栏目。
 3. 下一章 N = `last_committed_chapter + 1`；`Read 大纲/细纲_第{N}章.md`。
 4. 从细纲和续写状态卡提取角色名，读取 `设定/角色/{name}.md`；久别核心角色再读取 `追踪/角色状态/{name}.md`。
