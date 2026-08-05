@@ -163,7 +163,11 @@ class TrackingCommitTests(unittest.TestCase):
             input_path = Path(self.temporary.name) / f"{command}-{os.urandom(4).hex()}.json"
             input_path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
             args.extend(["--input", str(input_path)])
-        completed = subprocess.run(args, text=True, capture_output=True, check=False)
+        # 工具按 UTF-8 直写字节；text=True 默认按 locale 解码，Windows 的 cp1252
+        # 会在读中文提示时 UnicodeDecodeError，必须显式指定 UTF-8。
+        completed = subprocess.run(
+            args, text=True, capture_output=True, check=False, encoding="utf-8"
+        )
         self.assertEqual(
             completed.returncode,
             expect,
