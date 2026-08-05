@@ -29,6 +29,22 @@
       ]
     },
     {
+      "name": "story-tracking-transaction",
+      "source": "skills/story-long-write/scripts/tracking_commit.py",
+      "targets": [
+        "skills/story-import/scripts/tracking_commit.py",
+        "skills/story-review/scripts/tracking_commit.py"
+      ]
+    },
+    {
+      "name": "story-tracking-transaction-reference",
+      "source": "skills/story-long-write/references/tracking-transaction.md",
+      "targets": [
+        "skills/story-import/references/tracking-transaction.md",
+        "skills/story-review/references/tracking-transaction.md"
+      ]
+    },
+    {
       "name": "scan-cdp-utils",
       "source": "skills/story-long-scan/scripts/cdp-utils.js",
       "targets": [

@@ -47,6 +47,12 @@ assert_denied() {
     || fail "$2 did not deny"
 }
 
+write_clean_state() {
+  mkdir -p "$1/追踪"
+  printf '{"schema_version":4,"state_revision":0,"last_committed_chapter":%s}\n' "${2:-0}" > "$1/追踪/_tracking-state.json"
+  printf '%s\n' '> 状态修订：0' > "$1/追踪/上下文.md"
+}
+
 echo "ZCode hook synthetic tests"
 echo "=========================="
 echo "Fixture: $ROOT"
@@ -55,6 +61,10 @@ mkdir -p "$ROOT/book/正文" "$ROOT/book/大纲" "$ROOT/book/设定"
 out="$(run_hook pre-tool-prose-guard '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"book/正文/第001章_开端.md"}}')"
 assert_denied "$out" "long prose without outline"
 : > "$ROOT/book/大纲/细纲_第1章.md"
+out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第001章_开端.md"}}')"
+assert_denied "$out" "long prose without tracking metadata"
+printf '%s' "$out" | grep -q '_tracking-state.json 缺失' || fail "missing tracking denial did not explain re-import/init: $out"
+write_clean_state "$ROOT/book"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第001章_开端.md"}}')"
 assert_empty "$out" "long prose with outline"
 
@@ -76,7 +86,17 @@ assert_denied "$out" "relative prose target from hook cwd"
 printf '%s' "$out" | grep -q 'cwd-book/大纲' || fail "relative target was not resolved from hook cwd: $out"
 : > "$ROOT/cwd-book/大纲/细纲_第8章.md"
 out="$(run_hook pre-tool-prose-guard "$relative_payload")"
+assert_denied "$out" "relative prose target without tracking metadata"
+write_clean_state "$ROOT/cwd-book" 7
+out="$(run_hook pre-tool-prose-guard "$relative_payload")"
 assert_empty "$out" "relative prose target with cwd-local outline"
+
+: > "$ROOT/book/正文/第009章_已存在.md"
+printf '%s\n' '{"schema_version":4,"state_revision":1,"last_committed_chapter":0}' > "$ROOT/book/追踪/_tracking-state.json"
+out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第009章_已存在.md"}}')"
+assert_denied "$out" "existing prose rewrite with mismatched derived state"
+printf '%s' "$out" | grep -q '重跑原 tracking_commit.py commit' || fail "state mismatch denial missed retry action: $out"
+write_clean_state "$ROOT/book"
 
 # containment 判据必须按 Windows 路径语义覆盖：path.relative 跨盘会返回绝对路径，
 # 目录名恰好以 `..` 开头则仍在项目内。只用 startsWith("..") 会把两者同时判反。
@@ -108,6 +128,16 @@ assert_denied "$out" "short prose without outline"
 : > "$ROOT/short/小节大纲.md"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"short/正文.md"}}')"
 assert_empty "$out" "short prose with outline"
+
+mkdir -p "$ROOT/impbook/正文" "$ROOT/拆文库/impbook"
+out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"impbook/正文/第1章_导入.md"}}')"
+assert_empty "$out" "story-import long migration"
+mkdir -p "$ROOT/impbook/大纲" "$ROOT/impbook/追踪"
+: > "$ROOT/impbook/大纲/细纲_第2章.md"
+printf '%s\n' '{"schema_version":4,"state_revision":1,"last_committed_chapter":1}' > "$ROOT/impbook/追踪/_tracking-state.json"
+printf '%s\n' '> 状态修订：0' > "$ROOT/impbook/追踪/上下文.md"
+out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"impbook/正文/第2章_导入后续.md"}}')"
+assert_denied "$out" "imported project must not permanently bypass invalid tracking guard"
 echo "  OK outline-before-prose guard"
 
 printf '这是正文里的 TODO，而且最后一句被截断' > "$ROOT/short/正文.md"
@@ -136,6 +166,11 @@ printf '# 上下文\n' > "$ROOT/book/追踪/上下文.md"
 out="$(run_hook session-start '{"hook_event_name":"SessionStart","source":"compact"}')"
 assert_contract "$out" SessionStart "session start"
 printf '%s' "$out" | grep -q '当前书目' || fail "session start missed active book"
+printf '%s\n' '{"schema_version":4,"state_revision":1,"last_committed_chapter":0}' > "$ROOT/book/追踪/_tracking-state.json"
+out="$(run_hook session-start '{"hook_event_name":"SessionStart","source":"resume"}')"
+assert_contract "$out" SessionStart "session tracking mismatch warning"
+printf '%s' "$out" | grep -q '状态修订' || fail "session start missed tracking revision mismatch"
+write_clean_state "$ROOT/book"
 echo "  OK session-start context"
 
 printf '# 旧上下文\n' > "$ROOT/book/追踪/上下文.md"
@@ -144,7 +179,7 @@ printf '# 第1章\n正文。\n' > "$ROOT/book/正文/第001章_撞名.md"
 printf '# 第2章\n正文。\n' > "$ROOT/book/正文/第002章_撞名.md"
 out="$(run_hook session-start '{"hook_event_name":"SessionStart","source":"resume"}')"
 assert_contract "$out" SessionStart "session continuity"
-printf '%s' "$out" | grep -q '续写会断线' || fail "session start missed stale tracking context"
+printf '%s' "$out" | grep -q '续写状态卡更早' || fail "session start missed stale tracking context"
 printf '%s' "$out" | grep -q '标题重复' || fail "session start missed duplicate chapter title"
 echo "  OK session-start continuity guard"
 
@@ -164,6 +199,7 @@ out="$(printf 'not-json' | ZCODE_PROJECT_DIR="$ROOT" node "$HOOK" pre-tool-prose
 assert_empty "$out" "malformed input fail-open"
 
 : > "$ROOT/book/大纲/细纲_第8章.md"
+write_clean_state "$ROOT/book" 7
 out="$(cd "$TMP_DIR" && printf '%s' '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第8章_自定位.md"}}' | env -u ZCODE_PROJECT_DIR -u CLAUDE_PROJECT_DIR node "$HOOK" pre-tool-prose-guard)"
 assert_empty "$out" "deployed __dirname self-location"
 echo "  OK malformed input + workspace self-location"

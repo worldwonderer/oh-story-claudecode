@@ -997,6 +997,47 @@ NODE
 
 echo "negation-parade (否定排比) regression tests passed."
 
+# --- 第21章实战漏网：跨段否定三连 + 工整决策/否定并列 ---
+# 这三类都能找到正常语境，只报 advisory 交语义审查；轻量 hook 不硬拦。
+FIXTURE_CH21_GAP="$TMP_DIR/fixture-ch21-ai-flavor-gap.md"
+printf '%s\n' \
+  '至于拍不拍，怎么拍，等他把话说完再决定。' \
+  '不带摄像机，不带采访灯。' \
+  '“不带摄像机，不带采访灯。”' \
+  '不是嚎啕大哭。' \
+  '' \
+  '也不是扯着嗓子喊不舍。' \
+  '' \
+  '只是一个人走远了，留在原地的人还站着。' \
+  '不是生就是死。' \
+  '至于拍摄方案怎么定，等人到了再说。' \
+  '“不放辣，不放葱。”' \
+  '他不带伞。她不带包。' \
+  '不是她不想回家。' \
+  '也不是母亲不肯原谅她。' \
+  '只是末班车已经开走了。' > "$FIXTURE_CH21_GAP"
+set +e
+node "$SCRIPT" --json "$FIXTURE_CH21_GAP" > "$OUT"
+node "$SCRIPT" --fail-on=blocking "$FIXTURE_CH21_GAP" >/dev/null 2>&1
+ch21_gap_blk=$?
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const np = r.findings.filter((f) => f.type === 'negation-parade');
+if (np.length !== 0) throw new Error('跨段否定三连不应进入 blocking negation-parade: ' + JSON.stringify(np));
+const fp = r.findings.filter((f) => f.type === 'formulaic-parallelism');
+if (fp.length !== 5) throw new Error('决策框架 + 否定并列 + 两处跨段三连应命中 5 处 advisory: ' + JSON.stringify(r.findings));
+if (fp.some((f) => f.severity !== 'advisory')) throw new Error('formulaic-parallelism 只能 advisory: ' + JSON.stringify(fp));
+if (fp.map((f) => f.line).join(',') !== '1,2,3,4,13') throw new Error('formulaic-parallelism 应定位 line 1/2/3/4/13: ' + JSON.stringify(fp));
+// either-or、普通决策句、对象只有一个字的功能性短对话、跨句独立否定都不报。
+// line 13 的正常辩解会被保守提示，但绝不得升成 blocking。
+if (r.findings.some((f) => f.line >= 9 && f.line <= 12)) throw new Error('第9-12行自然反例被误报: ' + JSON.stringify(r.findings));
+NODE
+[ "$ch21_gap_blk" -eq 0 ] || { echo "FAIL: 语义型工整并列不应触发 --fail-on=blocking，实际 $ch21_gap_blk" >&2; exit 1; }
+
+echo "chapter-21 AI-flavor gap regression tests passed."
+
 # --- 实战漏网 C：reverse-not-is（是A，不是B — not-is 反序变种，blocking）---
 FIXTURE_REVNOTIS="$TMP_DIR/fixture-reverse-not-is.md"
 printf '%s\n' \

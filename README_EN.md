@@ -231,7 +231,8 @@ demo/长篇/让你管账号，你高燃混剪炸全网/
 ├── 大纲/        大纲.md · 卷纲_第1卷.md · 细纲_第001–020章.md (one file per chapter)
 ├── 设定/        角色/ (6 character files) · 世界观/{background · cheat-system}
 │                关系.md · 题材定位.md · 文风.md
-└── 追踪/        伏笔.md (foreshadowing) · 时间线.md (timeline) · 角色状态.md (state) · 上下文.md
+└── 追踪/        _tracking-state.json · 上下文.md · 伏笔.md · 逐章记录/
+                 角色状态/{角色名}.md · 时间线/{作者真相.md · 读者已知.md}
 ```
 
 Per-chapter extraction (events / characters / settings / foreshadowing / timeline) is reverse-engineered into a continuation bible, so the author seamlessly continues from chapter 21.
@@ -301,14 +302,13 @@ The file system separates settings, outlines, prose, and tracking into independe
 │       ├── Settings/           # Structured world settings (synced from analyze)
 │       ├── 文风.md              # Benchmark voice used before daily writing
 │       └── Report.md            # Analyze skill output
-├── Tracking/                # Continuity management (status summary + per-chapter records)
-│   ├── Context.md           # Writing status summary (for compact recovery; fully read/rewritten each chapter)
-│   ├── Chapter_Records/     # Complete records for each chapter (one small file per chapter)
-│   ├── Pending_Items/       # Unresolved cross-chapter items (one small file each; at most six read per chapter)
-│   ├── Stage_Summaries.md   # Ten-chapter digests + per-volume overview
-│   ├── Foreshadowing.md     # Foreshadowing planted/resolved status table (cross-volume)
-│   ├── Timeline.md          # In-story timeline (full-book)
-│   └── Character_Status.md  # Per-chapter character change records
+├── Tracking/                # File-first continuity state
+│   ├── _tracking-state.json # Single structured authority (not loaded into prose prompts)
+│   ├── Context.md           # Derived hot context (7 fixed sections, ≤12 KB)
+│   ├── Chapter_Records/     # Compact continuity record / revision overlay (≤3072 bytes)
+│   ├── Character_Status/    # Derived snapshot per core character
+│   ├── Foreshadowing.md     # Derived current foreshadowing view
+│   └── Timeline/            # Derived author-truth and reader-known views
 ├── References/              # story-researcher output
 │   └── {topic}.md           # Split by research topic
 ```

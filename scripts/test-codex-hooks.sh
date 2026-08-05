@@ -51,6 +51,12 @@ assert_empty() {
   [ -z "$out" ] || fail "$label expected empty allow output, got: $out"
 }
 
+write_clean_state() {
+  mkdir -p "$1/追踪"
+  printf '{"schema_version":4,"state_revision":0,"last_committed_chapter":%s}\n' "${2:-0}" > "$1/追踪/_tracking-state.json"
+  printf '%s\n' '> 状态修订：0' > "$1/追踪/上下文.md"
+}
+
 echo "Codex hook synthetic tests"
 echo "=========================="
 echo "Fixture: $ROOT"
@@ -59,6 +65,10 @@ mkdir -p "$ROOT/book/正文" "$ROOT/book/大纲" "$ROOT/book/设定"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Bash","tool_input":{"command":"cat > book/正文/第001章_开端.md <<EOF\n正文\nEOF"}}')"
 assert_denied "$out" "long prose without outline"
 : > "$ROOT/book/大纲/细纲_第1章.md"
+out="$(run_hook pre-tool-prose-guard '{"tool_name":"Bash","tool_input":{"command":"cat > book/正文/第001章_开端.md <<EOF\n正文\nEOF"}}')"
+assert_denied "$out" "long prose without tracking metadata"
+printf '%s' "$out" | grep -q '_tracking-state.json 缺失' || fail "missing tracking denial did not explain re-import/init: $out"
+write_clean_state "$ROOT/book"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Bash","tool_input":{"command":"cat > book/正文/第001章_开端.md <<EOF\n正文\nEOF"}}')"
 assert_empty "$out" "long prose with outline"
 
@@ -77,6 +87,9 @@ assert_denied "$out" "relative prose target from hook cwd"
 printf '%s' "$out" | grep -q 'cwd-book/大纲' || fail "relative target was not resolved from hook cwd: $out"
 : > "$ROOT/cwd-book/大纲/细纲_第8章.md"
 out="$(run_hook pre-tool-prose-guard "$relative_payload")"
+assert_denied "$out" "relative prose target without tracking metadata"
+write_clean_state "$ROOT/cwd-book" 7
+out="$(run_hook pre-tool-prose-guard "$relative_payload")"
 assert_empty "$out" "relative prose target with cwd-local outline"
 
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Add File: book/正文/第002章_新局.md\n+正文\n*** End Patch\n"}}')"
@@ -84,6 +97,11 @@ assert_denied "$out" "apply_patch long prose without outline"
 : > "$ROOT/book/正文/第009章_已存在.md"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第009章_已存在.md","content":"改稿"}}')"
 assert_empty "$out" "existing prose rewrite"
+printf '%s\n' '{"schema_version":4,"state_revision":1,"last_committed_chapter":0}' > "$ROOT/book/追踪/_tracking-state.json"
+out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第009章_已存在.md","content":"改稿"}}')"
+assert_denied "$out" "existing prose rewrite with mismatched derived state"
+printf '%s' "$out" | grep -q '重跑原 tracking_commit.py commit' || fail "state mismatch denial missed retry action: $out"
+write_clean_state "$ROOT/book"
 
 mkdir -p "$ROOT/short"
 : > "$ROOT/short/设定.md"
@@ -96,6 +114,12 @@ assert_empty "$out" "short prose with outline"
 mkdir -p "$ROOT/impbook/正文" "$ROOT/拆文库/impbook"
 out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"impbook/正文/第1章_导入.md","content":"正文"}}')"
 assert_empty "$out" "story-import long migration"
+mkdir -p "$ROOT/impbook/大纲" "$ROOT/impbook/追踪"
+: > "$ROOT/impbook/大纲/细纲_第2章.md"
+printf '%s\n' '{"schema_version":4,"state_revision":1,"last_committed_chapter":1}' > "$ROOT/impbook/追踪/_tracking-state.json"
+printf '%s\n' '> 状态修订：0' > "$ROOT/impbook/追踪/上下文.md"
+out="$(run_hook pre-tool-prose-guard '{"tool_name":"Write","tool_input":{"file_path":"impbook/正文/第2章_导入后续.md","content":"正文"}}')"
+assert_denied "$out" "imported project must not permanently bypass invalid tracking guard"
 
 echo "  OK outline-before-prose guard"
 
@@ -144,10 +168,15 @@ resolver_strategy: project-local-skill-reference
 references_dir: .codex/skills/story-setup/references/agent-references
 TXT
 printf 'book\n' > "$ROOT/.active-book"
-printf '# 上下文\n' > "$ROOT/book/追踪/上下文.md"
+printf '%s\n' '> 状态修订：0' > "$ROOT/book/追踪/上下文.md"
 out="$(run_hook session-start '{"hook_event_name":"SessionStart"}')"
 assert_additional_context "$out" "session-start context"
 echo "$out" | grep -q 'Active book' || fail "session-start did not mention active book"
+printf '%s\n' '{"schema_version":4,"state_revision":1,"last_committed_chapter":0}' > "$ROOT/book/追踪/_tracking-state.json"
+out="$(run_hook session-start '{"hook_event_name":"SessionStart"}')"
+assert_additional_context "$out" "session-start tracking mismatch warning"
+echo "$out" | grep -q '状态修订' || fail "session-start missed tracking revision mismatch: $out"
+write_clean_state "$ROOT/book"
 out="$(run_hook pre-compact '{"hook_event_name":"PreCompact"}')"
 printf '%s' "$out" | assert_json || fail "pre-compact invalid JSON: $out"
 echo "$out" | grep -q 'Story Compact Summary' || fail "pre-compact missing summary"
@@ -174,13 +203,14 @@ echo "  OK stop content sweep (git-changed only)"
 
 # ── SessionStart continuity: 追踪 staleness（写了章但 上下文.md 没跟上）+ 章节标题去重 ──
 mkdir -p "$ROOT/contbook/正文" "$ROOT/contbook/追踪"
+write_clean_state "$ROOT/contbook"
 printf '旧上下文\n' > "$ROOT/contbook/追踪/上下文.md"
 sleep 1
 printf '# 第1章 决战\n正文。\n' > "$ROOT/contbook/正文/第001章_决战.md"
 printf '# 第2章 决战\n正文。\n' > "$ROOT/contbook/正文/第002章_决战.md"
 out="$(run_hook session-start '{"hook_event_name":"SessionStart"}')"
 assert_additional_context "$out" "session-start continuity"
-echo "$out" | grep -q '续写会断线' || fail "session-start missed 追踪 staleness: $out"
+echo "$out" | grep -q '续写状态卡更早' || fail "session-start missed 追踪 staleness: $out"
 echo "$out" | grep -q '标题重复' || fail "session-start missed dup-title: $out"
 echo "  OK session-start continuity (追踪 staleness + dup-title)"
 
@@ -196,6 +226,7 @@ echo "  OK cwd-based root resolution"
 # .codex/hooks/ location. Discriminating: 细纲 exists at the true root, so a wrong root → deny;
 # only __file__-derived root → allow. (The valid-env tests above let env win and never hit this.)
 : > "$ROOT/book/大纲/细纲_第8章.md"
+write_clean_state "$ROOT/book" 7
 out="$(cd "$TMP_DIR" && CODEX_PROJECT_DIR="$TMP_DIR/does-not-exist" python3 "$HOOK" pre-tool-prose-guard <<'JSON'
 {"tool_name":"Write","tool_input":{"file_path":"book/正文/第8章_x.md","content":"x"}}
 JSON
@@ -233,6 +264,7 @@ echo "  OK non-git deployment launcher root search"
 # back to the nested cwd and wrongly denying. This case also exercises Windows (Git Bash MSYS
 # path passed to native Python), which is exactly where naive env/cwd propagation breaks.
 : > "$NON_GIT/book/大纲/细纲_第4章.md"
+write_clean_state "$NON_GIT/book" 3
 out="$(cd "$NON_GIT/nested/a/b"; unset CODEX_PROJECT_DIR CLAUDE_PROJECT_DIR; printf '{"tool_name":"Write","tool_input":{"file_path":"book/正文/第004章_非Git.md","content":"正文"}}' | eval "$launcher_cmd")"
 assert_empty "$out" "non-git nested cwd + outline present allows (root reaches Python hook)"
 rm -f "$NON_GIT/book/大纲/细纲_第4章.md"

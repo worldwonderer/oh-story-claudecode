@@ -2,7 +2,7 @@
 # check-hook-regex-sync.sh — 行为级校验 detect-story-gaps.sh 的伏笔状态检测
 #
 # 设计意图：SessionStart hook 只提示过期或异常伏笔，避免把长篇中正常
-# 开放状态（未埋/已埋）误判为问题，诱发 daily 流程中的全量伏笔审计。
+# 当前合法状态（已埋/已回收/放弃）误判为问题，诱发 daily 流程中的全量伏笔审计。
 # 本脚本运行真实 hook fixture，验证正常状态不报警、已过期/异常状态报警。
 set -euo pipefail
 
@@ -11,7 +11,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 HOOK_FILE="$REPO_ROOT/skills/story-setup/references/templates/hooks/detect-story-gaps.sh"
 COMMON_FILE="$REPO_ROOT/skills/story-setup/references/templates/hooks/lib/common.sh"
-PROTOCOL_FILE="$REPO_ROOT/skills/story-long-write/references/artifact-protocols.md"
+PROTOCOL_FILE="$REPO_ROOT/skills/story-long-write/scripts/tracking_commit.py"
 
 for file in "$HOOK_FILE" "$COMMON_FILE" "$PROTOCOL_FILE"; do
   if [ ! -f "$file" ]; then
@@ -20,7 +20,7 @@ for file in "$HOOK_FILE" "$COMMON_FILE" "$PROTOCOL_FILE"; do
   fi
 done
 
-STATUS_ENUM=$(grep -oE '状态\{[^}]+\}' "$PROTOCOL_FILE" 2>/dev/null | head -1 | sed 's/状态{//;s/}//' || true)
+STATUS_ENUM=$(sed -n 's/^FORESHADOW_STATUSES = (\(.*\))$/\1/p' "$PROTOCOL_FILE" 2>/dev/null | head -1 | tr -d '" ' | tr ',' '/' || true)
 if [ -z "$STATUS_ENUM" ]; then
   echo "FAIL: No foreshadow status enum found in protocol file"
   exit 1
@@ -109,7 +109,7 @@ cat > "$plain_header_root/book/追踪/伏笔.md" <<'EOF_PLAIN_HEADER'
 
 | ID | 名称 | 埋下 | 回收 | 状态 | 备注 |
 |----|------|------|------|------|------|
-| F001 | 玉佩 | 第1章 | 第20章 | 未埋 | ok |
+| F001 | 玉佩 | 第1章 | 第20章 | 已埋 | ok |
 EOF_PLAIN_HEADER
 plain_header_output=$(run_hook "$plain_header_root" || true)
 if echo "$plain_header_output" | grep -q '伏笔'; then
@@ -120,10 +120,11 @@ if echo "$plain_header_output" | grep -q '伏笔'; then
 fi
 echo "  OK no warn: plain-header"
 
-assert_no_foreshadow_warn "planned-unplanted" "| F001 | 计划后续埋设 | 第5章 | 第10章 | 未埋 | 中 |"
 assert_no_foreshadow_warn "normal-open-planted" "| F002 | 正常开放伏笔 | 第1章 | 第20章 | 已埋 | 高 |"
 assert_no_foreshadow_warn "closed-recovered" "| F003 | 已回收伏笔 | 第1章 | 第3章 | 已回收 | 低 |"
+assert_no_foreshadow_warn "closed-abandoned" "| F006 | 已放弃伏笔 | 第1章 | 第3章 | 放弃 | 低 |"
 assert_foreshadow_warn "overdue" "| F004 | 过期伏笔 | 第1章 | 第2章 | 已过期 | 高 |"
+assert_foreshadow_warn "retired-unplanted-status" "| F001 | 尚未真正埋设 | 第5章 | 第10章 | 未埋 | 中 |"
 assert_foreshadow_warn "unknown-status" "| F005 | 异常状态 | 第1章 | 第2章 | 状态损坏 | 高 |"
 
 # Guard against reverting to the old broad regex or warning wording.

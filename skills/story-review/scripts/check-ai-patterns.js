@@ -23,13 +23,14 @@ Detect high-risk AI-flavor prose patterns that need human rewrite:
   - 监控摄像头式动作清单 (同段连续摆放动作动词，缺少视角温度/情绪缓冲)
   - 音量反差腔 (声音不高/不大…却…, 实战漏网句式)
   - 否定排比 (没有X，没有Y…连排 / 没X…只是Y 先否定后肯定, 实战漏网句式)
+  - 工整并列 (至于X不X，怎么X / 同动词「不V A，不V B」，含台词，advisory)
   - 反序对比 (是A，不是B — not-is 的反序变种, 实战漏网句式)
   - 预告式总结收尾 (文末窗口 没人知道/才刚刚开始/正朝着…压了过去, 实战漏网句式)
   - 章尾状态总结体 (文末窗口 这一夜注定/这一切都结束了/新的人生才刚刚开始/命运的齿轮)
   - 引号强调滥用 (叙述里 1-4 字短词加引号强调，密度型)
 
 Each finding carries severity: blocking by default for generation/deslop cleanup (not-is-comparison / em-dash / voice-contrast / negation-parade / reverse-not-is / trailer-ending / trailer-summary). This is a local style/readability gate, not an AIGC detector score; functional human text can be marked for review instead of hard-edited for a detector.
-或 advisory (period-stutter / long-paragraph / micro-action-tic / action-list-tic / abstract-summary-tic / cliche-density-tic / metaphor-density-tic / reasoning-chain-tic / system-notice-formality-tic / overcompressed-prose-tic / low-connective-density-tic / quote-emphasis-tic，是提示，justified 的长推理/氛围段可保留)。
+或 advisory (period-stutter / long-paragraph / micro-action-tic / action-list-tic / abstract-summary-tic / cliche-density-tic / metaphor-density-tic / reasoning-chain-tic / system-notice-formality-tic / overcompressed-prose-tic / low-connective-density-tic / quote-emphasis-tic / formulaic-parallelism，是提示，justified 的长推理/氛围段可保留)。
 --fail-on=blocking 只在出现 blocking finding 时退出 1；默认 --fail-on=all 有任何 finding 即退出 1。
 
 The script reports findings only. It never rewrites text, because the safe fix is
@@ -187,6 +188,14 @@ const NEGATION_PARADE_PATTERNS = [
   /(?:没有[^。！？!?\n，,]{1,12}[，,]){2}/g,
   /(?<![沉淹埋出隐湮吞覆漫泯])没(?!有?过?多久)(?:有)?[^。！？!?\n，,]{1,12}[，,]\s*没(?!有?过?多久)(?:有)?[^。！？!?\n，,]{1,16}[，,。.][^。！？!?\n，,]{0,6}只(?:是|会|有)/g,
 ];
+const CROSS_NEGATION_START = /^不是[^。！？!?\n]{1,24}[。！？!?]?$/;
+const CROSS_NEGATION_MIDDLE = /^(?:也|还)不是[^。！？!?\n]{1,24}[。！？!?]?$/;
+const CROSS_NEGATION_END = /^只是[^。！？!?\n]{1,32}[。！？!?]?$/;
+
+// 两类常见但不能直接判错的工整框架，只做 advisory。与 blocking 规则不同，这里故意扫描
+// 台词：自然点单「不放辣，不放葱」靠对象最短长度排除；更长的同动词清单交语义审查判断功能。
+const DECISION_FRAME_PATTERN = /至于([\u3400-\u9fff]{1,3})不\1[，,]\s*怎么\1/g;
+const REPEATED_NEGATIVE_VERB_PATTERN = /不([\u3400-\u9fff]{1,2})([\u3400-\u9fff]{2,8})[，,]\s*不\1([\u3400-\u9fff]{2,8})/g;
 
 // 反序对比腔（实战漏网 C）：「是真嗓子，不是修音修出来的」——not-is-comparison 的反序变种。
 // 复用 not-is 的排除基建：引号内剥离（maskQuoted）、「是的/是啊」确认语（isAffirmationTagAt）；
@@ -391,6 +400,7 @@ function scanProsePatterns(proseLines) {
 
   findings.push(...findVoiceContrast(proseLines));
   findings.push(...findNegationParade(proseLines));
+  findings.push(...findFormulaicParallelism(proseLines));
   findings.push(...findReverseNotIs(proseLines));
   findings.push(...findTrailerEnding(proseLines));
   findings.push(...findQuoteEmphasisTic(proseLines));
@@ -433,7 +443,7 @@ function findVoiceContrast(proseLines) {
   return findings;
 }
 
-// 否定排比（实战漏网 B）：两个变体（同句「没有X，」连排 / 先否定后「只是」收肯定）
+// 否定排比（实战漏网 B）：同句「没有X，」连排 / 先否定后「只是」收肯定。
 // 可能在同一片文字上重叠命中，按区间去重只报一次。
 function findNegationParade(proseLines) {
   const findings = [];
@@ -469,6 +479,61 @@ function findNegationParade(proseLines) {
         excerpt: compact(text.slice(start, end)),
       });
     }
+  }
+
+  return findings;
+}
+
+function findFormulaicParallelism(proseLines) {
+  const findings = [];
+
+  for (const { text, lineNo } of proseLines) {
+    const trimmed = text.trim();
+    if (!trimmed || isDivider(trimmed) || isStructural(trimmed)) continue;
+    for (const [pattern, message] of [
+      [DECISION_FRAME_PATTERN, '「至于X不X，怎么X」把同一决定拆成工整栏目；若只是复述细纲，压成角色当下的一次判断或直接动作。'],
+      [REPEATED_NEGATIVE_VERB_PATTERN, '同动词「不V A，不V B」容易写成否定清单；含台词也要按语境复核，保留真正有功能的一项即可。'],
+    ]) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        findings.push({
+          line: lineNo,
+          column: match.index + 1,
+          type: 'formulaic-parallelism',
+          severity: 'advisory',
+          message,
+          excerpt: compact(match[0]),
+        });
+      }
+    }
+  }
+
+  // 跨段「不是A / 也不是B / 只是C」既可能是细纲复述，也可能是正常的
+  // 辩解、悬念排除或情绪递进。纯句法无法稳定区分，因此只给 advisory，交给语义复核。
+  const window = [];
+  for (const { text, lineNo } of proseLines) {
+    const trimmed = text.trim();
+    if (!trimmed) continue;
+    if (isDivider(trimmed) || isStructural(trimmed)) {
+      window.length = 0;
+      continue;
+    }
+    if (window.length && lineNo - window[window.length - 1].lineNo > 2) window.length = 0;
+    window.push({ text: maskQuoted(trimmed), original: trimmed, lineNo });
+    if (window.length > 3) window.shift();
+    if (window.length !== 3) continue;
+    if (!CROSS_NEGATION_START.test(window[0].text)
+      || !CROSS_NEGATION_MIDDLE.test(window[1].text)
+      || !CROSS_NEGATION_END.test(window[2].text)) continue;
+    findings.push({
+      line: window[0].lineNo,
+      column: 1,
+      type: 'formulaic-parallelism',
+      severity: 'advisory',
+      message: '跨段「不是… / 也不是… / 只是…」可能是工整否定铺排，也可能承担辩解或悬念排除；通读语境，只在重复细纲或拖慢画面时改写。',
+      excerpt: compact(window.map((entry) => entry.original).join(' / ')),
+    });
   }
 
   return findings;

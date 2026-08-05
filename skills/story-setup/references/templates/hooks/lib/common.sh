@@ -92,8 +92,10 @@ analysis_incomplete() {
 # 输出：换行分隔的绝对路径（与 discover_all_books 同口径）。拆文库不存在时输出空。
 discover_incomplete_analyses() {
   local root="$1"
-  [ -d "$root/拆文库" ] || return 0
-  { find "$root/拆文库" -name "_progress.md" -print 2>/dev/null || true; } | while IFS= read -r progress_file; do
+  # 路径字面量保留尾 `/`：`拆文库` 的 UTF-8 是奇数字节，GBK locale 下若紧邻闭引号，
+  # bash 会把末字节和引号误解成同一多字节字符，后续函数定义全部丢失。尾 `/` 让字节对齐。
+  [ -d "$root/拆文库/" ] || return 0
+  { find "$root/拆文库/" -name "_progress.md" -print 2>/dev/null || true; } | while IFS= read -r progress_file; do
     [ -n "$progress_file" ] || continue
     if analysis_incomplete "$progress_file"; then printf '%s\n' "$progress_file"; fi
   done

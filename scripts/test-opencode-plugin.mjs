@@ -28,6 +28,16 @@ async function expectBlocked(action, label) {
   await assert.rejects(action, /写正文被拦截/, label);
 }
 
+function writeCleanState(book, lastCommitted = 0) {
+  fs.mkdirSync(path.join(book, "追踪"), { recursive: true });
+  fs.writeFileSync(
+    path.join(book, "追踪", "_tracking-state.json"),
+    JSON.stringify({ schema_version: 4, state_revision: 0, last_committed_chapter: lastCommitted }) + "\n",
+    "utf8"
+  );
+  fs.writeFileSync(path.join(book, "追踪", "上下文.md"), "> 状态修订：0\n", "utf8");
+}
+
 try {
   execFileSync("git", ["init", "-q", tmp]);
   process.chdir(tmp);
@@ -53,6 +63,16 @@ try {
   );
 
   fs.writeFileSync("book/大纲/细纲_第1章.md", "# 细纲\n", "utf8");
+  await assert.rejects(
+    () =>
+      hooks["tool.execute.before"](
+        { tool: "write" },
+        { args: { filePath: "book/正文/第001章_开局.md" } }
+      ),
+    /_tracking-state\.json 缺失/,
+    "long prose with outline but no tracking checkpoint must fail closed"
+  );
+  writeCleanState("book");
   await hooks["tool.execute.before"](
     { tool: "write" },
     { args: { filePath: "book/正文/第001章_开局.md" } }
@@ -85,6 +105,7 @@ try {
     "relative Bash target must resolve from the tool workdir"
   );
   fs.writeFileSync("cwd-book/大纲/细纲_第8章.md", "# 细纲\n", "utf8");
+  writeCleanState("cwd-book", 7);
   await hooks["tool.execute.before"](
     { tool: "bash" },
     {
@@ -100,6 +121,21 @@ try {
     { tool: "edit" },
     { args: { filePath: "book/正文/第002章_续写.md" } }
   );
+  fs.writeFileSync(
+    "book/追踪/_tracking-state.json",
+    JSON.stringify({ schema_version: 4, state_revision: 1, last_committed_chapter: 0 }) + "\n",
+    "utf8"
+  );
+  await assert.rejects(
+    () =>
+      hooks["tool.execute.before"](
+        { tool: "edit" },
+        { args: { filePath: "book/正文/第002章_续写.md" } }
+      ),
+    /重跑原 tracking_commit\.py commit/,
+    "existing prose revision must be blocked while derived state is inconsistent"
+  );
+  writeCleanState("book", 3);
 
   await expectBlocked(
     () =>
@@ -167,6 +203,7 @@ try {
   );
   // 补上细纲就放行：门是补细纲能过的门，不是把 Move 一律拦死
   fs.writeFileSync("book/大纲/细纲_第9章.md", "# 细纲\n", "utf8");
+  writeCleanState("book", 8);
   await hooks["tool.execute.before"](
     { tool: "apply_patch" },
     { args: { patchText: movePatch("draft.md", "book/正文/第009章_搬家.md") } }

@@ -431,8 +431,54 @@ def _discover_all_books(root: Path) -> list[Path]:
     return books
 
 
+def tracking_checkpoint_issue(
+    book: Path,
+    *,
+    require_state: bool = False,
+    expected_last_committed: int | None = None,
+) -> str | None:
+    state = book / "追踪" / "_tracking-state.json"
+    if not state.exists():
+        if require_state:
+            return "追踪/_tracking-state.json 缺失；已有正文项目必须重新 /story-import，新书必须先用 tracking_commit.py init 初始化"
+        return None
+    try:
+        document = json.loads(state.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return "追踪/_tracking-state.json 无法解析；停止写正文并重新 /story-import，不能猜测或手补状态"
+    if not isinstance(document, dict) or document.get("schema_version") != 4:
+        return "追踪/_tracking-state.json 不是当前 schema_version=4；停止写正文并重新 /story-import，不保留旧结构兼容路径"
+    revision = document.get("state_revision")
+    if type(revision) is not int:
+        return "追踪/_tracking-state.json 缺少整数 state_revision；停止写正文并重新 /story-import"
+    context = book / "追踪" / "上下文.md"
+    context_revision = None
+    try:
+        match = re.search(r"状态修订：(\d+)", context.read_text(encoding="utf-8"))
+        if match:
+            context_revision = int(match.group(1))
+    except (OSError, UnicodeError):
+        pass
+    if context_revision != revision:
+        shown = "缺失" if context_revision is None else str(context_revision)
+        return (
+            f"追踪/上下文.md 状态修订 {shown} 与 _tracking-state.json 的 {revision} 不一致；"
+            "重跑原 tracking_commit.py commit"
+        )
+    if expected_last_committed is not None:
+        last_committed = document.get("last_committed_chapter")
+        if type(last_committed) is not int:
+            return "追踪/_tracking-state.json 缺少整数 last_committed_chapter；停止写正文并重新 /story-import"
+        if last_committed != expected_last_committed:
+            return (
+                f"追踪已提交到第{last_committed}章，首建第{expected_last_committed + 1}章前"
+                f"必须先提交第{expected_last_committed}章追踪事务"
+            )
+    return None
+
+
 def continuity_findings(root: Path) -> list[str]:
-    """跨批连续性兜底：① 追踪 staleness（写了章但 上下文.md 没跟上 → 续写会断线）；
+    """跨批连续性兜底：① 追踪 staleness（写了章但 续写状态卡没跟上）；
     ② 章节标题去重（两章同名多半是误复制）。模型无关，回合/会话边界提醒，无问题则静默。
     扫描范围 repo-wide（与缺口检测一致），非活跃书也提醒——有意为之，不按 .active-book 收窄；
     staleness 用 mtime +1 秒容差，是启发式 advisory（checkout / 带 -p 拷贝可能偏差）。"""
@@ -442,6 +488,9 @@ def continuity_findings(root: Path) -> list[str]:
         chapters = sorted(body_dir.glob("第*章*.md")) if body_dir.is_dir() else []
         # ① 追踪 staleness（仅长篇：有 追踪/上下文.md）
         ctx = book / "追踪" / "上下文.md"
+        checkpoint_issue = tracking_checkpoint_issue(book, require_state=bool(chapters))
+        if checkpoint_issue:
+            msgs.append(f"[continuity] {safe_rel(root, book)}：{checkpoint_issue}。")
         if chapters and ctx.exists():
             newest = max((c.stat().st_mtime for c in chapters), default=0)
             try:
@@ -450,8 +499,8 @@ def continuity_findings(root: Path) -> list[str]:
                 ctx_m = 0
             if newest > ctx_m + 1:
                 latest = max(chapters, key=lambda c: c.stat().st_mtime).name
-                msgs.append(f"[continuity] {safe_rel(root, book)}：正文已更新到「{latest}」但 追踪/上下文.md 更早，续写会断线——补更 上下文.md/伏笔.md 再继续。")
-        # ①b 写作状态摘要预算：上下文.md 每章整份重写，硬上限 12288 字节。超限说明旧记录又被写进了每章必读文件。
+                msgs.append(f"[continuity] {safe_rel(root, book)}：正文已更新到「{latest}」但续写状态卡更早——为该章提交 tracking_commit.py 事务并恢复 clean 后再续写，禁止分别手改 上下文.md/伏笔.md。")
+        # ①b 续写状态卡预算：上下文.md 由事务工具整份重建，硬上限 12288 字节。
         # 若不处理，每章读取量会随章节数增长，最终达到 O(N^2)。这里只提醒、不阻止；应把超出规定的区块移到 追踪/逐章记录/。
         if ctx.exists():
             try:
@@ -459,7 +508,7 @@ def continuity_findings(root: Path) -> list[str]:
             except Exception:
                 ctx_size = 0
             if ctx_size > 12288:
-                msgs.append(f"[continuity] {safe_rel(root, book)}：追踪/上下文.md 已 {(ctx_size + 1023) // 1024}KB，超出写作状态摘要预算 12KB——把超出规定的区块移到 追踪/逐章记录/，再整份重写状态摘要，不要继续追加。")
+                msgs.append(f"[continuity] {safe_rel(root, book)}：追踪/上下文.md 已 {ctx_size} 字节，超出写作状态摘要预算 12288 字节——用 tracking_commit.py 重建续写状态卡，不要继续追加。")
         # ② 标题去重（按文件名 第N章_标题 的标题部分）
         titles: dict[str, list[str]] = {}
         for c in chapters:
@@ -695,8 +744,6 @@ def prose_block_reason(root: Path, abs_path: Path) -> str | None:
         return None
     if not re.match(r"^第.*章.*\.md$", base):
         return None
-    if abs_path.exists():
-        return None
     m = re.match(r"^第0*(\d+)章", base)
     if not m:
         return None
@@ -704,18 +751,32 @@ def prose_block_reason(root: Path, abs_path: Path) -> str | None:
     book_dir = abs_path.parent.parent
     # 新书可能在任何大纲/追踪/设定脚手架存在前就首建正文；核心守卫必须 fail closed。
     # 相对路径由 HOOK_CWD 解析，不能靠削弱这条 canonical guard 来掩盖 cwd 语义。
-    if (root / "拆文库" / book_dir.name).exists():
+    state = book_dir / "追踪" / "_tracking-state.json"
+    # story-import 在复制既有正文、尚未执行 tracking init 的窗口可以写；一旦 state 存在，
+    # 即进入当前追踪协议，不再因为保留了 拆文库/ 分析资产而永久绕过守卫。
+    if (root / "拆文库" / book_dir.name).exists() and not state.exists():
         return None
+    exists = abs_path.exists()
     outline_dir = book_dir / "大纲"
     found = False
-    if outline_dir.is_dir():
-        for candidate in outline_dir.iterdir():
-            fm = re.match(r"^细纲_第0*(\d+)章.*\.md$", candidate.name)
-            if fm and fm.group(1) == num:
-                found = True
-                break
-    if not found:
-        return f"⛔ 写正文被拦截：第 {num} 章缺少细纲（{safe_rel(root, outline_dir)}/细纲_第{num}章.md）。先按 story-long-write 单章流程补建细纲再写正文。"
+    if not exists:
+        if outline_dir.is_dir():
+            for candidate in outline_dir.iterdir():
+                fm = re.match(r"^细纲_第0*(\d+)章.*\.md$", candidate.name)
+                if fm and fm.group(1) == num:
+                    found = True
+                    break
+        if not found:
+            return f"⛔ 写正文被拦截：第 {num} 章缺少细纲（{safe_rel(root, outline_dir)}/细纲_第{num}章.md）。先按 story-long-write 单章流程补建细纲再写正文。"
+    checkpoint_issue = tracking_checkpoint_issue(
+        book_dir,
+        require_state=True,
+        expected_last_committed=None if exists else int(num) - 1,
+    )
+    if checkpoint_issue:
+        return f"⛔ 写正文被拦截：{safe_rel(root, book_dir)} 的{checkpoint_issue}。"
+    if exists:
+        return None
     # 欠账门（无状态）：写第 N 章（首建）前，上一章有未清毒句式且未标「去味:跳过」豁免时先清再写。
     # 判据现算自上一章文件本身，不落任何状态文件；找不到上一章/读取失败一律放行（宁可漏拦不可误伤）。
     # js↔py 文案由 check-hook-regex-sync.sh 锁同步，判定由 test-prose-net-parity.sh Part E 锁 parity。

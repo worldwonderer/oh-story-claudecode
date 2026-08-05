@@ -67,7 +67,6 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | `skills/story-setup/references/templates/agents/*.md` | `.claude/agents/*.md` | story-setup managed | replace | 7 agent files exist |
 | `skills/story-setup/references/agent-references/*.md` | `.claude/skills/story-setup/references/agent-references/*.md` | story-setup managed | replace | every `story-setup/references/agent-references/*.md` reference resolves |
 | `skills/story-setup/references/templates/settings-hooks.json` | `.claude/settings.local.json` | user+managed | merge by hook command | hook JSON valid and registered commands deduped |
-| `skills/story-setup/references/templates/上下文.md.tmpl` | `{书名}/追踪/上下文.md` | user state | create only if absent | never overwrite existing writing context |
 | generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir` |
 | `skills/story-setup/references/opencode/AGENTS.md.tmpl` | `AGENTS.md` | user+managed | marker/section merge | contains story skill routing sections | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/agents/` | `.opencode/agents/` | story-setup managed | replace | 7 agent files exist（replace 前按「配置 OpenCode Agent 模型」中的「保留已有模型配置」缓存现有 `model:`，避免覆盖用户已配模型） | target_cli 含 opencode |
@@ -132,7 +131,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 #### Agent 兼容性处理
 
-- Agent frontmatter 以 Claude Code 为主；OpenCode 由 `scripts/sync-opencode.py` 生成 `.opencode/agents/*.md`；Codex 由 `scripts/generate-codex-agents.py` 生成 `.codex/agents/*.toml`。
+- Agent frontmatter 以 Claude Code 为主；OpenCode 的 `.opencode/agents/*.md` 与 Codex 的 `.codex/agents/*.toml` 都由 `references/opencode/agents/`、`references/codex/agents/` 下的预生成产物直接复制，这两个目录是部署的唯一来源。预生成产物由 oh-story-claudecode 仓库根的 `scripts/sync-opencode.py` 和 `scripts/generate-codex-agents.py` 维护；这两个脚本是仓库维护工具，不随 story-setup 下发，部署时不需要也无法调用。
 - **ZCode 3.3.4 不部署项目 agents**：其自定义子智能体只支持用户级 `~/.zcode/agents/`，plugin manifest 中的 `agents` 当前不执行。不要创建 `.zcode/agents/` 或修改用户 home；相关 Skill 必须直接 solo/direct 并报告 fallback。
 - **OpenClaw Phase 1 不部署 agents**：OpenClaw 只部署 skills，agent 协作相关 skill 必须按既有 fallback 规则降级 solo/direct，不要把 Claude/OpenCode agent frontmatter 直接复制成 OpenClaw agent。
 - 部署到项目后，agent 内引用的参考资料必须走 `story-setup/references/agent-references/*.md` 这一本 skill 内复制路径；不要跨 skill 引用其他 skill 的 references。各 adapter 只使用当前规范前缀：Claude Code 为 `.claude/skills/`，OpenCode / OpenClaw / Reasonix / generic 为 `skills/`，Codex 为 `.codex/skills/`，ZCode 为 `.zcode/skills/`；不在运行时遍历历史备选路径。
@@ -145,7 +144,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 #### 部署 Codex Agents（target_cli 含 codex 时）
 
 - 读取 `skills/story-setup/references/codex/agents/` 下所有 `.toml` 文件，复制到用户项目 `.codex/agents/`
-- Agent 文件属于 story-setup 管理文件，可安全覆盖；生成源由 `scripts/generate-codex-agents.py` 从 Claude agent 模板确定性生成
+- Agent 文件属于 story-setup 管理文件，可安全覆盖；`references/codex/agents/` 里的 TOML 由仓库根的 `scripts/generate-codex-agents.py` 从 Claude agent 模板确定性生成后提交入库，部署只做复制
 - 校验每个 TOML 都能解析，且包含 Codex 必需字段：`name`、`description`、`developer_instructions`
 - 只读职责 agent（`chapter-extractor`、`consistency-checker`、`story-explorer`）必须保留 `sandbox_mode = "read-only"`
 - **部署后必须 trust + 新开 Codex 会话**（报告文案与 fallback 规则见「验证 Codex 部署」）；若运行时返回 `unknown agent_type`，调用方必须降级 solo/direct 并报告 fallback。
@@ -251,13 +250,7 @@ model: provider/model-id
 - `跳过，用主模型`：不写入 `model:` 字段
 - 检测失败/超时、没走到本步骤的等级：用「保留已有模型配置」缓存回填 `model:`，避免 replace 抹掉用户上次配置
 
-### Step 6：部署 Session State 模板
-
-- 读取 `skills/story-setup/references/templates/上下文.md.tmpl`
-- 仅当已识别为长篇书目且 `{书名}/追踪/` 已存在时，创建缺失的 `{书名}/追踪/上下文.md`
-- 如果目标文件已存在，不覆盖；短篇项目不得因此创建 `追踪/` 目录
-
-### Step 7：合并 Hooks 注册到 settings.local.json
+### Step 6：合并 Hooks 注册到 settings.local.json
 
 - 读取 `skills/story-setup/references/templates/settings-hooks.json`
 - 读取用户项目的 `.claude/settings.local.json`（如存在）
@@ -323,7 +316,7 @@ Reasonix（DeepSeek-Reasonix CLI）当前只部署 skills 与 `AGENTS.md`，不�
 4. `.story-deployed` 的 `target_cli` 写入 `generic` 或多端组合；`references_dir` 对 generic 写 `skills/story-setup/references/agent-references`。
 5. 安装报告提示项见 Phase 3 第 11 步。
 
-### Step 8：创建部署标记
+### Step 7：创建部署标记
 
 - 创建 `.story-deployed` 文件（sentinel file）
 - 写入以下字段（YAML `key: value` 格式，hook 用 `references/templates/hooks/lib/sentinel.sh` 读取）：

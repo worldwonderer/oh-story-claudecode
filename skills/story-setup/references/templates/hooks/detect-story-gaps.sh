@@ -56,7 +56,7 @@ for BOOK_DIR in "${BOOK_DIRS[@]}"; do
 
   # 4. 过期或异常伏笔线索
   if [ -f "$BOOK_DIR/追踪/伏笔.md" ]; then
-    # 仅检查表格数据行中的状态列。正常开放状态（未埋/已埋）不报警，
+    # 仅检查表格数据行中的状态列。当前协议正常状态（已埋/已回收/放弃）不报警，
     # 避免长篇项目每次 SessionStart 都触发全量伏笔审计。
     # 行为回归脚本：scripts/check-hook-regex-sync.sh（区域设置健壮性由 export LC_ALL=C 保证）
     ABNORMAL_FORESHADOW=$(awk -F'|' '
@@ -69,7 +69,7 @@ for BOOK_DIR in "${BOOK_DIRS[@]}"; do
       /^\|/ && $0 !~ /^\|[-:[:space:]|]+$/ {
         status=trim($6)
         if (status == "" || status == "状态" || status ~ /^状态\{/) next
-        if (status == "已过期" || (status != "未埋" && status != "已埋" && status != "已回收")) print
+        if (status == "已过期" || (status != "已埋" && status != "已回收" && status != "放弃")) print
       }
     ' "$BOOK_DIR/追踪/伏笔.md" 2>/dev/null || true)
     if [ -n "$ABNORMAL_FORESHADOW" ]; then
@@ -111,7 +111,7 @@ fi
 
 # 6. 跨批连续性兜底（追踪 staleness + 章节标题去重）——走 node 共享核 continuityFindings，
 # 与 Codex/OpenCode/ZCode 同一份实现。会话起点提醒：续写前发现「写了章但 上下文.md 没跟上」
-# 或「两章撞名」。消息串与旧实现逐字一致；多书/并列去重的排序按 js 语义（已文档化，仅影响
+# 或「两章撞名」。消息串与共享连续性核心保持一致；多书/并列去重的排序按 js 语义（已文档化，仅影响
 # advisory 顺序，不影响是否报）。扫描范围 repo-wide（与上方缺口检测一致），多书项目里非活跃书
 # 也会提醒——有意为之（切书前也想知道断线），不按 .active-book 收窄。staleness 用 mtime 比较
 # （+1 秒容差防同秒误报），是启发式 advisory：git checkout / 带 -p 的拷贝改 mtime 时可能偏差，

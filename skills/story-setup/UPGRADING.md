@@ -73,15 +73,8 @@
 - **两条路径统一**：并行 chapter-extractor 与 solo/direct 串行降级此前是两份漂移的规范，而 ZCode / OpenClaw / Reasonix / generic 只能走串行。`story-long-analyze/references/output-templates.md` 补齐白描铁律、基调与主题标签消歧、原文引用精选规则和 Stage 2 输出自检，串行路径不再需要读取 `chapter-extractor.md`（那些端读不到它）。
 - **P 行标题与白描分工**：加粗槽位由 `{事件概括}` 改为 `{标题}`——原先它紧挨 `{白描一句话}`，两个槽位都在要求概括同一件事，产出时白描会退化成标题的复述。现在标题是 ≤15 字短标签，白描才是承载事实的那一句，质量检查第 2 条与 JSON schema 的 `plot_points.title` 同步。
 - **新增一条机械硬检查**：Stage 2 落盘后校验每个 `P` 行都有白描字段（`grep -cE '^P[0-9]+ [^|]+\|[^|]*[^|[:space:]][^|]*\|[^|]*涉及'` == 情节点数）。引用改精选后白描承担事实回查，缺失即判质量失败：并行路径升级 sonnet 重试，串行路径由主线程按失败项重写本章 1 次。
-- **限制每章必读追踪文件的增长**：`追踪/上下文.md` 从「进度摘要」改为**写作状态摘要**——顶层区块固定 11 个（当前位置 / 文风指纹 / 长期约束 / 在场角色 / 活跃伏笔 / 近三章速记 / 下一章必做事项 / 累计待处理项 / 十章概要 / 待办 / 历史记录索引），各带条数上限，硬上限 12288 字节，每章由主会话整份重写。日更每章的通常必读来源从五个文件收缩到三项（本章细纲 + 上一章正文 + 状态摘要）。所有未结清跨章事项各自保存在 `追踪/待处理事项/`；状态摘要先保留普通事项和已到目标章的固定事项，再用剩余名额显示最早的未来事项。每章用标准库脚本核对真实目录，并只读取脚本返回的最多 6 个小文件。`追踪/伏笔.md`、`追踪/时间线.md`、`追踪/角色状态.md` 改为历史记录文件，日更不读，需要旧信息时用 story-explorer 按需查询或 grep。全书历史改存 `追踪/逐章记录/第NNN章.md`（每章一个小文件，日更不读），长周期概要存 `追踪/阶段摘要.md`。此前写到 30 章时这四个文件合计可达 400KB 以上、且每章全读一遍。
-- **`上下文.md.tmpl` 换成状态摘要模板**：删去 `## 最近决策`、`## 待处理线索`、`## 本次写作变更`、`## 已写内容分层摘要`（含「30 章后启用分层摘要」与十章概要 / 卷级总览子块）；新增 `## 长期约束`（固定保留，只有用户明确撤销才能删）、`## 在场角色`、`## 活跃伏笔`（带重要度，高重要度至少保留 2 条）、`## 近三章速记`、`## 下一章必做事项`、`## 累计待处理项`、`## 十章概要`（只保留最近 4 行）、`## 历史记录索引`。该文件是 create-only-if-absent，只影响新项目。
-- **状态摘要只由主会话写入**：`narrative-writer` 不再写 `追踪/` 下任何文件（原「完成后自动更新 上下文.md」整节删除），只写正文并在返回末行报出本章句长分布；追踪文件统一由主会话在 agent 返回后写入。此前主会话按块追加、agent 按字段修改，两个流程会同时修改同一文件。
-- **`story-explorer` 的 `context_load` 不再完整读取历史记录文件**：只读状态摘要 + 细纲 + 角色设定 + 上一章正文；仅当调用方明确给出伏笔 ID 或角色名且状态摘要查不到时才 grep 历史记录文件并取最后 3 条命中。只有以下三种按需查询会完整读取历史记录文件：`foreshadow_status` / `character_status` / `timeline`；读取内容只停留在该 agent 的上下文内。
-- **`story-consistency.md` 规则 4 改为分类保存**：设定决策一律记进当前章 `追踪/逐章记录/第NNN章.md` 并标 `[长期]` / `[一次性]`；永久生效的同时进状态摘要 `## 长期约束`，需要跨章处理的事项先写入 `追踪/待处理事项/` 单项文件，再把带记录编号的副本放进 `## 下一章必做事项`，不再往无上限的 `## 最近决策` 堆。
 - **会话起点摘要行数调整**：`session-start.sh` 的上下文摘要从前 10 行改为前 18 行，覆盖新模板的 `## 当前位置` 整块（8 字段）。
 - **会话起点新增状态摘要体积告警**：`追踪/上下文.md` 超过 12288 字节时报出当前体积与处置方式（搬进 `追踪/逐章记录/` 后整份重写，不是删）。四端同步：`story_hook_core.js`（Claude Code / ZCode / OpenCode 三份字节一致）与 Codex 的 `story_codex_hook.py`。
-- **`/story-review` 新增追踪文件维护**：过期伏笔标记（`已过期` 的唯一写入方）、重算角色当前状态、状态摘要核对，以及角色状态记录过大时的归档整理。日更只追加不清理，整理统一归审查；full / lean / solo 都执行相同的确定性维护，且只能修改 `追踪/`。
-- **story-explorer 查询改用逐章更新记录**：`character_status` 以上方角色小节为基准，按身份、能力、公众形象分别合并最新记录，关系再按关系对象分别合并，不再用一条单维度变更覆盖整个角色状态；`foreshadow_status` / `timeline` 按需 grep 命中行，只有明确要求完整清单时才完整读取。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v21 部署，且 agent 模板改动只在会话启动时注册。
 
 ### v2
@@ -180,7 +173,7 @@
 - **narrative-writer 交付边界**：agent 本身没有 Bash/Node 工具时，只能报告已按规则自检，不能声称已运行脚本；主会话或调用方具备执行能力时，必须对实际落盘文件复扫。
 - **字数统计修复（issue #170）**：`narrative-writer` Gate E 增「具体字数表达校验」——禁止正文写未经脚本核验的「这五个字」式字数断言，改用非数字表述。
 - **对话机械化/论文腔/不分场合修复（issue #171）**：`narrative-writer` 参考表接入 `dialogue-mastery`、审查清单加对话质量逐项、新增「写完后对话自检」收尾步；写前意图确认加「对话声线基线」（高压 beat→搞笑声线让位、信息型配角不当科普嘴、逐句承接对方情绪），`consistency-checker`/`character-designer` 审查侧同步。
-- **续写文风漂移每章自检（issue #168）**：`narrative-writer` 新增「写完后文风自检」，并把目标句长带快照钉进 `追踪/上下文.md` 的「## 文风指纹」区（抗 compaction），续写逐章按目标带把碎句合并回中长句，防逗号结巴体。
+- **续写文风漂移每章自检（issue #168）**：`narrative-writer` 新增「写完后文风自检」，目标句长带从主会话 `style_profile`、`设定/文风.md` 或对标 `文风.md` 获取；当前续写状态卡不保存文风字段。
 - **新名词/设定首次出现给读者锚点（issue #175）**：`anti-ai-writing.md` Gate G 自检后补「删解释腔 ≠ 把读者读懵」反向制衡，新名词首次出现靠动作/对话半句/场景后果一笔带出当下作用。
 - **被动版本更新检查（issue #173）**：`session-start.sh` 增加被动更新提醒——每 24h 至多一次、curl 5s 超时、全程静默兜底、`STORY_NO_UPDATE_CHECK=1` 可关，仅落后才提示。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/references；**部署后新开会话**，否则旧会话仍使用 v13 agent 定义，无法获得以上 v14 的全部改进。
@@ -189,7 +182,6 @@
 
 - `setup_skill_version` 升级到 `1.2.4`，`.story-deployed` 的 `agents_version` 升级到 `15`。
 - **正文兜底 + 跨批连续性确定性网（#195）**：新增 deployed hook `check-prose-after-write.sh`（PostToolUse Write/Edit 落盘后跑硬信号兜底——截断、拒绝语/AI 自指、工程词泄漏、逐行复读、字数欠账）；`session-start.sh` 部署自检补 hook、`detect-story-gaps.sh` 与 Codex `story_codex_hook.py` 同步跨批连续性兜底。
-- **自定义文风指纹来源刷新（#196）**：narrative-writer 模板与 `上下文.md.tmpl` 的「文风指纹」加「来源」字段，用户新增/改 `设定/文风.md` 后能用新来源刷新句长带快照，不再被旧对标永久压住。
 - **模型退化 / 碎句号检测接入写作链路（#193/#192）**：`check-degeneration.js`（复读/截断/工程词泄漏）与升级版 `check-ai-patterns.js`（碎句号/长段落/破折号按功能改写）随写作 skill 部署，正文收尾复扫，每条 finding 带 `severity: blocking|advisory`。
 - **Codex / OpenClaw 适配（#186/#189）**：`$story-setup` 部署 `.codex/agents/*.toml` 与 `.codex/hooks.json`，补齐 OpenClaw skills-only 兼容，Codex `.agents/skills` symlink 守卫。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/references；**部署后新开会话**，否则旧会话仍使用 v14 agent 定义，无法获得以上 v15 的全部改进。
@@ -233,7 +225,7 @@
 - **story-architect 模板对齐**：细纲最小结构补 单元ID/位置、主角目标/关键选择；「代价兑现/收益兑现」改名「行动成本（可无）/收益归属」；Phase 2 spawn 也必须附带契约摘要（新增细纲层字段一条）。
 - **审查线对齐新推进模型**：agent-references/quality-checklist.md 同步七类状态分档、悬念/爽点间隔按章节定位豁免，新增「读者契约与终局储备双向审查」一节。
 - **hooks 健壮性**：session-start 部署自检名单纳入 `story_hook_cli.js` / `story_hook_core.js`，并在 node 缺失时一次性 [WARN] 提示正文兜底网/commit 提示/连续性检查已停用（大纲拦截仍有纯 bash 兜底）；staged 提交扫描四份实现（JS core / Codex python / Claude bash / OpenCode pre-commit）语义与中文文案统一，parity 测试新增 Part E（staged warnings 与大纲阻断的 py↔js 逐字锁）。
-- **去AI味闸口机器化（无状态）**：写后正文网新增确定性毒句式检测（不是A而是B 全家族/声线反差/否定排比/预告收尾），写正文落盘即自动扫描并推回命中，Claude/ZCode/OpenCode/Codex 四端同一共享核；写下一章前新增「毒句式欠账门」——上一章有未清 blocking 命中且未标 `<!-- 去味:跳过 -->` 豁免时拦截（判据现算自文件本身，不落任何状态文件，node 缺失或解析失败一律放行）；豁免标记冒号全半角均认，且同时使写后网跳过该章毒句式推回（其余网照常）；`check-ai-patterns.js` 同步新增 voice-contrast / negation-parade / reverse-not-is / trailer-ending（blocking，经真人语料零误报校准）与 quote-emphasis-tic（advisory）；SKILL 侧最毒句式速查内联进写作步骤、新增「写后同轮清零」要求，OpenClaw/generic 无 hook 平台由 AGENTS 模板自锁条款兜底。
+- **去AI味闸口机器化（无状态）**：写后正文网新增确定性毒句式检测（不是A而是B 全家族/声线反差/否定排比/预告收尾），写正文落盘即自动扫描并推回命中，Claude/ZCode/OpenCode/Codex 四端同一共享核；写下一章前新增「毒句式欠账门」——上一章有未清 blocking 命中且未标 `<!-- 去味:跳过 -->` 豁免时拦截（判据现算自文件本身，不落任何状态文件，node 缺失或解析失败一律放行）；豁免标记冒号全半角均认，且同时使写后网跳过该章毒句式推回（其余网照常）；`check-ai-patterns.js` 同步新增 voice-contrast / 同句 negation-parade / reverse-not-is / trailer-ending（blocking，经真人语料零误报校准）与跨段否定三连、quote-emphasis-tic（advisory）；SKILL 侧最毒句式速查内联进写作步骤、新增「写后同轮清零」要求，OpenClaw/generic 无 hook 平台由 AGENTS 模板自锁条款兜底。
 - 已部署项目请重新运行 `/story-setup` 刷新 hooks/agents/rules/references；**部署后新开会话**，否则旧会话仍使用 v18 部署。
 
 ### v21
