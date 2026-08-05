@@ -89,6 +89,8 @@ flowchart LR
 安装这个 skill https://github.com/worldwonderer/oh-story-claudecode
 ```
 
+升级时再说一次同一句话即可。
+
 **方式二** 命令行：
 
 ```bash
@@ -96,6 +98,8 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 ```
 
 `-g` 全局安装，所有目录可用；去掉 `-g` 则只装到当前目录。更新时重新执行同一条命令即可。
+
+Windows 上偶尔会看到 `ENOENT ... mkdir` 报错但末尾仍显示 `Done!`，这是有技能没装全。story-setup 的参考资料目录整个缺了一块时，跑 `/story-setup` 会提示参考资料包不完整；其它形式的残缺不一定有提示。无论有没有报错，重跑同一条安装命令即可修复。
 
 <details>
 <summary>Codex / ZCode / OpenCode / OpenClaw / Reasonix / Web AI 使用说明</summary>

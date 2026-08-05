@@ -92,7 +92,7 @@ if sentinel_exists "$ROOT/.story-deployed"; then
   if [ -n "$REFERENCES_DIR" ]; then
     REFERENCES_PATH=$(resolve_project_path "$REFERENCES_DIR")
     if [ ! -d "$REFERENCES_PATH" ] || ! find "$REFERENCES_PATH" -maxdepth 1 -type f -name "*.md" -print -quit 2>/dev/null | grep -q .; then
-      OUTPUT+="[WARN] story-setup 参考资料包缺失或为空：${REFERENCES_DIR}。重新运行 /story-setup。${NL}${NL}"
+      OUTPUT+="[WARN] story-setup 参考资料包缺失或为空：${REFERENCES_DIR}。重新运行 /story-setup；若重跑后仍报这条，是 skill 包本身没装全，按你的安装方式重装 oh-story-claudecode（npx skills add 或 marketplace 面板）再部署。${NL}${NL}"
       HAS_CONTENT=true
     fi
   fi

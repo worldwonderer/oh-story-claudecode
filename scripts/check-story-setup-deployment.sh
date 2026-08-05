@@ -444,6 +444,21 @@ assert_grep 'agents_version.*大于 `22`' "$SKILL_DIR/SKILL.md" "story-setup mus
 assert_grep 'agents_version.*小于 `22`|小于 .22' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must treat agents_version 21 as stale"
 assert_grep 'agents_version.*大于 `22`' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must not run old contracts against a newer deployment"
 assert_grep '^version:[[:space:]]*1\.2\.7$' "$SKILL_FILE" "story-setup frontmatter must match the deployed setup version"
+
+# Phase 1 自检的目录名单是硬编码的，必须与实际 references/ 子目录集合一致。
+# 漏写一个 → 半装的包检不出；名单里多出已删除的目录 → 完好的包被判残缺，fail-closed 卡死所有部署。
+selfcheck_line="$(grep -n '先自检参考目录' "$SKILL_FILE" | head -1 | cut -d: -f1)"
+[ -n "$selfcheck_line" ] || fail "story-setup Phase 1 reference self-check paragraph not found"
+selfcheck_text="$(sed -n "${selfcheck_line}p" "$SKILL_FILE")"
+for ref_dir in "$SKILL_DIR"/references/*/; do
+  ref_name="$(basename "$ref_dir")"
+  case "$selfcheck_text" in
+    *"\`$ref_name\`"*) ;;
+    *) fail "story-setup Phase 1 self-check list is missing reference dir: $ref_name" ;;
+  esac
+done
+ref_dir_count="$(find "$SKILL_DIR/references" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')"
+[ "$ref_dir_count" -eq 8 ] || fail "story-setup references/ now has $ref_dir_count subdirs (expected 8); update the Phase 1 self-check list and this assertion"
 assert_grep '剧情/情绪模块\.md.*missing_primary_contract|missing_primary_contract.*剧情/情绪模块\.md' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must require the current emotion-module artifact"
 assert_grep '剧情/节奏\.md.*missing_primary_contract|missing_primary_contract.*剧情/节奏\.md' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must require the current rhythm artifact"
 assert_no_grep 'legacy_deconstruction|contract_version.*legacy|pre-v12' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must not keep legacy benchmark branches"

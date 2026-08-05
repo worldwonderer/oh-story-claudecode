@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-08-04 -->
+<!-- Last synced with README.md: 2026-08-05 -->
 
 **English** | [中文](README.md)
 
@@ -91,6 +91,8 @@ flowchart LR
 Install this skill https://github.com/worldwonderer/oh-story-claudecode
 ```
 
+To upgrade, repeat the same instruction.
+
 **Option 2** Command line:
 
 ```bash
@@ -98,6 +100,8 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 ```
 
 `-g` installs globally (available in every directory); drop `-g` to install only into the current directory. Re-run the same command to update.
+
+On Windows you may occasionally see an `ENOENT ... mkdir` error while the run still ends with `Done!`. That means a skill was only partially installed. If a whole subdirectory of story-setup's reference bundle is missing, `/story-setup` reports an incomplete reference bundle; other forms of partial install may go unreported. Either way, re-run the same install command to fix it.
 
 <details>
 <summary>Codex / ZCode / OpenCode / OpenClaw / Reasonix / Web AI usage notes</summary>
