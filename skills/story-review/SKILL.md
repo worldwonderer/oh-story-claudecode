@@ -63,13 +63,16 @@ Rubric Source: file | embedded fallback
 
 ### 参考资料解析顺序
 
-可读取参考文件时，按以下顺序尝试：
+可读取参考文件时，按以下顺序尝试，第一个命中即用：
 1. `{项目根}/.claude/skills/{规范路径}`（Claude Code 项目内安装）
 2. `{项目根}/.opencode/skills/{规范路径}`（OpenCode 项目内安装）
 3. `{项目根}/.codex/skills/{规范路径}`（Codex 项目内安装）
 4. `{项目根}/.zcode/skills/{规范路径}`（ZCode 项目内安装）
-5. `{项目根}/skills/{规范路径}`（本仓库开发环境）
-6. 工具自身可访问的全局 skill 搜索路径中同名 `{skill-name}/...` 目录
+5. `{项目根}/skills/{规范路径}`（OpenClaw / Reasonix / generic 部署，也是本仓库开发环境）
+6. `{项目根}/.agents/skills/{规范路径}`（Codex / Reasonix 扫描的项目 skill root，通常是指向 `skills/` 的 symlink）
+7. 当前运行时加载本 skill 的目录，或其可访问的全局 skill 搜索路径中同名 `{skill-name}/...` 目录
+
+> 靠前几层不存在是正常的，不是部署损坏。`/story-setup` 只在 ZCode 的 `.zcode/skills/` 和 OpenClaw / Reasonix / generic 的 `skills/` 下整份复制 skill；Codex 项目部署不复制 skill 本体，本 skill 由 Codex 从 skill root 加载，references 就在其中，通常命中第 6 或第 7 层。不要手工把 `references/` 复制进 `.codex/skills/`——手工副本不受 story-setup 管理，升级后会静默变旧。
 
 规范路径如下；禁止只写裸文件名，禁止跨 skill 误读其他 skill 的 references：
 

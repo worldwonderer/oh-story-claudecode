@@ -57,6 +57,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 使用 AskUserQuestion 确认部署位置后，依次执行。
 
+整个 Phase 2 幂等：目录复制、文件写入和下表各合并算法重复执行结果一致。因环境原因（工具不可用、权限被拒、网络失败）中途失败时，直接从头重跑本 Phase，不需要先清理半成品；`create only if absent` 的用户状态文件（见下表 Owner class）不会被二次覆盖。
+
 ### Step 1：部署清单（机械可检查）
 
 | Source path | Target path | Owner class | Merge mode | Validation check |
