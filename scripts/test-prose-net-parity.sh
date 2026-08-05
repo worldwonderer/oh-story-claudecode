@@ -549,9 +549,11 @@ import importlib.util, sys
 from pathlib import Path
 spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 root = Path(sys.argv[2])
+# 同 B/C 段：Windows runner 上 python<3.15 的文本 stdout 是 cp1252，
+# 含中文的 issue 直接 print 会 UnicodeEncodeError，必须走 stdout.buffer 直写 UTF-8。
 for name, expected in [("missing", None), ("malformed", None), ("old", None), ("mismatch", None), ("norevision", None), ("nolast", 7), ("behind", 7), ("valid", 7)]:
     issue = m.tracking_checkpoint_issue(root / name, require_state=True, expected_last_committed=expected)
-    print(f"{name} :: {issue or '-'}")
+    sys.stdout.buffer.write((f"{name} :: {issue or '-'}" + "\n").encode("utf-8"))
 PY
   node - "$CLAUDE_CORE" "$cp" > "$tmp/cjs.txt" <<'JS'
 const path = require("node:path")

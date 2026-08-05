@@ -66,7 +66,13 @@ test("用现有 demo 浏览拆文库、搜索项目并编辑保存", async ({ pa
   await expect(page.locator("#fileTree")).not.toContainText("关系.md");
   await expect(page.locator("#fileTree")).not.toContainText("细纲_第003章");
   await expect(page.locator("#fileTree")).not.toContainText("盘龙");
-  expect(await page.locator("#fileTree .file-row").count()).toBeLessThan(unfilteredRows);
+  // 断言「树被过滤成命中集」而不是比行数：命中数会随 demo 增加同名文件而变化
+  // （角色既有 设定/角色/{名}.md 又有 追踪/角色状态/{名}.md），行数比较会偶然失效。
+  const filteredPaths = await page
+    .locator("#fileTree .file-row")
+    .evaluateAll((rows) => rows.map((row) => row.dataset.path ?? ""));
+  expect(filteredPaths.length).toBeGreaterThan(0);
+  expect(filteredPaths.every((path) => path.includes("江晨"))).toBe(true);
   await page.locator("#refreshButton").click();
   await expect(page.locator("#toastRegion")).toContainText("工作区目录已刷新");
   await expect(page.locator("#fileTree")).toContainText("江晨.md");
