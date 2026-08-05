@@ -449,6 +449,57 @@ class TrackingCommitTests(unittest.TestCase):
         self.assertIn("角色状态：江晨", (self.project / "追踪/逐章记录/第002章.md").read_text(encoding="utf-8"))
         self.run_tool("check")
 
+    def test_an_interrupted_archive_can_be_resumed(self) -> None:
+        tracking = self.project / "追踪"
+        (tracking / "_旧追踪存档").mkdir(parents=True)
+        (tracking / "角色状态.md").write_text("# 未搬完\n", encoding="utf-8")
+        (tracking / "_旧追踪存档/时间线.md").write_text("# 上次已搬\n", encoding="utf-8")
+
+        self.run_tool("init", initial_document())
+        archive = tracking / "_旧追踪存档"
+        self.assertEqual((archive / "角色状态.md").read_text(encoding="utf-8"), "# 未搬完\n")
+        self.assertEqual((archive / "时间线.md").read_text(encoding="utf-8"), "# 上次已搬\n")
+        self.run_tool("check")
+
+    def test_archive_never_clobbers_an_already_archived_file(self) -> None:
+        tracking = self.project / "追踪"
+        (tracking / "_旧追踪存档").mkdir(parents=True)
+        (tracking / "角色状态.md").write_text("现役\n", encoding="utf-8")
+        (tracking / "_旧追踪存档/角色状态.md").write_text("存档\n", encoding="utf-8")
+
+        result = self.run_tool("init", initial_document(), expect=2)
+        self.assertIn("already exists", result.stderr)
+        self.assertEqual((tracking / "角色状态.md").read_text(encoding="utf-8"), "现役\n")
+        self.assertEqual((tracking / "_旧追踪存档/角色状态.md").read_text(encoding="utf-8"), "存档\n")
+
+    def test_a_character_can_die_and_retire_in_one_transaction(self) -> None:
+        self.init()
+        self.run_tool("commit", transaction(1, character=True))
+        farewell = transaction(2)
+        farewell["delta"]["character_changes"] = [{"name": "江晨", "change": "在最终一战中阵亡，彻底退场"}]
+        farewell["delta"]["retired_characters"] = ["江晨"]
+        self.run_tool("commit", farewell)
+
+        record = (self.project / "追踪/逐章记录/第002章.md").read_text(encoding="utf-8")
+        self.assertIn("江晨｜核心｜在最终一战中阵亡，彻底退场", record)
+        self.assertIn("角色状态：江晨", record)
+        self.assertNotIn("江晨", self.read_state()["characters"])
+        self.run_tool("check")
+
+    def test_retirement_is_rejected_in_a_revision(self) -> None:
+        self.init(last_chapter=20)
+        retire = transaction(10, mode="revision")
+        retire["delta"]["retired_characters"] = ["江晨"]
+        result = self.run_tool("commit", retire, expect=2)
+        self.assertIn("append transaction", result.stderr)
+
+        drop = transaction(10, mode="revision")
+        drop["context"]["long_term_constraints"] = []
+        drop["delta"]["retired_context_items"] = ["军方培养江晨的后续安排尚未向读者揭示。"]
+        result = self.run_tool("commit", drop, expect=2)
+        self.assertIn("append transaction", result.stderr)
+        self.assertEqual(self.read_state()["state_revision"], 0)
+
     def test_retiring_a_still_active_character_is_rejected(self) -> None:
         self.init()
         self.run_tool("commit", transaction(1, character=True))

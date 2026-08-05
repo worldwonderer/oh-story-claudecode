@@ -74,7 +74,7 @@
 
 **长期约束溢出**：工具最多接受 6 条。出现第 7 条时，在提交事务前先合并语义重叠项或请用户裁定取舍；不得自动删除旧约束，也不得把待办塞进派生视图。
 
-**退役必须显式声明**：`context.long_term_constraints` 和 `context.continuity_risks` 每章整份提交，因此每次都要把仍然成立的条目原样带上。凡是上一版有、本次不再提交的条目，必须逐条写进 `delta.retired_context_items`；漏写会被工具在任何写入前拒绝，不会被当成删除。不再复用的核心角色同理写进 `delta.retired_characters`。两类退役都会留档在本章逐章记录，事后可回查。
+**退役必须显式声明**：`context.long_term_constraints` 和 `context.continuity_risks` 每章整份提交，因此每次都要把仍然成立的条目原样带上。凡是上一版有、本次不再提交的条目，必须逐条写进 `delta.retired_context_items`；漏写会被工具在任何写入前拒绝，不会被当成删除。不再复用的核心角色同理写进 `delta.retired_characters`；角色本章阵亡/退场时照常写 `character_changes`，不必再交一份马上要删的快照。两类退役都只能在 `mode=append` 提交——修订事务的记录属于被改写的旧章，写在那里会谎报退役章节；回炉必须原样重交当前全部上下文条目。两类退役都会留档在本章逐章记录，事后可回查。
 
 **与项目 rules 的关系**：永久生效的设定裁定进入事务 `context.long_term_constraints`；短期强承诺进入 `delta.next_chapter_commitments`；已完成或只影响本章的过程决策不进续写状态卡。
 

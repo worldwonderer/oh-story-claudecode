@@ -202,10 +202,12 @@ def archive_retired_tracking_paths(tracking: Path) -> list[str]:
     if not retired:
         return []
     archive = tracking / RETIRED_ARCHIVE_DIR
-    require(
-        not archive.exists(),
-        f"追踪/{RETIRED_ARCHIVE_DIR}/ already exists; move it away before initializing",
-    )
+    for relative in retired:
+        require(
+            not (archive / relative).exists(),
+            f"追踪/{RETIRED_ARCHIVE_DIR}/{relative} already exists; move it away before initializing",
+        )
+    # 先全量校验再搬运；中断后重跑时已搬走的条目不再出现在待搬列表里，可直接续做。
     for relative in retired:
         target = archive / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -606,6 +608,13 @@ def normalize_delta(
         },
         "delta",
     )
+    retired_characters = [
+        safe_file_component(name, f"delta.retired_characters[{index}]")
+        for index, name in enumerate(as_list(delta.get("retired_characters", []), "delta.retired_characters"))
+    ]
+    retired_keys = [portable_name_key(name) for name in retired_characters]
+    require(len(retired_keys) == len(set(retired_keys)), "delta.retired_characters contains duplicate characters")
+    retiring = set(retired_keys)
     character_changes: list[dict[str, Any]] = []
     for index, raw_change in enumerate(as_list(delta.get("character_changes", []), "delta.character_changes")):
         change = as_mapping(raw_change, f"delta.character_changes[{index}]")
@@ -613,7 +622,11 @@ def normalize_delta(
         name = safe_file_component(change.get("name"), f"delta.character_changes[{index}].name")
         existing = existing_core_names.get(portable_name_key(name))
         is_core = name in snapshots or existing is not None
-        require(not is_core or name in snapshots, f"core character {name} changed but has no current snapshot")
+        # 本章退役的角色记录最后一次变化即可，不必再交一份马上要删的快照。
+        require(
+            not is_core or name in snapshots or portable_name_key(name) in retiring,
+            f"core character {name} changed but has no current snapshot",
+        )
         character_changes.append(
             {"name": name, "change": clean_text(change.get("change"), f"delta.character_changes[{index}].change", max_bytes=360)}
         )
@@ -643,12 +656,6 @@ def normalize_delta(
         set(snapshots).issubset({item["name"] for item in character_changes}),
         "character_snapshots must contain exactly the core characters changed by this transaction",
     )
-    retired_characters = [
-        safe_file_component(name, f"delta.retired_characters[{index}]")
-        for index, name in enumerate(as_list(delta.get("retired_characters", []), "delta.retired_characters"))
-    ]
-    retired_keys = [portable_name_key(name) for name in retired_characters]
-    require(len(retired_keys) == len(set(retired_keys)), "delta.retired_characters contains duplicate characters")
     return {
         "result": clean_text(delta.get("result"), "delta.result", max_bytes=480),
         "character_changes": character_changes,
@@ -874,6 +881,13 @@ def merge_transaction(state: dict[str, Any], transaction: dict[str, Any]) -> dic
     next_state["characters"].update(transaction["snapshots"])
 
     next_context = transaction["context"]
+    # 退役说的是「从此刻起离开当前状态」，只有 append 的逐章记录代表此刻；
+    # 修订记录属于被改写的旧章，落在那里会谎报退役发生的章节。
+    is_revision = transaction["mode"] == "revision"
+    require(
+        not (is_revision and transaction["delta"]["retired_characters"]),
+        "retired_characters must be committed in an append transaction, not a revision",
+    )
     for name in transaction["delta"]["retired_characters"]:
         require(name in next_state["characters"], f"retired character {name} has no current snapshot")
         require(
@@ -889,6 +903,11 @@ def merge_transaction(state: dict[str, Any], transaction: dict[str, Any]) -> dic
     # 上下文条目是整份提交的；漏写会静默丢历史裁定，因此掉落必须显式声明。
     previous_items = set(state["context"]["long_term_constraints"]) | set(state["context"]["continuity_risks"])
     dropped = previous_items - (set(next_context["long_term_constraints"]) | set(next_context["continuity_risks"]))
+    require(
+        not (is_revision and dropped),
+        "a revision must resubmit every current context item; retire them in an append transaction instead: "
+        + "；".join(sorted(dropped)),
+    )
     undeclared = sorted(dropped - set(transaction["delta"]["retired_context_items"]))
     require(
         not undeclared,
@@ -1013,7 +1032,11 @@ def apply_transaction(project: Path, document: object) -> dict[str, Any]:
     next_state = merge_transaction(state, transaction)
 
     delta_payload = render_delta(
-        transaction["chapter"], transaction["title"], transaction["delta"], set(next_state["characters"])
+        transaction["chapter"],
+        transaction["title"],
+        transaction["delta"],
+        # 本章退役的角色在 next_state 里已被删除，但本章记录里仍应标为核心。
+        set(next_state["characters"]) | set(transaction["delta"]["retired_characters"]),
     )
     views = render_views(next_state)
     next_state_payload = json_payload(next_state)
