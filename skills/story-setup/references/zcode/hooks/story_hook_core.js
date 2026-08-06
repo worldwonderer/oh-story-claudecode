@@ -101,7 +101,7 @@ function trackingCheckpointIssue(book, requireState = false, expectedLastCommitt
   const state = path.join(book, "追踪", "_tracking-state.json")
   if (!fs.existsSync(state)) {
     return requireState
-      ? `追踪/_tracking-state.json 缺失；已有正文项目必须重新 /story-import，新书必须先用 tracking_commit.py init 初始化`
+      ? `追踪/_tracking-state.json 缺失；已有正文项目走 /story-import 的「旧追踪项目迁移」重建追踪（不必重跑全书拆解），新书先用 tracking_commit.py init 初始化`
       : null
   }
   let document
@@ -124,7 +124,7 @@ function trackingCheckpointIssue(book, requireState = false, expectedLastCommitt
   } catch {}
   if (contextRevision !== document.state_revision) {
     const shown = contextRevision === null ? "缺失" : contextRevision
-    return `追踪/上下文.md 状态修订 ${shown} 与 _tracking-state.json 的 ${document.state_revision} 不一致；重新提交该章的 mode=revision 事务重建派生视图（expected_state_revision 取 check 报出的当前值）`
+    return `追踪/上下文.md 状态修订 ${shown} 与 _tracking-state.json 的 ${document.state_revision} 不一致；重新提交该章的 mode=revision 事务重建派生视图（expected_state_revision 取 追踪/_tracking-state.json 的 state_revision 字段（check 失败时不输出 JSON））`
   }
   if (expectedLastCommitted !== null) {
     if (!Number.isInteger(document.last_committed_chapter)) {
@@ -312,13 +312,16 @@ function proseBlockReason(root, absolute) {
   if (prevNum >= 1) {
     let prevFile = null
     try {
-      for (const file of fs.readdirSync(path.dirname(absolute))) {
-        const pm = file.match(/^第0*(\d+)章.*\.md$/)
-        if (pm && Number(pm[1]) === prevNum) {
-          prevFile = path.join(path.dirname(absolute), file)
-          break
-        }
-      }
+      // readdir 顺序在 ext4/overlayfs 上是哈希序：不排序就可能挑中同章号的原稿备份
+      // （workflow-revision 的「备份原稿」产物），拿早已被改写掉的旧文本报欠账。
+      // 显式排除 _原稿_ 备份并排序，保证四端与各文件系统上取到同一个「上一章」。
+      const candidates = fs.readdirSync(path.dirname(absolute))
+        .filter((file) => {
+          const pm = file.match(/^第0*(\d+)章.*\.md$/)
+          return pm && Number(pm[1]) === prevNum && !file.includes("_原稿_")
+        })
+        .sort()
+      if (candidates.length) prevFile = path.join(path.dirname(absolute), candidates[0])
     } catch {}
     if (prevFile) {
       let prevText = null

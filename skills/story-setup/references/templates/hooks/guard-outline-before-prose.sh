@@ -139,8 +139,11 @@ case "$BASE" in
     if [ "$PREV" -ge 1 ] && node -e "" >/dev/null 2>&1 && [ -f "$CLI" ]; then
       PROSE_DIR="$(dirname "$ABS")"
       PREV_FILE=""
+      # glob 已按字典序，但同章号的原稿备份（workflow-revision 的「备份原稿」产物）
+      # 也会命中；显式跳过 _原稿_，与 JS 核 / codex py 取同一个「上一章」。
       for f in "$PROSE_DIR"/第*章*.md; do
         [ -e "$f" ] || continue
+        case "$(basename "$f")" in *_原稿_*) continue ;; esac
         pnum="$(basename "$f" | sed -n 's/^第0*\([0-9][0-9]*\)章.*/\1/p')"
         if [ "$pnum" = "$PREV" ]; then PREV_FILE="$f"; break; fi
       done
