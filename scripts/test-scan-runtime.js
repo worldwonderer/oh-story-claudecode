@@ -550,6 +550,22 @@ function testHeiyanFieldDriftAndWordFormat() {
   assert.strictEqual(heiyan.fmtWords("123456"), "123,456字");
   assert.strictEqual(heiyan.fmtWords(0), "");
   assert.strictEqual(heiyan.fmtWords(undefined), "");
+  assert.strictEqual(typeof heiyan.outputFilename, "function");
+  const date = "20260806";
+  const channelFiles = ["male", "female", "all"].map((channel) =>
+    heiyan.outputFilename(channel, date)
+  );
+  assert.strictEqual(
+    new Set(channelFiles).size,
+    channelFiles.length,
+    `黑岩产物名必须包含频道，不能同日互相覆盖: ${channelFiles.join(", ")}`
+  );
+  assert.deepStrictEqual(channelFiles, [
+    `黑岩书库列表_male_${date}.md`,
+    `黑岩书库列表_female_${date}.md`,
+    `黑岩书库列表_all_${date}.md`,
+  ]);
+  assert.throws(() => heiyan.outputFilename("../../escape", date), /未知 --channel/);
 
   // toLocaleString() 在 de_* 下会写成 123.456（读起来像 123 字），fmtWords 必须不受影响
   const probe = spawnSync(
@@ -589,6 +605,20 @@ function testHeiyanFieldDriftAndWordFormat() {
     assert(!written.includes("/null"), `报告里不能出现 null:\n${written}`);
     assert(written.includes("*作者甲 · 男频/都市 · 123,456字 · 未公开*"), written);
     assert(written.includes("*作者乙 · 女频 · 50,000字 · 未公开*"), written);
+
+    const malePath = path.join(tmpDir, heiyan.outputFilename("male", date));
+    const femalePath = path.join(tmpDir, heiyan.outputFilename("female", date));
+    console.log = () => {};
+    try {
+      heiyan.buildAndSave(books, 2, [books[0]], malePath);
+      heiyan.buildAndSave(books, 2, [books[1]], femalePath);
+    } finally {
+      console.log = origLog;
+    }
+    assert(fs.existsSync(malePath), "男频报告不应被女频采集覆盖");
+    assert(fs.existsSync(femalePath), "女频报告必须独立落盘");
+    assert(fs.readFileSync(malePath, "utf8").includes("甲书"));
+    assert(fs.readFileSync(femalePath, "utf8").includes("乙书"));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

@@ -195,6 +195,26 @@ LEGACY_RULES = (
         r"按需加载，缺失则跳过",
         ("skills/story-long-write/SKILL.md",),
     ),
+    AbsentRule(
+        "static-long-word-floor",
+        "long-form release uses the outline target and one 90-percent tolerance",
+        r"默认最低字数[^\n]*3000\s*字/章|"
+        r"长篇写作以章为验证粒度[^\n]*(?:2000|3000)\s*字|"
+        r"(?:高速推进|正常节奏|舒缓铺垫|高潮爆发)\s*\|\s*≥\s*(?:2000|3000)\s*字/章",
+        (
+            "skills/story-long-write/SKILL.md",
+            "skills/story-setup/references/templates/agents/narrative-writer.md",
+            "skills/story-setup/references/opencode/agents/narrative-writer.md",
+            "skills/story-setup/references/codex/agents/narrative-writer.toml",
+        ),
+    ),
+    AbsentRule(
+        "broad-chrome-cleanup-doc",
+        "browser cleanup docs must not bypass consent with executable-name kills",
+        r"pkill[^\n]*(?:Google Chrome|google-chrome|chrome)|"
+        r"taskkill[^\n]*/IM\s+chrome\.exe",
+        ("skills/browser-cdp/SKILL.md",),
+    ),
 )
 
 

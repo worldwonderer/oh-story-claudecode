@@ -617,6 +617,38 @@ def test_reviewed_benchmark_wording_stays_removed() -> None:
             )
 
 
+def test_p1_deletion_guards() -> None:
+    rules = {rule.code: rule for rule in VALIDATOR.LEGACY_RULES}
+    cases = {
+        "static-long-word-floor": (
+            "skills/story-long-write/SKILL.md",
+            "**默认最低字数：3000 字/章。**\n",
+            "长篇按细纲字数目标验收；实际字数低于目标 90% 时阻断。\n",
+        ),
+        "broad-chrome-cleanup-doc": (
+            "skills/browser-cdp/SKILL.md",
+            "卡死时执行 `pkill -9 -x 'Google Chrome'`。\n",
+            "卡死时关闭已确认属于 debug profile 的 Chrome 窗口；不要终止普通 Chrome。\n",
+        ),
+    }
+    for code, (relative_path, bad, good) in cases.items():
+        rule = rules[code]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(bad, encoding="utf-8")
+            require(
+                finding_codes(VALIDATOR.check_absent_rule(root, rule)) == {code},
+                "{} must reject its retired authority/bypass".format(code),
+            )
+            path.write_text(good, encoding="utf-8")
+            require(
+                not VALIDATOR.check_absent_rule(root, rule),
+                "{} must accept the canonical contract".format(code),
+            )
+
+
 def main() -> int:
     test_manifest_contract()
     test_bad_fallbacks_fail()
@@ -630,6 +662,7 @@ def main() -> int:
     test_story_import_keeps_self_out_of_benchmarks()
     test_spawn_preflight_uses_agents_version_not_file_existence()
     test_reviewed_benchmark_wording_stays_removed()
+    test_p1_deletion_guards()
     test_structured_sentinel_contract()
     test_structured_outline_contract()
     test_upgrading_version_contract()

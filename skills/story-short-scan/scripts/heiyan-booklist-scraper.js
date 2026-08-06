@@ -95,6 +95,13 @@ function fmtWords(words) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "字";
 }
 
+function outputFilename(channel, date) {
+  if (!["all", "male", "female"].includes(channel)) {
+    throw new Error(`未知 --channel: ${channel}（支持 male/female/all）`);
+  }
+  return `黑岩书库列表_${channel}_${date}.md`;
+}
+
 function buildAndSave(allBooks, total, filtered, filepath) {
   const now = new Date().toISOString();
   const maleBooks = filtered.filter((b) => b.classifyStr === "男频");
@@ -175,7 +182,7 @@ function main() {
   console.log(`  计划采集: ${PAGES} 页（每页 ${PAGE_SIZE} 条）`);
 
   const date = localDateStamp();
-  const filename = `黑岩书库列表_${date}.md`;
+  const filename = outputFilename(CHANNEL, date);
   const filepath = path.join(OUTDIR, filename);
 
   // 先导航到管理后台获取 token
@@ -328,4 +335,12 @@ if (require.main === module) {
   runCli(main, "黑岩采集");
 }
 
-module.exports = { probePage, getToken, fetchBookList, fetchBookDetail, fmtWords, buildAndSave };
+module.exports = {
+  probePage,
+  getToken,
+  fetchBookList,
+  fetchBookDetail,
+  fmtWords,
+  outputFilename,
+  buildAndSave,
+};
