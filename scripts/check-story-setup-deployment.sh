@@ -198,6 +198,18 @@ assert_grep '不部署.*\.zcode/agents|不创建.*\.zcode/agents' "$SKILL_FILE" 
 assert_grep 'references_dir' "$SKILL_FILE" "sentinel references_dir must be documented"
 assert_grep 'resolver_strategy' "$SKILL_FILE" "sentinel resolver_strategy must be documented"
 assert_grep 'target_cli' "$SKILL_FILE" "sentinel target_cli must be documented"
+
+# 重部署时 sentinel 的 target_cli 是权威：不认它就会每次重问，且 skills-only 三端根本无从探测。
+assert_grep '已部署项目以 sentinel 里的值为准' "$SKILL_FILE" "story-setup must reuse the deployed target_cli on redeploy"
+# metadata.openclaw 在 13 个 skill 上全都有，拿它判定会把 reasonix / generic 项目误认成 OpenClaw。
+assert_no_grep '中的 `metadata\.openclaw`' "$SKILL_FILE" "story-setup must not detect OpenClaw from the skills bundle it deploys itself"
+assert_grep '不作 OpenClaw 信号' "$SKILL_FILE" "story-setup must explain why metadata.openclaw is not a detection signal"
+# skills-only 三端只能靠各自 AGENTS.md 的标题行区分；SKILL.md 引用的标记必须在模板里真的存在。
+assert_grep '网文写作工具集（Reasonix）' "$SKILL_FILE" "story-setup must detect a deployed Reasonix project from AGENTS.md"
+assert_grep '网文写作工具集（通用 Agent / Web AI）' "$SKILL_FILE" "story-setup must detect a deployed generic project from AGENTS.md"
+assert_grep '网文写作工具集（Reasonix）' "$SKILL_DIR/references/reasonix/AGENTS.md.tmpl" "Reasonix AGENTS template must carry the marker story-setup detects"
+assert_grep '网文写作工具集（通用 Agent / Web AI）' "$SKILL_DIR/references/generic/AGENTS.md.tmpl" "generic AGENTS template must carry the marker story-setup detects"
+assert_grep '网文写作工具集（OpenClaw）' "$SKILL_DIR/references/openclaw/AGENTS.md.tmpl" "OpenClaw AGENTS template must carry the marker story-setup detects"
 echo "  OK TS2 deployment manifest"
 
 # TS3 — Agent reference bundle integrity
@@ -343,6 +355,38 @@ if echo "$mixed_version_out" | grep -q '低于 v23'; then
 fi
 if echo "$mixed_version_out" | grep -q '高于本 hook'; then
   fail "session-start incorrectly nagged '高于本 hook' for current agents_version=23 just because setup_skill_version lags"
+fi
+
+# 多端部署的 references_dir 是逗号分隔多条路径。整串当一条路径查会每次开会话都误报缺失，
+# 且反过来漏掉真正缺的那一条——两个方向都要钉住。
+multi_end_root="$TMP_DIR/multi-end-refs"
+mkdir -p "$multi_end_root/.claude/skills/story-setup/references/agent-references"
+mkdir -p "$multi_end_root/.codex/skills/story-setup/references/agent-references"
+setup_git_repo "$multi_end_root"
+copy_hooks "$multi_end_root"
+touch "$multi_end_root/.claude/skills/story-setup/references/agent-references/dummy.md"
+touch "$multi_end_root/.codex/skills/story-setup/references/agent-references/dummy.md"
+cat > "$multi_end_root/.story-deployed" <<'SENTINEL'
+deployed_at: 2026-05-24T00:00:00Z
+agents_version: 23
+setup_skill_version: 1.2.7
+target_cli: claude-code,codex
+resolver_strategy: project-local-skill-reference
+references_dir: .claude/skills/story-setup/references/agent-references,.codex/skills/story-setup/references/agent-references
+SENTINEL
+multi_end_out="$(run_from_nested "$multi_end_root" session-start.sh 2>&1 || true)"
+if echo "$multi_end_out" | grep -q '参考资料包缺失或为空'; then
+  fail "session-start falsely reported missing references for a complete multi-end deployment"
+fi
+
+rm -rf "$multi_end_root/.codex"
+multi_end_partial_out="$(run_from_nested "$multi_end_root" session-start.sh 2>&1 || true)"
+echo "$multi_end_partial_out" | grep -q '参考资料包缺失或为空' \
+  || fail "session-start did not warn when one end of a multi-end references_dir is missing"
+echo "$multi_end_partial_out" | grep -q '\.codex/skills/story-setup/references/agent-references' \
+  || fail "session-start did not name the missing end in a multi-end references_dir"
+if echo "$multi_end_partial_out" | grep -q '\.claude/skills/story-setup/references/agent-references,'; then
+  fail "session-start reported the whole comma-joined references_dir instead of only the missing end"
 fi
 
 echo "  OK TS5 sentinel diagnostics"

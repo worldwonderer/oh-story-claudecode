@@ -88,11 +88,24 @@ if sentinel_exists "$ROOT/.story-deployed"; then
     fi
   done
 
+  # 多端部署时 references_dir 是逗号分隔的多条路径，逐条查；整串当一个路径查会必然查不到，
+  # 每次开会话都误报「参考资料包缺失」。
   REFERENCES_DIR=$(read_sentinel_field references_dir "$ROOT/.story-deployed")
   if [ -n "$REFERENCES_DIR" ]; then
-    REFERENCES_PATH=$(resolve_project_path "$REFERENCES_DIR")
-    if [ ! -d "$REFERENCES_PATH" ] || ! find "$REFERENCES_PATH" -maxdepth 1 -type f -name "*.md" -print -quit 2>/dev/null | grep -q .; then
-      OUTPUT+="[WARN] story-setup 参考资料包缺失或为空：${REFERENCES_DIR}。重新运行 /story-setup；若重跑后仍报这条，是 skill 包本身没装全，按你的安装方式重装 oh-story-claudecode（npx skills add 或 marketplace 面板）再部署。${NL}${NL}"
+    MISSING_REFS=""
+    OLD_IFS=$IFS
+    IFS=','
+    for REF_ENTRY in $REFERENCES_DIR; do
+      REF_ENTRY=$(printf '%s' "$REF_ENTRY" | LC_ALL=C sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+      [ -n "$REF_ENTRY" ] || continue
+      REFERENCES_PATH=$(resolve_project_path "$REF_ENTRY")
+      if [ ! -d "$REFERENCES_PATH" ] || ! find "$REFERENCES_PATH" -maxdepth 1 -type f -name "*.md" -print -quit 2>/dev/null | grep -q .; then
+        MISSING_REFS="${MISSING_REFS}${MISSING_REFS:+, }${REF_ENTRY}"
+      fi
+    done
+    IFS=$OLD_IFS
+    if [ -n "$MISSING_REFS" ]; then
+      OUTPUT+="[WARN] story-setup 参考资料包缺失或为空：${MISSING_REFS}。重新运行 /story-setup；若重跑后仍报这条，是 skill 包本身没装全，按你的安装方式重装 oh-story-claudecode（npx skills add 或 marketplace 面板）再部署。${NL}${NL}"
       HAS_CONTENT=true
     fi
   fi
