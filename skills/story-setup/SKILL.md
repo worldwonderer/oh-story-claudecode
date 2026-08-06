@@ -140,6 +140,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 - 读取 `skills/story-setup/references/templates/agents/` 下所有 `.md` 文件
 - 复制到用户项目的 `.claude/agents/` 目录
 - Agent 文件属于 story-setup 管理文件，可安全覆盖；版本升级时按 `UPGRADING.md` 的版本检测结果重新部署
+- **`target_cli` 含 opencode 时，覆盖 `.opencode/agents/` 之前先执行下面「配置 OpenCode Agent 模型」的 Step 1 缓存现有 `model:`**。那一步写在本节后面，但必须先跑——照顺序读到哪做到哪会先覆盖再缓存，用户已配的模型就没了。
 - **部署后必须新开会话**：agent 只在会话启动时注册；原因与必须输出的报告文案见「验证安装」中的「输出安装报告」。
 
 #### Agent 兼容性处理
