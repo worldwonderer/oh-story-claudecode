@@ -116,7 +116,11 @@ agent-browser --cdp 9222 type "<sel>" "<text>"
 
 ## 停止 / 清理
 
-- 关掉 debug Chrome 窗口即可。若窗口无响应，只能终止命令行含 `--user-data-dir=.../chrome-debug-profile` 的已核验 debug 实例 PID；无法核验进程归属时停止，不得按 Chrome 可执行文件名批量结束进程。
+- 关掉 debug Chrome 窗口即可。若窗口无响应，先按 `--user-data-dir` 核验出 debug 实例的 PID 再只结束它：
+  - macOS / Linux：`pgrep -af chrome-debug-profile`
+  - Windows：`wmic process where "name='chrome.exe'" get ProcessId,CommandLine | findstr chrome-debug-profile`
+  拿到 PID 后 `kill -9 {PID}` / `taskkill /F /PID {PID}`。核验不出归属时停止，**手工清理不得按 Chrome 可执行文件名批量结束进程**——那会连带杀掉用户的日常 Chrome。
+  例外：`setup-cdp-chrome.js --reset` 内部确实会做一次按可执行名的清理，它属于本 skill 自带的、需 `--yes` 显式同意的启动流程；手工排障不要复制该做法。
 - 登录态失效：`node {SKILL_DIR}/scripts/setup-cdp-chrome.js 9222 --reset --yes`（注意 `--yes` 同样需要先问用户）。
 
 ---
