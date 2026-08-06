@@ -162,7 +162,7 @@ function continuityFindings(root) {
         const contextTime = fs.statSync(context).mtimeMs
         if (newest > contextTime + 1000) {
           const latest = chapters.reduce((left, right) => fs.statSync(left).mtimeMs > fs.statSync(right).mtimeMs ? left : right)
-          messages.push(`[continuity] ${safeRelative(root, book)}：正文已更新到「${path.basename(latest)}」但续写状态卡更早——为该章提交 tracking_commit.py 事务并恢复 clean 后再续写，禁止分别手改 上下文.md/伏笔.md。`)
+          messages.push(`[continuity] ${safeRelative(root, book)}：正文已更新到「${path.basename(latest)}」但续写状态卡更早——为该章提交 tracking_commit.py 事务、check 通过后再续写，禁止分别手改 上下文.md/伏笔.md。`)
         }
       } catch {}
     }

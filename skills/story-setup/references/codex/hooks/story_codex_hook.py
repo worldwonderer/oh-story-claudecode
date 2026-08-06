@@ -503,7 +503,7 @@ def continuity_findings(root: Path) -> list[str]:
                 ctx_m = 0
             if newest > ctx_m + 1:
                 latest = max(chapters, key=lambda c: c.stat().st_mtime).name
-                msgs.append(f"[continuity] {safe_rel(root, book)}：正文已更新到「{latest}」但续写状态卡更早——为该章提交 tracking_commit.py 事务并恢复 clean 后再续写，禁止分别手改 上下文.md/伏笔.md。")
+                msgs.append(f"[continuity] {safe_rel(root, book)}：正文已更新到「{latest}」但续写状态卡更早——为该章提交 tracking_commit.py 事务、check 通过后再续写，禁止分别手改 上下文.md/伏笔.md。")
         # ①b 续写状态卡预算：上下文.md 由事务工具整份重建，硬上限 12288 字节。
         # 若不处理，每章读取量会随章节数增长，最终达到 O(N^2)。这里只提醒、不阻止；应把超出规定的区块移到 追踪/逐章记录/。
         if ctx.exists():
