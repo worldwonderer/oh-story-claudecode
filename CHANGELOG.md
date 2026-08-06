@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.4
+
+> 本版全是修复，两条主线。一是导入：`story-import` 会把用户自己的书登记成对标，于是「对标目录内容跟自己设定完全相同」。二是部署与跨平台——story-setup 重部署时把 Reasonix / generic 项目误判成 OpenClaw，多端部署每次开会话误报参考包缺失，Stage 6 的文风统计在 Windows 上必挂。另外把 spawn 的版本硬门禁改成提示：bump 常常源于别的部署物变化而 agent 模板根本没动，硬闸让所有人为无关变更付并行代价。**本版 `agents_version` 为 23**（v0.7.3 发的是 22），已部署项目需重新运行 `/story-setup` 并新开会话。
+
+### 修复
+
+- **导入的书不再被当成自己的对标（#294）**：`story-import` 历史上把「导入书名」和「对标书名」都写成 `{书名}`，于是本书拆文会被复制进项目 `对标/` 并登记为主对标。两个概念的来源、目标和生命周期彻底拆开：本书拆文只用于重建正文、设定、大纲和追踪，只有用户显式绑定、且来源是独立 `拆文库/{对标书名}/` 的外部作品才同步到 `对标/`；没有外部对标时不建子目录、不写主对标字段。长短篇写作、跨书召回与 `story-explorer` 一并排除当前作品和历史误建的 `对标/{当前书名}/`，避免旧项目继续回流。短篇的本书分析改叫「本书续写基线」，不再叫「对标摘要」。
+- **agents_version 不匹配改为提示而不阻断 spawn（#294）**：所有可能 spawn 项目 agent 的 Skill 此前拿 `.story-deployed.agents_version` 做硬门禁，对不上就整体降级 solo。改为照常按文件存在性检查并 spawn，只在报告里给版本不匹配提示、建议重跑 `/story-setup` 并新开会话；真正降级 solo/direct 的信号只剩 agent 文件缺失或运行时不暴露 custom agent。
+- **三项确定性契约冲突（#295）**：长篇发布后的静态字数下限表（2000/3000 字/章）与 hook 的「细纲 `字数目标` × 90%」放行规则并存，是两套标准；删掉静态表，以细纲目标加唯一一条 90% 下限为权威，细纲缺 `字数目标` 时按 3000 字/章兜底并提示补纲。`browser-cdp` 文档给的是按可执行文件名批量结束 Chrome 的命令，会连用户自己的浏览器一起关；改为只结束已核验属于 debug profile 的 PID，并补上查这些 PID 的可执行命令。黑岩 male/female/all 同日采集共用文件名、后一次覆盖前一次；文件名加频道维度，非法 `--channel` 直接 fail-fast。
+- **重部署认错平台（#297）**：story-setup 的平台探测有四处缺陷，其中两处互为镜像。第 8 步拿 `skills/*/SKILL.md` 的 `metadata.openclaw` 当 OpenClaw 信号，但 13 个 skill 全都带这个字段，而 OpenClaw / Reasonix / generic 三条 skills-only 路径部署出的 `skills/` 完全一样——等于在探测自己部署的产物，把后两者一律判成 OpenClaw；第 9 步只认 `.reasonix/`、`reasonix-plugin.json`、`REASONIX.md`，而 Reasonix 部署算法一个都不产，已部署的 Reasonix 项目反而探测不到。generic 没有探测步骤，sentinel 里的 `target_cli` 也从不被读。改为三端各按自己 `AGENTS.md` 模板的标题行区分（那是唯一互斥的标记），并让 sentinel 的 `target_cli` 在重部署时作准。
+- **多端部署每次开会话误报参考包缺失（#299）**：多端的 `references_dir` 是逗号分隔的多条路径，SessionStart hook 当成单条路径查，于是完整部署也必报「参考资料包缺失」，反过来又漏掉真正缺的那一条。改为逐条查、只报缺的那些。
+- **Stage 6 文风统计在 Windows 必挂（#300）**：句长统计脚本先探测可用解释器（含 Windows 的 `py` 启动器），却用 `/tmp/style-sample.txt` 这个 POSIX 绝对路径打开样本。探到 Windows 原生 python 时它解析成 `C:\tmp\...`，和 Git Bash 写入的不是同一个文件，直接 FileNotFoundError。改成项目内相对路径、按 argv 传给脚本。同一处还规定「全程 `>>` 追加」，重跑 Stage 6 会把上一轮样本累积进来，统计出的是两轮混合的分布；改成首段覆盖写、后两段追加。
+- **章节边界把目录当成章节（#301）**：Stage 0 建章节边界表时不处理原文开头的目录块，带目录的原文每个章号会命中两次，而这张表是 Stage 1/2/6 的唯一切片真值，错一次会一路错到底。按行距剔除目录块（目录内相邻命中隔一两行，正文章节之间隔着整章篇幅），并补落表前的章号连续性校验。多卷书每卷从「第一章」重起是合法结构，这类重复不自动取其一。
+- **story-review 两份通用 rubric 漂移（#307）**：内置 fallback rubric 与 `quality-rubric.md` 本是同一套标准，却各自漂移——文件版独有「任务卡点」，内置版独有「标点节奏」「具体字数表达校验」，另有三处同义异名。漂移方向还是反的：文件可读时拿到的是少两条的旧版，不可读时反而用全的。两边补齐为同名 18 维，以文件版命名为准。
+
+### 维护
+
+- `tracking_commit.py` 的 `context` 允许字段补成字段级说明：`init` 收六项，`commit` 只收前四项，`recent_chapters` 与 `next_chapter_commitments` 在 commit 时由工具从当前视图和本章 delta 派生，照 init 示例套 commit 会撞 `context contains unsupported fields`（#306）。
+- OpenCode agent 模型缓存的顺序要求在 Step 5 正文就地加前向提示——原本只写在 28 行之后的子节里，照顺序执行会先覆盖再缓存（#298）。
+- `format-and-structure.md` 标题写「5 条绝对禁止」，下面实际 8 条，×3 副本同步修正（#306）。
+
 ## v0.7.3
 
 > 长篇追踪改单一权威事务模型：`追踪/_tracking-state.json` 是唯一结构化状态，所有追踪写入走 `tracking_commit.py`，续写状态卡与伏笔/时间线/角色快照都是工具整份生成的派生视图，日更每章必读从五个文件收缩到三项。Dashboard 目录树改按需加载；章节概要改叙事化、原文引用改精选。**v0.7.2 及更早的长篇项目必须先迁移 `追踪/` 才能继续写**，见下方升级须知。**本版 `agents_version` 为 22**（v0.7.2 发的是 21），已部署项目需重新运行 `/story-setup` 并新开会话。
