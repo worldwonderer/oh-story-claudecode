@@ -570,9 +570,10 @@ def test_spawn_preflight_uses_agents_version_not_file_existence() -> None:
 
     current = manifest.agents_version
     current_contract = """
-仅当 `.story-deployed` 的 `agents_version: {current}` 时才继续检查 agent 文件并尝试 spawn，agent 文件存在不能替代版本校验。
-标记缺失、`agents_version` 缺失/非整数/小于 {current} 时不得 spawn，降级 solo/direct，报告 `Fallback: stale agents -> solo`。
-大于 {current} 时也不得 spawn，先更新 oh-story-claudecode。
+读取 `.story-deployed` 的 `agents_version: {current}`；不一致时照常按文件存在性检查并 spawn，
+报告 `Notice: agents bundle 版本不匹配（项目 {{N}}，本版 {current}）` 并提示重跑 `/story-setup`。
+大于 {current} 时额外提示先更新 oh-story-claudecode。
+只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
 """.format(current=current)
     require(
         not VALIDATOR.spawn_preflight_findings(

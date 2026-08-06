@@ -633,31 +633,31 @@ def require_pattern(path: Path, pattern: str, code: str, message: str) -> List[F
 def spawn_preflight_findings(
     text: str, manifest: ContractManifest, path: Path
 ) -> List[Finding]:
-    """Require every spawn-capable Skill to reject stale/future agent bundles.
+    """Require every spawn-capable Skill to surface a stale/future agent bundle.
 
-    An agent file can survive a partial or old deployment, so existence is not a
-    compatibility signal.  The generated sentinel's agents_version is the one
-    current authority shared by setup, session-start, and every spawn caller.
+    版本不匹配只提示、不阻断：bump 的原因常常是别的部署物变了而 agent 模板根本没动
+    （v23 就只改了 story-explorer），硬闸会让所有人为无关变更付并行代价。真正该降级的
+    信号是 agent 文件缺失或运行时不暴露 custom agent。
     """
 
     current = str(manifest.agents_version)
     required = (
         (r"`agents_version:\s*{}`".format(current), "pin the current agents_version"),
         (
-            r"agent 文件存在不能替代版本校验",
-            "state that file existence cannot replace the version preflight",
+            r"照常按文件存在性检查并 spawn",
+            "state that a version mismatch does not block spawn",
         ),
         (
-            r"标记缺失、`agents_version` 缺失/非整数/小于 {} 时不得 spawn".format(current),
-            "reject missing, malformed, and stale deployments before spawn",
+            r"Notice: agents bundle 版本不匹配",
+            "surface the version mismatch notice",
         ),
         (
-            r"大于 {} 时也不得 spawn".format(current),
-            "reject future deployments before spawn",
+            r"大于 {} 时额外提示先更新 oh-story-claudecode".format(current),
+            "tell future deployments to update the package first",
         ),
         (
-            r"Fallback: stale agents -> solo",
-            "declare the stale-agent solo/direct fallback",
+            r"只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct",
+            "reserve the solo/direct fallback for genuinely missing agents",
         ),
     )
     missing = [label for pattern, label in required if re.search(pattern, text) is None]
