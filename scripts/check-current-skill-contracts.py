@@ -700,6 +700,73 @@ def spawn_preflight_findings(
     ]
 
 
+def rubric_dimension_names(repo_root: Path) -> Tuple[List[str], List[str]]:
+    """取 quality-rubric.md「核心维度」表与 SKILL.md 内置 fallback 的维度名。"""
+
+    table: List[str] = []
+    rubric_text = read_text(repo_root / "skills/story-review/references/quality-rubric.md") or ""
+    in_table = False
+    for line in rubric_text.splitlines():
+        if line.startswith("| 维度 |"):
+            in_table = True
+            continue
+        if not in_table:
+            continue
+        if not line.startswith("|"):
+            break
+        cell = line.split("|")[1].strip()
+        if cell and not set(cell) <= {"-", ":"}:
+            table.append(cell)
+
+    embedded: List[str] = []
+    skill_text = read_text(repo_root / "skills/story-review/SKILL.md") or ""
+    if "通用网文内容 rubric：" in skill_text:
+        block = skill_text.split("通用网文内容 rubric：", 1)[1]
+        for line in block.splitlines():
+            if not line.startswith("- "):
+                if embedded:
+                    break
+                continue
+            embedded.append(line[2:].split("：", 1)[0].strip())
+    return table, embedded
+
+
+def rubric_parity_findings(repo_root: Path) -> List[Finding]:
+    """内置 fallback rubric 与 quality-rubric.md 必须是同一套维度。
+
+    两者是同一套标准的两个副本：文件可读时用文件，不可读时用内置。漂移过一次
+    （文件版独有「任务卡点」，内置版独有「标点节奏」「具体字数表达校验」），
+    结果是审查口径取决于路径可读性。手工对齐只管一次，这条断言管以后。
+    """
+
+    table, embedded = rubric_dimension_names(repo_root)
+    path = repo_root / "skills/story-review/SKILL.md"
+    if not table or not embedded:
+        return [
+            Finding(
+                "rubric-parity-unreadable",
+                "cannot read both generic rubrics to compare dimensions",
+                path,
+            )
+        ]
+    findings = []
+    for missing, where in (
+        (sorted(set(table) - set(embedded)), "内置 fallback rubric"),
+        (sorted(set(embedded) - set(table)), "quality-rubric.md"),
+    ):
+        if missing:
+            findings.append(
+                Finding(
+                    "rubric-dimension-drift",
+                    "generic rubric dimensions drifted: {} missing from {}".format(
+                        "、".join(missing), where
+                    ),
+                    path,
+                )
+            )
+    return findings
+
+
 def parse_frontmatter_version(path: Path) -> Optional[str]:
     text = read_text(path)
     if text is None:
@@ -1106,6 +1173,8 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
                         line_text,
                     )
                 )
+
+    findings.extend(rubric_parity_findings(repo_root))
 
     long_analyze = repo_root / "skills/story-long-analyze/SKILL.md"
     findings.extend(require_pattern(long_analyze, r"invalid_topic_decision_contract", "invalid-topic-contract", "invalid topic-decision artifacts must fail explicitly"))
