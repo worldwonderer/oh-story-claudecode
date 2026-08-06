@@ -15,10 +15,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# agent 正文里表达 shell 步骤的唯一写法：「执行 `<命令>`」（模板全仓库仅此一种）。
+# agent 正文里表达 shell 步骤的写法：「执行 / 运行 / 跑 `<命令>`」。只认「执行」会漏——
+# #283 给只读 agent 写的越权指令用的正是「运行 `tracking_commit.py check`」，两层守卫都没拦住。
 # 只读 agent 若出现这种指令，生成直接失败：OpenCode shell.ts 只检查 command 的直接父节点，
 # 即使“完整命令字面量”白名单也会被 `( command ) > 正文.md` 的 subshell 外层重定向绕过。
-BODY_COMMAND_RE = re.compile(r"执行 `([^`]+)`")
+BODY_COMMAND_RE = re.compile(r"(?:执行|运行|跑) `([^`]+)`")
+# 委派给别人跑的不算本 agent 的 shell 步骤（「由父流程提示重新运行 X」「提示调用方在主会话跑 X」）。
+# 只在同一行出现委派主语时豁免，避免把「自己跑」写成委派句式蒙混过关。
+BODY_DELEGATION_RE = re.compile(r"(调用方|父流程|主会话|用户|由.{0,6}提示)")
 
 
 def body_bash_commands(body: str) -> list[str]:
@@ -29,10 +33,13 @@ def body_bash_commands(body: str) -> list[str]:
     这里以正文为唯一事实来源；只读 agent 抽到任何命令都会在转换阶段中断。
     """
     commands: list[str] = []
-    for match in BODY_COMMAND_RE.finditer(body):
-        command = match.group(1).strip()
-        if command and command not in commands:
-            commands.append(command)
+    for line in body.splitlines():
+        if BODY_DELEGATION_RE.search(line):
+            continue
+        for match in BODY_COMMAND_RE.finditer(line):
+            command = match.group(1).strip()
+            if command and command not in commands:
+                commands.append(command)
     return commands
 
 

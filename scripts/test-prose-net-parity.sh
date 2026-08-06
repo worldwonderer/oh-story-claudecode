@@ -533,8 +533,8 @@ JS
   # E3: 追踪状态判定 parity。覆盖缺失、坏 JSON、旧 schema、派生 revision 不一致、
   #     缺修订号、缺章号、提交落后和有效 state 放行，避免 Codex Python 与三端 JS core 漂移。
   local cp="$tmp/checkpoints"
-  mkdir -p "$cp"/{missing,malformed,old,mismatch,norevision,nolast,behind,valid}/追踪
-  for name in malformed old mismatch norevision nolast behind valid; do
+  mkdir -p "$cp"/{missing,malformed,old,mismatch,norevision,nolast,behind,valid,revised}/追踪
+  for name in malformed old mismatch norevision nolast behind valid revised; do
     printf '%s\n' '> 状态修订：0' > "$cp/$name/追踪/上下文.md"
   done
   printf '%s\n' '{not-json' > "$cp/malformed/追踪/_tracking-state.json"
@@ -544,6 +544,9 @@ JS
   printf '%s\n' '{"schema_version":4,"state_revision":0}' > "$cp/nolast/追踪/_tracking-state.json"
   printf '%s\n' '{"schema_version":4,"state_revision":0,"last_committed_chapter":6}' > "$cp/behind/追踪/_tracking-state.json"
   printf '%s\n' '{"schema_version":4,"state_revision":0,"last_committed_chapter":7}' > "$cp/valid/追踪/_tracking-state.json"
+  # 回炉/改名/留原稿备份：章号已在追踪范围内（expected 7 < last 9），文件名是新的但该章早已提交，
+  # 顺序校验对它恒为假，必须放行——否则 workflow-revision 的「备份原稿」步骤在三端被硬拦。
+  printf '%s\n' '{"schema_version":4,"state_revision":0,"last_committed_chapter":9}' > "$cp/revised/追踪/_tracking-state.json"
   python3 - "$CODEX" "$cp" > "$tmp/cpy.txt" <<'PY'
 import importlib.util, sys
 from pathlib import Path
@@ -551,7 +554,7 @@ spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.
 root = Path(sys.argv[2])
 # 同 B/C 段：Windows runner 上 python<3.15 的文本 stdout 是 cp1252，
 # 含中文的 issue 直接 print 会 UnicodeEncodeError，必须走 stdout.buffer 直写 UTF-8。
-for name, expected in [("missing", None), ("malformed", None), ("old", None), ("mismatch", None), ("norevision", None), ("nolast", 7), ("behind", 7), ("valid", 7)]:
+for name, expected in [("missing", None), ("malformed", None), ("old", None), ("mismatch", None), ("norevision", None), ("nolast", 7), ("behind", 7), ("valid", 7), ("revised", 7)]:
     issue = m.tracking_checkpoint_issue(root / name, require_state=True, expected_last_committed=expected)
     sys.stdout.buffer.write((f"{name} :: {issue or '-'}" + "\n").encode("utf-8"))
 PY
@@ -559,7 +562,7 @@ PY
 const path = require("node:path")
 const core = require(process.argv[2])
 const root = process.argv[3]
-for (const [name, expected] of [["missing", null], ["malformed", null], ["old", null], ["mismatch", null], ["norevision", null], ["nolast", 7], ["behind", 7], ["valid", 7]]) {
+for (const [name, expected] of [["missing", null], ["malformed", null], ["old", null], ["mismatch", null], ["norevision", null], ["nolast", 7], ["behind", 7], ["valid", 7], ["revised", 7]]) {
   const issue = core.trackingCheckpointIssue(path.join(root, name), true, expected)
   console.log(`${name} :: ${issue || "-"}`)
 }
@@ -577,6 +580,7 @@ JS
   grep -q 'nolast :: .*缺少整数 last_committed_chapter' "$tmp/cpy.txt" || { echo "FAIL: 缺 last_committed 未 fail closed" >&2; return 3; }
   grep -q 'behind :: .*必须先提交第7章追踪事务' "$tmp/cpy.txt" || { echo "FAIL: 落后章号未 fail closed" >&2; return 3; }
   grep -q 'valid :: -' "$tmp/cpy.txt" || { echo "FAIL: 有效 state 被误拦" >&2; return 3; }
+  grep -q 'revised :: -' "$tmp/cpy.txt" || { echo "FAIL: 回炉/备份已提交章号被误拦（workflow-revision 备份原稿会卡死）" >&2; return 3; }
 
   # E4: 续写状态卡超预算在 Python/JS 两端都告警，且不得依赖 mtime 偶然触发。
   local hot="$tmp/hot-context"
@@ -605,7 +609,7 @@ JS
     diff "$tmp/hpy.txt" "$tmp/hjs.txt" >&2 || true
     return 3
   fi
-  grep -q '超出写作状态摘要预算 12288 字节' "$tmp/hpy.txt" || { echo "FAIL: 热上下文超预算未告警" >&2; return 3; }
+  grep -q '超出续写状态卡预算 12288 字节' "$tmp/hpy.txt" || { echo "FAIL: 热上下文超预算未告警" >&2; return 3; }
   return 0
 }
 

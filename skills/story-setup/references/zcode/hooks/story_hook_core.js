@@ -172,7 +172,7 @@ function continuityFindings(root) {
       try {
         const contextSize = fs.statSync(context).size
         if (contextSize > 12288) {
-          messages.push(`[continuity] ${safeRelative(root, book)}：追踪/上下文.md 已 ${contextSize} 字节，超出写作状态摘要预算 12288 字节——提交一份 mode=revision 事务让 tracking_commit.py 整份重建，不要手改也不要继续追加。`)
+          messages.push(`[continuity] ${safeRelative(root, book)}：追踪/上下文.md 已 ${contextSize} 字节，超出续写状态卡预算 12288 字节——提交一份 mode=revision 事务让 tracking_commit.py 整份重建，不要手改也不要继续追加。`)
         }
       } catch {}
     }

@@ -512,7 +512,7 @@ def continuity_findings(root: Path) -> list[str]:
             except Exception:
                 ctx_size = 0
             if ctx_size > 12288:
-                msgs.append(f"[continuity] {safe_rel(root, book)}：追踪/上下文.md 已 {ctx_size} 字节，超出写作状态摘要预算 12288 字节——提交一份 mode=revision 事务让 tracking_commit.py 整份重建，不要手改也不要继续追加。")
+                msgs.append(f"[continuity] {safe_rel(root, book)}：追踪/上下文.md 已 {ctx_size} 字节，超出续写状态卡预算 12288 字节——提交一份 mode=revision 事务让 tracking_commit.py 整份重建，不要手改也不要继续追加。")
         # ② 标题去重（按文件名 第N章_标题 的标题部分）
         titles: dict[str, list[str]] = {}
         for c in chapters:
