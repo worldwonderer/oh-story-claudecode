@@ -153,10 +153,11 @@ maxTurns: 15
 
 1. **解析输入**：项目目录 + 本章情绪/基调 + （可选）本章爽点类型 + （可选）本章目标字数
 2. **主对标书选择**：
+   - 先按项目目录名、`.active-book` 与本书设定识别当前作品；`拆文库/{当前书}/` 是 story-import 的本书分析，不是对标候选。历史误建的 `对标/{当前书}/` 也必须排除，并返回 `gaps.self_benchmark_ignored: true`
    - `Read 设定/题材定位.md`，提取 `主对标书` 字段
-   - 若有 → 用该书
-   - 若字段缺失 → `Glob 对标/*/` 取字典序第一个目录，并在 `gaps.main_benchmark_unspecified: true` 提示主对标书未指定
-   - 若 `对标/` 无子目录，继续向上找工作区根下的 `拆文库/*/`；若仍无可用目录 → 返回 `gaps.no_benchmark: true`，`results` 置空，**不报错、不继续读文风**
+   - 若有且不是当前作品 → 用该书；若字段指向当前作品 → 忽略该字段并设置 `gaps.self_benchmark_ignored: true`
+   - 若字段缺失或已忽略 → `Glob 对标/*/`，排除当前作品后取字典序第一个目录，并在 `gaps.main_benchmark_unspecified: true` 提示主对标书未指定
+   - 若排除后的 `对标/` 无子目录，继续向上找工作区根下的 `拆文库/*/`，同样排除当前作品；若仍无可用目录 → 返回 `gaps.no_benchmark: true`，`results` 置空，**不报错、不继续读文风**
 3. **对标书路径查找**：优先 `{项目}/对标/{书名}/`，回退 `拆文库/{书名}/`（向上找到工作区根，再下钻拆文库）
 4. **读情绪模块（权威）**：
    - 优先 `Read {对标书路径}/剧情/情绪模块.md`
@@ -321,6 +322,7 @@ maxTurns: 15
     "profile_degenerate": false,
     "stale_reason": null,
     "main_benchmark_unspecified": false,
+    "self_benchmark_ignored": false,
     "raw_text_unavailable": false,
     "tone_match_failed": false,
     "matched_deep_dive_missing": false

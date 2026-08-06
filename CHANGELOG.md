@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### 修复
+
+- **story-import 不再把作者自己的书当作对标**：明确区分 `{导入书名}` 与外部 `{对标书名}`；本书拆解只用于重建正文/设定/大纲/追踪，未绑定外部对标时不创建对标子目录、不写主对标字段。长短篇写作、跨书召回与 `story-explorer` 同步排除当前作品和历史误建的自对标目录。
+- **spawn 前统一校验部署版本（F-011）**：所有可 spawn 的 Skill 先以 `.story-deployed.agents_version` 判定 agent bundle 是否为当前版，旧版残留文件不再按“文件存在即可用”处理。`agents_version` 升至 **23**，`setup_skill_version` 仍为 **1.2.7**；已部署项目需重新运行 `/story-setup` 并新开会话。
+- **收敛对标读取链的旧矛盾（F-033/F-049/F-050/F-051）**：无对标项目仍生成本书题材卡；主产物缺失不再被下层文案误写成“不阻塞”；Stage 6 与单章上下文标题改为服从各自明确的缺失/降级矩阵。
+
 ## v0.7.3
 
 > 长篇追踪改单一权威事务模型：`追踪/_tracking-state.json` 是唯一结构化状态，所有追踪写入走 `tracking_commit.py`，续写状态卡与伏笔/时间线/角色快照都是工具整份生成的派生视图，日更每章必读从五个文件收缩到三项。Dashboard 目录树改按需加载；章节概要改叙事化、原文引用改精选。**v0.7.2 及更早的长篇项目必须先迁移 `追踪/` 才能继续写**，见下方升级须知。**本版 `agents_version` 为 22**（v0.7.2 发的是 21），已部署项目需重新运行 `/story-setup` 并新开会话。

@@ -11,6 +11,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 ---
 
 > 运行环境兼容性：Claude Code / OpenCode / Codex / ZCode / OpenClaw 是内置适配目标；NarraFork、Web AI、自定义 Agent 等能读取项目文件的环境，可按本 skill 执行长篇流程。检查专业 agent 时按 `.claude/agents/{agent}.md` → `.opencode/agents/{agent}.md` → `.codex/agents/{agent}.toml` 查找；找不到、Codex 返回 `unknown agent_type`，或检测到 `.zcode/`（ZCode 3.3.4 不执行项目 custom agents）时，直接 solo/direct 执行并报告 fallback。
+>
+> Spawn 版本门禁（先于文件存在性检查）：先读取项目根 `.story-deployed`；仅当 `agents_version: 23` 时才继续检查 agent 文件并尝试 spawn，agent 文件存在不能替代版本校验。标记缺失、`agents_version` 缺失/非整数/小于 23 时不得 spawn，降级 solo/direct，报告 `Fallback: stale agents -> solo` 并提示重新运行 `/story-setup`；大于 23 时也不得 spawn，降级 solo/direct，提示先更新 oh-story-claudecode，禁止用本地旧版 setup 降级覆盖。
 
 ## 核心方法
 
@@ -85,7 +87,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 **对标发现（先于下方反应式加载）**：无论用户是否点名对标书，先扫 `拆文库/` 按题材主动推荐，不要被动等用户开口。
 
-1. `ls 拆文库/`（数据源）与项目 `对标/`（引用视图）列已有书目；都为空 → 跳到第 4 条。
+1. `ls 拆文库/`（数据源）与项目 `对标/`（引用视图）列已有书目；先按当前项目目录名、`.active-book` 和 `设定/题材定位.md` 中的本书信息识别当前作品，排除同名或来源指向当前正文的 `拆文库/{当前书}/`。story-import 为重建工程生成的本书拆文分析不是对标候选，也不得复制回 `对标/`。排除后都为空 → 跳到第 4 条。
 2. 逐本读题材（短篇读 `拆文库/{书}/_meta.json` 的 `genre_detected`；长篇读 `概要.md` 头部或 `拆文报告.md`「基本信息」的「题材」），与本书题材/方向比对，标 同题材 / 弱相关 / 不相关。
 3. 有同题材或弱相关候选 → 用 AskUserQuestion 推荐（列候选书 +「都不用」+「另拆一本」），主对标 1 本走文风/正文、其余作副对标。选定后写入 `设定/题材定位.md`「对标登记」的 `主对标书` / `对标书列表`（Phase 2 落文件，此处先记选择），并按上方「首次引用对标书」规则把选中书从 `拆文库/{书}/` 复制到 `对标/{书}/`。
 4. 无候选 → 无对标继续（大纲按八节点自排，见 Phase 3）；用户想对标可先 `/story-long-analyze` 拆一本。
@@ -412,7 +414,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 | 设定/题材正文提示卡.md | 全书/题材 | Phase 2（缺失则 Phase 4 写前即时生成） | Phase 4 每章写作前：按 `genre-prose-cards.md` 索引匹配后读取 `genre-prose-cards/` 目录对应单题材卡优先、`style-genre-modules.md` 通用模块兜底，与通用正文要求、情绪/节奏召回和文风一起组装 prompt |
 | 设定/角色/{角色名}.md、设定/势力/{名}.md | 角色/势力 | Phase 3 细纲后增量补全（首批含主角/主要角色） | Phase 4 状态筛选/写作 |
 | 设定/文风.md（自定义文风·优先级最高） | 本书 | 用户自写（Claude Code 可代写）；导入/拆解不覆盖 | Phase 4 每章写作前：含实质内容则取代对标文风作权威风格基 |
-| 对标/{书名}/文风.md | 对标书 | analyze Stage 6 输出 → story-import 同步 | Phase 4 每章写作前（文风召回；有自定义文风时降为参考/句长兜底） |
+| 对标/{书名}/文风.md | 对标书 | analyze Stage 6 输出 → story-import 显式绑定或本 skill 首次引用时同步 | Phase 4 每章写作前（文风召回；有自定义文风时降为参考/句长兜底） |
 | 大纲/卷纲_第X卷.md | 卷 | Phase 3 | Phase 4 写卷首章前 |
 | 追踪/_tracking-state.json | 全书 | Phase 3 初始化 | 唯一结构化权威，不进正文 prompt；每章运行 `tracking_commit.py check` 读取章号和修订号 |
 | 追踪/伏笔.md | 全书当前视图 | Phase 3 初始化 | 续写状态卡缺项时按 ID 定点查询；每 ID 只一行 |
@@ -424,8 +426,8 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 | 追踪/角色状态/{角色名}.md | 核心角色 | 首次进入正文或导入初始化 | 久别角色按名读取一个小快照；目标 ≤4096 字节、硬上限 8192 字节；静态人设仍读 `设定/角色/` |
 | 对标/{书名}/角色/{角色名}.md | 对标书 | analyze 输出 | Phase 4 模块召回（角色参考） |
 | 对标/{书名}/剧情/{剧情单元名}.md | 对标书 | analyze 输出 | Phase 3 卷纲选段与细纲成批（剧情单元卡「对标剧情参照」）、Phase 4 模块召回（剧情模块参考） |
-| 对标/{书名}/剧情/情绪模块.md | 对标书 | analyze Stage 3 输出 → story-import 同步 | Phase 2 核心设定、Phase 3 大纲、Phase 4 每章写作前（读者需求 / 情绪引擎、可复现模块选择） |
-| 对标/{书名}/剧情/节奏.md | 对标书 | analyze Stage 3 输出 → story-import 同步 | Phase 3 大纲、Phase 4 每章写作前（关键信息推进、情绪触动点、爆发节奏参考） |
+| 对标/{书名}/剧情/情绪模块.md | 对标书 | analyze Stage 3 输出 → story-import 显式绑定或本 skill 首次引用时同步 | Phase 2 核心设定、Phase 3 大纲、Phase 4 每章写作前（读者需求 / 情绪引擎、可复现模块选择） |
+| 对标/{书名}/剧情/节奏.md | 对标书 | analyze Stage 3 输出 → story-import 显式绑定或本 skill 首次引用时同步 | Phase 3 大纲、Phase 4 每章写作前（关键信息推进、情绪触动点、爆发节奏参考） |
 | 对标/{书名}/设定/*.md | 对标书 | analyze 输出 | Phase 2 设定参考、Phase 4 世界观约束 |
 
 **缺失文件处理**：当前主产物缺失时显式修复，不拼装降级结果：
@@ -456,7 +458,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 当用户准备写某一章时：
 
 1. **检查细纲**：读取 `大纲/细纲_第{N}章.md`，并从对应 `大纲/卷纲_第X卷.md` 读取当前剧情单元（单元ID/位置、卷契约、本卷主推线/战果、终局底牌边界、风险等级）。如果不存在或缺少当前章节蓝图的必需字段，**必须先补建细纲再写正文**，不允许跳过细纲直接写作。补建时参考卷纲中本章对应的事件规划和上下文，补齐阶段位置、结构公式、禁止提前释放、内容概括、情节安排、人物关系/出场顺序、情节细化、结尾设定；无法从已有证据判断的字段写 `[待补充]`，不杜撰副线或关系。
-2. **读取上下文**（按需加载，缺失则跳过。可选快捷路径：如果项目已部署 story-explorer agent（优先检查 `.claude/agents/story-explorer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），可 spawn `Agent(subagent_type: "story-explorer", prompt: "项目目录：{dir}\n查询类型：context_load\n查询参数：准备写第 {N} 章\n追踪状态：last_committed_chapter={check 的值}，state_revision={check 的值}")` 一次获取上下文）：
+2. **读取上下文**（按需选择；缺失时遵循各项及上方「缺失文件处理」，仅明确标为可选的非主产物跳过。可选快捷路径：如果项目已部署 story-explorer agent（优先检查 `.claude/agents/story-explorer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），可 spawn `Agent(subagent_type: "story-explorer", prompt: "项目目录：{dir}\n查询类型：context_load\n查询参数：准备写第 {N} 章\n追踪状态：last_committed_chapter={check 的值}，state_revision={check 的值}")` 一次获取上下文）：
    - (1) `正文/第{N-1}章_*.md` — 上一章正文
    - (2) `大纲/细纲_第{N}章.md` — 本章细纲（含钩子设计）
    - (2a) `大纲/卷纲_第X卷.md` — 当前剧情单元、卷契约与终局储备（主推线/战果、终局底牌边界）

@@ -140,6 +140,72 @@ LEGACY_RULES = (
         r"\.(?:claude|opencode)/skills/story-setup/references/agent-references/|\{项目根\}/skills/story-setup/references/agent-references/",
         ("skills/story-setup/references/codex/agents",),
     ),
+    AbsentRule(
+        "story-import-self-main-benchmark",
+        "story-import never registers the imported work itself as a benchmark",
+        r"导入当前书时至少登记自身|主对标书:\s*\{书名\}",
+        ("skills/story-import",),
+    ),
+    AbsentRule(
+        "story-import-self-benchmark-copy",
+        "story-import keeps imported-work analysis out of benchmark views",
+        r"\{项目\}/对标/\{书名\}|\{标题\}/对标/\{书名\}|对标/\{书名\}/剧情",
+        ("skills/story-import",),
+    ),
+    AbsentRule(
+        "story-import-import-title-benchmark-target",
+        "story-import never copies imported-work analysis into a benchmark target",
+        r"拆文库/\{导入书名\}[^\n]{0,160}(?:复制|同步|迁移)[^\n]{0,120}对标|对标/\{导入书名\}",
+        ("skills/story-import",),
+        exempt_when=r"不得|禁止|严禁|未被|不复制|不属于|不是对标",
+    ),
+    AbsentRule(
+        "story-import-self-benchmark-summary",
+        "story-import does not label the imported work's own analysis as a benchmark summary",
+        r"对标摘要：\{原书名\}",
+        ("skills/story-import",),
+    ),
+    AbsentRule(
+        "story-import-self-benchmark-fields",
+        "story-import does not map self-benchmark fields into the imported project's settings",
+        r"拆文报告\.md`?\s*的故事核/题材/对标字段",
+        ("skills/story-import",),
+    ),
+    AbsentRule(
+        "benchmark-primary-nonblocking-wording",
+        "missing benchmark primary artifacts never use a nonblocking fallback",
+        r"缺失按原流程，不阻塞",
+        ("skills/story-long-write",),
+    ),
+    AbsentRule(
+        "no-benchmark-skips-genre-card",
+        "no-benchmark writing still generates the project genre prose card",
+        r"无对标[^\n]{0,160}跳过[^\n]{0,80}对标模块/节奏/题材卡/文风召回",
+        ("skills/story-long-write",),
+    ),
+    AbsentRule(
+        "style-profile-all-inputs-required",
+        "Stage 6 prerequisites follow the explicit degradation matrix",
+        r"前置依赖：[^\n]*齐全",
+        ("skills/story-long-analyze/references/style-profile-generator.md",),
+    ),
+    AbsentRule(
+        "context-missing-skips-all",
+        "single-chapter context follows item-specific missing-file decisions",
+        r"按需加载，缺失则跳过",
+        ("skills/story-long-write/SKILL.md",),
+    ),
+)
+
+
+SPAWN_CAPABLE_SKILLS = (
+    "skills/story/SKILL.md",
+    "skills/story-deslop/SKILL.md",
+    "skills/story-import/SKILL.md",
+    "skills/story-long-analyze/SKILL.md",
+    "skills/story-long-write/SKILL.md",
+    "skills/story-review/SKILL.md",
+    "skills/story-short-write/SKILL.md",
 )
 
 
@@ -564,6 +630,50 @@ def require_pattern(path: Path, pattern: str, code: str, message: str) -> List[F
     return [Finding(code, message, path)]
 
 
+def spawn_preflight_findings(
+    text: str, manifest: ContractManifest, path: Path
+) -> List[Finding]:
+    """Require every spawn-capable Skill to reject stale/future agent bundles.
+
+    An agent file can survive a partial or old deployment, so existence is not a
+    compatibility signal.  The generated sentinel's agents_version is the one
+    current authority shared by setup, session-start, and every spawn caller.
+    """
+
+    current = str(manifest.agents_version)
+    required = (
+        (r"`agents_version:\s*{}`".format(current), "pin the current agents_version"),
+        (
+            r"agent 文件存在不能替代版本校验",
+            "state that file existence cannot replace the version preflight",
+        ),
+        (
+            r"标记缺失、`agents_version` 缺失/非整数/小于 {} 时不得 spawn".format(current),
+            "reject missing, malformed, and stale deployments before spawn",
+        ),
+        (
+            r"大于 {} 时也不得 spawn".format(current),
+            "reject future deployments before spawn",
+        ),
+        (
+            r"Fallback: stale agents -> solo",
+            "declare the stale-agent solo/direct fallback",
+        ),
+    )
+    missing = [label for pattern, label in required if re.search(pattern, text) is None]
+    if not missing:
+        return []
+    return [
+        Finding(
+            "spawn-agents-version-preflight",
+            "spawn-capable Skill must use the shared agents_version preflight: {}".format(
+                "; ".join(missing)
+            ),
+            path,
+        )
+    ]
+
+
 def parse_frontmatter_version(path: Path) -> Optional[str]:
     text = read_text(path)
     if text is None:
@@ -909,6 +1019,14 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
     setup_text = read_text(setup_skill) or ""
     findings.extend(sentinel_contract_findings(setup_text, manifest, setup_skill))
 
+    for relative in SPAWN_CAPABLE_SKILLS:
+        spawn_skill = repo_root / relative
+        findings.extend(
+            spawn_preflight_findings(
+                read_text(spawn_skill) or "", manifest, spawn_skill
+            )
+        )
+
     upgrading = repo_root / "skills/story-setup/UPGRADING.md"
     upgrading_text = read_text(upgrading) or ""
     findings.extend(upgrading_version_findings(upgrading_text, manifest, upgrading))
@@ -979,6 +1097,55 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
                 "long writing must require {}".format(artifact),
             )
         )
+
+    for relative in (
+        "skills/story-import/SKILL.md",
+        "skills/story-import/references/structure-mapping-long.md",
+        "skills/story-import/references/structure-mapping-short.md",
+    ):
+        import_contract = repo_root / relative
+        findings.extend(
+            require_pattern(
+                import_contract,
+                r"\{导入书名\}",
+                "story-import-import-title-boundary",
+                "story-import must name the imported work independently",
+            )
+        )
+        findings.extend(
+            require_pattern(
+                import_contract,
+                r"\{对标书名\}",
+                "story-import-benchmark-title-boundary",
+                "story-import must name external benchmarks independently",
+            )
+        )
+
+    for relative in (
+        "skills/story-long-write/SKILL.md",
+        "skills/story-short-write/SKILL.md",
+        "skills/story-long-write/references/cross-book-recall.md",
+        "skills/story-short-write/references/cross-book-recall.md",
+    ):
+        benchmark_discovery = repo_root / relative
+        findings.extend(
+            require_pattern(
+                benchmark_discovery,
+                r"排除[^\n]*当前[^\n]*(?:拆文库|作品|正文)",
+                "benchmark-discovery-excludes-current-work",
+                "benchmark discovery must exclude the current imported work",
+            )
+        )
+
+    explorer_template = repo_root / "skills/story-setup/references/templates/agents/story-explorer.md"
+    findings.extend(
+        require_pattern(
+            explorer_template,
+            r"self_benchmark_ignored",
+            "explorer-self-benchmark-gap",
+            "story-explorer must report and ignore self-benchmark candidates",
+        )
+    )
 
     outline_rule = repo_root / "skills/story-setup/references/templates/rules/story-outline.md"
     outline_rule_text = read_text(outline_rule) or ""

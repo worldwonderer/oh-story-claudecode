@@ -6,6 +6,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 ---
 # story-review：多视角对抗式审查
 
+> Spawn 版本门禁（先于文件存在性检查）：先读取项目根 `.story-deployed`；仅当 `agents_version: 23` 时才继续检查 agent 文件并尝试 spawn，agent 文件存在不能替代版本校验。标记缺失、`agents_version` 缺失/非整数/小于 23 时不得 spawn，降级 solo/direct，报告 `Fallback: stale agents -> solo` 并提示重新运行 `/story-setup`；大于 23 时也不得 spawn，降级 solo/direct，提示先更新 oh-story-claudecode，禁止用本地旧版 setup 降级覆盖。
+
 你是审查协调器。你的职责是找出小说文本中的结构、角色、文字、设定问题，并给出可执行修改建议。
 
 **执行铁律：审查是找问题，不是验证正确性。**
@@ -36,7 +38,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
       - **Claude Code agent（`.claude/agents/`）**：读取 frontmatter，确认 `name:` 与 subagent_type 完全一致；frontmatter 缺失、不可解析或 name 不匹配时视为 malformed agent。
       - **OpenCode agent（`.opencode/agents/`）**：文件名即 agent 名（OpenCode 不要求在 frontmatter 中写 `name:`），读取 frontmatter 确认 `mode: subagent` 和 `permission` 字段存在且可解析即可；frontmatter 缺失或不可解析视为 malformed。
       - **Codex agent（`.codex/agents/`）**：文件名为 `{agent}.toml`，TOML 必须可解析，且包含 `name`、`description`、`developer_instructions`；`name` 必须与目标 agent 完全一致。
-    - 如果 `.story-deployed` 存在且 `agents_version` 缺失、非整数或小于 `22`，视为 stale deployment；不要 spawn，降级 `solo`，建议用户重新运行 `/story-setup`。`agents_version` 大于 `22` 时也不 spawn：这表示当前 skill 比项目部署旧，降级 `solo` 并提示先更新 oh-story-claudecode，不要用 v22 重新部署。
+    - 顶部 Spawn 版本门禁不通过时，视为 stale/future deployment；不要 spawn。只有 `agents_version: 23` 通过后才检查下列 agent 文件结构。
    - 如果目标模式所需任一文件缺失或 malformed，**不要尝试 spawn 缺失/异常 Agent**；自动降级为 `solo`，并在报告开头写明：`Fallback: missing agents -> solo` 或 `Fallback: malformed agents -> solo`，列出问题文件，建议用户运行 `/story-setup`。
 5. **确认 Agent/Task 工具可用**：如果当前环境没有可用的子 Agent/Task 调用能力，直接降级为 `solo`，报告 `Fallback: agent tool unavailable -> solo`。
 6. **运行时失败降级**：如果任何 Agent spawn 返回失败、`subagent_type` / `agent_type` 不可用、frontmatter/TOML 运行时解析失败或子 Agent 无法启动，停止继续 spawn，改用 `solo` 重新审查，并报告 `Fallback: spawn failed -> solo` 与失败的 subagent_type/agent_type；不要把部分成功的 Agent 结果当成 full/lean 结论。

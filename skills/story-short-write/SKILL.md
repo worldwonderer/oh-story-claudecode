@@ -13,6 +13,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 ---
 
 > Agent 兼容性：检查专业 agent 是否可用时，按 `.claude/agents/{agent}.md` → `.opencode/agents/{agent}.md` → `.codex/agents/{agent}.toml` 的顺序查找。Codex 原生子代理调用优先使用同名 `agent_type`；如果当前 Codex 运行时返回 `unknown agent_type` 或未暴露 custom-agent registry，必须降级为 solo/direct。检测到 `.zcode/` 时同样直接 solo/direct，因为 ZCode 3.3.4 不执行项目 custom agents；报告 `Fallback: project custom agents unavailable -> solo`。Claude/OpenCode 兼容面保留 `subagent_type`。
+>
+> Spawn 版本门禁（先于文件存在性检查）：先读取项目根 `.story-deployed`；仅当 `agents_version: 23` 时才继续检查 agent 文件并尝试 spawn，agent 文件存在不能替代版本校验。标记缺失、`agents_version` 缺失/非整数/小于 23 时不得 spawn，降级 solo/direct，报告 `Fallback: stale agents -> solo` 并提示重新运行 `/story-setup`；大于 23 时也不得 spawn，降级 solo/direct，提示先更新 oh-story-claudecode，禁止用本地旧版 setup 降级覆盖。
 
 ## 执行规则
 
@@ -92,7 +94,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 **对标发现（先于下方反应式加载）**：项目根 `拆文库/` 有拆过的短篇时，先按题材主动推荐一本对标，不要被动等用户开口。
 
-1. `ls 拆文库/` 列书目；为空 → 跳过（无对标按题材包写，见 Phase 1 情绪→题材包表）。
+1. `ls 拆文库/` 列书目；先从当前项目目录名和 `设定.md`「基本信息」识别本篇标题，排除同名或来源指向当前 `正文.md` 的 `拆文库/{当前书}/`。story-import 生成的本书拆文分析属于续写基线，不是对标候选。排除后为空 → 跳过（无对标按题材包写，见 Phase 1 情绪→题材包表）。
 2. 逐本读 `拆文库/{书}/_meta.json` 的 `genre_detected`，与本篇题材比对，标 同题材 / 弱相关。
 3. 有候选 → 用 AskUserQuestion 推荐（列候选书 +「不用，按题材包写」）。选定后记入本篇 `设定.md`「对标摘要」区作主对标，并按上方「拆文库/对标关系」规则把 `拆文库/{书}/` 同步到 `{短篇标题}/对标/{书}/`。
 
@@ -182,6 +184,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 ### Phase 3：逐场景写作
 
 **项目文件结构**：文件结构见 Phase 2；设定.md/小节大纲.md 为 Phase 2 产出，正文.md 为 Phase 3 产出。
+
+**导入项目续写基线**：`设定.md` 存在「本书续写基线」时先读取，作为已写内容的内部连续性与既有写法约束；它不是对标摘要，不参与主/副对标排序，也不复制到 `对标/`。
 
 **拆文结果自动使用规则**：执行写作前必须按「对标上下文加载」（Phase 2）顺序扫描。找到拆文报告时，把“结构/情绪/反转/写作手法”作为技法参考；找到结构化子目录时，按当前小节目标检索最相关模块。
 

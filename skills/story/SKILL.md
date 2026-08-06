@@ -77,6 +77,8 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 ## 查询降级
 
+> Spawn 版本门禁（先于文件存在性检查）：先读取项目根 `.story-deployed`；仅当 `agents_version: 23` 时才继续检查 agent 文件并尝试 spawn，agent 文件存在不能替代版本校验。标记缺失、`agents_version` 缺失/非整数/小于 23 时不得 spawn，降级 solo/direct，报告 `Fallback: stale agents -> solo` 并提示重新运行 `/story-setup`；大于 23 时也不得 spawn，降级 solo/direct，提示先更新 oh-story-claudecode，禁止用本地旧版 setup 降级覆盖。
+
 「查故事资料」「查资料」走 agent 前先做轻量可用性检查（路由只做这一层，不承担全局部署策略）：当前不在子代理上下文、Agent/Task 工具可用、且 `.claude/agents/{story-explorer|story-researcher}.md`、`.opencode/agents/{story-explorer|story-researcher}.md` 或 `.codex/agents/{story-explorer|story-researcher}.toml` 存在 → 可尝试 spawn。任一不满足，或 Codex 运行时返回 `unknown agent_type` / 未暴露 custom-agent registry，则降级，不硬失败：
 
 - `story-explorer` 不可用 → 主线程直接用 Read/Grep 从项目文件检索（角色状态/伏笔/进度/设定），回答前标注 `Fallback: agent unavailable -> direct lookup`；项目尚未部署时提示先 `/story-setup`（Codex 中用 `$story-setup`）。

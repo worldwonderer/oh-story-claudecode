@@ -512,6 +512,110 @@ def test_old_artifact_prose_silent_only() -> None:
         )
 
 
+def test_story_import_keeps_self_out_of_benchmarks() -> None:
+    cases = {
+        "story-import-self-main-benchmark": "主对标书: {书名}\n导入当前书时至少登记自身为 `主`。\n",
+        "story-import-self-benchmark-copy": (
+            "把 `拆文库/{书名}/` 复制到 `{项目}/对标/{书名}/`。\n"
+            "短篇复制到 `{标题}/对标/{书名}/`。\n"
+        ),
+        "story-import-self-benchmark-summary": "## 对标摘要：{原书名}\n",
+        "story-import-self-benchmark-fields": (
+            "把 `拆文报告.md` 的故事核/题材/对标字段映射进本书设定。\n"
+        ),
+        "story-import-import-title-benchmark-target": (
+            "将 `拆文库/{导入书名}/` 整体复制到项目 `对标/`。\n"
+        ),
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        target = root / "skills" / "story-import" / "fixture.md"
+        target.parent.mkdir(parents=True)
+        for code, content in cases.items():
+            target.write_text(content, encoding="utf-8")
+            rule = next(r for r in VALIDATOR.LEGACY_RULES if r.code == code)
+            found = VALIDATOR.check_absent_rule(root, rule)
+            require(found, "{} must reject imported-work benchmark leakage".format(code))
+
+        guard_rule = next(
+            r
+            for r in VALIDATOR.LEGACY_RULES
+            if r.code == "story-import-import-title-benchmark-target"
+        )
+        target.write_text(
+            "不得把 `拆文库/{导入书名}/` 整体复制进 `对标/`。\n",
+            encoding="utf-8",
+        )
+        require(
+            not VALIDATOR.check_absent_rule(root, guard_rule),
+            "explicit self-benchmark prohibition must remain documentable",
+        )
+
+
+def test_spawn_preflight_uses_agents_version_not_file_existence() -> None:
+    manifest = repository_manifest()
+    stale = manifest.agents_version - 1
+    existence_only = """
+检测到 `.claude/agents/chapter-extractor.md` 存在，所以可以 spawn。
+.story-deployed:
+  agents_version: {stale}
+""".format(stale=stale)
+    found = VALIDATOR.spawn_preflight_findings(
+        existence_only, manifest, Path("story-import-fixture.md")
+    )
+    require(
+        "spawn-agents-version-preflight" in finding_codes(found),
+        "a stale agent file must not satisfy the spawn preflight",
+    )
+
+    current = manifest.agents_version
+    current_contract = """
+仅当 `.story-deployed` 的 `agents_version: {current}` 时才继续检查 agent 文件并尝试 spawn，agent 文件存在不能替代版本校验。
+标记缺失、`agents_version` 缺失/非整数/小于 {current} 时不得 spawn，降级 solo/direct，报告 `Fallback: stale agents -> solo`。
+大于 {current} 时也不得 spawn，先更新 oh-story-claudecode。
+""".format(current=current)
+    require(
+        not VALIDATOR.spawn_preflight_findings(
+            current_contract, manifest, Path("current-fixture.md")
+        ),
+        "the current shared spawn preflight must pass",
+    )
+
+    bumped = manifest_with(agents_version=current + 1)
+    stale_paths = flagged_paths(bumped, "spawn-agents-version-preflight")
+    require(
+        stale_paths == set(VALIDATOR.SPAWN_CAPABLE_SKILLS),
+        "an agents_version bump must flag every spawn-capable Skill, got {}".format(
+            sorted(stale_paths)
+        ),
+    )
+
+
+def test_reviewed_benchmark_wording_stays_removed() -> None:
+    cases = {
+        "benchmark-primary-nonblocking-wording": "缺失按原流程，不阻塞。\n",
+        "no-benchmark-skips-genre-card": "无对标时跳过「对标模块/节奏/题材卡/文风召回」。\n",
+        "style-profile-all-inputs-required": "前置依赖：报告、摘要、原文齐全。\n",
+        "context-missing-skips-all": "读取上下文（按需加载，缺失则跳过）。\n",
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for code, content in cases.items():
+            rule = next(r for r in VALIDATOR.LEGACY_RULES if r.code == code)
+            relative = Path(rule.relative_roots[0])
+            target = root / relative
+            if target.suffix:
+                target.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                target.mkdir(parents=True, exist_ok=True)
+                target = target / "fixture.md"
+            target.write_text(content, encoding="utf-8")
+            require(
+                VALIDATOR.check_absent_rule(root, rule),
+                "{} must reject the reviewed stale wording".format(code),
+            )
+
+
 def main() -> int:
     test_manifest_contract()
     test_bad_fallbacks_fail()
@@ -522,6 +626,9 @@ def main() -> int:
     test_deeply_nested_fallback_keeps_all_governing_ancestors()
     test_stale_scan_phase_reference_accepts_backticks()
     test_old_artifact_prose_silent_only()
+    test_story_import_keeps_self_out_of_benchmarks()
+    test_spawn_preflight_uses_agents_version_not_file_existence()
+    test_reviewed_benchmark_wording_stays_removed()
     test_structured_sentinel_contract()
     test_structured_outline_contract()
     test_upgrading_version_contract()
