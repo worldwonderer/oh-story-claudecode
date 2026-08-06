@@ -215,6 +215,12 @@ LEGACY_RULES = (
         r"taskkill[^\n]*/IM\s+chrome\.exe",
         ("skills/browser-cdp/SKILL.md",),
     ),
+    AbsentRule(
+        "analyze-posix-tmp-sample-path",
+        "style sampling stays on a project-relative path Windows python can open",
+        r"/tmp/style-sample",
+        ("skills/story-long-analyze",),
+    ),
 )
 
 
@@ -1103,6 +1109,10 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
 
     long_analyze = repo_root / "skills/story-long-analyze/SKILL.md"
     findings.extend(require_pattern(long_analyze, r"invalid_topic_decision_contract", "invalid-topic-contract", "invalid topic-decision artifacts must fail explicitly"))
+    # 章节边界表是 Stage 1/2/6 的唯一切片真值：原文开头的目录块会让每个章号命中两次，
+    # 不剔就一路错到底。剔除步骤和落表前的连续性校验都必须留在 Stage 0。
+    findings.extend(require_pattern(long_analyze, r"先剔掉目录块", "stage0-toc-block-removal", "Stage 0 must drop the leading table-of-contents block before building the chapter table"))
+    findings.extend(require_pattern(long_analyze, r"落表前校验章号连续", "stage0-chapter-table-validation", "Stage 0 must validate chapter numbers before writing the boundary table"))
     explorer = repo_root / "skills/story-setup/references/templates/agents/story-explorer.md"
     findings.extend(require_pattern(explorer, r"missing_primary_contract", "explorer-primary-failure", "story-explorer must fail closed on missing current benchmark artifacts"))
     findings.extend(require_pattern(explorer, r"repair_action", "explorer-repair-action", "story-explorer must return an explicit repair action"))

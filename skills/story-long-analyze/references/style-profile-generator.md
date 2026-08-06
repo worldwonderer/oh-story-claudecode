@@ -69,17 +69,21 @@ grep -nE '^第[一二三四五六七八九十百千两零0-9]+章' 原文/原文
 
 - 拿到 grep 的 `行号:第N章` 列表后，选第 1 章、第 10 章、第 20 章（如总章数 <20，按 1/3、2/3、收尾比例挑）
 - 每章用 `Read offset={该章起始行} limit=50` 切出约 1000 字
-- 把 3 段拼接写入 `/tmp/style-sample.txt`（追加 `>>`，不要换文件名）
+- 把 3 段拼接写入 `拆文库/{书名}/_style-sample.txt`（固定这个文件名，不要换）：**第一段用 `>` 覆盖写，后两段才用 `>>` 追加**。全程用 `>>` 会让重跑 Stage 6 时把上一轮的样本累积进来，统计出的句长分布是两轮混合的结果
 
 **确定性句长/标点统计**（替代主观「眼测」）：
 
-Stage 6 由**主线程**执行，Bash 工具可用。把上一步拼好的 `/tmp/style-sample.txt` 喂给下面的脚本（heredoc 作 Python 源，脚本内 open 样本文件，避免 stdin heredoc 与 `< file` 双重重定向冲突）。先探测可用解释器再跑——**勿直接用 `python3`**，Windows 上它会触发 Microsoft Store 占位程序、exit 49 失败：
+Stage 6 由**主线程**执行，Bash 工具可用。把上一步拼好的 `_style-sample.txt` 喂给下面的脚本（heredoc 作 Python 源，样本路径按 argv 传入，避免 stdin heredoc 与 `< file` 双重重定向冲突）。先探测可用解释器再跑——**勿直接用 `python3`**，Windows 上它会触发 Microsoft Store 占位程序、exit 49 失败。
+
+样本路径**必须用项目内相对路径**，不要写 `/tmp/...`：下面探测到的解释器可能是 Windows 原生 python（`py` 启动器），它把 `/tmp/x.txt` 解析成 `C:\tmp\x.txt`，和 Git Bash 写入的位置不是同一个文件，脚本会直接 FileNotFoundError。
 
 ```bash
+SAMPLE="拆文库/{书名}/_style-sample.txt"   # {书名} 换成实际书名，别照抄占位符
 for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done
-"$PYBIN" <<'PYEOF'
+"$PYBIN" - "$SAMPLE" <<'PYEOF'
 import re
-with open('/tmp/style-sample.txt', 'r', encoding='utf-8') as f:
+import sys
+with open(sys.argv[1], 'r', encoding='utf-8') as f:
     text = f.read()
 sents = [s for s in re.split(r'[。！？]+', text) if s.strip()]
 total = max(len(sents), 1)
