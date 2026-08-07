@@ -106,7 +106,11 @@ if command -v cygpath >/dev/null 2>&1; then
   WINROOT="$(cygpath -m "$P1" 2>/dev/null || true)"
   case "$WINROOT" in
     [A-Za-z]:/*)
-      mkdir -p "$P1/winbook/正文" "$P1/winbook/大纲"
+      mkdir -p "$P1/winbook/正文" "$P1/winbook/大纲" "$P1/winbook/追踪"
+      # 本节测的是盘符路径解析，不是追踪门：落一份有效 state，让细纲门成为唯一变量。
+      # last_committed 取大于本节章号的值，章号落在追踪范围内即跳过顺序校验。
+      printf '{"schema_version":4,"state_revision":0,"last_committed_chapter":50}\n' > "$P1/winbook/追踪/_tracking-state.json"
+      printf '> 状态修订：0。\n' > "$P1/winbook/追踪/上下文.md"
       run_guard_win() { local ec=0; printf '{"tool_name":"Write","tool_input":{"file_path":"%s","content":"x"}}' "$1" \
         | CLAUDE_PROJECT_DIR="$P1" bash "$P1/.claude/hooks/guard-outline-before-prose.sh" >/dev/null 2>&1 || ec=$?; printf '%s' "$ec"; }
       : > "$P1/winbook/大纲/细纲_第3章.md"
