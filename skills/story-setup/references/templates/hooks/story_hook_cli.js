@@ -5,10 +5,14 @@
 // Claude 侧 hook 是 bash（settings.json 挂 bash 脚本），归核逻辑走这里 require 的
 // 共享核 story_hook_core.js——和 OpenCode/ZCode 用的是同一份，由 check-shared-files
 // 保证字节相同。归核（单份实现在 core）的面：正文网/字数（prose-net）、路径抽取
-// （extract-target）、git commit 侦测（is-git-commit）、连续性（continuity）。
+// （extract-target）、git commit 侦测（is-git-commit）、连续性（continuity）、追踪检查点
+// （tracking-checkpoint）。
 // 尚未归核、各端独立实现的面：
-//   - 大纲阻断判定：Claude 走 guard-outline-before-prose.sh 纯 bash（本 cli 无 prose-block
-//     子命令）；codex prose_block_reason ↔ core proseBlockReason 由
+//   - 大纲/细纲阻断判定：Claude 走 guard-outline-before-prose.sh 纯 bash（本 cli 无
+//     prose-block 子命令）。它必须在无 node 的运行时也拦得住（官方推荐的原生二进制装法
+//     不带 Node），所以只能用纯 bash 判定；反过来追踪检查点要解析 JSON，无 node 就没法做，
+//     故走上面的 tracking-checkpoint 子命令、node 缺席时降级放行。
+//     codex prose_block_reason ↔ core proseBlockReason 由
 //     scripts/test-prose-net-parity.sh Part E 锁 parity。
 //   - staged markdown warnings：Claude 走 validate-story-commit.sh bash grep；codex
 //     staged_markdown_warnings ↔ core stagedMarkdownWarnings 同由 Part E 锁 parity。
@@ -97,6 +101,29 @@ if (command === "extract-target") {
     const text = fs.readFileSync(absolute, "utf8")
     const out = core.toxicPhraseFindings(text)
     if (out.length) process.stdout.write(out.join("\n"))
+  } catch {
+    process.exit(0)
+  }
+} else if (command === "tracking-checkpoint") {
+  // 追踪检查点门（BLOCKING 面）：guard-outline-before-prose.sh 调本子命令复用共享核
+  // trackingCheckpointIssue，与 codex py / opencode / zcode 同一份判定（issue #305 之前
+  // Claude 侧独缺这道门，同一工程同一次写正文，主力端放行、另三端拦下）。
+  // 用法：tracking-checkpoint <root> <bookDir> <上一章号|->
+  //   首建新章传上一章号，做「上一章事务是否已提交」的顺序校验；
+  //   正文已存在（续写/改稿/回炉）传 `-`，只校验 state 自身的存在/schema/修订一致性。
+  // 契约：stdout 空 = 放行；非空 = 完整拦截文案，与 core.proseBlockReason 逐字一致。
+  // node 缺席时 bash 侧根本不调本子命令（等同放行），故内部异常也一律 exit 0 静默放行，
+  // 与本 CLI 其余子命令的降级哲学一致（兜底不反噬流程）。
+  const [root, book, expectedRaw] = args
+  try {
+    // 注意别写成 Number(expectedRaw) 直接判整数：空串会被转成 0，把「续写」误当成
+    // 「首建第 1 章」去校验顺序。先排掉空串/缺省/占位符 `-`。
+    const expected =
+      expectedRaw && expectedRaw !== "-" && Number.isInteger(Number(expectedRaw))
+        ? Number(expectedRaw)
+        : null
+    const issue = core.trackingCheckpointIssue(book, true, expected)
+    if (issue) process.stdout.write(`⛔ 写正文被拦截：${core.safeRelative(root, book)} 的${issue}。`)
   } catch {
     process.exit(0)
   }

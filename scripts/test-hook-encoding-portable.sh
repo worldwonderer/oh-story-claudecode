@@ -45,7 +45,11 @@ echo "interpreter: $PYBIN"
 # ===== Part 1：python stdout cp936（PYTHONIOENCODING=gbk）=====
 echo "--- Part 1: python stdout cp936 simulation (PYTHONIOENCODING=gbk) ---"
 P1="$WORK/p1"; deploy "$P1"
-mkdir -p "$P1/book/正文" "$P1/book/大纲" "$P1/short"
+mkdir -p "$P1/book/正文" "$P1/book/大纲" "$P1/book/追踪" "$P1/short"
+# 本节测的是编码/区域下的路径与 glob 行为，不是追踪门。落一份有效 state，让细纲门成为唯一
+# 变量；没有它，写第 1 章会先被 issue #305 起新增的追踪检查点拦下（state 缺失即拦）。
+printf '{"schema_version":4,"state_revision":0,"last_committed_chapter":0}\n' > "$P1/book/追踪/_tracking-state.json"
+printf '> 状态修订：0。\n' > "$P1/book/追踪/上下文.md"
 run_guard_py() { # $1 mode(default|gbk)  $2 file_path -> exit code
   local mode="$1" fp="$2" ec=0
   local -a pyenv=()
@@ -153,8 +157,17 @@ else
     | GBK CLAUDE_PROJECT_DIR="$P2" bash "$P2/.claude/hooks/guard-outline-before-prose.sh" >/dev/null 2>&1 || ec=$?; printf '%s' "$ec"; }
   [ "$(rg '让你管账号/正文/第1章_开端.md')" = 2 ] && pass "[GBK] guard blocks missing 细纲" || bad "[GBK] guard should block missing 细纲"
   : > "$BOOK/大纲/细纲_第1章.md"
+  # 细纲齐了还要追踪检查点成立才放行（issue #305 起 Claude 侧也有这道门）。先落一份有效
+  # state，否则下面两条测的就不是中文 glob 而是追踪门。中文书名路径这里要经 node 传给共享核，
+  # 顺带守住 GBK 区域下 node 侧按 UTF-8 收路径这条（bash 用 LC_ALL=C 走字节，node 与区域无关）。
+  printf '{"schema_version":4,"state_revision":0,"last_committed_chapter":0}\n' > "$BOOK/追踪/_tracking-state.json"
+  printf '> 状态修订：0。\n' > "$BOOK/追踪/上下文.md"
   [ "$(rg '让你管账号/正文/第1章_开端.md')" = 0 ] && pass "[GBK] guard allows present 细纲 (Chinese glob)" || bad "[GBK] guard should allow present 细纲 under GBK"
   [ "$(rg '让你管账号/正文/第001章_开端.md')" = 0 ] && pass "[GBK] guard tolerates zero-pad 第001章" || bad "[GBK] guard should tolerate 第001章 under GBK"
+  # 追踪门本身在 GBK 区域下也要拦得住：中文书名经 node 解析 state，拦截文案含中文相对路径。
+  mv "$BOOK/追踪/_tracking-state.json" "$BOOK/追踪/_state.bak"
+  [ "$(rg '让你管账号/正文/第1章_开端.md')" = 2 ] && pass "[GBK] guard blocks missing tracking state (Chinese book path)" || bad "[GBK] guard should block missing tracking state under GBK"
+  mv "$BOOK/追踪/_state.bak" "$BOOK/追踪/_tracking-state.json"
 
   # 2b detect-story-gaps：正常伏笔表不误报；同时证明中文书目能被发现。
   # F001 状态用全角空格 U+3000 补白（已埋 前后各一个），守住 LC_ALL=C 下 trim 仍认全角空格。

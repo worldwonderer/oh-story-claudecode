@@ -19,6 +19,10 @@
 #      语义/文案以 JS core 为准。Claude 端这两面另有纯 bash 实现（validate-story-commit.sh 的
 #      grep 段、guard-outline-before-prose.sh 的判定段），无跨端逐字锁，行为由
 #      check-story-setup-deployment.sh / test-hook-encoding-portable.sh 的运行回归覆盖。
+#   F. Claude bash 写正文守卫 ↔ JS core 行为 parity（CI 硬保证）：按「同一工程同一次写入，
+#      bash 拦不拦 == JS 核拦不拦」逐场景比对，并锚死每个场景的期望方向（否则两端一起漏拦
+#      也能 diff 干净）。补上 E 说的那条空档——#283 给另三端加追踪门时 Claude 侧静默漏了
+#      一整版（issue #305），正是因为 bash 那一面没有任何跨端断言。
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
@@ -33,7 +37,8 @@ OPENCODE_CORE="$ROOT/skills/story-setup/references/opencode/story_hook_core.js"
 CLAUDE_CORE="$ROOT/skills/story-setup/references/templates/hooks/story_hook_core.js"
 CLAUDE_COMMIT="$ROOT/skills/story-setup/references/templates/hooks/validate-story-commit.sh"
 CLAUDE_GAPS="$ROOT/skills/story-setup/references/templates/hooks/detect-story-gaps.sh"
-for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE" "$OPENCODE_CORE" "$CLAUDE_CORE" "$CLAUDE_COMMIT" "$CLAUDE_GAPS"; do
+CLAUDE_GUARD="$ROOT/skills/story-setup/references/templates/hooks/guard-outline-before-prose.sh"
+for f in "$CLAUDE" "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE" "$OPENCODE_CORE" "$CLAUDE_CORE" "$CLAUDE_COMMIT" "$CLAUDE_GAPS" "$CLAUDE_GUARD"; do
   [ -f "$f" ] || { echo "FAIL: missing impl: $f" >&2; exit 1; }
 done
 
@@ -642,6 +647,99 @@ case "$rc_claude" in
   *) fails=$((fails + 1)) ;;
 esac
 
+# F. Claude bash 写正文守卫 ↔ JS core proseBlockReason 行为 parity（CI 硬保证）。
+# 大纲/细纲阻断必须在无 node 的运行时也拦得住，所以 guard-outline-before-prose.sh 用纯 bash
+# 判定；追踪检查点要解析 JSON，只能经 story_hook_cli.js 调共享核。两条路径混在一个 BLOCKING
+# 守卫里，此前无任何跨端断言覆盖 bash 那一面——#283 给另三端加了追踪门，Claude 侧静默漏了
+# 一整版（issue #305）。这里按「同一工程同一次写入，bash 拦不拦 == JS 核拦不拦」逐场景比对，
+# 任一端单边改动都会红。
+run_bash_guard_parity() {
+  command -v node >/dev/null 2>&1 || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  local tmp; tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' RETURN
+
+  # scenario|last_committed|ctx_revision|schema|outline_ch|target_ch|target_exists|拆文库|state
+  # state=none 时 last/ctx/schema 无意义。target_exists=1 走续写路径（不判细纲，仍判追踪）。
+  local scenarios="
+nostate|-|-|-|1|1|0|0|none
+nooutline|-|-|-|-|1|0|0|none
+importwindow|-|-|-|-|1|0|1|none
+importstate|0|0|4|1|3|0|1|yes
+valid|0|0|4|1|1|0|0|yes
+skipahead|0|0|4|3|3|0|0|yes
+existing|1|0|4|1|1|1|0|yes
+existing_mismatch|1|9|4|1|1|1|0|yes
+badschema|0|0|3|1|1|0|0|yes
+revisionbackup|5|0|4|3|3|0|0|yes
+"
+  local out_bash="$tmp/bash.txt" out_js="$tmp/js.txt"
+  : > "$out_bash"; : > "$out_js"
+
+  local line
+  while IFS='|' read -r name last ctx schema outline target exists lib state; do
+    [ -n "${name:-}" ] || continue
+    local proj="$tmp/$name" book="$tmp/$name/书"
+    mkdir -p "$book/大纲" "$book/正文" "$book/追踪"
+    [ "$lib" = "1" ] && mkdir -p "$proj/拆文库/书"
+    [ "$outline" != "-" ] && printf '# 细纲\n' > "$book/大纲/细纲_第00${outline}章.md"
+    if [ "$state" = "yes" ]; then
+      printf '{"schema_version":%s,"state_revision":0,"last_committed_chapter":%s}\n' "$schema" "$last" \
+        > "$book/追踪/_tracking-state.json"
+      printf '> 状态修订：%s。\n' "$ctx" > "$book/追踪/上下文.md"
+    fi
+    local abs="$book/正文/第00${target}章_测试.md"
+    [ "$exists" = "1" ] && printf '# 第%s章 测试\n正文。\n' "$target" > "$abs"
+
+    # bash 侧：exit 2 = 拦，0 = 放行
+    local payload code
+    payload=$(python3 -c 'import json,sys;print(json.dumps({"tool_input":{"file_path":sys.argv[1]}}))' "$abs")
+    ( cd "$proj" && CLAUDE_PROJECT_DIR="$proj" CLAUDE_TOOL_INPUT="$payload" bash "$CLAUDE_GUARD" ) >/dev/null 2>&1
+    code=$?
+    if [ "$code" = 2 ]; then printf '%s :: block\n' "$name" >> "$out_bash"
+    else printf '%s :: pass\n' "$name" >> "$out_bash"; fi
+
+    # JS 核侧
+    node - "$CLAUDE_CORE" "$proj" "$abs" "$name" >> "$out_js" <<'JS'
+const core = require(process.argv[2])
+const reason = core.proseBlockReason(process.argv[3], process.argv[4])
+console.log(`${process.argv[5]} :: ${reason ? "block" : "pass"}`)
+JS
+  done <<< "$scenarios"
+
+  if ! diff "$out_bash" "$out_js" >/dev/null; then
+    echo "FAIL: 写正文守卫 parity 不一致（Claude bash guard vs JS core）：" >&2
+    diff "$out_bash" "$out_js" >&2 || true
+    return 3
+  fi
+  # 光对齐还不够：两端一起漏拦也会 diff 干净。锚死每个场景的期望方向。
+  local expect="nostate block
+nooutline block
+importwindow pass
+importstate block
+valid pass
+skipahead block
+existing pass
+existing_mismatch block
+badschema block
+revisionbackup pass"
+  while read -r want_name want_verdict; do
+    [ -n "$want_name" ] || continue
+    grep -qx "$want_name :: $want_verdict" "$out_bash" || {
+      echo "FAIL: 场景 $want_name 期望 $want_verdict，实得：$(grep "^$want_name ::" "$out_bash")" >&2
+      return 3
+    }
+  done <<< "$expect"
+
+  # node 缺席时追踪门必须 fail-open（大纲门仍靠纯 bash 拦住）。
+  local nonode="$tmp/nonode"; mkdir -p "$nonode"
+  local proj="$tmp/nostate" abs="$tmp/nostate/书/正文/第001章_测试.md"
+  local payload; payload=$(python3 -c 'import json,sys;print(json.dumps({"tool_input":{"file_path":sys.argv[1]}}))' "$abs")
+  ( cd "$proj" && PATH="$nonode:/usr/bin:/bin" CLAUDE_PROJECT_DIR="$proj" CLAUDE_TOOL_INPUT="$payload" \
+      bash "$CLAUDE_GUARD" ) >/dev/null 2>&1
+  [ $? -eq 0 ] || { echo "FAIL: node 缺席时追踪门未 fail-open（BLOCKING 路径不得依赖 node 在场）" >&2; return 3; }
+  return 0
+}
+
 set +e
 run_uncored_parity
 rc_uncored=$?
@@ -649,6 +747,16 @@ set -e
 case "$rc_uncored" in
   0) echo "未归核面 parity：codex python == JS core（staged warnings 大小写变体/文案 + 大纲阻断 9 组判定含毒句式欠账门/无脚手架 fail-closed/文案逐字相等）。" ;;
   1) echo "未归核面 parity：跳过（无 node/python3/git 运行时）。" ;;
+  *) fails=$((fails + 1)) ;;
+esac
+
+set +e
+run_bash_guard_parity
+rc_guard=$?
+set -e
+case "$rc_guard" in
+  0) echo "写正文守卫 parity：Claude bash guard == JS core（10 组工程场景：无 state/缺细纲/导入窗口/跳章/续写/派生修订不一致/坏 schema/回炉备份，含 node 缺席 fail-open）。" ;;
+  1) echo "写正文守卫 parity：跳过（无 node/python3 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac
 
