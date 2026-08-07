@@ -14,7 +14,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 > Agent 兼容性：检查专业 agent 是否可用时，按 `.claude/agents/{agent}.md` → `.opencode/agents/{agent}.md` → `.codex/agents/{agent}.toml` 的顺序查找。Codex 原生子代理调用优先使用同名 `agent_type`；如果当前 Codex 运行时返回 `unknown agent_type` 或未暴露 custom-agent registry，必须降级为 solo/direct。检测到 `.zcode/` 时同样直接 solo/direct，因为 ZCode 3.3.4 不执行项目 custom agents；报告 `Fallback: project custom agents unavailable -> solo`。Claude/OpenCode 兼容面保留 `subagent_type`。
 >
-> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 23` 不一致时（标记缺失、字段缺失/非整数、小于或大于 23）**照常按文件存在性检查并 spawn**，同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 23）` 并提示重新运行 `/story-setup` 后新开会话；大于 23 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
+> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 24` 不一致时（标记缺失、字段缺失/非整数、小于或大于 24）**照常按文件存在性检查并 spawn**，同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 24）` 并提示重新运行 `/story-setup` 后新开会话；大于 24 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
 
 ## 核心哲学
 
@@ -63,8 +63,9 @@ AI味不按语法错误处理，也不需要"修正"。它属于风格问题：�
 ### 自然文本特征（与AI味对比）
 | 维度 | 自然文本 | AI味文本 |
 |------|----------|--------|
-| 段落长度 | 1-3句为主，偶尔1句独占1行 | 每段4-6句，整齐均匀 |
-| 对话标签 | 60%+无标签，用动作替代"说" | 几乎每句都有"说道/问道" |
+| 段落长度 | 随 beat 长短不一：爽点/转折压短，推理/氛围/情绪链放长 | 通篇同一长度，整齐均匀 |
+| 句内节奏 | 叙述以逗号长句为主（逗号之间 8-12 字、整句 20-30 字，见 anti-ai-writing.md 规则 3） | 要么长句臃肿，要么通篇碎句像提纲 |
+| 对话标签 | 标签低频且不公式化，多用动作/上下文引出；普通"说"可保留 | 几乎每句都有"说道/问道/笑道" |
 | 情绪表达 | 动作展示（"手在抖"） | 直接告诉（"很紧张"） |
 | 比喻 | 生活化（"像哈士奇护食"） | 文学化（"如寒冰般"） |
 | 语气词 | "嘤""嘶""靠""行吧" | 几乎没有 |
