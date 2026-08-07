@@ -16,11 +16,11 @@
 
 围绕四条线展开：爆款逆向 · 剧情模块化重组 · 上下文状态分层管理 · 人机协同。
 
+> v0.7.5 起：稳定版。补上 Claude Code 写正文守卫缺的追踪检查点门——另三端从 v0.7.3 起就有，主力端此前会静默写出若干章没有追踪的正文；长篇 `story-long-write` 每次触发都整份进上下文的 SKILL.md 从 82 KB 降到 54 KB（开书三阶段抽成按需读的 `workflow-setup.md`，日更不再为用不上的建纲步骤付费）；清掉一批过度累加的限制指令，其中一条把正文里普通的「他说」判成了违规。**本版 `agents_version` 为 24**，已部署项目需重新运行 `/story-setup` 并新开会话。
+>
 > v0.7.4 起：全是修复。`story-import` 不再把用户自己的书登记成对标（此前会出现「对标目录内容跟自己设定完全相同」）；story-setup 重部署不再把 Reasonix / generic 项目误判成 OpenClaw，多端部署也不再每次开会话误报参考包缺失；Stage 6 文风统计在 Windows 上不再必挂。spawn 的 `agents_version` 硬门禁改成提示——版本不匹配照常并行，只有 agent 文件缺失才降级 solo。**本版 `agents_version` 为 23**，已部署项目需重新运行 `/story-setup` 并新开会话。
 >
 > v0.7.3 起：长篇追踪改单一权威事务模型——`追踪/_tracking-state.json` 是唯一结构化状态，续写状态卡（固定 7 栏、≤12KB）与伏笔/时间线/角色快照都由 `tracking_commit.py` 整份生成，日更每章必读从五个文件收缩到三项；Dashboard 目录树改按需加载。**v0.7.2 及更早的长篇项目必须先迁移 `追踪/` 才能继续写**（走 `/story-import` 的「旧追踪项目迁移」，不必重跑全书拆解，见 [UPGRADING](skills/story-setup/UPGRADING.md)）。**本版 `agents_version` 为 22**，已部署项目需重新运行 `/story-setup` 并新开会话。
->
-> v0.7.2 起：新增本地工作台 `/story dashboard`——零生产依赖、只绑 `127.0.0.1`，分开展示 `拆文库/` 与写作项目文件树，支持搜索、Markdown 预览、轻量编辑和冲突保护；治细纲形状被正文照抄导致的生硬与章尾总结体（细纲只规定「要发生什么」，不规定正文形状）；修会话起点两处长期误报（拆完的书被反复报成未完成、版本提醒每次会话刷屏）。**本版把 `agents_version` 发到 21**，已部署项目需重新运行 `/story-setup` 并新开会话，否则 v0.7.1 与本版的正文、hook 改动都不生效。
 >
 > 更早版本变更见 [CHANGELOG.md](CHANGELOG.md)。
 

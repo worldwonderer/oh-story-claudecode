@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-08-06 -->
+<!-- Last synced with README.md: 2026-08-07 -->
 
 **English** | [中文](README.md)
 
@@ -18,11 +18,11 @@ Professional authors follow a three-step method:
 
 Built around four pillars: reverse-engineering hits · plot modularization · layered state management · human-AI collaboration.
 
+> Starting in v0.7.5: a stability release. The prose-write guard on Claude Code gains the tracking checkpoint the other three CLIs have had since v0.7.3 — the primary CLI previously let you silently write chapters with no tracking at all. `story-long-write`'s SKILL.md, the one file loaded in full every time the skill fires, drops from 82 KB to 54 KB (the three book-opening phases move into an on-demand `workflow-setup.md`, so daily-update sessions stop paying for outlining steps they never use). And a batch of over-accumulated restriction rules is cleared out — one of which flagged an ordinary "he said" in prose as a violation. **This release ships `agents_version` 24** — deployed projects must rerun `/story-setup` and start a new session.
+>
 > Starting in v0.7.4: all fixes. `story-import` no longer registers the user's own book as a benchmark (which is why the benchmark directory used to look identical to their own settings); story-setup no longer misidentifies Reasonix / generic projects as OpenClaw on redeploy, and multi-end deployments no longer report a missing reference bundle every session; the Stage 6 style statistics no longer fail outright on Windows. The `agents_version` spawn gate becomes a notice rather than a block — a version mismatch still spawns in parallel, and only genuinely missing agent files fall back to solo. **This release ships `agents_version` 23** — deployed projects must rerun `/story-setup` and start a new session.
 >
 > Starting in v0.7.3: long-form tracking moves to a single-authority transaction model — `追踪/_tracking-state.json` is the only structured state, and the continuation state card (7 fixed sections, ≤12KB) plus foreshadowing / timeline / character snapshots are all regenerated wholesale by `tracking_commit.py`; each daily-update chapter now reads three files instead of five. The Dashboard file tree loads on demand. **Long-form projects from v0.7.2 or earlier must migrate `追踪/` before they can continue** (use `/story-import`'s old-tracking migration — no need to re-deconstruct the whole book; see [UPGRADING](skills/story-setup/UPGRADING.md)). **This release ships `agents_version` 22** — deployed projects must rerun `/story-setup` and start a new session.
->
-> Starting in v0.7.2: a local workbench `/story dashboard` — zero production dependencies, bound to `127.0.0.1` only, showing `拆文库/` and writing projects as separate file trees with search, Markdown preview, lightweight editing and conflict protection; a fix for stiff prose and summary-style chapter endings caused by copying the outline's shape (an outline specifies *what happens*, not the shape of the prose); and two long-standing session-start false alarms fixed (finished deconstructions repeatedly reported as unfinished, version reminders firing every session). **This release ships `agents_version` 21** — deployed projects must rerun `/story-setup` and start a new session, otherwise neither v0.7.1's nor this release's prose and hook changes take effect.
 >
 > For earlier versions, see [CHANGELOG.md](CHANGELOG.md).
 
