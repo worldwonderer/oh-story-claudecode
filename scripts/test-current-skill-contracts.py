@@ -312,8 +312,9 @@ def test_stale_scan_phase_reference_accepts_backticks() -> None:
         manifest_with(topic_decision_phase=current + 1),
         "stale-topic-decision-phase-reference",
     )
+    # 长篇「先查选题决策」随 Phase 1 搬进 workflow-setup.md（#269），扫描目标跟着内容走。
     for relative in (
-        "skills/story-long-write/SKILL.md",
+        "skills/story-long-write/references/workflow-setup.md",
         "skills/story-long-analyze/SKILL.md",
     ):
         require(
