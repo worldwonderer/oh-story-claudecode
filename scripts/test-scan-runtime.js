@@ -114,6 +114,33 @@ const js =
 if (js.indexOf("host:location.host") > -1) {
   out({ host: process.env.SCAN_FAKE_HOST || "www.jjwxc.net", len: 5000 });
 }
+if (js.indexOf(".qm-switch-tab .item.active") > -1) {
+  out({
+    path: "/paihang/boy/hot/date/",
+    channel: "男生榜",
+    rankType: "大热榜",
+    period: "日榜",
+  });
+}
+if (js.indexOf("['日榜','月榜']") > -1) {
+  out([
+    {
+      rank: 1,
+      title: "七猫甲书",
+      author: "七猫作者",
+      genre: "玄幻",
+      subGenre: "东方玄幻",
+      status: "连载中",
+      words: "100万字",
+      heat: "100万",
+      update: "第一章",
+      desc: "简介",
+    },
+  ]);
+}
+if (js.indexOf("var byId={}") > -1) {
+  out([{ bookId: "1", title: "七猫甲书", url: "https://www.qimao.com/shuku/1/" }]);
+}
 if (js.indexOf("onebook.php") > -1) {
   // 晋江详情批次：模拟 ab() 的 20s 超时/非 JSON 返回
   if (process.env.SCAN_FAKE_FAIL_DETAIL) {
@@ -538,6 +565,212 @@ function testQidianRankIsolation() {
   assert.strictEqual(badMode.status, 1, "未知 --mode 必须失败");
   assert.match(badMode.stderr, /未知 --mode: bogus/);
   assert.strictEqual(badMode.files.length, 0);
+}
+
+// 起点：移动端已有的 cnt 必须作为独立字数字段输出；四个契约字段在两种模式下都要
+// 保持同一结构，拿不到就明确 [待补]，不能塞进 status 或静默省略。简介统一按 100 字清洗。
+function testQidianFieldContractAndDescriptionLimit() {
+  const scraperPath = path.join(
+    repoRoot,
+    "skills/story-long-scan/scripts/qidian-rank-scraper.js"
+  );
+  const qidian = loadFresh(scraperPath);
+  assert.strictEqual(typeof qidian.cleanDesc, "function");
+
+  const normalized = qidian.normalizeMobileBook(
+    {
+      bName: "样书",
+      bid: "1",
+      bAuth: "作者",
+      cat: "玄幻",
+      cnt: "383.68万字",
+      rankCnt: "999",
+      totalRecommend: "12345",
+      signStatus: "已签约",
+      vipStatus: "VIP",
+      desc: "简介",
+    },
+    0
+  );
+  assert.strictEqual(normalized.words, "383.68万字");
+  assert.strictEqual(normalized.rankValue, "999");
+  assert.strictEqual(normalized.totalRecommendations, "12345");
+  assert.strictEqual(normalized.signing, "已签约");
+  assert.strictEqual(normalized.pricing, "VIP");
+  assert(!/万字/.test(normalized.status || ""), "字数不能继续混装进 status");
+
+  const longDesc = `第一句。${"甲".repeat(110)}第二句。`;
+  const markdown = qidian.renderMarkdown(
+    { label: "测试榜" },
+    [{ ...normalized, descText: longDesc }],
+    "https://example.invalid",
+    "test"
+  );
+  assert.match(markdown, /字数：383\.68万字/);
+  assert.match(markdown, /总推荐：12345/);
+  assert.match(markdown, /签约：已签约/);
+  assert.match(markdown, /收费模式：VIP/);
+  assert(!markdown.includes(longDesc), "起点简介不得原样输出超过 100 字");
+  assert(qidian.cleanDesc(longDesc).length <= 103, "简介截断后只允许额外的 ...");
+
+  const missing = qidian.renderMarkdown(
+    { label: "测试榜" },
+    [{ rank: 1, title: "缺字段", author: "作者", descText: "短简介" }],
+    "https://example.invalid",
+    "test"
+  );
+  for (const label of ["字数", "总推荐", "签约", "收费模式"]) {
+    assert.match(missing, new RegExp(`${label}：\\[待补\\]`));
+  }
+}
+
+// 七猫大热榜：日/月必须是显式采集维度，并进入文件名；非大热榜只采一次。
+function testQimaoPeriodPlan() {
+  const scraperPath = path.join(
+    repoRoot,
+    "skills/story-long-scan/scripts/qimao-rank-scraper.js"
+  );
+  const qimao = loadFresh(scraperPath);
+  assert.strictEqual(typeof qimao.buildTargets, "function");
+  assert.strictEqual(typeof qimao.outputFilename, "function");
+  assert.strictEqual(
+    qimao.isUsableBook({ rank: 1, title: "真书", author: "作者" }),
+    true
+  );
+  assert.strictEqual(
+    qimao.isUsableBook({ rank: 5, title: "下一页", author: "跳转", genre: "友情链接：" }),
+    false,
+    "分页器文本不得被当成榜单书目"
+  );
+  assert.strictEqual(
+    qimao.rankUrl("male", "hot", "month"),
+    "https://www.qimao.com/paihang/boy/hot/month/"
+  );
+  assert.strictEqual(
+    qimao.selectionMatches(
+      { path: "/paihang/boy/hot/month/", channel: "男生榜", rankType: "大热榜", period: "月榜" },
+      "male",
+      "hot",
+      "month"
+    ),
+    true
+  );
+  assert.strictEqual(
+    qimao.selectionMatches(
+      { path: "/paihang/boy/hot/date/", channel: "男生榜", rankType: "大热榜", period: "日榜" },
+      "male",
+      "hot",
+      "month"
+    ),
+    false,
+    "实际仍在日榜时不得写成月榜文件"
+  );
+  const dirtyDesc = `${"甲".repeat(110)}。 飙升 18名`;
+  const cleanDesc = qimao.cleanDesc(dirtyDesc);
+  assert(cleanDesc.length <= 103, "七猫简介必须截断到 100 字 + ...");
+  assert(!cleanDesc.includes("飙升 18名"), "七猫排名变化 UI 文本不得混入简介");
+
+  const incompleteBook = {
+    rank: 1,
+    title: "字段不全的样书",
+    author: "作者",
+    genre: "玄幻",
+    subGenre: "",
+    status: "连载中",
+    words: "",
+    heat: "100万",
+    url: "https://www.qimao.com/shuku/1/",
+  };
+  const incomplete = qimao.renderMarkdown(
+    { label: "男频" },
+    { label: "大热榜" },
+    { label: "日榜" },
+    "https://www.qimao.com/paihang/boy/hot/date/",
+    [incompleteBook],
+    1,
+    "2026-08-11T00:00:00.000Z"
+  );
+  assert.match(incomplete, /数据质量：\[存在问题\]/);
+  assert.match(incomplete, /问题摘要：.*子分类缺失 1 条.*字数缺失 1 条/);
+  assert.match(incomplete, /\[待补\]/);
+
+  const completeBook = {
+    ...incompleteBook,
+    subGenre: "东方玄幻",
+    words: "100万字",
+  };
+  const complete = qimao.renderMarkdown(
+    { label: "男频" },
+    { label: "大热榜" },
+    { label: "日榜" },
+    "https://www.qimao.com/paihang/boy/hot/date/",
+    Array.from({ length: 15 }, (_, index) => ({
+      ...completeBook,
+      rank: index + 1,
+      title: `样书${index + 1}`,
+    })),
+    15,
+    "2026-08-11T00:00:00.000Z"
+  );
+  assert.match(complete, /数据质量：\[OK\]/);
+  assert.match(complete, /问题摘要：无/);
+  assert.match(complete, /热度命中：15 \/ 15/);
+  assert(!complete.includes("[待补]"));
+
+  assert.deepStrictEqual(qimao.buildTargets("male", "hot", "all"), [
+    { channel: "male", rankType: "hot", period: "day" },
+    { channel: "male", rankType: "hot", period: "month" },
+  ]);
+  assert.deepStrictEqual(qimao.buildTargets("female", "new", "month"), [
+    { channel: "female", rankType: "new", period: null },
+  ]);
+  assert.strictEqual(
+    qimao.outputFilename("male", "hot", "day", "20260811"),
+    "七猫男频大热榜日榜_20260811.md"
+  );
+  assert.strictEqual(
+    qimao.outputFilename("male", "hot", "month", "20260811"),
+    "七猫男频大热榜月榜_20260811.md"
+  );
+}
+
+function testQimaoPartialTargetStatus() {
+  const run = runScraper(
+    path.join(repoRoot, "skills/story-long-scan/scripts/qimao-rank-scraper.js"),
+    ["--channel", "male", "--type", "hot", "--period", "all"],
+    { SCAN_FAKE_HOST: "www.qimao.com", SCAN_FAKE_FAIL_OPEN: "/month/" }
+  );
+  assert.strictEqual(
+    run.status,
+    2,
+    `七猫部分失败必须 exit 2，实际 ${run.status}:\n${run.stdout}\n${run.stderr}`
+  );
+  assert.strictEqual(run.files.length, 1, "日榜成功、月榜失败时应只写一份报告");
+  assert.match(run.stderr, /七猫采集 partial: wrote 1\/2; failed 1/);
+}
+
+// 参数错误必须在打开浏览器/进入 per-target 容错前快速失败，给出具体参数名和值。
+function testLongScanArgumentValidation() {
+  const cases = [
+    ["fanqie-rank-scraper.js", ["--channel", "2"], /未知 --channel: 2/],
+    ["fanqie-rank-scraper.js", ["--type", "3"], /未知 --type: 3/],
+    ["qimao-rank-scraper.js", ["--channel", "bogus"], /未知 --channel: bogus/],
+    ["qimao-rank-scraper.js", ["--period", "week"], /未知 --period: week/],
+    ["jjwxc-rank-scraper.js", ["--channel", "bogus"], /未知 --channel: bogus/],
+    ["jjwxc-rank-scraper.js", ["--channel", "999"], /未知 --channel: 999/],
+    ["qidian-rank-scraper.js", ["--type", "bogus", "--mode", "cdp"], /未知 --type: bogus/],
+  ];
+
+  for (const [name, args, message] of cases) {
+    const run = runScraper(
+      path.join(repoRoot, "skills/story-long-scan/scripts", name),
+      args,
+      {}
+    );
+    assert.strictEqual(run.status, 1, `${name} 非法参数必须 exit 1: ${run.stderr}`);
+    assert.match(run.stderr, message);
+    assert.strictEqual(run.files.length, 0, `${name} 非法参数不得写文件`);
+  }
 }
 
 // 黑岩：字段漂移必须拦在写盘前，字数格式不许随宿主 locale 变
@@ -1260,6 +1493,10 @@ testScraperImports();
 testCliResultGate(longUtilsPath);
 testJjwxcDetailFailureIsolation();
 testQidianRankIsolation();
+testQidianFieldContractAndDescriptionLimit();
+testQimaoPeriodPlan();
+testQimaoPartialTargetStatus();
+testLongScanArgumentValidation();
 testHeiyanFieldDriftAndWordFormat();
 testCdpProbeUsesFreshSocket();
 testCdpWindowsListenerParsingIsLocaleIndependent();

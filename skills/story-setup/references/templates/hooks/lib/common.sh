@@ -43,14 +43,26 @@ discover_active_book() {
     # 不在库里 export（避免给调用方留全局副作用，与文件头「不覆盖调用方 shell 选项」一致）。
     active=$(LC_ALL=C sed -n '1p' "$root/.active-book" | LC_ALL=C sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)
     if [ -n "$active" ]; then
-      resolve_project_path "$active"
-      return
+      local active_path active_real
+      case "$active" in
+        /*) active_path="$active" ;;
+        *) active_path="$root/$active" ;;
+      esac
+      # 只接受项目根内真实存在的目录；缺失、文件、或经 symlink 逃到根外都回落自动发现。
+      active_real=$(cd "$active_path" 2>/dev/null && pwd -P || true)
+      case "$active_real" in
+        "$root"|"$root"/*)
+          [ -d "$active_real" ] && { printf '%s\n' "$active_real"; return; }
+          ;;
+      esac
     fi
   fi
 
   # 长篇优先（追踪/ 目录存在）
   local first
-  first=$(find "$root" -maxdepth 4 -type d -name "追踪" -print -quit 2>/dev/null || true)
+  first=$(find "$root" -maxdepth 4 \
+    \( -type d ! -path "$root" \( -name '.*' -o -name node_modules \) -prune \) -o \
+    \( -type d -name "追踪" -print -quit \) 2>/dev/null || true)
   if [ -n "$first" ]; then
     dirname "$first"
     return
@@ -58,7 +70,9 @@ discover_active_book() {
 
   # 短篇 fallback：查找 正文/ 目录或 正文.md（maxdepth 4 覆盖 推荐/短篇/书名/正文 结构）
   local story_path
-  story_path=$(find "$root" -maxdepth 4 \( -type d -name "正文" -o -type f -name "正文.md" \) -print -quit 2>/dev/null || true)
+  story_path=$(find "$root" -maxdepth 4 \
+    \( -type d ! -path "$root" \( -name '.*' -o -name node_modules \) -prune \) -o \
+    \( \( -type d -name "正文" -o -type f -name "正文.md" \) -print -quit \) 2>/dev/null || true)
   if [ -n "$story_path" ]; then
     dirname "$story_path"
   fi
@@ -113,8 +127,12 @@ discover_all_books() {
   # 用 awk 去重保持插入顺序（bash 3.2 兼容，不用关联数组）
   {
     # 长篇：追踪/ 父目录
-    find "$root" -maxdepth 4 -type d -name "追踪" -print 2>/dev/null | while IFS= read -r d; do dirname "$d"; done
+    find "$root" -maxdepth 4 \
+      \( -type d ! -path "$root" \( -name '.*' -o -name node_modules \) -prune \) -o \
+      \( -type d -name "追踪" -print \) 2>/dev/null | while IFS= read -r d; do dirname "$d"; done
     # 短篇：正文/ 父目录 或 正文.md 父目录
-    find "$root" -maxdepth 4 \( -type d -name "正文" -o -type f -name "正文.md" \) -print 2>/dev/null | while IFS= read -r d; do dirname "$d"; done
+    find "$root" -maxdepth 4 \
+      \( -type d ! -path "$root" \( -name '.*' -o -name node_modules \) -prune \) -o \
+      \( \( -type d -name "正文" -o -type f -name "正文.md" \) -print \) 2>/dev/null | while IFS= read -r d; do dirname "$d"; done
   } | awk 'NF && !seen[$0]++'
 }

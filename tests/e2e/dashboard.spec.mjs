@@ -318,6 +318,8 @@ test("CRLF 稿件里的孤立 CR 不会反向触发整篇 LF 重写", async ({ p
   await page.locator("#treeSearch").fill("文风");
   await page.locator(`.file-row[data-path='${filePath}']`).click();
   const editor = page.locator("#editorInput");
+  await expect(page.locator("#editorTitle")).toHaveText("文风.md");
+  await expect(editor).toBeEnabled();
   await editor.press("End");
   await editor.pressSequentially("\n改");
   await page.locator("#saveButton").click();

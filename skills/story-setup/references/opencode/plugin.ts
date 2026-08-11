@@ -137,7 +137,8 @@ export default (async () => {
       for (const target of [...new Set(targets)]) {
         const reason = proseBlockReason(root, resolveTarget(root, target, base))
         if (reason) {
-          throw new Error(`${reason}（此操作无法通过 Bash/命令行绕过。）`)
+          const source = input.tool === "bash" ? "已从 Bash 命令识别到正文写入目标。" : "已识别到正文写入目标。"
+          throw new Error(`${reason}（${source}）`)
         }
       }
     },

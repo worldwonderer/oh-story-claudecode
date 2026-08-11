@@ -1,5 +1,5 @@
 #!/bin/bash
-# guard-outline-before-prose.sh — PreToolUse(Write|Edit|MultiEdit) 流程守卫
+# guard-outline-before-prose.sh — PreToolUse(Bash|Write|Edit|MultiEdit) 流程守卫
 # 写「正文」前必须先有对应大纲/细纲，否则阻止（exit 2，BLOCKING）。
 #
 # 拦截三类：
@@ -32,7 +32,7 @@ fi
 # 的 node 调用处用管道喂 stdin（story_hook_cli.js extract-target 在 HOOK_INPUT 缺省时读 stdin）；
 # 下方 extract_target_bash 用的是 printf 内建，不需要 export。
 
-# 提取目标文件路径：优先 node 共享核（与其它端同一份实现）；node 缺席、或 node 在但抽取失败时
+# 提取直接写工具的目标文件路径：优先 node 共享核（与其它端同一份实现）；node 缺席、或 node 在但抽取失败时
 # 都回落纯 bash 抽取。这是阻断守卫，不能因 node 问题而 fail-open——官方现在推荐原生二进制装
 # Claude Code，只有 npm 装法才带 Node，native 运行时可能无 node；旧 node 不识 node: 前缀、或
 # 部署的核损坏时 node 探测通过但抽取会抛错。只要能解析出目标路径就照常判定拦截，两条路径都抽不到
@@ -64,12 +64,33 @@ TARGET=""
 if node -e "" >/dev/null 2>&1 && [ -f "$CLI" ]; then
   TARGET="$(printf '%s' "$HOOK_INPUT" | node "$CLI" extract-target 2>/dev/null || true)"
 fi
-# node 在场却抽空（旧 node 不识 node: 前缀 / 核损坏时探测通过但抽取抛错）也回落纯 bash，
-# 否则会走 fail-open。两条路径都解析不到才放行。
+# node 在场却抽空（旧 node 不识 node: 前缀 / 核损坏时探测通过但抽取抛错）也回落纯 bash。
+# Bash 负载没有 file_path；直接目标抽不到时，再让共享核只识别重定向/tee/touch/cp/mv 的写入目标，
+# 避免把 grep/cat 等只读命令里提及的正文路径误判为写入。该面依赖 node；node 缺席时 Bash 命令
+# 按“宁可漏拦不可误伤”放行，Write/Edit/MultiEdit 仍走上面的纯 bash 兜底。
 [ -z "$TARGET" ] && TARGET="$(extract_target_bash 2>/dev/null || true)"
-[ -z "$TARGET" ] && exit 0
 
 ROOT=$(project_root)
+if [ -z "$TARGET" ]; then
+  if node -e "" >/dev/null 2>&1 && [ -f "$CLI" ]; then
+    set +e
+    COMMAND_BLOCK="$(printf '%s' "$HOOK_INPUT" | node "$CLI" prose-command-guard "$ROOT" 2>&1)"
+    COMMAND_STATUS=$?
+    set -e
+    if [ "$COMMAND_STATUS" -ne 0 ]; then
+      printf '%s\n' "⚠ Bash 正文写入守卫解析失败，本次按 fail-open 放行；请改用 Write/Edit 或修复 hook：${COMMAND_BLOCK:-未知错误}" >&2
+      exit 0
+    fi
+    if [ -n "$COMMAND_BLOCK" ]; then
+      printf '%s\n' "$COMMAND_BLOCK" >&2
+      exit 2
+    fi
+  elif printf '%s' "$HOOK_INPUT" | grep -q '正文'; then
+    printf '%s\n' "⚠ 当前环境缺少可用 Node/story_hook_cli.js，无法判定 Bash 是否写正文；本次按 fail-open 放行，请改用 Write/Edit 以启用大纲守卫。" >&2
+  fi
+  exit 0
+fi
+
 # 绝对路径直接采用，相对路径才拼项目根。
 # Windows + Git Bash 下 Claude Code 可能传入盘符绝对路径（F:/work/... 或 F:\work\...）；
 # 只认 /* 会把它们当相对路径拼成 $ROOT/F:/work/...，找错 大纲/ 目录、误报细纲缺失（issue #184）。

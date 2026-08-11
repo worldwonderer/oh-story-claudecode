@@ -137,13 +137,14 @@ try {
   );
   writeCleanState("book", 3);
 
-  await expectBlocked(
+  await assert.rejects(
     () =>
       hooks["tool.execute.before"](
         { tool: "bash" },
         { args: { command: "cat draft.md > book/正文/第003章_绕过.md" } }
       ),
-    "bash redirect must not bypass the outline guard"
+    /写正文被拦截[\s\S]*已从 Bash 命令识别到正文写入目标/,
+    "bash redirect must be blocked without claiming the static parser is unbypassable"
   );
   await hooks["tool.execute.before"](
     { tool: "bash" },

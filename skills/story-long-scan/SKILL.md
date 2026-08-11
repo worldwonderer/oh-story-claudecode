@@ -105,6 +105,8 @@ node scripts/fanqie-rank-scraper.js --channel all --top 15 --outdir {输出目�
 
 榜单类型：大热榜（日榜/月榜）、新书榜、完结榜、收藏榜、更新榜，支持男生榜/女生榜切换。
 
+大热榜用 `--period day|month|all` 显式选择日榜、月榜或两者（默认 `day`）；周期会进入文件头与文件名。非大热榜不区分周期，`--period` 不会重复采集。
+
 **晋江采集目标**（`scripts/jjwxc-rank-scraper.js`，默认列表 + 详情两步走）：
 
 | 榜单 | URL | 核心字段 |

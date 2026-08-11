@@ -37,7 +37,8 @@ function firstLine(file) {
 }
 
 function findFirst(base, maxDepth, predicate) {
-  if (maxDepth < 0) return null
+  // maxDepth 与 `find -maxdepth N` 一致：root 的直属条目深度为 1，深度 N 的条目可见，N+1 不可见。
+  if (maxDepth <= 0) return null
   let entries = []
   try {
     entries = fs.readdirSync(base, { withFileTypes: true })
@@ -49,7 +50,7 @@ function findFirst(base, maxDepth, predicate) {
     const full = path.join(base, entry.name)
     if (predicate(full, entry)) return full
   }
-  if (maxDepth === 0) return null
+  if (maxDepth === 1) return null
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name === "node_modules") continue
     const found = findFirst(path.join(base, entry.name), maxDepth - 1, predicate)
@@ -61,9 +62,11 @@ function findFirst(base, maxDepth, predicate) {
 function discoverActiveBook(root) {
   const declared = firstLine(path.join(root, ".active-book"))
   if (declared) {
-    const candidate = resolveTarget(root, declared)
-    const rel = path.relative(root, candidate)
-    if (!rel.startsWith("..") && existingDir(candidate)) return candidate
+    const candidate = existingDir(resolveTarget(root, declared))
+    if (candidate) {
+      const rel = path.relative(path.resolve(root), candidate)
+      if (!rel.startsWith("..") && !path.isAbsolute(rel)) return candidate
+    }
   }
   const tracking = findFirst(root, 4, (_full, entry) => entry.isDirectory() && entry.name === "追踪")
   if (tracking) return path.dirname(tracking)
@@ -76,7 +79,7 @@ function discoverActiveBook(root) {
 function discoverAllBooks(root) {
   const books = new Map()
   function walk(base, depth) {
-    if (depth < 0) return
+    if (depth <= 0) return
     let entries = []
     try { entries = fs.readdirSync(base, { withFileTypes: true }) } catch { return }
     for (const entry of entries) {
@@ -88,12 +91,13 @@ function discoverAllBooks(root) {
         books.set(path.dirname(full), path.dirname(full))
       }
     }
+    if (depth === 1) return
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name === "node_modules") continue
       walk(path.join(base, entry.name), depth - 1)
     }
   }
-  walk(root, 8)
+  walk(root, 4)
   return [...books.values()]
 }
 
@@ -193,36 +197,391 @@ function continuityFindings(root) {
   return messages
 }
 
-function extractProseTargets(command) {
-  const targets = []
-  // 目标 token 三形态（引号段优先）：双引号段 / 单引号段 / 裸词。此前只有一个把引号排除在字符类外
-  // 的裸词式，带空格的引号目标（> "my book/正文/第1章.md"）整条命令抽不到目标就静默放行。
-  // 裸词类只排 ASCII 空白（空格/Tab/CR/LF，shell 真正的分词符）：\s 在 js 与 python 都含 U+3000，
-  // 而全角空格不分词，用 \s 会把「第003章　开局.md」截成「第003章」而漏拦（本项目章名分隔符
-  // [_\- 　] 自带全角空格）。反斜杠转义空格（my\ book）仍不认——resolveTarget 把 \ 归一成路径
-  // 分隔符（Windows 路径），在此解转义会反过来毁掉 book\正文\第1章.md。
-  const bare = `[^ \\t\\r\\n"'<>|;&()]`
-  const token = `"([^"]*正文[^"]*)"|'([^']*正文[^']*)'|["']?(${bare}*正文${bare}*)["']?`
-  for (const source of [`>>?\\s*(?:${token})`, `(?:^|[\\s;&|(){}<>])(?:tee(?:\\s+-a)?|touch)\\s+(?:${token})`]) {
-    const regex = new RegExp(source, "gm")
-    let match
-    while ((match = regex.exec(command)) !== null) {
-      const target = match[1] || match[2] || match[3]
-      if (target) targets.push(target)
+function readShellWord(value, start) {
+  let word = ""
+  let quote = ""
+  let escaped = false
+  let started = false
+  let index = start
+  for (; index < value.length; index++) {
+    const ch = value[index]
+    if (escaped) {
+      word += ch
+      escaped = false
+      started = true
+      continue
+    }
+    if (ch === "\\" && quote !== "'") {
+      word += ch
+      escaped = true
+      started = true
+      continue
+    }
+    if (quote) {
+      if (ch === quote) quote = ""
+      else word += ch
+      started = true
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      started = true
+      continue
+    }
+    if ([" ", "\t", "\r", "\n", ";", "&", "|", "<", ">", "(", ")"].includes(ch)) break
+    word += ch
+    started = true
+  }
+  return { word: started ? word : "", next: index }
+}
+
+function readHeredocDelimiter(value, start) {
+  let word = ""
+  let quote = ""
+  let escaped = false
+  let started = false
+  let index = start
+  for (; index < value.length; index++) {
+    const ch = value[index]
+    if (escaped) {
+      word += ch
+      escaped = false
+      started = true
+      continue
+    }
+    if (ch === "\\" && quote !== "'") {
+      const next = value[index + 1] || ""
+      if (quote === '"' && !["$", "`", '"', "\\", "\n"].includes(next)) {
+        word += ch
+      } else {
+        escaped = true
+      }
+      started = true
+      continue
+    }
+    if (quote) {
+      if (ch === quote) quote = ""
+      else word += ch
+      started = true
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      started = true
+      continue
+    }
+    if ([" ", "\t", "\r", "\n", ";", "&", "|", "<", ">", "(", ")"].includes(ch)) break
+    word += ch
+    started = true
+  }
+  return { word: started ? word : "", next: index }
+}
+
+function heredocDeclarations(line) {
+  const declarations = []
+  let quote = ""
+  let escaped = false
+  for (let index = 0; index < line.length; index++) {
+    const ch = line[index]
+    if (escaped) {
+      escaped = false
+      continue
+    }
+    if (ch === "\\" && quote !== "'") {
+      escaped = true
+      continue
+    }
+    if (quote) {
+      if (ch === quote) quote = ""
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      continue
+    }
+    if (ch !== "<" || line[index + 1] !== "<" || line[index - 1] === "<" || line[index + 2] === "<") continue
+    let cursor = index + 2
+    let stripTabs = false
+    if (line[cursor] === "-") {
+      stripTabs = true
+      cursor++
+    }
+    while (line[cursor] === " " || line[cursor] === "\t") cursor++
+    const parsed = readHeredocDelimiter(line, cursor)
+    if (parsed.word) declarations.push({ delimiter: parsed.word, stripTabs })
+    index = Math.max(index, parsed.next - 1)
+  }
+  return declarations
+}
+
+function maskHeredocBodies(command) {
+  const pending = []
+  return String(command).split("\n").map((line) => {
+    if (pending.length) {
+      const current = pending[0]
+      const comparable = current.stripTabs ? line.replace(/^\t+/, "") : line
+      if (comparable === current.delimiter) {
+        pending.shift()
+        return line
+      }
+      return " ".repeat(line.length)
+    }
+    pending.push(...heredocDeclarations(line))
+    return line
+  }).join("\n")
+}
+
+function commandWordIndex(words) {
+  let index = 0
+  while (index < words.length) {
+    while (index < words.length && (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index]) || words[index] === "noglob")) index++
+    if (words[index] === "command") {
+      index++
+      while (index < words.length) {
+        const option = words[index]
+        if (option === "--") { index++; break }
+        if (option === "-v" || option === "-V" || /^-[p]*[vV]/.test(option)) return words.length
+        if (option === "-p" || /^-p+$/.test(option)) { index++; continue }
+        break
+      }
+      continue
+    }
+    if (words[index] === "env") {
+      index++
+      while (index < words.length) {
+        const option = words[index]
+        if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(option) || ["-i", "--ignore-environment"].includes(option)) {
+          index++
+          continue
+        }
+        if (option === "-u" || option === "--unset") {
+          index += 2
+          continue
+        }
+        if (option.startsWith("--unset=") || (/^-u.+/.test(option) && option !== "-u")) {
+          index++
+          continue
+        }
+        if (option === "--") index++
+        break
+      }
+      continue
+    }
+    break
+  }
+  return index
+}
+
+function nestedShellCommand(args) {
+  const valueOptions = new Set(["-o", "+o", "-O", "+O"])
+  for (let index = 0; index < args.length; index++) {
+    const option = args[index]
+    if (option === "--") return ""
+    if (option === "-c" || (/^-[^-]+$/.test(option) && option.slice(1).includes("c"))) {
+      return args[index + 1] || ""
+    }
+    if (valueOptions.has(option)) {
+      index++
+      continue
+    }
+    if (!option.startsWith("-") && !option.startsWith("+")) break
+  }
+  return ""
+}
+
+function commandSubstitutions(command) {
+  const value = String(command)
+  const substitutions = []
+  let quote = ""
+  let escaped = false
+  for (let index = 0; index < value.length; index++) {
+    const ch = value[index]
+    if (escaped) {
+      escaped = false
+      continue
+    }
+    if (ch === "\\" && quote !== "'") {
+      escaped = true
+      continue
+    }
+    if (quote === "'") {
+      if (ch === "'") quote = ""
+      continue
+    }
+    if (ch === '"') {
+      quote = quote === '"' ? "" : '"'
+      continue
+    }
+    if (!quote && ch === "'") {
+      quote = "'"
+      continue
+    }
+    if (ch === "$" && value[index + 1] === "(" && value[index + 2] !== "(") {
+      let depth = 1
+      let innerQuote = ""
+      let innerEscaped = false
+      let end = index + 2
+      for (; end < value.length; end++) {
+        const inner = value[end]
+        if (innerEscaped) { innerEscaped = false; continue }
+        if (inner === "\\" && innerQuote !== "'") { innerEscaped = true; continue }
+        if (innerQuote) {
+          if (inner === innerQuote) innerQuote = ""
+          continue
+        }
+        if (inner === '"' || inner === "'") { innerQuote = inner; continue }
+        if (inner === "(") depth++
+        else if (inner === ")" && --depth === 0) break
+      }
+      if (depth === 0) {
+        substitutions.push(value.slice(index + 2, end))
+        index = end
+      }
+      continue
+    }
+    if (ch === "`") {
+      let end = index + 1
+      let tickEscaped = false
+      for (; end < value.length; end++) {
+        const inner = value[end]
+        if (tickEscaped) { tickEscaped = false; continue }
+        if (inner === "\\") { tickEscaped = true; continue }
+        if (inner === "`") break
+      }
+      if (end < value.length) {
+        substitutions.push(value.slice(index + 1, end))
+        index = end
+      }
     }
   }
-  for (const raw of shellSegments(command)) {
+  return substitutions
+}
+
+function redirectTargets(command) {
+  const value = String(command)
+  const targets = []
+  let quote = ""
+  let escaped = false
+  for (let index = 0; index < value.length; index++) {
+    const ch = value[index]
+    if (escaped) { escaped = false; continue }
+    if (ch === "\\" && quote !== "'") { escaped = true; continue }
+    if (quote) {
+      if (ch === quote) quote = ""
+      continue
+    }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    if (ch !== ">") continue
+    let cursor = index + (value[index + 1] === ">" ? 2 : 1)
+    if (value[cursor] === "|" || value[cursor] === "&") cursor++
+    while (value[cursor] === " " || value[cursor] === "\t") cursor++
+    const parsed = readShellWord(value, cursor)
+    if (parsed.word.includes("正文")) targets.push(parsed.word)
+    index = Math.max(index, parsed.next - 1)
+  }
+  return targets
+}
+
+function writeOperands(command, args) {
+  const operands = []
+  const valueOptions = command === "touch"
+    ? new Set(["-d", "--date", "-r", "--reference", "-t", "--time"])
+    : new Set()
+  let options = true
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    if (options && arg === "--") {
+      options = false
+      continue
+    }
+    if (options && valueOptions.has(arg)) {
+      i++
+      continue
+    }
+    if (options && [...valueOptions].some((option) => option.startsWith("--") && arg.startsWith(`${option}=`))) continue
+    if (options && arg.startsWith("-") && arg !== "-") continue
+    operands.push(arg)
+  }
+  return operands
+}
+
+function commandBasename(value) {
+  const parts = String(value || "").split(/[\\/]/)
+  return parts[parts.length - 1]
+}
+
+function copyLikeTargets(command, args) {
+  const positionals = []
+  let targetDirectory = ""
+  let directoryOnly = false
+  let options = true
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    if (options && arg === "--") {
+      options = false
+      continue
+    }
+    if (options && (arg === "-t" || arg === "--target-directory")) {
+      targetDirectory = args[++i] || ""
+      continue
+    }
+    if (options && arg.startsWith("--target-directory=")) {
+      targetDirectory = arg.slice("--target-directory=".length)
+      continue
+    }
+    if (options && command === "install" && (arg === "-d" || arg === "--directory")) {
+      directoryOnly = true
+      continue
+    }
+    if (options && arg.startsWith("-") && arg !== "-") continue
+    positionals.push(arg)
+  }
+  if (directoryOnly || !positionals.length) return []
+  if (targetDirectory) {
+    return positionals.map((source) => path.join(targetDirectory, commandBasename(source)))
+  }
+  if (positionals.length < 2) return []
+  const destination = positionals[positionals.length - 1]
+  const normalized = destination.replace(/\\/g, "/")
+  if (normalized.endsWith("/") || normalized.split("/").pop() === "正文") {
+    return positionals.slice(0, -1).map((source) => path.join(destination, commandBasename(source)))
+  }
+  return [destination]
+}
+
+function extractProseTargets(command, depth = 0) {
+  const targets = []
+  const scannable = maskHeredocBodies(command)
+  if (depth < 8) {
+    for (const nested of commandSubstitutions(scannable)) {
+      targets.push(...extractProseTargets(nested, depth + 1))
+    }
+  }
+  targets.push(...redirectTargets(scannable))
+  for (const raw of shellSegments(scannable)) {
     const segment = beforeShellRedirection(raw)
     // 引号感知分词（同 shellWords）：/\s+/ 会把 cp draft.md "my book/正文/第1章.md" 的目标切碎，
     // 末位取到 book/正文/第1章.md —— 判到另一本书上（那本有细纲就直接放行）。
     const words = shellWords(segment)
-    if (words.length >= 2 && (words[0] === "cp" || words[0] === "mv")) {
-      const positional = words.slice(1).filter((word) => !word.startsWith("-"))
-      const destination = positional[positional.length - 1]
-      if (destination && destination.includes("正文")) targets.push(destination)
+    const commandIndex = commandWordIndex(words)
+    const commandName = commandBasename(words[commandIndex])
+    const commandArgs = words.slice(commandIndex + 1)
+    if (["sh", "bash", "dash", "ksh", "zsh"].includes(commandName)) {
+      const nested = nestedShellCommand(commandArgs)
+      if (nested) targets.push(...extractProseTargets(nested, depth + 1))
+    }
+    if (commandName === "tee" || commandName === "touch") {
+      for (const destination of writeOperands(commandName, commandArgs)) {
+        if (destination.includes("正文")) targets.push(destination)
+      }
+    }
+    if (commandName === "cp" || commandName === "mv" || commandName === "install") {
+      for (const destination of copyLikeTargets(commandName, commandArgs)) {
+        if (destination.includes("正文")) targets.push(destination)
+      }
     }
   }
-  return targets
+  return [...new Set(targets.filter(Boolean))]
 }
 
 // apply_patch 目标抽取。只认 Add/Update 会漏掉 `*** Move to:`——它是 Update File 段的子指令
@@ -611,7 +970,20 @@ function shellWords(segment) {
   let current = ""
   let started = false
   let quote = ""
+  let escaped = false
   for (const ch of String(segment)) {
+    if (escaped) {
+      current += ch
+      escaped = false
+      started = true
+      continue
+    }
+    if (ch === "\\" && quote !== "'") {
+      current += ch
+      escaped = true
+      started = true
+      continue
+    }
     if (quote) {
       if (ch === quote) quote = ""
       else current += ch
@@ -639,7 +1011,18 @@ function shellSegments(command) {
   const segments = []
   let current = ""
   let quote = ""
+  let escaped = false
   for (const ch of String(command)) {
+    if (escaped) {
+      current += ch
+      escaped = false
+      continue
+    }
+    if (ch === "\\" && quote !== "'") {
+      current += ch
+      escaped = true
+      continue
+    }
     if (quote) {
       current += ch
       if (ch === quote) quote = ""
@@ -664,7 +1047,18 @@ function shellSegments(command) {
 function beforeShellRedirection(segment) {
   let current = ""
   let quote = ""
+  let escaped = false
   for (const ch of String(segment)) {
+    if (escaped) {
+      current += ch
+      escaped = false
+      continue
+    }
+    if (ch === "\\" && quote !== "'") {
+      current += ch
+      escaped = true
+      continue
+    }
     if (quote) {
       current += ch
       if (ch === quote) quote = ""

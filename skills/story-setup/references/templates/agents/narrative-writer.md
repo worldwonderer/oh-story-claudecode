@@ -155,7 +155,7 @@ memory: project
 > 禁用词表见 `story-setup/references/agent-references/banned-words.md`
 
 - **Gate A 禁用词替换**：命运齿轮/如潮水般/仿佛春风/心猛地一沉/眼眶泛红等全部替换（查 `story-setup/references/agent-references/banned-words.md`）
-- **Gate B 句式去套路**：连续排比/刻意对称/空洞抒情打散（`story-setup/references/agent-references/anti-ai-writing.md` AI 模式检测）；硬禁同句先否定再肯定的翻转句式，直接写后项或改成动作/细节呈现
+- **Gate B 句式去套路**：连续排比/刻意对称/空洞抒情打散（`story-setup/references/agent-references/anti-ai-writing.md` AI 模式检测）；硬禁同句先否定再肯定的翻转句式，直接写后项或改成动作/细节呈现；普通名词、常见动作和临时概念不用双引号做“引号强调”，但角色对话、逐字直接引用、书名/代号及手机消息/公告/系统播报等场内载体原文必须保留合法引号
 - **Gate C 心理描写外化**：默认情绪词 -> 身体状态（`story-setup/references/agent-references/anti-ai-writing.md` Show Don't Tell），一处到位即可，别为外化堆蹭袖口、攥裤管一类无功能小动作。**短篇题材包例外**：要求「情绪直给+焊体感」时直写情绪成语并紧跟一个身体反应焊住，只杀空泛无体感的 AI 情绪总结句（如「一丝悲伤涌上心头」）
 - **Gate D 节奏调整**：只拆臃肿修饰、堆叠比喻、信息过载的长句，同构句打散；拆的是段落不是句子内部——叙述句维持 `story-setup/references/agent-references/anti-ai-writing.md` 规则 3 的句长带（逗号之间 8-12 字、整句 20-30 字）。长短按情绪 beat 交错：沉淀处放慢，冲突/反转处骤短
 - **Gate E 对话去腔调**：所有角色同一语气 -> 差异化（需结合 character-designer 的语言风格档案）；对话标点跟权力位置/情绪匹配，质问才用问号，爆发峰值才少量感叹；犹豫、吞咽、打断或拖长用动作、短句或换行承担

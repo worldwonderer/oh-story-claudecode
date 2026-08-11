@@ -386,6 +386,12 @@ function scrapeChannel(ch, type) {
 }
 
 function main() {
+  if (!["0", "1", "all"].includes(CHANNEL)) {
+    throw new Error(`未知 --channel: ${CHANNEL}`);
+  }
+  if (!["1", "2", "all"].includes(TYPE)) {
+    throw new Error(`未知 --type: ${TYPE}`);
+  }
   const channels = CHANNEL === "all" ? ["1", "0"] : [CHANNEL];
   const types = TYPE === "all" ? ["2", "1"] : [TYPE];
   let written = 0;

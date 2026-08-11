@@ -269,11 +269,27 @@ run_cmd_parity() {
   cat > "$tmp/cmd.json" <<'EOF'
 {
   "redirect": "echo x > book/正文/第1章.md",
+  "redirect_clobber": "echo x >| book/正文/第1章.md",
+  "redirect_both": "echo x >& book/正文/第1章.md",
+  "redirect_fd_dup": "echo book/正文/第1章.md >&2",
   "append": "cat a >> 正文.md",
   "tee": "echo x | tee book/正文/第2章.md",
   "tee_a": "printf y | tee -a 正文.md",
+  "tee_double_dash": "printf y | tee -- book/正文/第2章.md",
+  "tee_multi": "printf y | tee notes.md book/正文/第2章.md",
   "touch": "touch book/正文/第3章.md",
+  "touch_multi": "touch notes.md book/正文/第3章.md",
+  "touch_reference": "touch -r book/正文/第1章.md notes.md",
   "cp": "cp src.md book/正文/第4章.md",
+  "cp_command_wrapper": "command cp src.md book/正文/第4章.md",
+  "cp_command_p_wrapper": "command -p cp src.md book/正文/第4章.md",
+  "cp_command_double_dash_wrapper": "command -- cp src.md book/正文/第4章.md",
+  "cp_env_unset_short": "env -u FOO cp src.md book/正文/第4章.md",
+  "cp_env_unset_long": "env --unset FOO cp src.md book/正文/第4章.md",
+  "cp_absolute_binary": "/bin/cp src.md book/正文/第4章.md",
+  "cp_destination_directory": "cp draft/第4章.md book/正文/",
+  "cp_target_directory": "cp --target-directory=book/正文 draft/第4章.md",
+  "install": "install draft.md book/正文/第4章.md",
   "mv2": "mv 正文.md",
   "cp_flag": "cp -f a.md 正文.md",
   "mention": "grep -n book/正文/第1章.md notes.md",
@@ -282,6 +298,16 @@ run_cmd_parity() {
   "tee_quoted_space": "printf x | tee 'my book/正文/第1章_x.md'",
   "cp_quoted_space": "cp draft.md \"my book/正文/第1章_x.md\"",
   "cp_quoted_operator": "cp draft.md \"book|archive/正文/第11章.md\"",
+  "literal_quoted_redirect": "echo '> book/正文/第7章.md'",
+  "heredoc_mention": "cat <<EOF\n> book/正文/第7章.md\nEOF",
+  "multiple_heredoc_mention": "cat <<A <<B\nfirst\nA\n> book/正文/第7章.md\nB",
+  "escaped_heredoc_mention": "cat <<\\EOF\n> book/正文/第7章.md\nEOF",
+  "escaped_heredoc_then_redirect": "cat <<\\EOF\nliteral\nEOF\necho x > book/正文/第7章.md",
+  "escaped_quote_tee_mention": "printf '%s\\n' \"literal \\\" | tee book/正文/第7章.md\"",
+  "nested_shell_redirect": "sh -c 'echo x > book/正文/第7章.md'",
+  "nested_shell_combined_flags": "bash -lc 'echo x > book/正文/第7章.md'",
+  "quoted_command_substitution_redirect": "echo \"$(echo x > book/正文/第7章.md)\"",
+  "quoted_backtick_substitution_redirect": "echo \"`echo x > book/正文/第7章.md`\"",
   "patch_add": "*** Begin Patch\n*** Add File: book/正文/第5章.md\n+正文\n*** End Patch",
   "patch_move": "*** Begin Patch\n*** Update File: draft.md\n*** Move to: book/正文/第6章.md\n+正文\n*** End Patch",
   "patch_move_delete": "*** Begin Patch\n*** Delete File: draft.md\n*** Move to: book/正文/第7章.md\n*** End Patch",
@@ -335,6 +361,58 @@ JS
     || { echo "FAIL: cp 的引号目标被按空白切碎，末位取到了另一本书的路径" >&2; return 3; }
   grep -q 'cp_quoted_operator :: pros=\[book|archive/正文/第11章.md\]' "$tmp/cpy.txt" \
     || { echo "FAIL: cp 引号目标里的 | 被误当 shell 管道切段，正文守卫会静默放行" >&2; return 3; }
+  grep -q 'tee_double_dash :: pros=\[book/正文/第2章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: tee -- 的正文目标未被提取" >&2; return 3; }
+  grep -q 'tee_multi :: pros=\[book/正文/第2章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: tee 的第二个正文输出目标未被提取" >&2; return 3; }
+  grep -q 'touch_multi :: pros=\[book/正文/第3章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: touch 的第二个正文目标未被提取" >&2; return 3; }
+  grep -q 'touch_reference :: pros=\[\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: touch -r 的参考源被误判成写入目标" >&2; return 3; }
+  grep -q 'literal_quoted_redirect :: pros=\[\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 引号内的重定向示例被误判成真实写入" >&2; return 3; }
+  grep -q 'heredoc_mention :: pros=\[\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: heredoc 正文中的路径提及被误判成真实写入" >&2; return 3; }
+  grep -q 'multiple_heredoc_mention :: pros=\[\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 多 heredoc 的后续正文被误判成真实写入" >&2; return 3; }
+  grep -q 'escaped_heredoc_mention :: pros=\[\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 反斜杠引用 heredoc 正文中的路径提及被误判成真实写入" >&2; return 3; }
+  grep -q 'escaped_heredoc_then_redirect :: pros=\[book/正文/第7章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 反斜杠引用 heredoc 吞掉了其后的真实正文写入" >&2; return 3; }
+  grep -q 'escaped_quote_tee_mention :: pros=\[\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 转义引号内的 tee 示例被误判成真实写入" >&2; return 3; }
+  grep -q 'nested_shell_redirect :: pros=\[book/正文/第7章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: sh -c 内的真实正文重定向绕过了守卫" >&2; return 3; }
+  grep -q 'nested_shell_combined_flags :: pros=\[book/正文/第7章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: bash -lc 内的真实正文重定向绕过了守卫" >&2; return 3; }
+  grep -q 'quoted_command_substitution_redirect :: pros=\[book/正文/第7章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 双引号内的 \$(...) 正文写入绕过了守卫" >&2; return 3; }
+  grep -q 'quoted_backtick_substitution_redirect :: pros=\[book/正文/第7章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 双引号内的反引号正文写入绕过了守卫" >&2; return 3; }
+  grep -q 'cp_command_wrapper :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: command cp 的正文目标未被提取" >&2; return 3; }
+  grep -q 'cp_command_p_wrapper :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: command -p cp 的正文目标未被提取" >&2; return 3; }
+  grep -q 'cp_command_double_dash_wrapper :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: command -- cp 的正文目标未被提取" >&2; return 3; }
+  grep -q 'cp_env_unset_short :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: env -u 包装的 cp 正文目标未被提取" >&2; return 3; }
+  grep -q 'cp_env_unset_long :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: env --unset 包装的 cp 正文目标未被提取" >&2; return 3; }
+  grep -q 'cp_absolute_binary :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: 绝对路径 cp 的正文目标未被提取" >&2; return 3; }
+  grep -q 'cp_destination_directory :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: cp 到正文目录时未按源文件名还原落盘目标" >&2; return 3; }
+  grep -q 'cp_target_directory :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: cp --target-directory 的正文目标未被提取" >&2; return 3; }
+  grep -q 'install :: pros=\[book/正文/第4章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: install 的正文目标未被提取" >&2; return 3; }
+  grep -q 'redirect_clobber :: pros=\[book/正文/第1章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: >| 正文重定向绕过了守卫" >&2; return 3; }
+  grep -q 'redirect_both :: pros=\[book/正文/第1章.md\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: >& 文件 正文重定向绕过了守卫" >&2; return 3; }
+  grep -q 'redirect_fd_dup :: pros=\[\]' "$tmp/cpy.txt" \
+    || { echo "FAIL: >&2 文件描述符复制被误判成正文写入" >&2; return 3; }
   # 防空转（apply_patch 搬家形态）：`*** Move to:` 是 Update/Delete File 段的子指令，落盘路径是
   # 目的地。只认 Add/Update File 时「Update draft.md + Move to 书/正文/第N章.md」抽到的是源
   # draft.md → 细纲门整条空过、写后兜底网扫的是已不存在的源（两端同错，diff 也看不出来）。
@@ -633,7 +711,7 @@ run_cmd_parity
 rc_cmd=$?
 set -e
 case "$rc_cmd" in
-  0) echo "命令函数 parity：codex python == zcode JS（31 fixtures：正文抽取/apply-patch/git commit 侦测逐字相等，含引号内操作符/空格/全角空格目标、apply_patch 搬家与上下文伪指令、ReDoS 预算）。" ;;
+  0) echo "命令函数 parity：codex python == zcode JS（扩展 fixtures：正文抽取/apply-patch/git commit 侦测逐字相等，含包装器/命令替换/多 heredoc/转义引号、apply_patch 搬家与 ReDoS 预算）。" ;;
   1) echo "命令函数 parity：跳过（无 node/python3 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac

@@ -5,13 +5,14 @@
 // Claude 侧 hook 是 bash（settings.json 挂 bash 脚本），归核逻辑走这里 require 的
 // 共享核 story_hook_core.js——和 OpenCode/ZCode 用的是同一份，由 check-shared-files
 // 保证字节相同。归核（单份实现在 core）的面：正文网/字数（prose-net）、路径抽取
-// （extract-target）、git commit 侦测（is-git-commit）、连续性（continuity）、追踪检查点
-// （tracking-checkpoint）。
+// （extract-target）、Bash 正文写入前置门（prose-command-guard）、git commit 侦测
+// （is-git-commit）、连续性（continuity）、追踪检查点（tracking-checkpoint）。
 // 尚未归核、各端独立实现的面：
-//   - 大纲/细纲阻断判定：Claude 走 guard-outline-before-prose.sh 纯 bash（本 cli 无
-//     prose-block 子命令）。它必须在无 node 的运行时也拦得住（官方推荐的原生二进制装法
-//     不带 Node），所以只能用纯 bash 判定；反过来追踪检查点要解析 JSON，无 node 就没法做，
-//     故走上面的 tracking-checkpoint 子命令、node 缺席时降级放行。
+//   - Write/Edit/MultiEdit 的大纲/细纲阻断判定：Claude 走 guard-outline-before-prose.sh
+//     纯 bash。它必须在无 node 的运行时也拦得住（官方推荐的原生二进制装法不带 Node），
+//     所以保留纯 bash 判定。Bash 命令要先区分真正写入和只读提及，故经本 CLI 复用共享核；
+//     node 缺席时该命令面降级放行。追踪检查点同样因要解析 JSON，经 tracking-checkpoint
+//     子命令执行、node 缺席时降级放行。
 //     codex prose_block_reason ↔ core proseBlockReason 由
 //     scripts/test-prose-net-parity.sh Part E 锁 parity。
 //   - staged markdown warnings：Claude 走 validate-story-commit.sh bash grep；codex
@@ -21,6 +22,7 @@
 // 旧内嵌 python 那套 cp936/LC_ALL 编码体操。
 
 const fs = require("node:fs")
+const path = require("node:path")
 const core = require("./story_hook_core.js")
 
 function readStdin() {
@@ -31,36 +33,26 @@ function readStdin() {
   }
 }
 
-// 与旧 extract_target_path 的 dig 逐字对应：只认 dict 的 file_path/path/filePath，
-// 再往 tool_input/input/parameters/args 里递归；list 不下钻。
-function digTargetPath(value) {
+const NESTED_INPUT_KEYS = ["tool_input", "input", "parameters", "args"]
+
+function digString(value, keys, allowEmpty = false) {
   if (value && typeof value === "object" && !Array.isArray(value)) {
-    for (const key of ["file_path", "path", "filePath"]) {
+    for (const key of keys) {
       const found = value[key]
-      if (typeof found === "string" && found) return found
+      if (typeof found === "string" && (allowEmpty || found)) return found
     }
-    for (const key of ["tool_input", "input", "parameters", "args"]) {
-      const found = digTargetPath(value[key])
+    for (const key of NESTED_INPUT_KEYS) {
+      const found = digString(value[key], keys, allowEmpty)
       if (found) return found
     }
   }
   return ""
 }
 
-// 与旧 validate-story-commit find_command 逐字对应：dict 的 command/cmd/script（是字符串就取，
-// 允许空串），再往 tool_input/input/parameters/args 递归。
-function digCommand(value) {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    for (const key of ["command", "cmd", "script"]) {
-      if (typeof value[key] === "string") return value[key]
-    }
-    for (const key of ["tool_input", "input", "parameters", "args"]) {
-      const found = digCommand(value[key])
-      if (found) return found
-    }
-  }
-  return ""
-}
+const digTargetPath = (value) => digString(value, ["file_path", "path", "filePath"])
+const digCommand = (value) => digString(value, ["command", "cmd", "script"], true)
+const digWorkingDirectory = (value) =>
+  digString(value, ["cwd", "working_directory", "workingDirectory"])
 
 const [command, ...args] = process.argv.slice(2)
 
@@ -78,6 +70,39 @@ if (command === "extract-target") {
   const target = digTargetPath(obj)
   if (!target) process.exit(1)
   process.stdout.write(target)
+} else if (command === "prose-command-guard") {
+  // Claude Bash PreToolUse JSON → 真正的正文写入目标 → 共享核阻断原因。只识别共享核明确
+  // 支持的重定向/tee/touch/cp/mv/install 写法；grep 等只读提及不会产生 target。无目标正常
+  // 放行；解析/共享核异常用独立退出码交给 bash 壳显式告警后 fail-open，不能伪装成“无目标”。
+  const root = args[0]
+  const raw = process.env.HOOK_INPUT || readStdin()
+  try {
+    if (!root || !raw) process.exit(0)
+    const obj = JSON.parse(raw)
+    const shellCommand = digCommand(obj)
+    if (!shellCommand) process.exit(0)
+    let base = root
+    const requestedBase = core.existingDir(digWorkingDirectory(obj))
+    if (requestedBase) {
+      const relative = path.relative(path.resolve(root), requestedBase)
+      if (!relative.startsWith("..") && !path.isAbsolute(relative)) base = requestedBase
+    }
+    const seen = new Set()
+    for (const target of core.extractProseTargets(shellCommand)) {
+      const absolute = core.resolveTarget(root, target, base)
+      if (seen.has(absolute)) continue
+      seen.add(absolute)
+      const reason = core.proseBlockReason(root, absolute)
+      if (reason) {
+        process.stdout.write(`${reason}（已从 Bash 命令识别到正文写入目标。）`)
+        break
+      }
+    }
+  } catch (error) {
+    const detail = error && error.message ? error.message : String(error)
+    process.stderr.write(`[story-guard] Bash 正文目标解析失败，已降级放行：${detail}`)
+    process.exit(3)
+  }
 } else if (command === "prose-net") {
   // 轻量确定性网（含毒句式）+ 字数欠账，对齐旧内嵌 python 第二段的 out 列表（net 逐条 +
   // 可选字数行）。读文件失败静默退出（兜底不反噬流程）。
