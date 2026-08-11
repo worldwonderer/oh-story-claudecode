@@ -64,7 +64,11 @@ function discoverActiveBook(root) {
   if (declared) {
     const candidate = existingDir(resolveTarget(root, declared))
     if (candidate) {
-      const rel = path.relative(path.resolve(root), candidate)
+      // root 也要按 realpath 比：existingDir 已把 candidate 解到真实路径，若这里用未解析的
+      // root，项目根位于 symlink 下（macOS /tmp、/var，或软链的家目录/工作目录）时 rel 会
+      // 假性以 ".." 开头，合法的 .active-book 被静默丢弃。bash 用 pwd -P、python 用
+      // root.resolve()，此处对齐两端。
+      const rel = path.relative(existingDir(root) || path.resolve(root), candidate)
       if (!rel.startsWith("..") && !path.isAbsolute(rel)) return candidate
     }
   }
