@@ -44,29 +44,24 @@ discover_active_book() {
     active=$(LC_ALL=C sed -n '1p' "$root/.active-book" | LC_ALL=C sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)
     if [ -n "$active" ]; then
       local active_path active_real
-      case "$active" in
-        /*) active_path="$active" ;;
-        *) active_path="$root/$active" ;;
-      esac
-      # 只接受项目根内真实存在的目录；缺失、文件、或经 symlink 逃到根外都回落自动发现。
-      # realpath 只做「尽力而为」：cd+pwd -P 要让 OS 解析整条中文路径，Windows 非 UTF-8 区域
-      # （cp936/GBK）下可能失败或把中文段重新编码成对不上的字节。拿不到可用结果就退回纯字符串
-      # 形式——原实现本来就是纯拼接，不能因为加固逃逸判定反而丢掉合法的中文 .active-book。
+      active_path=$(resolve_project_path "$active")
+      # 逃逸判定「确证才拒」：只有确实解析出 realpath、且按字节确认它落在项目根之外时才丢弃声明，
+      # 其余一律沿用原有的纯字符串行为。cd+pwd -P 要让 OS 解析整条中文路径，Windows 非 UTF-8
+      # 区域（cp936/GBK）下会失败或把中文段重新编码；此前把「解析成功」当成返回的前提，合法的
+      # 中文 .active-book 就被静默丢掉，而 find -name "追踪" 有同样的多字节弱点，回落也落空。
+      # 容纳判断放进 LC_ALL=C 子 shell 按字节比：pattern 与串都含中文 UTF-8，GBK 下按多字节
+      # 解码会判为非法序列而不匹配。子 shell 内赋值不外泄，符合文件头「不覆盖调用方 shell 选项」。
       active_real=$(cd "$active_path" 2>/dev/null && pwd -P || true)
-      if [ -z "$active_real" ] || [ ! -d "$active_real" ]; then
-        active_real="$active_path"
-      fi
-      # 容纳判断走 LC_ALL=C 子 shell 按字节比：pattern 与被匹配串都含中文 UTF-8，GBK 区域下
-      # bash 按多字节解码会判为非法序列而不匹配。子 shell 内赋值不外泄，符合文件头「不覆盖调用方
-      # shell 选项」。
-      if [ -d "$active_real" ] && (
+      if [ -n "$active_real" ] && ! (
         export LC_ALL=C
         case "$active_real" in
           "$root"|"$root"/*) exit 0 ;;
         esac
         exit 1
       ); then
-        printf '%s\n' "$active_real"
+        : # 确证逃出项目根 → 丢弃声明，落到下面的自动发现
+      else
+        printf '%s\n' "$active_path"
         return
       fi
     fi
