@@ -49,12 +49,17 @@ discover_active_book() {
         *) active_path="$root/$active" ;;
       esac
       # 只接受项目根内真实存在的目录；缺失、文件、或经 symlink 逃到根外都回落自动发现。
+      # realpath 只做「尽力而为」：cd+pwd -P 要让 OS 解析整条中文路径，Windows 非 UTF-8 区域
+      # （cp936/GBK）下可能失败或把中文段重新编码成对不上的字节。拿不到可用结果就退回纯字符串
+      # 形式——原实现本来就是纯拼接，不能因为加固逃逸判定反而丢掉合法的中文 .active-book。
       active_real=$(cd "$active_path" 2>/dev/null && pwd -P || true)
-      # 容纳判断放进 LC_ALL=C 子 shell：pattern 与串都含中文 UTF-8，GBK 区域下 bash 按多字节
-      # 解码会把这些字节判为非法序列 → case 不匹配 → .active-book 被静默丢弃（原实现是纯字符串
-      # 拼接、只 glob 开头的 /，故不受区域影响）。子 shell 里赋值不外泄，符合文件头「不覆盖调用方
+      if [ -z "$active_real" ] || [ ! -d "$active_real" ]; then
+        active_real="$active_path"
+      fi
+      # 容纳判断走 LC_ALL=C 子 shell 按字节比：pattern 与被匹配串都含中文 UTF-8，GBK 区域下
+      # bash 按多字节解码会判为非法序列而不匹配。子 shell 内赋值不外泄，符合文件头「不覆盖调用方
       # shell 选项」。
-      if [ -n "$active_real" ] && [ -d "$active_real" ] && (
+      if [ -d "$active_real" ] && (
         export LC_ALL=C
         case "$active_real" in
           "$root"|"$root"/*) exit 0 ;;
