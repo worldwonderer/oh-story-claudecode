@@ -234,11 +234,15 @@ if (!dlg || dlg.severity !== 'advisory') throw new Error('tier1 在对话行应�
 if (!nar || nar.severity !== 'blocking') throw new Error('tier1 在叙述行应为 blocking: ' + JSON.stringify(nar));
 NODE
 
-# --- wiring：携带 check-degeneration.js 副本的 skill 必须在 SKILL.md 工作流中实际调用它 ---
+# --- wiring：携带 check-degeneration.js 副本的 skill 必须在自己的工作流文本里实际调用它 ---
+# 调用点可以在 SKILL.md，也可以在该 skill 的 references/ 工作流文件里（长篇的单章流程
+# 就随 Phase 4-5 下沉到了 references/workflow-chapter.md）。只要求「在本 skill 内被调用」，
+# 不再钉死在 SKILL.md 这一个文件上；一处都没有仍然 FAIL。
 for skill_js in $(find "$REPO_ROOT/skills" -name check-degeneration.js); do
-  skill_md="$(dirname "$(dirname "$skill_js")")/SKILL.md"
-  if [ -f "$skill_md" ] && ! grep -q 'check-degeneration.js' "$skill_md"; then
-    echo "FAIL: $skill_md 携带 check-degeneration.js 副本却未在工作流中调用" >&2
+  skill_dir="$(dirname "$(dirname "$skill_js")")"
+  skill_md="$skill_dir/SKILL.md"
+  if [ -f "$skill_md" ] && ! grep -rq 'check-degeneration.js' "$skill_md" "$skill_dir/references" 2>/dev/null; then
+    echo "FAIL: $skill_md 携带 check-degeneration.js 副本却未在本 skill 的工作流文本中调用" >&2
     exit 1
   fi
 done
