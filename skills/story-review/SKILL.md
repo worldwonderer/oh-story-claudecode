@@ -21,7 +21,6 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 - `/story-review solo` → 不 spawn Agent，由当前会话执行基础审查。
 - 未指定 → 默认 full，并在报告里写明最终实际执行模式。
 
-> AI味 / 文字自然度这一维度只有 `narrative-writer` 审，仅 full 模式覆盖。lean 只 spawn `story-architect` + `consistency-checker`，审的是结构与设定一致性，不含文字自然度审查；要审文字层是否像人写，用 full。
 
 ---
 
@@ -38,12 +37,10 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
       - **Claude Code agent（`.claude/agents/`）**：读取 frontmatter，确认 `name:` 与 subagent_type 完全一致；frontmatter 缺失、不可解析或 name 不匹配时视为 malformed agent。
       - **OpenCode agent（`.opencode/agents/`）**：文件名即 agent 名（OpenCode 不要求在 frontmatter 中写 `name:`），读取 frontmatter 确认 `mode: subagent` 和 `permission` 字段存在且可解析即可；frontmatter 缺失或不可解析视为 malformed。
       - **Codex agent（`.codex/agents/`）**：文件名为 `{agent}.toml`，TOML 必须可解析，且包含 `name`、`description`、`developer_instructions`；`name` 必须与目标 agent 完全一致。
-    - `agents_version` 与本版不一致不影响本步：照常检查下列 agent 文件结构并 spawn，只按顶部规则附带版本提示。文件缺失或 malformed 才降级。
    - 如果目标模式所需任一文件缺失或 malformed，**不要尝试 spawn 缺失/异常 Agent**；自动降级为 `solo`，并在报告开头写明：`Fallback: missing agents -> solo` 或 `Fallback: malformed agents -> solo`，列出问题文件，建议用户运行 `/story-setup`。
 5. **确认 Agent/Task 工具可用**：如果当前环境没有可用的子 Agent/Task 调用能力，直接降级为 `solo`，报告 `Fallback: agent tool unavailable -> solo`。
 6. **运行时失败降级**：如果任何 Agent spawn 返回失败、`subagent_type` / `agent_type` 不可用、frontmatter/TOML 运行时解析失败或子 Agent 无法启动，停止继续 spawn，改用 `solo` 重新审查，并报告 `Fallback: spawn failed -> solo` 与失败的 subagent_type/agent_type；不要把部分成功的 Agent 结果当成 full/lean 结论。
 7. **确定实际模式**：报告中必须同时列出 `Requested Mode` 与 `Effective Mode`。
-8. **禁止把 `.active-book` 当作平台来源**：`.active-book` 只表示当前书名/目录名，不代表目标平台。
 
 ---
 
@@ -177,7 +174,6 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
    - `check-degeneration.js` 报告模型退化（逐字复读/截断/占位符/工程词泄漏），每条带 `severity: blocking|advisory`：blocking（复读/截断/tier1 工程词）作为 S1/S2 `prose` findings，修复建议是「重新生成该段，不是改写」；advisory（tier2 章节/歧义词）作为 S4。
    - 这三个预检脚本只读；`story-review` **不修改正文、设定或大纲文件**，需要自动修复正文时建议转 `/story-deslop`。full / lean 模式只有下方「追踪文件维护」允许修改 `追踪/`；分批审查的所有模式都可按上方契约写 **.story-review/state.md**，solo 除该状态外不写项目内容。
    - 默认 `--quote-mode keep`，不把知乎盐言短篇的 `「」` 当作问题；只有项目明确指定引号风格时才检查对应转换建议。
-   - 这些脚本都是 `story-review` 的本地副本，不引用其他 skill 的文件。
 
 **story-explorer 预查询（可选）**。仅当 `Effective Mode` 仍为 `full`/`lean`、当前允许 spawn 且 Agent/Task 工具可用时，才可检查 agent 目录（优先 `.claude/agents/`，其次 `.opencode/agents/`，再检查 `.codex/agents/`）下的 `story-explorer.md` 或 `story-explorer.toml` 并 spawn `story-explorer` 预查设定摘要；`solo` 或子代理递归保护场景下不得 spawn，只能直接 Read/Grep。Prompt 示例：
 
@@ -187,7 +183,6 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
 查询参数：{审查涉及的设定关键词}
 ```
 
-此步可选，跳过不影响审查流程。
 
 ---
 
@@ -407,11 +402,6 @@ APPROVE(通过) / CONCERNS(有问题) / REJECT(需重写)
 
 ---
 
-## lean 模式
-
-lean 模式只 spawn `story-architect` + `consistency-checker`。如果任一缺失，按 Phase 0 自动降级 solo。其余流程同 full。
-
----
 
 ## solo 模式
 
@@ -426,7 +416,6 @@ solo 必须执行基础检查：
 
 ### solo 模式输出格式
 
-注意：下列 `Requested Mode`、`Effective Mode`、`Fallback`、`Rubric`、`Rubric Source` 五个英文 key 必须逐字保留；不要改成“请求模式/实际模式/回退/评估标准”等中文 key。
 
 ```md
 === 故事审查报告（solo）===
@@ -470,7 +459,7 @@ Rubric Source: file | embedded fallback
 
 ## 追踪文件维护（长篇工程，审查收尾时执行）
 
-新追踪协议只有一个写入口：本 skill 的 `scripts/tracking_commit.py`；完整事务字段和命令见 `references/tracking-transaction.md`。**full / lean 模式只允许通过该工具修改 `追踪/`；solo 模式不修改任何 `追踪/` 文件。** 分批审查的所有模式仍可写 **.story-review/state.md**，它不是追踪事实。不得直接 Edit/Write/追加 `伏笔.md`、角色快照、时间线视图、摘要或 `上下文.md`。
+新追踪协议只有一个写入口：本 skill 的 `scripts/tracking_commit.py`；完整事务字段和命令见 `references/tracking-transaction.md`。**full / lean 模式只允许通过该工具修改 `追踪/`；solo 模式不修改任何 `追踪/` 文件。**不得直接 Edit/Write/追加 `伏笔.md`、角色快照、时间线视图、摘要或 `上下文.md`。
 
 1. **先检查状态**：执行 `tracking_commit.py check --project {项目根}`，确认 `_tracking-state.json` 与全部派生视图一致。失败时重跑产生当前目标状态的原事务，不得猜测、手改 Markdown 或另造事务覆盖。
 2. **判定是否需要修订**：只有正文证据表明现有追踪事实错误或缺失时才维护。过期伏笔、漏登记开放钩子、角色当前状态、客观时间线、读者认知都归入其证据所在章的 `mode=revision` 事务。普通审查意见和未来写作建议不进追踪。
