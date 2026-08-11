@@ -1,0 +1,74 @@
+{
+  "_comment": [
+    "热路径文档预算。度量 = 去掉所有空白后的字符数（中英文都算，改标点/换行不影响）。",
+    "只登记「每次会话或每章都会进模型上下文」的文件；冷路径（story-setup 部署、UPGRADING、",
+    "拆文库模板）不在此表，按需增长不受限。",
+    "",
+    "预算超了怎么办：先删等量的旧文本，删不动再在本文件里调高 budget 并在 PR 里说明为什么",
+    "这段新规则值得每个用户每次会话都付。调 budget 是允许的，但必须是一次显式决定。",
+    "",
+    "新增热路径文件时把它加进来，否则它不受任何约束。"
+  ],
+  "files": [
+    {
+      "path": "skills/story-long-write/SKILL.md",
+      "budget": 24400,
+      "why": "长篇任一场景都无条件加载"
+    },
+    {
+      "path": "skills/story-long-write/references/workflow-daily.md",
+      "budget": 13300,
+      "why": "日更每次会话加载，且与 SKILL.md 叠加"
+    },
+    {
+      "path": "skills/story-long-write/references/workflow-setup.md",
+      "budget": 12300,
+      "why": "开书/补纲路径加载"
+    },
+    {
+      "path": "skills/story-short-write/SKILL.md",
+      "budget": 16800,
+      "why": "短篇任一场景都无条件加载"
+    },
+    {
+      "path": "skills/story-setup/references/templates/agents/narrative-writer.md",
+      "budget": 12600,
+      "why": "正文 agent 的系统提示，每章每次 spawn 都付"
+    },
+    {
+      "path": "skills/story-long-write/references/writing-craft.md",
+      "budget": 8300,
+      "why": "narrative-writer 每章写作时读"
+    },
+    {
+      "path": "skills/story-long-write/references/anti-ai-writing.md",
+      "budget": 13900,
+      "why": "去AI味每章读"
+    },
+    {
+      "path": "skills/story-long-write/references/banned-words.md",
+      "budget": 3800,
+      "why": "禁用词扫描每章读"
+    }
+  ],
+  "paths": [
+    {
+      "label": "长篇日更主会话",
+      "budget": 37700,
+      "files": [
+        "skills/story-long-write/SKILL.md",
+        "skills/story-long-write/references/workflow-daily.md"
+      ]
+    },
+    {
+      "label": "正文 agent 上下文",
+      "budget": 38600,
+      "files": [
+        "skills/story-setup/references/templates/agents/narrative-writer.md",
+        "skills/story-long-write/references/writing-craft.md",
+        "skills/story-long-write/references/anti-ai-writing.md",
+        "skills/story-long-write/references/banned-words.md"
+      ]
+    }
+  ]
+}

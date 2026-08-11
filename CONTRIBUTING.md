@@ -63,6 +63,7 @@ PR 自动运行 `.github/workflows/cross-platform.yml`。static-check job 跑以
 - `python3 scripts/skill-numbering.py check` — 工作流编号连续性、引用可绑定性及小数标签守卫
 - `scripts/check-current-skill-contracts.sh` — 按 `scripts/current-contract.json` 校验当前版本 / Phase / schema / 主产物 / 细纲契约，并拦截历史路径与静默兼容分支
 - `python3 scripts/test-current-skill-contracts.py` — current-contract manifest 与主产物 fail-fast 语义回归
+- `scripts/check-doc-budget.sh` — 热路径 SKILL/references/agent 模板的字数预算（按 `scripts/doc-budget.json`），防每次会话都要付的规则文本无声膨胀
 - `scripts/check-hook-regex-sync.sh` — hook 伏笔状态检测行为
 - `scripts/check-shared-files.sh` — 共享 runtime 资产清单 + 跨 skill reference 副本一致性
 - `scripts/check-story-setup-deployment.sh` — story-setup 部署完整性
@@ -88,6 +89,7 @@ python3 scripts/skill-numbering.py check
 bash scripts/test-skill-numbering.sh
 bash scripts/check-current-skill-contracts.sh
 python3 scripts/test-current-skill-contracts.py
+bash scripts/check-doc-budget.sh
 bash scripts/check-hook-regex-sync.sh
 bash scripts/check-shared-files.sh
 python3 scripts/test-shared-assets.py
