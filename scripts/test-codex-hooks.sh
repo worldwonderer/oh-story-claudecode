@@ -246,7 +246,9 @@ SH
 # `.active-book` 不能通过目录 symlink 逃到项目根外；无效声明统一回落自动发现。
 OUTSIDE_BOOK="$TMP_DIR/outside-book"
 mkdir -p "$OUTSIDE_BOOK/追踪"
-if ln -s "$OUTSIDE_BOOK" "$DISCOVERY_ROOT/escape" 2>/dev/null; then
+# Windows/MSYS 没有创建符号链接的权限时 ln -s 会静默退化成「复制目录」：逃逸场景根本没复现，
+# 复制出来的 escape/追踪 还会被后面的深度断言当成一本书。必须确认真的拿到 symlink 才跑这段。
+if ln -s "$OUTSIDE_BOOK" "$DISCOVERY_ROOT/escape" 2>/dev/null && [ -L "$DISCOVERY_ROOT/escape" ]; then
   printf '%s\n' 'escape' > "$DISCOVERY_ROOT/.active-book"
   python_active="$(python3 - "$HOOK_SRC" "$DISCOVERY_ROOT" <<'PY'
 import importlib.util, sys
@@ -268,6 +270,10 @@ SH
   DISCOVERY_REAL="$(cd "$DISCOVERY_ROOT" && pwd -P)"
   [ "$bash_active" = "$DISCOVERY_REAL/shallow" ] || fail "Bash accepted out-of-root .active-book symlink: $bash_active"
   rm -f "$DISCOVERY_ROOT/.active-book"
+  rm -f "$DISCOVERY_ROOT/escape"
+else
+  # ln -s 失败或退化成复制：清掉残留，避免污染下面的 maxdepth 4 发现断言。
+  rm -rf "$DISCOVERY_ROOT/escape"
 fi
 
 # `find -maxdepth 4` 的边界：marker 本身在深度 4 可见，深度 5 不可见；三端不能 off-by-one。
