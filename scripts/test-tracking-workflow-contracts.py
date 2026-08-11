@@ -160,7 +160,7 @@ def test_review_mutations_are_transactional_and_scoped() -> None:
         text,
         (
             "full / lean 模式只允许通过该工具修改 `追踪/`",
-            "solo 模式只报告，不写任何文件",
+            "solo 模式不修改任何 `追踪/` 文件",
             "mode=revision",
             "同一 ID `upsert` 当前状态",
             "逐章记录规范且未超限",

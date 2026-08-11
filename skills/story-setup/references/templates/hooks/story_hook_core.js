@@ -510,6 +510,12 @@ function commandBasename(value) {
   return parts[parts.length - 1]
 }
 
+// 目录形态的落盘目标一律用 "/" 拼：path.join 在 Windows 产出反斜杠，会让三端 parity 的
+// 逐字比较在 Windows 上错开（resolveTarget 之后也会把 \ 归一成 /，这里先统一即可）。
+function joinPosix(directory, name) {
+  return `${String(directory).replace(/[\\/]+$/, "")}/${name}`
+}
+
 function copyLikeTargets(command, args) {
   const positionals = []
   let targetDirectory = ""
@@ -538,13 +544,13 @@ function copyLikeTargets(command, args) {
   }
   if (directoryOnly || !positionals.length) return []
   if (targetDirectory) {
-    return positionals.map((source) => path.join(targetDirectory, commandBasename(source)))
+    return positionals.map((source) => joinPosix(targetDirectory, commandBasename(source)))
   }
   if (positionals.length < 2) return []
   const destination = positionals[positionals.length - 1]
   const normalized = destination.replace(/\\/g, "/")
   if (normalized.endsWith("/") || normalized.split("/").pop() === "正文") {
-    return positionals.slice(0, -1).map((source) => path.join(destination, commandBasename(source)))
+    return positionals.slice(0, -1).map((source) => joinPosix(destination, commandBasename(source)))
   }
   return [destination]
 }

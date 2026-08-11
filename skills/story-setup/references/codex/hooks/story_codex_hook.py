@@ -1072,6 +1072,11 @@ def _command_basename(value: str) -> str:
     return re.split(r"[\\/]", value or "")[-1]
 
 
+def _join_posix(directory: str, name: str) -> str:
+    """目录形态目标一律用 "/" 拼：Path 在 Windows 产出反斜杠，会破坏三端 parity 的逐字比较。"""
+    return re.sub(r"[\\/]+$", "", directory) + "/" + name
+
+
 def _copy_like_targets(command: str, args: list[str]) -> list[str]:
     positionals: list[str] = []
     target_directory = ""
@@ -1104,13 +1109,13 @@ def _copy_like_targets(command: str, args: list[str]) -> list[str]:
     if directory_only or not positionals:
         return []
     if target_directory:
-        return [str(Path(target_directory) / _command_basename(source)) for source in positionals]
+        return [_join_posix(target_directory, _command_basename(source)) for source in positionals]
     if len(positionals) < 2:
         return []
     destination = positionals[-1]
     normalized = destination.replace("\\", "/")
     if normalized.endswith("/") or normalized.rsplit("/", 1)[-1] == "正文":
-        return [str(Path(destination) / _command_basename(source)) for source in positionals[:-1]]
+        return [_join_posix(destination, _command_basename(source)) for source in positionals[:-1]]
     return [destination]
 
 
