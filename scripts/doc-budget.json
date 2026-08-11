@@ -12,13 +12,18 @@
   "files": [
     {
       "path": "skills/story-long-write/SKILL.md",
-      "budget": 24400,
+      "budget": 13200,
       "why": "长篇任一场景都无条件加载"
     },
     {
       "path": "skills/story-long-write/references/workflow-daily.md",
-      "budget": 13300,
+      "budget": 11200,
       "why": "日更每次会话加载，且与 SKILL.md 叠加"
+    },
+    {
+      "path": "skills/story-long-write/references/workflow-chapter.md",
+      "budget": 11700,
+      "why": "单章正文与质量检查，日更/单章路径都加载"
     },
     {
       "path": "skills/story-long-write/references/workflow-setup.md",
@@ -54,10 +59,19 @@
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 37700,
+      "budget": 36000,
       "files": [
         "skills/story-long-write/SKILL.md",
-        "skills/story-long-write/references/workflow-daily.md"
+        "skills/story-long-write/references/workflow-daily.md",
+        "skills/story-long-write/references/workflow-chapter.md"
+      ]
+    },
+    {
+      "label": "长篇开书",
+      "budget": 25400,
+      "files": [
+        "skills/story-long-write/SKILL.md",
+        "skills/story-long-write/references/workflow-setup.md"
       ]
     },
     {

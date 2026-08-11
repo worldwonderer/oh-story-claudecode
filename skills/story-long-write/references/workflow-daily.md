@@ -72,16 +72,11 @@
 1. **读取写作计划**：写作计划按 **卷契约 → 当前剧情单元 → 章节细纲** 的顺序确定；已写内容仍以正文与 `追踪/` 文件为准。先从 `大纲/卷纲_第X卷.md` 读取卷契约、当前剧情单元（单元ID/位置）、单元情绪引擎、本卷主推线/战果与终局底牌边界，再加载本次要写的 2-3 章细纲。卷纲或细纲缺少当前协议的必需字段时先补齐，未知字段写 `[待补充]`，不在内存临时推断一套替代结构；已锁定卷纲不得自动改动。细纲读取「阶段位置」「本章结构公式」「本章禁止提前释放」「内容概括（起因/发展/转折/高潮/结尾）」「情节安排（主线/辅线/事件线/感情线/逻辑线）」「人物关系和出场顺序」「情节细化」「结尾设定和钩子」及逐点字数预算。只有真正影响后续连续性的结果才进入本章事务，规划推理过程不落追踪。
    - **批次定位与阶段约束**：写本批前先从 `大纲/大纲.md`、对应 `大纲/卷纲_第X卷.md` 和本批细纲提取：当前章节区间属于哪个阶段、本批推进目标、本批可释放的信息、本批严禁提前释放的信息、章尾钩子不能越过的边界。必须按终局储备确认本批主推线与战果，别动用本阶段还不该解锁的终局底牌（多线齐涨的战果允许）；行动成本可无，不硬造代价。未来揭示计划留在大纲，不写入时间线事实；只有下一章必须消费的边界才进 `## 下一章承诺`。
    - **阶段进度自检**：每批写完或补完细纲后检查是否超前、拖慢或偏离阶段节奏；若偏离，把下一章必须执行的补偿动作放入事务 `next_chapter_commitments`，跨多章风险放入 `continuity_risks`；不得通过提前泄露后期信息强行提速。
-2. **逐章执行**（以下每步在每章循环内执行）：
-   - 读细纲 → 按需加载角色设定
-   - **标题预检**：扫描既有章节标题；如本章标题同名或明显重复，先按本章核心事件改名，并同步细纲标题与正文文件名
+2. **逐章执行**：每章按 [workflow-chapter.md](workflow-chapter.md) 的「单章写作流程」步骤 1-13 完整走一遍（写前准备、正文执行、字数验证、钩子/爽点检查、元信息与禁用词扫描、追踪事务）。批量模式下再叠加下列日更专属动作：
    - **上一章欠账检查**：写本章正文前，确认上一章正文无未清 blocking 毒句式欠账（写前 hook 会自动拦；hook 不可用时对上一章跑 `node scripts/check-ai-patterns.js --check --fail-on=blocking`）；有欠账先清完再写本章，除非上一章标了 `<!-- 去味:跳过 -->`（用户显式豁免）
-   - **状态筛选**：每章开始前必须确认本章细纲、上一章正文（或上一章刚写入的正文）、`追踪/上下文.md` 已在本轮实际读取/更新，并已运行 `tracking_commit.py check`。不要为取状态/章号把完整 `_tracking-state.json` 加载进 prompt。角色最新状态先取续写状态卡 `## 核心角色状态`，待回收/推进伏笔取 `## 活跃伏笔`；缺失内容按下方「旧信息查找步骤」定点查询，不得用未标明来源的聊天记忆替代，也不得为了方便通读所有逐章记录。
+   - **状态来源纪律**：不要为取状态/章号把完整 `_tracking-state.json` 加载进 prompt；缺失内容按下方「旧信息查找步骤」定点查询，不得用未标明来源的聊天记忆替代，也不得为了方便通读所有逐章记录。
    - **久别角色交叉检查**：本章细纲列出的核心复用角色若不在 `## 核心角色状态`，直接读取小文件 `追踪/角色状态/{名}.md`；不存在即视为当前检查点损坏，运行 `tracking_commit.py check` 并通过完整事务修复，不能临时扫描增量后手写替代。`设定/角色/{名}.md` 只有静态原始人设，不能替代动态快照。角色重新活跃后，把名字放进本章事务 `context.active_character_names`，由工具更新续写状态卡。
-   - **对标模块/节奏/题材卡/文风召回**：
-     - 调 story-explorer 的 `benchmark_style_load` query_type（输入：项目目录 + 本章目标情绪 + 本章爽点类型 + 本章目标字数）一次性拿到：`{style_profile_path, style_profile_summary, selected_emotion_module, rhythm_reference, module_source_path, rhythm_source_path, matched_chapter_K, matched_chapter_techniques, anchor_excerpts, gaps}`
-     - **题材正文提示卡召回**：按 SKILL.md Phase 4 写前准备 (c) 生成 `genre_prose_card`。题材卡必须进入 narrative-writer prompt，但只传短摘要，并说明卡片只供内部题材校准、正文里不得出现卡片文字或合规自评
-     - **自定义文风覆盖（先于下列 gaps 判定）**：按 SKILL.md Phase 4 写前准备 (d) 判定 `custom_style`；为真时它**取代** `style_profile_path` 喂给 narrative-writer，对标 / 拆文 `style_profile_path` 降级为参考（原文锚点 + 句长分布数值兜底）。仅接管风格，**不豁免情绪 / 节奏轴**。
+   - **story-explorer 召回的 gaps 分支**（用 `benchmark_style_load` query_type 一次拿到 `{style_profile_path, style_profile_summary, selected_emotion_module, rhythm_reference, module_source_path, rhythm_source_path, matched_chapter_K, matched_chapter_techniques, anchor_excerpts, gaps}` 后按此分流）：
      - 若 `gaps.no_benchmark: true` → `custom_style` 为真则进入「自定义文风模式」（用 `设定/文风.md` 写作；无对标可召回，情绪 / 节奏目标改从本书细纲「目标情绪」、卷纲、`设定/题材定位.md` 等内部材料取，`selected_emotion_module` / `rhythm_reference` 记为「无」，不声称从对标召回）；否则跳过文风召回，在「意图确认」标记"无对标参考"
      - 若 `gaps.missing_primary_contract: true` → 停止本章准备，按 `repair_action` 提示重跑 `/story-long-analyze` Stage 3+ 或重新 `/story-import`；不得进入 narrative-writer（情绪 / 节奏轴独立于文风轴，**自定义文风模式不豁免此停止**——补 `剧情/情绪模块.md` / `剧情/节奏.md`，而非写 `设定/文风.md`）
      - 若 `gaps.conflict` 或 `gaps.module_rhythm_conflict: true` → 意图确认必须说明冲突并按 `剧情/情绪模块.md` / `剧情/节奏.md` 的权威优先级执行；不得让 `文风.md` 覆盖情绪/节奏目标
@@ -89,13 +84,8 @@
      - 若 `gaps.profile_degenerate: true`（对标文风不可用） → `custom_style` 为真则用 `设定/文风.md` 写作；否则跳过文风、回到默认 Gates 写作
      - 若 `gaps.tone_match_failed: true` → 仅用整书文风写作，不喂 matched_chapter
      - 否则原样传给 `style_profile_path`、`style_profile_summary`、`selected_emotion_module`、`rhythm_reference`、`module_source_path`、`rhythm_source_path`、`matched_chapter_K`、`matched_chapter_techniques`、`anchor_excerpts` 和 `genre_prose_card` 给 Step 2 末尾的 narrative-writer spawn prompt；其中 `selected_emotion_module` 必须进入情绪目标，`rhythm_reference` 必须进入节奏/爆发安排，`genre_prose_card` 必须进入题材取舍，`matched_chapter_techniques` 必须进入「文风召回指令」。写前准备记录必须保留 `gaps` 原值，尤其 `gaps.module_missing`、`gaps.rhythm_missing`、`gaps.conflict`、`gaps.matched_deep_dive_missing`；若 `matched_deep_dive_missing` 为 true，文风召回指令中明确写“同章深度拆解缺失，已回退黄金三章/文风技巧”，不得在后续报告中反转为 false
-     - **无 story-explorer 时直接执行**：主会话按 SKILL.md Phase 4 写前准备 (a)-(f) 手动依次召回情绪模块、节奏、题材卡、文风与匹配章 K；模块或节奏文件缺失时设置 `missing_primary_contract` 并停止修复
-   - **意图确认**：从细纲「目标情绪」确认本章情绪目标，综合状态筛选 + `selected_emotion_module` + `rhythm_reference` + `genre_prose_card` + 文风召回，用一句话写本章意图（情绪+节奏+模块+题材取舍+文风指令）。意图写成“**情绪前状态 → 触发 → 后状态**”，不能只写情绪标签，并指明推进单元情绪引擎的哪一环；同时消费主角代理权、当前单元的主角目标/关键选择、主推线/战果与终局底牌边界。仅当新承载对象、关键转折或高潮进入时才跑 emotional-methods.md 的「合理性五问」，不要每段填表。
-     - **细纲字段只定“发生什么”，不定正文形状**：阶段位置/禁止提前释放定边界，结构公式定骨架，内容概括定起承转合，情节安排定多线取舍，人物关系与出场顺序定镜头顺序，情节细化定行动成本/收益归属，结尾设定与钩子定章尾承接。情节点可自由合并、穿插、重排，演成场景；不逐条各扩一段，不把“谁做了什么”的概括语原样搬进叙述（见 writing-craft.md「从细纲到正文」）。
-     - **两条写进意图**：① 爽点出手前先铺可指认的危机/期待（plot-emotion-system 倒推法，不铺=空洞）；② 装逼/打脸/揭露章把视角/信息差经出场顺序放大成在场配角的差异化反应（plot-core-methods 信息差×人际×情绪）。对话声线与细纲边界属正文层，由 narrative-writer 执行，本步不重复。
-     - **期待所有权**：按因果权 + 结算权与「关键节点四问」确认。配角可执行局部动作，不要求主角亲自动手，但不得无声夺走已承诺的高光/收益；被配角、机构或偶然性捕获且无可见交换时标记 `protagonist_agency_risk`，先修细纲/卷纲再进正文。
-     - 例：「快节奏打脸——起因=账单暴露，逻辑线=发现→逼问→反证→公开代价；复现 M03‘信息差反杀’的读者期待，按都市世情题材卡落到账单/转账/旁人反应，关键信息先压后爆，爆发后用一段冷却承接下一钩子；标点照文风里的停顿节奏、对话潜台词用问非所答；剧情边界=不得新增账单之外的新敌人或提前解决下一章钩子。」
-   - 写正文 → **字数验证**（按 SKILL.md Phase 4 步骤 8：优先 Python 字符统计；< 目标 90% 对照情节点预算定位欠账密点、一次性重写到配额，只扩写细纲内已有情节点，不足则输出 `outline_underfilled`；> 章目标×1.1 压过场/合并疏点；理想落在 [章目标, 章目标×1.1]） → 检查钩子/爽点 → **正文元信息扫描**（按 SKILL.md Phase 4 步骤 10） → 禁用词扫描（含 Phase 4 步骤 11 的最毒句式速查；写后 hook 推回的毒句式命中当轮清零，不得留到批末）
+     - **无 story-explorer 时直接执行**：主会话按 workflow-chapter.md 写前准备 (a)-(f) 手动依次召回情绪模块、节奏、题材卡、文风与匹配章 K；模块或节奏文件缺失时设置 `missing_primary_contract` 并停止修复
+   - **写后清零不拖到批末**：写后 hook 推回的毒句式命中当轮清零，不得攒到 Step 3。
    - 每章写完后**立即提交一次追踪事务**：
      1. 从刚落盘的正文、细纲和上一版续写状态卡提取 `result / character_changes / foreshadow_changes / timeline_events / constraints / next_chapter_commitments`。只记录会影响未来章节的变化；过程日志、质检计数、参照章和去 AI 味统计全部排除。
      2. 需要长期复用的核心角色，把完整动态快照放进 `character_snapshots`，并在 `character_changes` 写对应变化；一次性路人只写变化、不交快照。已有动态快照的核心角色再次变化时必须提交新快照。静态人设继续以 `设定/角色/{名}.md` 为准。
@@ -132,19 +122,14 @@
 
 ## Step 3：质量检查
 
-批量写作结束后，对本次所有新写章节执行 Phase 5 质量检查（至少包含）：
+每章的质量检查已在 Step 2 随 [workflow-chapter.md](workflow-chapter.md)「质量检查」节完成。批末只做下列**跨章**核对，不重复逐章项：
 
-1. **禁用词扫描**：对照 `references/banned-words.md`，一级词命中即替换
-2. **标题去重检查**：汇总本轮新写章节与既有标题；发现同名或明显重复时，回到对应细纲和正文文件统一重命名
-3. **正文元信息扫描**：按 Step 2 同名步骤复查本轮每章，命中即改成场景内表达；下方步骤 7 的 `check-degeneration.js` 会确定性复扫
-4. **钩子检查**：每章章尾是否有往下看的理由（低压/过场章弱钩子或阶段目标即可，不强求强钩子，按细纲章节定位；见 references/outline-structure-theory.md「章节定位与张弛」）；如新版细纲有「结尾设定和钩子」，检查结尾是否落在具体动作/画面/悬念上（"收束状态"是规划口径，不是要写进正文的状态总结句）、留下未解决问题和下一章推动力
-5. **契约与细纲双向核对**：先按 `reader-contract-and-progression.md` 检查读者契约、因果权 + 结算权、关键节点四问、期待所有权、期待债偿还、终局储备（透支两问）；章级推进按权威文件七类状态分档（快节奏保留可见事件/爽点下限），相对本书题材与对标判断；高潮后允许短暂低压和小而可见的收益/奖励。新地图/机构/能力/敌人/谜团须检查换书债；履约爽文/能力幻想另查主角是否反复以可避免的无能制造灾难再由他人收拾。再核对正文是否消费了细纲的内容概括五段式、情节安排多线、人物关系变化/出场顺序、行动成本（可无）/收益归属；并加三条写作要求兑现核对（不达标→修复）：① 爽点出手前是否有可指认的危机/期待铺垫段落？指不出=空洞 → 回 Step 2 补铺垫情节点（plot-emotion-system 倒推法）；② 装逼/打脸/揭露章是否写出在场配角差异化反应（集体震惊/各异），还是只写主角动作？没有 → 补在场配角反应（plot-core-methods）；③ 详略是否按目的词（爽点/卖点点展开、过渡点带过、信息密度交替），还是均匀注水？均匀 → 删过渡、扩爽点点。
-6. **伏笔盘点（仅本轮增量）**：确认本批新增/推进/回收的每个 ID 在 `追踪/伏笔.md` 恰好有一行当前状态，并能在对应 `逐章记录/第NNN章.md` 找到本次变化；不得追加第二行历史，也不得在日更流程扫描全部正文做全量伏笔审计
-7. **确定性收尾**：主会话对本批实际落盘正文运行 `node scripts/check-ai-patterns.js --check --fail-on=blocking 正文/第XXX章_*.md`；blocking 先改正文并复扫，advisory 只作读感提示，功能性写法标 `[需复核]`。
-   再运行 `node scripts/normalize-punctuation.js 正文/第XXX章_*.md`（默认 `--quote-mode keep`）清理无功能省略号、破折号、双连字符和独立分隔线。narrative-writer agent 不运行这些脚本。
-   - **退化防护**：再跑 `node scripts/check-degeneration.js --check 正文/第XXX章_*.md`。blocking 只重写受影响章节，最多 2 次；仍失败就报告证据让用户定夺。advisory 先看例外，确属工程词泄漏或退化再改。
+1. **标题去重检查**：汇总本轮新写章节与既有标题；发现同名或明显重复时，回到对应细纲和正文文件统一重命名
+2. **契约与细纲双向核对**：先按 `reader-contract-and-progression.md` 检查读者契约、因果权 + 结算权、关键节点四问、期待所有权、期待债偿还、终局储备（透支两问）；章级推进按权威文件七类状态分档（快节奏保留可见事件/爽点下限），相对本书题材与对标判断；高潮后允许短暂低压和小而可见的收益/奖励。新地图/机构/能力/敌人/谜团须检查换书债；履约爽文/能力幻想另查主角是否反复以可避免的无能制造灾难再由他人收拾。再核对正文是否消费了细纲的内容概括五段式、情节安排多线、人物关系变化/出场顺序、行动成本（可无）/收益归属；并加三条写作要求兑现核对（不达标→修复）：① 爽点出手前是否有可指认的危机/期待铺垫段落？指不出=空洞 → 回 Step 2 补铺垫情节点（plot-emotion-system 倒推法）；② 装逼/打脸/揭露章是否写出在场配角差异化反应（集体震惊/各异），还是只写主角动作？没有 → 补在场配角反应（plot-core-methods）；③ 详略是否按目的词（爽点/卖点点展开、过渡点带过、信息密度交替），还是均匀注水？均匀 → 删过渡、扩爽点点。
+3. **伏笔盘点（仅本轮增量）**：确认本批新增/推进/回收的每个 ID 在 `追踪/伏笔.md` 恰好有一行当前状态，并能在对应 `逐章记录/第NNN章.md` 找到本次变化；不得追加第二行历史，也不得在日更流程扫描全部正文做全量伏笔审计
 
-> 完整检查清单见 [Phase 5：质量检查](../SKILL.md#phase-5质量检查)。
+批末再对本批全部落盘正文整体跑一遍 workflow-chapter.md「质量检查」的确定性收尾三脚本（`check-ai-patterns.js` → `normalize-punctuation.js` → `check-degeneration.js`），确认逐章清零后没有回潮。
+
 > 若本步修文改变了会影响后续的事实、角色状态、伏笔、时间线或下一章承诺，必须在进入 Step 4 前为受影响章节提交 `mode=revision` 事务并通过 `check`；其中 `delta` 要重算修订后该章仍成立的完整当前记录，不能只传本次改动；纯措辞调整不重复提交。
 
 ---
