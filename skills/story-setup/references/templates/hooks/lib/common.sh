@@ -50,11 +50,20 @@ discover_active_book() {
       esac
       # 只接受项目根内真实存在的目录；缺失、文件、或经 symlink 逃到根外都回落自动发现。
       active_real=$(cd "$active_path" 2>/dev/null && pwd -P || true)
-      case "$active_real" in
-        "$root"|"$root"/*)
-          [ -d "$active_real" ] && { printf '%s\n' "$active_real"; return; }
-          ;;
-      esac
+      # 容纳判断放进 LC_ALL=C 子 shell：pattern 与串都含中文 UTF-8，GBK 区域下 bash 按多字节
+      # 解码会把这些字节判为非法序列 → case 不匹配 → .active-book 被静默丢弃（原实现是纯字符串
+      # 拼接、只 glob 开头的 /，故不受区域影响）。子 shell 里赋值不外泄，符合文件头「不覆盖调用方
+      # shell 选项」。
+      if [ -n "$active_real" ] && [ -d "$active_real" ] && (
+        export LC_ALL=C
+        case "$active_real" in
+          "$root"|"$root"/*) exit 0 ;;
+        esac
+        exit 1
+      ); then
+        printf '%s\n' "$active_real"
+        return
+      fi
     fi
   fi
 
