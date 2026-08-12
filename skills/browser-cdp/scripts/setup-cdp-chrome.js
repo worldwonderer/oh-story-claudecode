@@ -295,11 +295,14 @@ async function waitForPortFree(port, maxMs = 8000, stepMs = 500, needQuiet = 2) 
 }
 
 /** 尽力查出占用端口的进程，只用于诊断（查不到就返回 null，不影响判定） */
-function describePortHolder(port) {
+function describePortHolder(rawPort) {
+  const safePort = parseInt(rawPort, 10);
+  if (!Number.isInteger(safePort) || safePort < 1 || safePort > 65535) return null;
+  const portStr = String(safePort);
   const cmd =
     PLATFORM === "win32"
-      ? `netstat -ano -p tcp | findstr LISTENING | findstr :${port}`
-      : `lsof -nP -iTCP:${port} -sTCP:LISTEN`;
+      ? "netstat -ano -p tcp | findstr LISTENING | findstr :" + portStr
+      : "lsof -nP -iTCP:" + portStr + " -sTCP:LISTEN";
   try {
     const out = execSync(cmd, {
       encoding: "utf-8",
@@ -335,25 +338,27 @@ function queryStdout(cmd) {
  * 只在「已经探到 CDP 应答」之后调用——那一刻端口必然有人在监听，所以空结果只可能是
  * 工具缺失或看不见，一律返回 null 表示「无从判断」，绝不能被当成「没人占用」而放行。
  */
-function listPortListenerPids(port) {
+function listPortListenerPids(rawPort) {
+  const safePortNum = parseInt(rawPort, 10);
+  if (!Number.isInteger(safePortNum) || safePortNum < 1 || safePortNum > 65535) return [];
   const queries =
     PLATFORM === "win32"
       ? [
           {
             kind: "pid",
-            cmd: `powershell -NoProfile -NonInteractive -Command "Get-NetTCPConnection -State Listen -LocalPort ${port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess"`,
+            cmd: `powershell -NoProfile -NonInteractive -Command "Get-NetTCPConnection -State Listen -LocalPort ${safePortNum} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess"`,
           },
           {
             kind: "pid",
-            cmd: `pwsh -NoProfile -NonInteractive -Command "Get-NetTCPConnection -State Listen -LocalPort ${port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess"`,
+            cmd: `pwsh -NoProfile -NonInteractive -Command "Get-NetTCPConnection -State Listen -LocalPort ${safePortNum} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess"`,
           },
           { kind: "netstat", cmd: "netstat -ano -p tcp" },
         ]
       : [
-          { kind: "pid", cmd: `lsof -nP -iTCP:${port} -sTCP:LISTEN -t` },
+          { kind: "pid", cmd: `lsof -nP -iTCP:${safePortNum} -sTCP:LISTEN -t` },
           // Linux 上 lsof 经常不预装，用 ss / fuser 兜底
-          { kind: "ss", cmd: `ss -H -ltnp "sport = :${port}"` },
-          { kind: "pid", cmd: `fuser -n tcp ${port}` },
+          { kind: "ss", cmd: `ss -H -ltnp "sport = :${safePortNum}"` },
+          { kind: "pid", cmd: `fuser -n tcp ${safePortNum}` },
         ];
   for (const { kind, cmd } of queries) {
     const out = queryStdout(cmd);
@@ -368,7 +373,7 @@ function listPortListenerPids(port) {
         const localPort = Number((fields[1].match(/:(\d+)$/) || [])[1]);
         const foreignPort = Number((fields[2].match(/:(\d+)$/) || [])[1]);
         const pid = Number(fields[fields.length - 1]);
-        if (localPort === port && foreignPort === 0 && Number.isInteger(pid) && pid > 0) {
+        if (localPort === safePortNum && foreignPort === 0 && Number.isInteger(pid) && pid > 0) {
           pids.add(pid);
         }
       }
@@ -480,7 +485,8 @@ function commandLineHasArgument(commandLine, argument) {
  *      我们配出来的那个实例，而不是树里某个别的进程顺手占了这个端口。
  * 任何一步查不出来都返回 unverifiable：宁可硬失败，也不能把「证明不了」当成「证明了」。
  */
-function verifyPortOwnedByLaunch(port, rootPid) {
+function verifyPortOwnedByLaunch(rawPort, rootPid) {
+  const port = parseInt(rawPort, 10);
   const fail = (code, lines) => ({ ok: false, code, lines: [`${code}: ${lines[0]}`, ...lines.slice(1)] });
   const unverifiable = (why) =>
     fail("CDP_OWNER_UNVERIFIABLE", [
@@ -514,7 +520,7 @@ function verifyPortOwnedByLaunch(port, rootPid) {
     ]);
   }
 
-  const marker = `--remote-debugging-port=${port}`;
+  const marker = "--remote-debugging-port=" + String(port);
   let sawCommandLine = false;
   for (const pid of listeners) {
     const cmdline = processCommandLine(pid);
@@ -910,7 +916,7 @@ async function main() {
   // 9) 以 CDP 模式启动 Chrome
   log(`正在以 CDP 模式启动 Chrome（端口 ${CDP_PORT}）...`);
   const chromeArgs = [
-    `--remote-debugging-port=${CDP_PORT}`,
+      `--remote-debugging-port=${CDP_PORT}`,
     `--user-data-dir=${debugProfile}`,
     "--remote-allow-origins=*",
     "--no-first-run",
