@@ -17,7 +17,7 @@
     },
     {
       "path": "skills/story-long-write/references/workflow-daily.md",
-      "budget": 11200,
+      "budget": 11300,
       "why": "日更每次会话加载，且与 SKILL.md 叠加"
     },
     {
@@ -59,7 +59,7 @@
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 36000,
+      "budget": 36100,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-daily.md",

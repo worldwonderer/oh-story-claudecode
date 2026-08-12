@@ -21,7 +21,6 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 - `/story-review solo` → 不 spawn Agent，由当前会话执行基础审查。
 - 未指定 → 默认 full，并在报告里写明最终实际执行模式。
 
-
 ---
 
 ## Phase 0：预检与降级（必须先执行）
@@ -182,7 +181,6 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
 查询类型：setting_appearances
 查询参数：{审查涉及的设定关键词}
 ```
-
 
 ---
 
@@ -402,7 +400,6 @@ APPROVE(通过) / CONCERNS(有问题) / REJECT(需重写)
 
 ---
 
-
 ## solo 模式
 
 不 spawn Agent。先按 Phase 1 第 4 步识别目标平台并加载对应 rubric；即使是 solo，也必须用平台 rubric、`story-review/references/quality-rubric.md` 或内置审查基准包校准判断。
@@ -415,7 +412,6 @@ solo 必须执行基础检查：
 5. 按统一 Findings Schema 输出简化版报告。
 
 ### solo 模式输出格式
-
 
 ```md
 === 故事审查报告（solo）===
