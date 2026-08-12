@@ -11,6 +11,14 @@
       ]
     },
     {
+      "name": "prose-outline-copy-detector",
+      "source": "skills/story-long-write/scripts/check-outline-copy.js",
+      "targets": [
+        "skills/story-deslop/scripts/check-outline-copy.js",
+        "skills/story-short-write/scripts/check-outline-copy.js"
+      ]
+    },
+    {
       "name": "prose-degeneration-detector",
       "source": "skills/story-deslop/scripts/check-degeneration.js",
       "targets": [
