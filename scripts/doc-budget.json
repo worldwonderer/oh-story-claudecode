@@ -22,8 +22,8 @@
     },
     {
       "path": "skills/story-long-write/references/workflow-chapter.md",
-      "budget": 11700,
-      "why": "单章正文与质量检查，日更/单章路径都加载"
+      "budget": 11850,
+      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达"
     },
     {
       "path": "skills/story-long-write/references/workflow-setup.md",
@@ -37,8 +37,8 @@
     },
     {
       "path": "skills/story-setup/references/templates/agents/narrative-writer.md",
-      "budget": 12600,
-      "why": "正文 agent 的系统提示，每章每次 spawn 都付"
+      "budget": 12100,
+      "why": "正文 agent 的系统提示，每章每次 spawn 都付。已清掉正文里 19 处重复的 agent-references 长路径前缀（表格保留一份作索引）与 6 处会腐坏的「第 N 节」引用，预算随之下调锁住这次精简"
     },
     {
       "path": "skills/story-long-write/references/writing-craft.md",
@@ -59,7 +59,7 @@
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 36100,
+      "budget": 36200,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-daily.md",
@@ -76,7 +76,7 @@
     },
     {
       "label": "正文 agent 上下文",
-      "budget": 38600,
+      "budget": 37900,
       "files": [
         "skills/story-setup/references/templates/agents/narrative-writer.md",
         "skills/story-long-write/references/writing-craft.md",
