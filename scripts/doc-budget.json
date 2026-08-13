@@ -37,8 +37,8 @@
     },
     {
       "path": "skills/story-setup/references/templates/agents/narrative-writer.md",
-      "budget": 12100,
-      "why": "正文 agent 的系统提示，每章每次 spawn 都付。已清掉正文里 19 处重复的 agent-references 长路径前缀（表格保留一份作索引）与 6 处会腐坏的「第 N 节」引用，预算随之下调锁住这次精简"
+      "budget": 13150,
+      "why": "正文 agent 的系统提示，每章每次 spawn 都付。正文规则中的 reference 引用必须保留 canonical agent-references 前缀，否则运行时无法可靠定位部署文件；本次同时加入正文形状、机器统计与细纲重合复核规则"
     },
     {
       "path": "skills/story-long-write/references/writing-craft.md",
@@ -76,7 +76,7 @@
     },
     {
       "label": "正文 agent 上下文",
-      "budget": 37900,
+      "budget": 38960,
       "files": [
         "skills/story-setup/references/templates/agents/narrative-writer.md",
         "skills/story-long-write/references/writing-craft.md",
