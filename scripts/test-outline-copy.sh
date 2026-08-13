@@ -79,7 +79,7 @@ cat >"$TMP_DIR/o1.md" <<EOF
   点1：${OATH}
 EOF
 printf '%s，%s。\n' "$COPIED" "$OATH" >"$TMP_DIR/p1.md"
-run "$TMP_DIR/p1.md" "$TMP_DIR/o1.md"
+run --outline "$TMP_DIR/o1.md" "$TMP_DIR/p1.md"
 expect_status 1
 expect_contains "22 字「${COPIED}」"
 expect_contains "1 处 6 字为复沓锚句"
@@ -93,7 +93,7 @@ cat >"$TMP_DIR/o2.md" <<EOF
   点1：${OATH}
 EOF
 printf '%s，%s。\n' "$OATH" "$COPIED" >"$TMP_DIR/p2.md"
-run "$TMP_DIR/p2.md" "$TMP_DIR/o2.md"
+run --outline "$TMP_DIR/o2.md" "$TMP_DIR/p2.md"
 expect_status 1
 expect_contains "22 字「${COPIED}」"
 
@@ -107,7 +107,7 @@ cat >"$TMP_DIR/o3.md" <<EOF
   点1：${VOW}
 EOF
 printf '%s，%s，%s。\n' "$OATH" "$COPIED" "$VOW" >"$TMP_DIR/p3.md"
-run "$TMP_DIR/p3.md" "$TMP_DIR/o3.md"
+run --outline "$TMP_DIR/o3.md" "$TMP_DIR/p3.md"
 expect_status 1
 expect_contains "22 字「${COPIED}」"
 expect_contains "10 字为复沓锚句"
@@ -121,7 +121,7 @@ cat >"$TMP_DIR/o4.md" <<EOF
   点1：${PANEL}
 EOF
 printf '眼前忽然亮起一行小字。\n%s\n他抬手把那行字抹掉。\n' "$PANEL" >"$TMP_DIR/p4.md"
-run "$TMP_DIR/p4.md" "$TMP_DIR/o4.md"
+run --outline "$TMP_DIR/o4.md" "$TMP_DIR/p4.md"
 expect_status 0
 expect_contains "无未授权誊抄"
 expect_contains "1 处 18 字"
@@ -157,7 +157,7 @@ cat >"$TMP_DIR/o7.md" <<EOF
 - 点1：${COPIED}，${OATH}。
 EOF
 printf '%s，%s。\n' "$COPIED" "$OATH" >"$TMP_DIR/p7.md"
-run "$TMP_DIR/p7.md" "$TMP_DIR/o7.md"
+run --outline "$TMP_DIR/o7.md" "$TMP_DIR/p7.md"
 expect_status 1
 expect_contains "28 字"
 expect_missing "为复沓锚句"
@@ -171,7 +171,7 @@ cat >"$TMP_DIR/o8.md" <<EOF
 - 结尾设定：主角离开。
 EOF
 printf '%s。\n' "$COPIED" >"$TMP_DIR/p8.md"
-run "$TMP_DIR/p8.md" "$TMP_DIR/o8.md"
+run --outline "$TMP_DIR/o8.md" "$TMP_DIR/p8.md"
 expect_status 1
 expect_contains "22 字「${COPIED}」"
 expect_missing "为复沓锚句"
@@ -183,7 +183,7 @@ cat >"$TMP_DIR/o9.md" <<EOF
 - 点1：${COPIED}。
 EOF
 printf '雨停了，他终于肯回头看一眼身后那扇门。\n' >"$TMP_DIR/p9.md"
-run "$TMP_DIR/p9.md" "$TMP_DIR/o9.md"
+run --outline "$TMP_DIR/o9.md" "$TMP_DIR/p9.md"
 expect_status 0
 [ -z "$OUTPUT" ] || fail "expected silent output on a clean chapter"
 
@@ -194,4 +194,28 @@ run "$TMP_DIR/orphan.md"
 expect_status 0
 [ -z "$OUTPUT" ] || fail "expected silence when no outline can be located"
 
-echo "PASS: check-outline-copy.js (10 cases)"
+# --- 11. 收尾复扫按通配传多章：每章各自比对，不得把第二个正文当成细纲 ---
+CASE="multi-prose-batch"
+mkdir -p "$TMP_DIR/批/正文" "$TMP_DIR/批/大纲"
+cat >"$TMP_DIR/批/大纲/细纲_第005章.md" <<EOF
+## 第 5 章
+- 点1：${COPIED}。
+EOF
+cat >"$TMP_DIR/批/大纲/细纲_第006章.md" <<EOF
+## 第 6 章
+- 点1：${VOW}，主角转身离开。
+EOF
+printf '# 第005章 雨夜\n\n%s。\n' "$COPIED" >"$TMP_DIR/批/正文/第005章_雨夜.md"
+printf '# 第006章 天明\n\n雨停了，他终于肯回头看一眼身后那扇门。\n' >"$TMP_DIR/批/正文/第006章_天明.md"
+run "$TMP_DIR/批/正文/第005章_雨夜.md" "$TMP_DIR/批/正文/第006章_天明.md"
+expect_status 1
+expect_contains "第005章_雨夜.md"
+expect_contains "22 字「${COPIED}」"
+
+# --- 12. 多章里只有靠后的一章有重合：不得因首章干净就整体放行 ---
+CASE="multi-prose-later-hit"
+run "$TMP_DIR/批/正文/第006章_天明.md" "$TMP_DIR/批/正文/第005章_雨夜.md"
+expect_status 1
+expect_contains "第005章_雨夜.md"
+
+echo "PASS: check-outline-copy.js (12 cases)"

@@ -24,8 +24,12 @@
  * 不进 hook：正文兜底 hook 的共享核是四端共用的，不为单项检测扩面。
  *
  * 用法：
- *   node check-outline-copy.js <正文路径>            # 自动找同章细纲；短篇找同目录小节大纲
- *   node check-outline-copy.js <正文路径> <细纲路径>  # 指定细纲
+ *   node check-outline-copy.js <正文路径...>                    # 自动找同章细纲；短篇找同目录小节大纲
+ *   node check-outline-copy.js --outline <细纲路径> <正文路径...> # 指定细纲
+ *
+ * 位置参数一律按正文处理，与 check-ai-patterns.js 的 `<file...>` 口径一致：
+ * 收尾复扫用 `正文/第XXX章_*.md` 这类通配传多章时，多出来的正文不能被当成细纲吞掉
+ * ——那会让首个文件比错对象、其余文件根本不检，静默退 0 报「干净」。
  *
  * 退出码：0 = 干净或无法判定（缺细纲/非分章正文）；1 = 有重合待复核。
  * 无发现时完全静默，不污染上下文。
@@ -130,15 +134,30 @@ function findOutline(proseFile) {
 }
 
 function main() {
-  const proseFile = process.argv[2]
-  if (!proseFile) {
-    process.stderr.write('用法: node check-outline-copy.js <正文路径> [细纲路径]\n')
+  const proseFiles = []
+  let explicitOutline = null
+  const argv = process.argv.slice(2)
+  for (let k = 0; k < argv.length; k++) {
+    if (argv[k] === '--outline') explicitOutline = argv[++k] || null
+    else proseFiles.push(argv[k])
+  }
+  if (!proseFiles.length) {
+    process.stderr.write('用法: node check-outline-copy.js [--outline <细纲路径>] <正文路径...>\n')
     return 0
   }
+  // 逐个文件独立判定；任一文件有重合即整体退 1
+  let status = 0
+  for (const proseFile of proseFiles) {
+    if (checkOne(proseFile, explicitOutline)) status = 1
+  }
+  return status
+}
+
+function checkOne(proseFile, explicitOutline) {
   const prose = read(proseFile)
   if (prose === null) return 0
 
-  const outlineFile = process.argv[3] || findOutline(proseFile)
+  const outlineFile = explicitOutline || findOutline(proseFile)
   if (!outlineFile) return 0
   const outline = read(outlineFile)
   if (outline === null) return 0
