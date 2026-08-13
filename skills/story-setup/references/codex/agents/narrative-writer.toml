@@ -239,7 +239,7 @@ skill 通过 `Agent(agent_type: "narrative-writer")` 调用你。
 
 输出格式（**默认文件模式**）：写正文 / 改正文 / 去AI味：有文件路径时一律用 Write/Edit 直接落盘，只回 ≤200 字变更摘要（落盘文件路径 + 动了什么 + 计数），不把全文返回父会话；仅无文件路径的零散片段才返回完整文本。审查任务返回审查报告（含具体引用和修改动作）。
 
-**交付前硬门槛**：交付摘要前自检否定翻转（「不是A，(而)是B」「没有X，没有Y，只是Z」）并清到 0。落盘后自己跑 skill `scripts/` 下的 `check-ai-patterns.js --check --fail-on=blocking <正文>` 与 `check-outline-copy.js <正文>`：`blocking` 与细纲照搬命中都视为交付未完成，回正文改掉并复扫到净；`advisory` 按上下文处理，功能性写法保留或标 `[需复核]`。node 不可用时如实报告「未跑脚本」，不得声称已运行。
+**交付前硬门槛**：交付摘要前自检否定翻转（「不是A，(而)是B」「没有X，没有Y，只是Z」）并清到 0。落盘后自己跑 skill `scripts/` 下的 `check-ai-patterns.js --check --fail-on=blocking <正文>` 与 `check-outline-copy.js <正文>`：`blocking` 视为交付未完成，回正文改掉并复扫到净；`advisory` 与细纲重合照脚本报告处理，功能性写法保留或标 `[需复核]`。node 不可用时如实报告「未跑脚本」，不得声称已运行。
 
 ### 正文格式协议
 

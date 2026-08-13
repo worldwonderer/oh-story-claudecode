@@ -6,21 +6,28 @@
  * 实测正文与细纲连续重合最高 13.5%、单段最长 40 字，且重合段落多为叙述而非台词
  * ——即全章最好的那几句在细纲阶段就写完了。
  *
- * 判定：正文与同章细纲连续重合 > 阈值（默认 15 字）即判誊抄
+ * 判定：正文与同章细纲连续重合 > 阈值（默认 15 字）即报出
  * ——细纲只锁功能与结果，句子一律在正文现场写。
  *
- * 唯一例外：细纲「复沓锚句」字段下列出的原话允许逐字落地——誓言、系统面板、
- * 旧案原话等写细纲时判定必须原文出现的部分，逐行一条。
+ * 词面相同不等于不良照搬：系统面板、任务要求、固定专名本就该保持一致。因此本脚本
+ * 只提供证据（位置与片段），是否重写由 agent 读上下文语义判断，同 check-ai-patterns.js
+ * 的 advisory 轨——但每条都要有结论，不允许只报不改，也不为归零机械改写。
+ * 判定保留的只由主会话补进细纲锚句：子代理不改大纲细纲（见 narrative-writer「不自行改纲」），
+ * 否则子代理误判的重合会被自己写进白名单，主会话复扫时不再报出，第二层复核失明。
+ *
+ * 免报：细纲「复沓锚句」字段下列出的原话允许逐字落地——誓言、系统面板、
+ * 旧案原话等写细纲时判定必须原文出现的部分，逐行一条。只扣除锚句自身的精确区间，
+ * 前后剩余片段照常按阈值判定，避免紧挨锚句的照搬被顺带赦免。
  * 豁免量单独统计并在报告末尾列出，滥用锚句绕过检测时一眼可见。
  *
  * 由 narrative-writer 落盘后自查、主会话收尾复扫时调用（两侧同一份实现，口径一致）。
  * 不进 hook：正文兜底 hook 的共享核是四端共用的，不为单项检测扩面。
  *
  * 用法：
- *   node check-outline-copy.js <正文路径>            # 自动找同章细纲
+ *   node check-outline-copy.js <正文路径>            # 自动找同章细纲；短篇找同目录小节大纲
  *   node check-outline-copy.js <正文路径> <细纲路径>  # 指定细纲
  *
- * 退出码：0 = 干净或无法判定（缺细纲/非分章正文）；1 = 命中誊抄。
+ * 退出码：0 = 干净或无法判定（缺细纲/非分章正文）；1 = 有重合待复核。
  * 无发现时完全静默，不污染上下文。
  */
 
@@ -61,9 +68,55 @@ function extractAnchors(outline) {
     .filter((a) => a.length >= 2)
 }
 
+/**
+ * 在片段里定位锚句的精确出现区间，挖掉后返回剩余子段与豁免字数。
+ * 不能只判「片段包含锚句」就整段放行——贪心扫描求的是最长延伸，锚句嵌在中间时
+ * 会连同紧挨着它的未授权重合一起赦免。
+ */
+function splitByAnchors(frag, anchors) {
+  // 片段完全落在某条锚句内：整段豁免（抄了锚句的一部分，仍在授权范围）
+  if (anchors.some((a) => a.includes(frag))) return { rest: [], anchoredLen: frag.length }
+
+  const spans = []
+  for (const a of anchors) {
+    for (let from = 0; from + a.length <= frag.length; ) {
+      const at = frag.indexOf(a, from)
+      if (at < 0) break
+      spans.push([at, at + a.length])
+      from = at + 1 // 同一锚句重复出现要逐次记录
+    }
+  }
+  if (!spans.length) return { rest: [frag], anchoredLen: 0 }
+
+  spans.sort((x, y) => x[0] - y[0])
+  const merged = [spans[0]] // 多锚句重叠/相邻时并成一段，避免重复计数
+  for (const [s, e] of spans.slice(1)) {
+    const last = merged[merged.length - 1]
+    if (s <= last[1]) last[1] = Math.max(last[1], e)
+    else merged.push([s, e])
+  }
+
+  const rest = []
+  let cursor = 0
+  let anchoredLen = 0
+  for (const [s, e] of merged) {
+    if (s > cursor) rest.push(frag.slice(cursor, s))
+    anchoredLen += e - s
+    cursor = e
+  }
+  if (cursor < frag.length) rest.push(frag.slice(cursor))
+  return { rest, anchoredLen }
+}
+
 /** 定位同章细纲：遍历 大纲/ 按章号正则匹配，支持带后缀的文件名 */
 function findOutline(proseFile) {
-  const m = path.basename(proseFile).match(/^第\s*0*(\d+)\s*章/)
+  const base = path.basename(proseFile)
+  // 短篇没有章号：正文.md 与 小节大纲.md 在同目录平铺
+  if (base === '正文.md') {
+    const sibling = path.join(path.dirname(proseFile), '小节大纲.md')
+    return fs.existsSync(sibling) ? sibling : null
+  }
+  const m = base.match(/^第\s*0*(\d+)\s*章/)
   if (!m) return null
   const chapter = m[1]
   const dir = path.join(path.dirname(path.dirname(proseFile)), '大纲')
@@ -97,7 +150,6 @@ function main() {
 
   // 复沓锚句列出的原话允许逐字落地，命中后计入豁免、不判誊抄
   const anchors = extractAnchors(outline)
-  const isAnchored = (frag) => anchors.some((a) => a.includes(frag) || frag.includes(a))
 
   // 贪心扫描：每个起点二分求「仍是细纲子串」的最长延伸，命中区间不重叠
   const hits = []
@@ -121,12 +173,17 @@ function main() {
     }
     if (best) {
       const frag = P.substr(i, best)
-      if (isAnchored(frag)) {
-        anchored += best
+      const { rest, anchoredLen } = splitByAnchors(frag, anchors)
+      if (anchoredLen) {
+        anchored += anchoredLen
         anchoredCount++
-      } else {
-        hits.push({ frag, len: best })
-        copied += best
+      }
+      // 挖掉锚句后的剩余子段仍是细纲子串，只需按阈值重判
+      for (const seg of rest) {
+        if (seg.length >= MIN_RUN) {
+          hits.push({ frag: seg, len: seg.length })
+          copied += seg.length
+        }
       }
       i += best
     } else i++
@@ -146,7 +203,7 @@ function main() {
   const out = [
     `=== 细纲照搬检测（${path.basename(proseFile)}）===`,
     `正文 ${P.length} 字，与 ${path.basename(outlineFile)} 连续重合 >${MIN_RUN - 1} 字的片段 ${hits.length} 处，共 ${copied} 字（${rate}%）。`,
-    `判定：誊抄。这些段落必须重写——细纲只锁功能与结果，句子在正文现场写，不把细纲措辞原样搬进叙述。`,
+    `逐条对照原文判断：确属把细纲叙述搬进正文就重写——细纲只锁功能与结果，句子在正文现场写；系统面板、誓词、案卷原话、固定专名等功能性重合可保留。每条都要有结论，不为归零机械改写。保留项由主会话补进细纲「复沓锚句」——子代理只重写正文或标 \`[需复核]\` 交回，不改大纲细纲。`,
   ]
   hits
     .sort((a, b) => b.len - a.len)

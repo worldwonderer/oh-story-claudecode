@@ -44,6 +44,8 @@ jobs:
         run: node scripts/test-scan-runtime.js
       - name: AI-pattern detector regression
         run: bash scripts/test-ai-patterns.sh
+      - name: Outline-copy detector regression
+        run: bash scripts/test-outline-copy.sh
       - name: Degeneration detector regression
         run: bash scripts/test-degeneration.sh
       - name: Prose backstop hook regression
@@ -109,6 +111,9 @@ jobs:
       - name: AI-pattern detector regression
         shell: bash
         run: bash scripts/test-ai-patterns.sh
+      - name: Outline-copy detector regression
+        shell: bash
+        run: bash scripts/test-outline-copy.sh
       - name: Degeneration detector regression
         shell: bash
         run: bash scripts/test-degeneration.sh
@@ -177,6 +182,8 @@ jobs:
           python-version: '3.x'
       - name: AI-pattern detector regression
         run: bash scripts/test-ai-patterns.sh
+      - name: Outline-copy detector regression
+        run: bash scripts/test-outline-copy.sh
       - name: Degeneration detector regression
         run: bash scripts/test-degeneration.sh
       - name: Prose backstop hook regression
