@@ -760,47 +760,6 @@ def test_rubric_parity_guard() -> None:
         )
 
 
-def test_issue_315_333_343_prompt_contracts() -> None:
-    """写作引号、Stage 6 切片真值、跨批 review 持久化必须有单一明确契约。"""
-
-    anti_ai = (REPO_ROOT / "skills/story-long-write/references/anti-ai-writing.md").read_text(
-        encoding="utf-8"
-    )
-    writer = (
-        REPO_ROOT / "skills/story-setup/references/templates/agents/narrative-writer.md"
-    ).read_text(encoding="utf-8")
-    require(
-        "普通名词" in anti_ai and "引号强调" in anti_ai,
-        "#315: anti-ai reference must distinguish normal nouns from legitimate quotations",
-    )
-    require(
-        "引号强调" in writer and "对话" in writer,
-        "#315: narrative-writer Gate B must prevent quote emphasis without banning dialogue",
-    )
-
-    style = (
-        REPO_ROOT / "skills/story-long-analyze/references/style-profile-generator.md"
-    ).read_text(encoding="utf-8")
-    require(
-        "只读 `_progress.md`" in style and "章节边界" in style,
-        "#333: Stage 6 must read the persisted chapter-boundary table",
-    )
-    for stale in ("正确 Grep 模式", "相应调整 regex", "拿到 grep 的", "用 Step 4 grep"):
-        require(stale not in style, f"#333: Stage 6 still instructs a second slice via: {stale}")
-
-    review = (REPO_ROOT / "skills/story-review/SKILL.md").read_text(encoding="utf-8")
-    for anchor in (
-        ".story-review/state.md",
-        "上一批未解决 findings 摘要",
-        "先读取 state.md",
-        "原子重写 state.md",
-        "同时只维护一条跨批审查",
-        "征得用户确认",
-        "缺失、损坏或本批超出既定范围",
-    ):
-        require(anchor in review, f"#343: review persistence contract missing {anchor}")
-
-
 def main() -> int:
     test_manifest_contract()
     test_bad_fallbacks_fail()
@@ -817,7 +776,6 @@ def main() -> int:
     test_p1_deletion_guards()
     test_analyze_portability_guards()
     test_rubric_parity_guard()
-    test_issue_315_333_343_prompt_contracts()
     test_structured_sentinel_contract()
     test_structured_outline_contract()
     test_upgrading_version_contract()

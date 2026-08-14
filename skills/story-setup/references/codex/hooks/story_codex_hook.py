@@ -438,7 +438,7 @@ def _wordcount_finding(abs_path: Path, text: str) -> str | None:
         break
     if not target:
         return None
-    actual = len(text)
+    actual = len(text.replace("\r\n", "\n").replace("\r", "\n"))
     if actual < target * 0.9:
         return (f"字数：第{num}章 实际 {actual} 字 < 目标 {target} 的 90%（{int(target*0.9)}）。"
                 f"对照细纲字数预算定位欠账的密点、一次性重写到配额，别挤牙膏回炉。")

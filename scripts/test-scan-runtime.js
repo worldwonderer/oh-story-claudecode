@@ -473,22 +473,6 @@ function testLocalDateStamp(modulePath) {
   }
 }
 
-// 静态守卫：任何采集脚本都不许再用 UTC 日期拼文件名
-function testScraperFilenameDatesAreLocal() {
-  for (const scraperPath of listScraperPaths()) {
-    const src = fs.readFileSync(scraperPath, "utf8");
-    const name = path.basename(scraperPath);
-    assert(
-      !/toISOString\(\)\s*\.slice\(0,\s*10\)/.test(src),
-      `${name}: 文件名日期不能用 UTC（toISOString().slice(0,10)），必须用 localDateStamp()`
-    );
-    assert(
-      src.includes("localDateStamp()"),
-      `${name}: 输出文件名必须用 localDateStamp() 取本地日历日`
-    );
-  }
-}
-
 // 晋江：详情批次瞬时失败只该丢详情，不该丢已解析的列表，更不该掐掉后面的榜单
 function testJjwxcDetailFailureIsolation() {
   const scraper = path.join(
@@ -1447,48 +1431,11 @@ function testCdpRejectsUnverifiableIdentity() {
   );
 }
 
-// 静态守卫：探测 CDP 的 http.get 必须显式 agent:false。
-// Node 19+ 的 globalAgent 默认 keepAlive，而这个脚本用 sleepSync 死堵事件循环，
-// 期间服务端按 5s 空闲把池里的连接关掉；复用这条死 socket 就是 ECONNRESET，
-// 于是「端口还活着」被误判成「没人应答」——这种假阴性会直接骗过端口闸门。
-function testCdpProbeUsesFreshSocket() {
-  const src = fs.readFileSync(
-    path.join(repoRoot, "skills/browser-cdp/scripts/setup-cdp-chrome.js"),
-    "utf8"
-  );
-  const call = src.match(/http\.get\([^)]*\)/);
-  assert(call, "找不到 http.get 调用");
-  assert(
-    /agent:\s*false/.test(call[0]),
-    `探测 CDP 的 http.get 必须带 agent:false（一次一条新连接），实际: ${call[0]}`
-  );
-}
-
-function testCdpWindowsListenerParsingIsLocaleIndependent() {
-  const src = fs.readFileSync(
-    path.join(repoRoot, "skills/browser-cdp/scripts/setup-cdp-chrome.js"),
-    "utf8"
-  );
-  const block = src.match(
-    /function listPortListenerPids\(port\) \{[\s\S]*?\r?\n\}\r?\n\r?\n\/\*\* 全机/
-  );
-  assert(block, "找不到 listPortListenerPids");
-  assert(
-    /Get-NetTCPConnection/.test(block[0]),
-    "Windows 监听者查询应优先使用 Get-NetTCPConnection 的结构化 OwningProcess"
-  );
-  assert(
-    !/LISTENING\\\\s/.test(block[0]),
-    "netstat fallback 不得依赖英文状态字 LISTENING（本地化 Windows 会使用其他文字）"
-  );
-}
-
 testCdpUtils(longUtilsPath);
 testCdpUtils(shortUtilsPath);
 testWindowsInvocationBuilder(longUtilsPath);
 testLocalDateStamp(longUtilsPath);
 testLocalDateStamp(shortUtilsPath);
-testScraperFilenameDatesAreLocal();
 testScraperImports();
 testCliResultGate(longUtilsPath);
 testJjwxcDetailFailureIsolation();
@@ -1498,8 +1445,6 @@ testQimaoPeriodPlan();
 testQimaoPartialTargetStatus();
 testLongScanArgumentValidation();
 testHeiyanFieldDriftAndWordFormat();
-testCdpProbeUsesFreshSocket();
-testCdpWindowsListenerParsingIsLocaleIndependent();
 testCdpPlainReuseUnchanged();
 testCdpResetRefusesStaleEndpoint();
 testCdpResetRefusesUnhealthyTcpHolder();

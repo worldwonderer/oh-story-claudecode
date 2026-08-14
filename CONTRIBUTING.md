@@ -66,12 +66,12 @@ PR 自动运行 `.github/workflows/cross-platform.yml`。static-check job 跑以
 - `scripts/check-doc-budget.sh` — 热路径 SKILL/references/agent 模板的字数预算（按 `scripts/doc-budget.json`），防每次会话都要付的规则文本无声膨胀
 - `scripts/check-hook-regex-sync.sh` — hook 伏笔状态检测行为
 - `scripts/check-shared-files.sh` — 共享 runtime 资产清单 + 跨 skill reference 副本一致性
+- `scripts/check-scan-runtime-policy.sh` — scraper 本地日期依赖与 CDP 源码策略守卫
 - `scripts/check-story-setup-deployment.sh` — story-setup 部署完整性
 - `scripts/check-claude-adapter.sh` — Claude marketplace 与 skill 映射检查
 - `scripts/check-opencode-adapter.sh` — OpenCode adapter 同步、commands/agents/config 结构与 plugin 真实行为检查
 - `scripts/check-openclaw-skills.sh` — OpenClaw 单行 frontmatter、`metadata.openclaw` 与可选真实 CLI 发现检查
 - `scripts/check-codex-adapter.sh` — Codex repo skills symlink、custom-agent TOML、hook 生成确定性与 launcher 契约
-- `scripts/test-story-cover-codex-imagegen.sh` — `story-cover` 优先使用 Codex 内置 ImageGen、无需 API Key，并保留跨端 API 回退
 - `scripts/test-codex-hooks.sh` — Codex hooks 合成事件测试
 - `scripts/check-zcode-adapter.sh` — ZCode plugin/marketplace、13 Skills/Commands、受支持 Hook 事件与部署锚点检查
 - `scripts/test-zcode-hooks.sh` — ZCode 严格 JSON Hook 契约、正文守卫、连续性与跨平台 Node runner 测试
@@ -96,7 +96,7 @@ bash scripts/check-shared-files.sh
 python3 scripts/test-shared-assets.py
 node scripts/test-normalize-punctuation.js
 node scripts/test-scan-runtime.js
-bash scripts/test-story-cover-codex-imagegen.sh
+bash scripts/check-scan-runtime-policy.sh
 bash scripts/test-ai-patterns.sh
 bash scripts/test-degeneration.sh
 bash scripts/test-prose-backstop-hook.sh

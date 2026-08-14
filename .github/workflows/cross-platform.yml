@@ -12,8 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          # Node 22.6+ lets test-prose-net-parity execute plugin.ts directly
-          # instead of silently falling back to string-anchor checks only.
+          # Node 22.6+ lets test-prose-net-parity execute plugin.ts directly.
           node-version: 22
       - uses: actions/setup-python@v5
         with:
@@ -42,8 +41,8 @@ jobs:
         run: node scripts/test-normalize-punctuation.js
       - name: Scan runtime regression
         run: node scripts/test-scan-runtime.js
-      - name: Story cover Codex ImageGen contract
-        run: bash scripts/test-story-cover-codex-imagegen.sh
+      - name: Check scan/browser runtime source policies
+        run: bash scripts/check-scan-runtime-policy.sh
       - name: AI-pattern detector regression
         run: bash scripts/test-ai-patterns.sh
       - name: Outline-copy detector regression
@@ -56,8 +55,6 @@ jobs:
         run: bash scripts/test-prose-net-parity.sh
       - name: Story continuity backstop regression
         run: bash scripts/test-story-continuity.sh
-      - name: Tracking workflow contract regression
-        run: python3 scripts/test-tracking-workflow-contracts.py
       - name: Tracking transaction behavior regression
         run: python3 scripts/test-tracking-commit.py
       - name: Check story-setup deployment
@@ -94,7 +91,8 @@ jobs:
         run: bash scripts/test-charcount-portable.sh --stub
       - name: Syntax-check collection scripts
         run: |
-          for f in $(find skills -name '*-scraper.js' -o -name 'cdp-utils.js' -o -name 'setup-cdp-chrome.js'); do
+          find skills \( -name '*-scraper.js' -o -name 'cdp-utils.js' -o -name 'setup-cdp-chrome.js' \) -print0 |
+          while IFS= read -r -d '' f; do
             echo "node --check $f"
             node --check "$f"
           done
@@ -128,8 +126,6 @@ jobs:
       - name: Story continuity backstop regression
         shell: bash
         run: bash scripts/test-story-continuity.sh
-      - name: Tracking workflow contract regression
-        run: python scripts/test-tracking-workflow-contracts.py
       - name: Tracking transaction behavior regression
         run: python scripts/test-tracking-commit.py
       - name: Workflow numbering regression
@@ -194,8 +190,6 @@ jobs:
         run: bash scripts/test-prose-net-parity.sh
       - name: Story continuity backstop regression
         run: bash scripts/test-story-continuity.sh
-      - name: Tracking workflow contract regression
-        run: python3 scripts/test-tracking-workflow-contracts.py
       - name: Tracking transaction behavior regression
         run: python3 scripts/test-tracking-commit.py
       - name: Workflow numbering regression

@@ -132,7 +132,7 @@ while IFS= read -r src; do
 done < <(grep -RhoE '^source[[:space:]]+"[^"]+"' "$HOOKS_DIR"/*.sh | sed -E 's/^source[[:space:]]+"//;s/"$//' | sort -u)
 # node 共享核 + CLI 桥：正文网/字数/路径抽取/git commit 侦测/连续性的单一实现，被 bash hook 经
 # `node "$(dirname "$0")/story_hook_cli.js"` 调用。大纲阻断判定与 staged markdown warnings 未归核，
-# 仍是各端独立实现（Claude 纯 bash；codex↔core 由 test-prose-net-parity.sh Part E 锁 parity）。
+# 仍是各端独立实现（Claude 纯 bash；codex↔core 由 test-prose-net-parity.sh Part C 锁 parity）。
 # 这两条不是 source 依赖，上面的 grep 抓不到，显式断言存在 + 语法有效，否则 hook 静默退化
 # （node 缺失时 hook 自身 exit 0、session-start.sh 会话起点提示一次，此处按开发机有 node 校验）。
 assert_file "$HOOKS_DIR/story_hook_core.js"
@@ -141,6 +141,14 @@ if command -v node >/dev/null 2>&1; then
   node --check "$HOOKS_DIR/story_hook_core.js" || fail "story_hook_core.js node syntax invalid"
   node --check "$HOOKS_DIR/story_hook_cli.js" || fail "story_hook_cli.js node syntax invalid"
 fi
+# 这是依赖方向的静态策略，不冒充行为测试：四个 bash hook 必须经 CLI 桥复用共享核，禁止
+# 重新内嵌第五份 Python 实现。运行行为另由 test-prose-net-parity / hook 回归覆盖。
+for hook in check-prose-after-write guard-outline-before-prose validate-story-commit detect-story-gaps; do
+  if grep -q "<<'PY'" "$HOOKS_DIR/$hook.sh"; then
+    fail "$hook.sh must not embed a duplicate Python implementation"
+  fi
+  assert_grep 'story_hook_cli\.js' "$HOOKS_DIR/$hook.sh" "$hook.sh must delegate to story_hook_cli.js"
+done
 assert_grep '递归复制完整目录树|recursive' "$SKILL_FILE" "SKILL.md must require recursive hook deployment"
 assert_grep 'lib/common\.sh' "$SKILL_FILE" "SKILL.md must mention hooks/lib/common.sh"
 assert_grep 'lib/sentinel\.sh' "$SKILL_FILE" "SKILL.md must mention hooks/lib/sentinel.sh"
@@ -625,7 +633,7 @@ PY
 # 细纲齐了还要过追踪检查点（issue #305 起 Claude 侧也有这道门，与另三端同序）。
 # 本节测的是细纲门与路径分类，不是追踪门，所以先落一份有效 state 把追踪这一维固定住。
 # last_committed 取一个大于本节所有用例章号的值：章号已在追踪范围内即跳过顺序校验，
-# 于是 第1/7/123/124 章都只被细纲门判定。顺序校验本身由 test-prose-net-parity.sh Part F
+# 于是 第1/7/123/124 章都只被细纲门判定。顺序校验本身由 test-prose-net-parity.sh Part D
 # 的场景矩阵覆盖，不在这里重复。
 mkdir -p "$guard_root/book/追踪"
 printf '{"schema_version":4,"state_revision":0,"last_committed_chapter":200}\n' > "$guard_root/book/追踪/_tracking-state.json"
