@@ -42,6 +42,8 @@ jobs:
         run: node scripts/test-normalize-punctuation.js
       - name: Scan runtime regression
         run: node scripts/test-scan-runtime.js
+      - name: Story cover Codex ImageGen contract
+        run: bash scripts/test-story-cover-codex-imagegen.sh
       - name: AI-pattern detector regression
         run: bash scripts/test-ai-patterns.sh
       - name: Outline-copy detector regression
