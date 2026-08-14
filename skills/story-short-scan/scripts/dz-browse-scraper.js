@@ -217,8 +217,7 @@ function main() {
     if (!content) continue;
 
     const chInfo = CHANNELS.find((c) => c.id === ch);
-    const date = localDateStamp();
-    const filename = `点众${chInfo.label}短篇_${date}.md`;
+    const filename = `点众${chInfo.label}短篇_${localDateStamp()}.md`;
     fs.mkdirSync(OUTDIR, { recursive: true });
     const filepath = path.join(OUTDIR, filename);
     fs.writeFileSync(filepath, content, "utf-8");

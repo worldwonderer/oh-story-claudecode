@@ -368,9 +368,8 @@ function main() {
         }
 
         const rtInfo = RANK_TYPES.find((r) => r.id === rt);
-        const date = localDateStamp();
         const chLabel = ch === "0" ? "全站" : `频道${ch}`;
-        const filename = `晋江${rtInfo.label}_${chLabel}_${date}.md`;
+        const filename = `晋江${rtInfo.label}_${chLabel}_${localDateStamp()}.md`;
         fs.mkdirSync(OUTDIR, { recursive: true });
         const filepath = path.join(OUTDIR, filename);
         fs.writeFileSync(filepath, result.content, "utf-8");

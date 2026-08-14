@@ -222,8 +222,7 @@ function main() {
         }
       }
 
-      const date = localDateStamp();
-      const filename = `刺猬猫${rt.label}_${date}.md`;
+      const filename = `刺猬猫${rt.label}_${localDateStamp()}.md`;
       fs.mkdirSync(OUTDIR, { recursive: true });
       const filepath = path.join(OUTDIR, filename);
       fs.writeFileSync(filepath, lines.join("\n"), "utf-8");

@@ -403,8 +403,7 @@ function main() {
       continue;
     }
 
-    const date = localDateStamp();
-    const filename = outputFilename(target.channel, target.rankType, target.period, date);
+    const filename = outputFilename(target.channel, target.rankType, target.period, localDateStamp());
     fs.mkdirSync(OUTDIR, { recursive: true });
     const filepath = path.join(OUTDIR, filename);
     fs.writeFileSync(filepath, content, "utf-8");

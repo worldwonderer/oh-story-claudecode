@@ -43,6 +43,8 @@ jobs:
         run: node scripts/test-scan-runtime.js
       - name: Check scan/browser runtime source policies
         run: bash scripts/check-scan-runtime-policy.sh
+      - name: Scan/browser source-policy mutation regression
+        run: python3 scripts/test-scan-runtime-policy.py
       - name: AI-pattern detector regression
         run: bash scripts/test-ai-patterns.sh
       - name: Outline-copy detector regression

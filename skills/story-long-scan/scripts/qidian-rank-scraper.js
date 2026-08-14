@@ -553,8 +553,7 @@ async function main() {
       }
 
       const rtInfo = RANK_TYPES.find((r) => r.id === rt);
-      const date = localDateStamp();
-      const filename = `起点${rtInfo.label}_${date}.md`;
+      const filename = `起点${rtInfo.label}_${localDateStamp()}.md`;
       fs.mkdirSync(OUTDIR, { recursive: true });
       const filepath = path.join(OUTDIR, filename);
       fs.writeFileSync(filepath, content, "utf-8");

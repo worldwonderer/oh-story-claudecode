@@ -28,14 +28,28 @@ for (const file of scrapers) {
   if (/toISOString\(\)\s*\.slice\(0,\s*10\)/.test(source)) {
     failures.push(`${name}: output dates must not use UTC toISOString().slice(0,10)`)
   }
-  if (!source.includes("localDateStamp()")) {
-    failures.push(`${name}: output filenames must depend on localDateStamp()`)
+  const filenameAssignments = source.match(/\bconst\s+filename\s*=\s*[^;]+;/g) || []
+  if (filenameAssignments.length !== 1) {
+    failures.push(`${name}: expected exactly one output filename assignment, found ${filenameAssignments.length}`)
+  } else if (!filenameAssignments[0].includes("localDateStamp()")) {
+    failures.push(`${name}: output filename assignment must call localDateStamp() directly`)
+  }
+  if (!/\bconst\s+filepath\s*=\s*path\.join\(OUTDIR,\s*filename\);/.test(source)) {
+    failures.push(`${name}: output path must be constructed from the guarded filename`)
   }
 }
 
 const setupPath = path.join(root, "skills/browser-cdp/scripts/setup-cdp-chrome.js")
 const setup = fs.readFileSync(setupPath, "utf8")
-if (!/http\.get\([^\n]+\{[^\n]*agent:\s*false/.test(setup)) {
+const httpGetStart = setup.indexOf("function httpGet(url)")
+const httpGetEnd = setup.indexOf("async function probeCDP(port)", httpGetStart)
+const httpGet = httpGetStart >= 0 && httpGetEnd > httpGetStart
+  ? setup.slice(httpGetStart, httpGetEnd)
+  : ""
+const httpCalls = httpGet.match(/\bhttp\.get\(/g) || []
+if (httpCalls.length !== 1) {
+  failures.push(`setup-cdp-chrome.js: httpGet() must contain exactly one http.get() call, found ${httpCalls.length}`)
+} else if (!/http\.get\(url,\s*\{[^}]*\bagent:\s*false\b[^}]*\},/.test(httpGet)) {
   failures.push("setup-cdp-chrome.js: CDP probes must disable the keep-alive agent")
 }
 const listenerStart = setup.indexOf("function listPortListenerPids(port)")

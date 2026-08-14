@@ -181,8 +181,7 @@ function main() {
   console.log("\n→ 采集 黑岩书库列表（API 模式）...");
   console.log(`  计划采集: ${PAGES} 页（每页 ${PAGE_SIZE} 条）`);
 
-  const date = localDateStamp();
-  const filename = outputFilename(CHANNEL, date);
+  const filename = outputFilename(CHANNEL, localDateStamp());
   const filepath = path.join(OUTDIR, filename);
 
   // 先导航到管理后台获取 token
