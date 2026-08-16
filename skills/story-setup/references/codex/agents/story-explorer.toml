@@ -151,9 +151,11 @@ developer_instructions = """
    - 先按项目目录名、`.active-book` 与本书设定识别当前作品；`拆文库/{当前书}/` 是 story-import 的本书分析，不是对标候选。历史误建的 `对标/{当前书}/` 也必须排除，并返回 `gaps.self_benchmark_ignored: true`
    - `Read 设定/题材定位.md`，提取 `主对标书` 字段
    - 若有且不是当前作品 → 用该书；若字段指向当前作品 → 忽略该字段并设置 `gaps.self_benchmark_ignored: true`
-   - 若字段缺失或已忽略 → `Glob 对标/*/`，排除当前作品后取字典序第一个目录，并在 `gaps.main_benchmark_unspecified: true` 提示主对标书未指定
-   - 若排除后的 `对标/` 无子目录，继续向上找工作区根下的 `拆文库/*/`，同样排除当前作品；若仍无可用目录 → 返回 `gaps.no_benchmark: true`，`results` 置空，**不报错、不继续读文风**
-3. **对标书路径查找**：优先 `{项目}/对标/{书名}/`，回退 `拆文库/{书名}/`（向上找到工作区根，再下钻拆文库）
+   - **路径一律用字段值逐字拼接**：不添加《》等任何装饰、不改一字——拼错时 Glob 只会静默返回空，与「书不存在」无法区分
+   - **登记的主对标按步骤 3 探不到资料** → 返回 `gaps.benchmark_book_missing: true` 与 `expected_path`（原样写入实际探测的完整路径，供核对拼写），`results` 置空**停止**；不得改用其他书，也不得走下面的缺失回退
+   - 若字段缺失或已忽略 → `Glob 对标/*/文风.md`，从命中文件的上级目录（排除当前作品）取字典序第一个，并在 `gaps.main_benchmark_unspecified: true` 提示主对标书未指定
+   - 若排除后无命中，继续向上找工作区根下的 `拆文库/*/文风.md`，同样排除当前作品；仍无 → 返回 `gaps.no_benchmark: true`，`results` 置空，**不报错、不继续读文风**
+3. **对标书路径查找**：优先探 `{项目}/对标/{书名}/文风.md`，回退探 `拆文库/{书名}/文风.md`（向上找到工作区根，再下钻拆文库）；探针是文件不是目录——目录模式的 Glob 恒返回空
 4. **读情绪模块（权威）**：
    - 优先 `Read {对标书路径}/剧情/情绪模块.md`
    - 存在 → 从「读者需求 / 情绪引擎」「可复现模块」或模块卡片中，按本章情绪/爽点类型选择 1 条 `selected_emotion_module`，并写入 `module_source_path`
@@ -209,7 +211,7 @@ developer_instructions = """
 
 > `context_load` 的固定读取量不随章数增长。角色当前值来自独立小快照，旧变化原因来自按 ID/角色定点命中的紧凑增量，时间线按作者/读者视角分开读取。
 
-> 普通查询遇文件缺失时在 `gaps` 中返回事实；`context_load` 缺 state、续写状态卡或 `check` 失败时必须停止组装。`benchmark_style_load` 缺 `剧情/情绪模块.md` 或 `剧情/节奏.md` 时必须返回 `missing_primary_contract: true` 与 `repair_action`，不得继续进入写作准备。
+> 普通查询遇文件缺失时在 `gaps` 中返回事实；`context_load` 缺 state、续写状态卡或 `check` 失败时必须停止组装。`benchmark_style_load` 缺 `剧情/情绪模块.md` 或 `剧情/节奏.md` 时必须返回 `missing_primary_contract: true` 与 `repair_action`，不得继续进入写作准备；登记的主对标资料探不到时返回 `benchmark_book_missing: true` 与 `expected_path`，同样停止，不得改用其他书。
 
 ---
 
@@ -317,6 +319,7 @@ developer_instructions = """
     "profile_degenerate": false,
     "stale_reason": null,
     "main_benchmark_unspecified": false,
+    "benchmark_book_missing": false,
     "self_benchmark_ignored": false,
     "raw_text_unavailable": false,
     "tone_match_failed": false,
