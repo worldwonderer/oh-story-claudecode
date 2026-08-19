@@ -39,18 +39,18 @@ developer_instructions = """
 
 ## 参考文件体系
 
-你拥有以下参考文件，**按需读取，不要提前全部加载**：
-| 参考文件 | 何时读取 |
+你拥有以下参考文件。**逐行独立判定，命中任一条件即必读**（不是要同时满足），不得因「手头材料已够」跳过；未命中的行不要预加载。
+| 参考文件 | 必读条件 |
 |---|---|
-| `story-setup/references/agent-references/writing-craft.md` | 正文写作（**从细纲到正文·不照抄形状**、三维度揉进、身体细节、物件三次出现、小节密度）时 |
-| `story-setup/references/agent-references/emotional-arc-design.md` | 情绪弧线执行、题材情绪策略时 |
-| `story-setup/references/agent-references/genre-prose-cards.md` | 按番茄题材分类校准正文提示卡时先读索引，再只读取 `story-setup/references/agent-references/genre-prose-cards/{题材}.md` 单卡；卡片只内部校准题材味，正文里不出现卡片文字或合规自评 |
-| `story-setup/references/agent-references/style-genre-modules.md` | 题材风格模块（通用流派补充）时 |
-| `story-setup/references/agent-references/opening-design.md` | 开篇创作（黄金一章、开头技巧）时 |
-| `story-setup/references/agent-references/anti-ai-writing.md` | 去AI味（7 Gate、三遍去AI法、Show Don't Tell）时 |
-| `story-setup/references/agent-references/banned-words.md` | 禁用词替换（Gate A）时 |
-| `story-setup/references/agent-references/quality-checklist.md` | 审查文字质量（五维评分、9项检查）时 |
-| `story-setup/references/agent-references/dialogue-mastery.md` | 写或审查对话场景（信息嵌入、潜台词、权力博弈、逐句情绪反馈、场合语气）时 |
+| `story-setup/references/agent-references/writing-craft.md` | **产出正文全程**（首稿/重写/补写，落笔前必读）：**从细纲到正文·不照抄形状**、三维度揉进、身体细节、物件三次出现、疏密分配 |
+| `story-setup/references/agent-references/banned-words.md` | **产出或修改正文时**（Gate A 禁用词，出现即修） |
+| `story-setup/references/agent-references/opening-design.md` | **开新书、或写前 3 章时**（落笔前） |
+| `story-setup/references/agent-references/anti-ai-writing.md` | **正文写作后做去AI味自检或改写时**（7 Gate、三遍去AI法、Show Don't Tell） |
+| `story-setup/references/agent-references/emotional-arc-design.md` | **prompt 给了 目标情绪 或 selected_emotion_module 时** |
+| `story-setup/references/agent-references/dialogue-mastery.md` | **本章有对话或台词时**（信息嵌入、潜台词、权力博弈、逐句情绪反馈、场合语气） |
+| `story-setup/references/agent-references/genre-prose-cards.md` | **prompt 给了 genre_prose_card 时**：题材已知直接读 `story-setup/references/agent-references/genre-prose-cards/{题材}.md` 单卡，题材未知先读本索引；卡片只内部校准题材味，正文里不出现卡片文字或合规自评 |
+| `story-setup/references/agent-references/style-genre-modules.md` | **genre-prose-cards 索引无匹配题材单卡时**（通用流派兜底） |
+| `story-setup/references/agent-references/quality-checklist.md` | **审查/评分任务时**（五维评分、9项检查） |
 | `文风路径`（绝对路径由 prompt 传入：自定义文风模式为 `设定/文风.md`，否则对标 `文风.md`） | prompt 含 `文风路径` 时**写作前必读**；`设定/文风.md` 为权威风格基（句长 / 软标点 / 对话潜台词 / 情绪交替），命中硬安全线的写法（`……` / 破折号 / 段间空行 / 碎句）仍按本文件 Gate 归一，不让位 |
 
 ---

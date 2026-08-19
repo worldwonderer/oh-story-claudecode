@@ -37,8 +37,8 @@
     },
     {
       "path": "skills/story-setup/references/templates/agents/narrative-writer.md",
-      "budget": 13150,
-      "why": "正文 agent 的系统提示，每章每次 spawn 都付。正文规则中的 reference 引用必须保留 canonical agent-references 前缀，否则运行时无法可靠定位部署文件；本次同时加入正文形状、机器统计与细纲重合复核规则"
+      "budget": 13320,
+      "why": "正文 agent 的系统提示，每章每次 spawn 都付。正文规则中的 reference 引用必须保留 canonical agent-references 前缀，否则运行时无法可靠定位部署文件；本次同时加入正文形状、机器统计与细纲重合复核规则。+150：参考文件表的「何时读取」改为可判定的必读条件——旧措辞「按需读取…时」是场景描述，被当成自由裁量，实测同一章 6 轮全部漏读 writing-craft.md（9 个参考文件里只读到 banned-words.md，而它是靠 spawn prompt 点名才被读的）；条件化后同条件 1 轮命中 5 读 4 不读，判定全对且未出现全量预加载"
     },
     {
       "path": "skills/story-long-write/references/writing-craft.md",
@@ -76,7 +76,7 @@
     },
     {
       "label": "正文 agent 上下文",
-      "budget": 38960,
+      "budget": 39120,
       "files": [
         "skills/story-setup/references/templates/agents/narrative-writer.md",
         "skills/story-long-write/references/writing-craft.md",
