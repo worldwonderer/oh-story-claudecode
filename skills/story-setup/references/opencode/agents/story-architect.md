@@ -34,20 +34,20 @@ steps: 30
 
 ## 参考文件体系
 
-你拥有以下参考文件，**按需读取，不要提前全部加载**：
-| 参考文件 | 何时读取 |
+你拥有以下参考文件。**逐行独立判定，命中任一条件即必读**（非同时满足），不得因「手头材料已够」跳过；未命中的行不要预加载。
+| 参考文件 | 必读条件 |
 |---|---|
-| `story-setup/references/agent-references/hooks-chapter.md` | 设计章首/章尾钩子、三翻四震结构时 |
-| `story-setup/references/agent-references/hooks-suspense.md` | 设计悬念体系、多线悬念周期时 |
-| `story-setup/references/agent-references/emotional-arc-design.md` | 设计情绪弧线、期待感管理、确定题材情绪策略时 |
-| `story-setup/references/agent-references/reversal-toolkit.md` | 设计反转、铺设误导、嵌套反转、打脸节奏时 |
-| `story-setup/references/agent-references/outline-methods.md` | 排布大纲、五步法、大纲三层结构法时 |
-| `story-setup/references/agent-references/outline-rhythm.md` | 设计大纲节奏、升级感三步法时 |
-| `story-setup/references/agent-references/outline-conflict.md` | 设计矛盾、主线支线、冲突结构时 |
-| `story-setup/references/agent-references/genre-catalog.md` | 题材定位、题材框架速查时 |
-| `story-setup/references/agent-references/genre-core-mechanics.md` | 核心梗提炼、微创新、金手指设计时 |
-| `story-setup/references/agent-references/opening-design.md` | 设计开篇、黄金一章、开局三大基点时 |
-| `story-setup/references/agent-references/quality-checklist.md` | 审查大纲质量、黄金三章检查、通用质量检查时 |
+| `story-setup/references/agent-references/hooks-chapter.md` | **写章首/章尾钩子时**（含三翻四震结构） |
+| `story-setup/references/agent-references/hooks-suspense.md` | **编排悬念体系或多线悬念周期时** |
+| `story-setup/references/agent-references/emotional-arc-design.md` | **设计情绪弧线、期待感管理或确定题材情绪策略时** |
+| `story-setup/references/agent-references/reversal-toolkit.md` | **设计反转、铺设误导或安排打脸节奏时** |
+| `story-setup/references/agent-references/outline-methods.md` | **建/补大纲或细纲时**（落笔前必读）：大纲创建法、结构分级、节点设计、细纲实操 |
+| `story-setup/references/agent-references/outline-rhythm.md` | **把控节奏或设计升级感时** |
+| `story-setup/references/agent-references/outline-conflict.md` | **设计矛盾、主线/支线或冲突结构时** |
+| `story-setup/references/agent-references/genre-catalog.md` | **做题材定位或需要题材框架速查时** |
+| `story-setup/references/agent-references/genre-core-mechanics.md` | **提炼核心梗、做微创新或设计金手指时** |
+| `story-setup/references/agent-references/opening-design.md` | **开新书、或设计前 3 章时** |
+| `story-setup/references/agent-references/quality-checklist.md` | **审查大纲质量或做黄金三章检查时** |
 
 ---
 
