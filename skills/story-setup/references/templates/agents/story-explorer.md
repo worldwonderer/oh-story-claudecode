@@ -157,10 +157,10 @@ maxTurns: 15
    - `Read 设定/题材定位.md`，提取 `主对标书` 字段
    - 若有且不是当前作品 → 用该书；若字段指向当前作品 → 忽略该字段并设置 `gaps.self_benchmark_ignored: true`
    - **路径一律用字段值逐字拼接**：不添加《》等任何装饰、不改一字——拼错时 Glob 只会静默返回空，与「书不存在」无法区分
-   - **登记的主对标按步骤 3 探不到资料** → 返回 `gaps.benchmark_book_missing: true` 与 `expected_path`（原样写入实际探测的完整路径，供核对拼写），`results` 置空**停止**；不得改用其他书，也不得走下面的缺失回退
-   - 若字段缺失或已忽略 → `Glob 对标/*/文风.md`，从命中文件的上级目录（排除当前作品）取字典序第一个，并在 `gaps.main_benchmark_unspecified: true` 提示主对标书未指定
-   - 若排除后无命中，继续向上找工作区根下的 `拆文库/*/文风.md`，同样排除当前作品；仍无 → 返回 `gaps.no_benchmark: true`，`results` 置空，**不报错、不继续读文风**
-3. **对标书路径查找**：优先探 `{项目}/对标/{书名}/文风.md`，回退探 `拆文库/{书名}/文风.md`（向上找到工作区根，再下钻拆文库）；探针是文件不是目录——目录模式的 Glob 恒返回空
+   - **登记的主对标按步骤 3 探不到书目录**（目录下探不到任何文件）→ 返回 `gaps.benchmark_book_missing: true` 与 `expected_path`（原样写入实际探测的完整路径，供核对拼写），`results` 置空**停止**；不得改用其他书，也不得走下面的缺失回退。**书目录存在但缺 `文风.md` 不属于本情形**——照常进入步骤 4-6，由步骤 6 归类为 `profile_missing`
+   - 若字段缺失或已忽略 → `Glob 对标/*/**/*`，从命中文件所属的书目录（`对标/` 下的第一层目录，排除当前作品）取字典序第一个，并在 `gaps.main_benchmark_unspecified: true` 提示主对标书未指定；**枚举条件是书目录下有文件，不是有 `文风.md`**——缺文风但资料完整的候选仍算命中
+   - 若排除后无命中，继续向上找工作区根下的 `拆文库/*/**/*`，同样排除当前作品；仍无 → 返回 `gaps.no_benchmark: true`，`results` 置空，**不报错、不继续读文风**
+3. **对标书路径查找（只判书目录有效性，不判文风）**：优先探 `{项目}/对标/{书名}/**/*`，回退探 `拆文库/{书名}/**/*`（向上找到工作区根，再下钻拆文库）；探针是目录下的任意文件——Glob 不接受纯目录模式，`{书名}/` 恒返回空。任一处命中文件即视为书目录有效，进入步骤 4；两处都无命中才是 `benchmark_book_missing`。**不得用 `文风.md` 兼作目录存在性探针**——那会把「书在但缺文风」误判成「书不存在」，吞掉步骤 6 的 `profile_missing` 与调用方的 `custom_style` 降级分支
 4. **读情绪模块（权威）**：
    - 优先 `Read {对标书路径}/剧情/情绪模块.md`
    - 存在 → 从「读者需求 / 情绪引擎」「可复现模块」或模块卡片中，按本章情绪/爽点类型选择 1 条 `selected_emotion_module`，并写入 `module_source_path`
@@ -173,7 +173,7 @@ maxTurns: 15
    - 若两个权威文件都存在但对同一章节/模块的读者情绪或爆发点描述互相矛盾，保留两条原文摘要，并返回 `gaps.module_rhythm_conflict: true` 与 `gaps.conflict: "..."`；调用方按两个权威文件优先于 `拆文报告.md` / `故事线.md` 的规则处理，禁止自行改写
 6. **读文风**：
    - `Read {对标书路径}/文风.md`
-   - 不存在 → 返回 `gaps.profile_missing: true, expected_path: "..."`，**不继续后续步骤**
+   - 不存在 → 返回 `gaps.profile_missing: true, expected_path: "..."`，**不继续后续步骤**；书目录本身有效，不得改填 `benchmark_book_missing`——调用方按 `custom_style` 决定继续或停止
    - 检查「生成记录」里的 `文风可用：否` → 返回 `gaps.profile_degenerate: true`，后续不把文风作为强约束
 7. **可用性检查（只读可执行）**：
    - 本 agent 只有 `Read/Glob/Grep`，不能调用 Bash/stat。
@@ -216,7 +216,7 @@ maxTurns: 15
 
 > `context_load` 的固定读取量不随章数增长。角色当前值来自独立小快照，旧变化原因来自按 ID/角色定点命中的紧凑增量，时间线按作者/读者视角分开读取。
 
-> 普通查询遇文件缺失时在 `gaps` 中返回事实；`context_load` 缺 state、续写状态卡或 `check` 失败时必须停止组装。`benchmark_style_load` 缺 `剧情/情绪模块.md` 或 `剧情/节奏.md` 时必须返回 `missing_primary_contract: true` 与 `repair_action`，不得继续进入写作准备；登记的主对标资料探不到时返回 `benchmark_book_missing: true` 与 `expected_path`，同样停止，不得改用其他书。
+> 普通查询遇文件缺失时在 `gaps` 中返回事实；`context_load` 缺 state、续写状态卡或 `check` 失败时必须停止组装。`benchmark_style_load` 缺 `剧情/情绪模块.md` 或 `剧情/节奏.md` 时必须返回 `missing_primary_contract: true` 与 `repair_action`，不得继续进入写作准备；登记的主对标**书目录**探不到时返回 `benchmark_book_missing: true` 与 `expected_path`，同样停止，不得改用其他书；书目录存在但缺 `文风.md` 归 `profile_missing`，不占用本分类。
 
 ---
 

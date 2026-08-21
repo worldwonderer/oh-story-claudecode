@@ -221,6 +221,30 @@ LEGACY_RULES = (
         r"/tmp/style-sample",
         ("skills/story-long-analyze",),
     ),
+    # 文风.md 一旦兼任「书目录是否存在」的探针，缺文风的书就会被判成书不存在：explorer 在
+    # 步骤 3 提前返回 benchmark_book_missing，步骤 6 的 profile_missing 变成不可达，
+    # 调用方 profile_missing + custom_style 的降级续写分支被整条吞掉。目录存在性只能用
+    # 目录下的任意文件探，文风缺失单独归 profile_missing。
+    AbsentRule(
+        "style-profile-as-book-existence-probe",
+        "benchmark book existence is probed by any file under the book dir, never by 文风.md",
+        r"(?:优先探|回退探)[^\n]{0,60}\{书名\}/文风\.md|"
+        r"Glob\s*`?(?:对标|拆文库)/\*/文风\.md",
+        (
+            "skills/story-setup/references/templates/agents/story-explorer.md",
+            "skills/story-setup/references/opencode/agents/story-explorer.md",
+            "skills/story-setup/references/codex/agents/story-explorer.toml",
+        ),
+    ),
+    # 细纲情节点合计只有「目标字数合计：下限X字」一种口径。旧的「预算合计：X字」既没说
+    # 下限也没说区间，与新模板并存时会重新引入「预算是上限还是下限」的歧义。
+    AbsentRule(
+        "legacy-outline-budget-total",
+        "outline plot-point totals use 目标字数合计 only, never the ambiguous 预算合计",
+        r"预算合计",
+        ("skills",),
+        exempt_when=r"不得|禁止|已废弃|旧字段|旧口径",
+    ),
 )
 
 
@@ -232,6 +256,15 @@ SPAWN_CAPABLE_SKILLS = (
     "skills/story-long-write/SKILL.md",
     "skills/story-review/SKILL.md",
     "skills/story-short-write/SKILL.md",
+)
+
+
+# 细纲情节点合计字段的 canonical 副本与它的消费方：workflow-setup.md 是权威模板，
+# artifact-protocols.md 描述该模板，story-outline.md 是部署到用户项目的规则。
+OUTLINE_TOTAL_CONSUMERS = (
+    "skills/story-long-write/references/workflow-setup.md",
+    "skills/story-long-write/references/artifact-protocols.md",
+    "skills/story-setup/references/templates/rules/story-outline.md",
 )
 
 
@@ -1245,6 +1278,51 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
             r"self_benchmark_ignored",
             "explorer-self-benchmark-gap",
             "story-explorer must report and ignore self-benchmark candidates",
+        )
+    )
+    # 「书在但缺文风」必须落到 profile_missing，不能被 benchmark_book_missing 吞掉——
+    # 前者调用方可按 custom_style 降级续写，后者是硬停。两者混用是功能回退，不是措辞问题。
+    findings.extend(
+        require_pattern(
+            explorer_template,
+            r"对标/\{书名\}/\*\*/\*",
+            "explorer-book-dir-probe",
+            "story-explorer must probe book-dir validity with any file under it, not 文风.md",
+        )
+    )
+    findings.extend(
+        require_pattern(
+            explorer_template,
+            r"不得改填\s*`?benchmark_book_missing",
+            "explorer-profile-missing-distinct",
+            "story-explorer must keep profile_missing distinct from benchmark_book_missing",
+        )
+    )
+    findings.extend(
+        require_pattern(
+            repo_root / "skills/story-long-write/references/workflow-daily.md",
+            r"profile_missing[^\n]{0,60}custom_style[^\n]{0,40}继续",
+            "daily-profile-missing-custom-style",
+            "workflow-daily must keep the profile_missing + custom_style continuation branch",
+        )
+    )
+
+    # 细纲合计口径的三处消费方必须与 canonical 同字面，避免模板改了消费方没改。
+    for relative in OUTLINE_TOTAL_CONSUMERS:
+        findings.extend(
+            require_pattern(
+                repo_root / relative,
+                r"目标字数合计",
+                "outline-total-field-parity",
+                "outline plot-point total must use the canonical 目标字数合计 field",
+            )
+        )
+    findings.extend(
+        require_pattern(
+            repo_root / "skills/story-long-write/references/workflow-setup.md",
+            r"目标字数合计：下限X字（章目标Y，范围Y-Z）",
+            "outline-total-canonical-format",
+            "canonical outline template must spell out the 目标字数合计 lower-bound format",
         )
     )
 

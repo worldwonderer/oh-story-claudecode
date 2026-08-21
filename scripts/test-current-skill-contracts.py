@@ -760,6 +760,101 @@ def test_rubric_parity_guard() -> None:
         )
 
 
+def test_style_profile_is_not_a_book_existence_probe() -> None:
+    """文风.md 兼任目录探针会把「书在但缺文风」判成「书不存在」。
+
+    explorer 在步骤 3 就提前返回 benchmark_book_missing，步骤 6 的 profile_missing 变成
+    不可达，调用方 profile_missing + custom_style 的降级续写分支被整条吞掉——是功能回退，
+    不是措辞问题，所以旧探针写法必须硬拦。
+    """
+
+    rules = {rule.code: rule for rule in VALIDATOR.LEGACY_RULES}
+    explorer = "skills/story-setup/references/templates/agents/story-explorer.md"
+    cases = {
+        "style-profile-as-book-existence-probe": (
+            explorer,
+            "3. **对标书路径查找**：优先探 `{项目}/对标/{书名}/文风.md`，"
+            "回退探 `拆文库/{书名}/文风.md`；探针是文件不是目录\n",
+            "3. **对标书路径查找（只判书目录有效性，不判文风）**："
+            "优先探 `{项目}/对标/{书名}/**/*`，回退探 `拆文库/{书名}/**/*`；"
+            "**不得用 `文风.md` 兼作目录存在性探针**\n",
+        ),
+        "legacy-outline-budget-total": (
+            "skills/story-long-write/references/workflow-setup.md",
+            "末尾写一行 `预算合计：X字（目标Y，范围Y-Z）`。\n",
+            "末尾写一行 `目标字数合计：下限X字（章目标Y，范围Y-Z）`。\n",
+        ),
+    }
+    for code, (relative_path, bad, good) in cases.items():
+        rule = rules[code]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(bad, encoding="utf-8")
+            require(
+                finding_codes(VALIDATOR.check_absent_rule(root, rule)) == {code},
+                "{} must reject the pre-fix wording".format(code),
+            )
+            path.write_text(good, encoding="utf-8")
+            require(
+                not VALIDATOR.check_absent_rule(root, rule),
+                "{} must accept the canonical wording".format(code),
+            )
+
+    # 未登记主对标的枚举回退同样不能拿文风.md 当候选过滤器：缺文风但资料完整的书会被
+    # 算成 no_benchmark，和「一本对标都没有」混为一谈。
+    probe_rule = rules["style-profile-as-book-existence-probe"]
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        path = root / explorer
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "若字段缺失或已忽略 → `Glob 对标/*/文风.md`，取字典序第一个\n",
+            encoding="utf-8",
+        )
+        require(
+            finding_codes(VALIDATOR.check_absent_rule(root, probe_rule))
+            == {"style-profile-as-book-existence-probe"},
+            "benchmark enumeration must not filter candidates by 文风.md",
+        )
+
+    # 显式禁止旧字段的说明文字本身不算违规，否则规则没法写进文档。
+    budget_rule = rules["legacy-outline-budget-total"]
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        path = root / "skills/story-long-write/references/workflow-setup.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("不得再写旧字段 `预算合计`。\n", encoding="utf-8")
+        require(
+            not VALIDATOR.check_absent_rule(root, budget_rule),
+            "an explicit prohibition of 预算合计 must stay documentable",
+        )
+
+
+def test_outline_total_and_profile_gap_parity() -> None:
+    """跨文件契约必须在真仓库上真命中。
+
+    require_pattern 在路径写错时会退化成同 code 的 `cannot read required file`，所以
+    「这些 code 一个都不出现」同时证明了目标文件存在、且正则确实匹配上了内容。
+    """
+
+    manifest = repository_manifest()
+    expected_clean = {
+        "explorer-book-dir-probe",
+        "explorer-profile-missing-distinct",
+        "daily-profile-missing-custom-style",
+        "outline-total-field-parity",
+        "outline-total-canonical-format",
+    }
+    actual = finding_codes(VALIDATOR.validate_repository(REPO_ROOT, manifest))
+    leaked = sorted(expected_clean & actual)
+    require(
+        not leaked,
+        "repository must satisfy the profile-gap / outline-total contracts: {}".format(leaked),
+    )
+
+
 def main() -> int:
     test_manifest_contract()
     test_bad_fallbacks_fail()
@@ -779,6 +874,8 @@ def main() -> int:
     test_structured_sentinel_contract()
     test_structured_outline_contract()
     test_upgrading_version_contract()
+    test_style_profile_is_not_a_book_existence_probe()
+    test_outline_total_and_profile_gap_parity()
     print("OK: current-contract manifest, structure, and fallback regressions passed")
     return 0
 
