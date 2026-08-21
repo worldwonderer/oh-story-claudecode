@@ -120,7 +120,7 @@ After `$story-setup` deploys into a writing project, it creates `.codex/agents/*
 
 **Generic Web AI / agent users:** If your platform can read a GitHub repo or project files, have the agent read `skills/*/SKILL.md` plus the relevant `references/`. For local project copies, run `story-setup` with `target_cli=generic`; it only writes a generic `AGENTS.md` and `skills/`. Without this project's hooks/custom agents, checks run as skill-level soft constraints or solo/direct fallbacks.
 
-**OpenClaw / Reasonix / generic paths need a one-time manual cleanup:** these three keep their skill copy inside the project's `skills/`, so re-running `/story-setup` executes that older project-local copy and the automatic cleanup never reaches them. Before re-running, delete `skills/story-setup/references/agent-references/agent-references/` (it may be nested several levels deep) and `skills/story-setup/skills/`, then reinstall this project and run `/story-setup` again.
+**OpenClaw / Reasonix / generic paths need a one-time manual cleanup:** these three keep their skill copy inside the project's `skills/`, so re-running `/story-setup` executes that project-local copy and the automatic cleanup never reaches them. Delete `skills/story-setup/references/agent-references/agent-references/` (it may be nested several levels deep) and `skills/story-setup/skills/` by hand. To update the skill text itself, reinstall this project and overwrite the 13 skill directories under the project's `skills/` from the new package.
 
 </details>
 

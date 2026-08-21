@@ -215,7 +215,8 @@ assert_grep 'target_cli' "$SKILL_FILE" "sentinel target_cli must be documented"
 # 任何一行写成裸相同路径，执行方就会把目录复制进自身。
 assert_grep '相同即 no-op，禁止复制' "$SKILL_FILE" "deployment manifest must forbid copying when source and target resolve to the same directory"
 assert_grep '清理自嵌套残留' "$SKILL_FILE" "story-setup must clean self-nested copies before deploying"
-python3 - "$SKILL_FILE" <<'PY' || fail "story-setup declares a copy whose source and target are the same path"
+# 探测器只写一份，先跑正负 fixture 自检，再扫真实 SKILL.md。
+cat > "$TMP_DIR/detect-self-copy.py" <<'PY'
 import re
 import sys
 
@@ -223,27 +224,58 @@ path = sys.argv[1]
 lines = open(path, encoding='utf-8').read().splitlines()
 bad = []
 
+
+def norm(cell):
+    return cell.strip().strip('`').rstrip('/')
+
+
 for idx, line in enumerate(lines, 1):
     stripped = line.strip()
     if stripped.startswith('|') and stripped.count('|') >= 6 and '---' not in stripped:
         cells = [c.strip() for c in stripped.strip('|').split('|')]
         source, target = cells[0], cells[1]
-        # `repository` 前缀显式声明源在仓库/skill 包一侧，不算裸同路径。
-        if source.startswith('repository '):
-            continue
-        if source.startswith('`') and source == target:
+        # 源写成 `repository ...` 时显式声明了它在仓库/skill 包一侧，与项目根一侧的
+        # 目标不同名，自然不会相等；裸写成同一个字符串的才是复制进自身。
+        if norm(source) == norm(target):
             bad.append((idx, f'manifest row copies {source} onto itself'))
         continue
-    if '复制' in stripped:
-        tokens = re.findall(r'`([^`]+)`', stripped)
-        dupes = {t for t in tokens if tokens.count(t) > 1 and '/' in t}
-        for t in sorted(dupes):
-            bad.append((idx, f'copy instruction names `{t}` as both source and target'))
+    if '复制' not in stripped and '拷贝' not in stripped:
+        continue
+    # 只看紧邻的一对反引号路径：中间夹着「到」而两侧同路径，就是复制进自身。
+    # 两次出现之间还夹着别的路径时不算——那是「从 A 复制到 B，A 是唯一来源」这类正常句子。
+    spans = [(m.start(), m.group(1)) for m in re.finditer(r'`([^`]+)`', stripped)]
+    for (start, left), (end, right) in zip(spans, spans[1:]):
+        if '/' not in left or norm(left) != norm(right):
+            continue
+        if '到' in stripped[start:end]:
+            bad.append((idx, f'copy instruction names `{left}` as both source and target'))
 
 for idx, msg in bad:
     print(f'{path}:{idx}: {msg}', file=sys.stderr)
 sys.exit(1 if bad else 0)
 PY
+
+cat > "$TMP_DIR/self-copy-fixtures.md" <<'FIXTURE'
+- 将 `references/opencode/agents/` 下所有文件复制到 `.opencode/agents/`；`references/opencode/agents/` 是唯一来源。
+- 复制 `a/b/` 到 `a/b/`。
+- 将 `a/b/` 同步复制到 `a/b/`。
+- 复制 `x/y/` 到 `.codex/x/y/`。
+- 复制 `a/b/` 到 `a/b`。
+- 将 `skills/story-setup/references/agent-references/` 下所有 `.md` 复制到项目内 `.claude/skills/story-setup/references/agent-references/`。
+- `a/b/` 与 `a/b/` 都要存在；提到复制但两者之间没有「到」。
+| `a/b/` | `a/b` | story-setup managed | replace | resolves | 条件 |
+| repository `a/b/` | `a/b/` | story-setup managed | replace | resolves | 条件 |
+| `a/b/` | `.codex/a/b/` | story-setup managed | replace | resolves | 条件 |
+FIXTURE
+
+# 探测器有发现时退出码为 1；`|| true` 必须在管道内，否则 pipefail 会让赋值直接中止脚本，
+# 连下面的 fail 消息都来不及打。
+fixture_hits="$({ python3 "$TMP_DIR/detect-self-copy.py" "$TMP_DIR/self-copy-fixtures.md" 2>&1 >/dev/null || true; } | sed 's/.*fixtures\.md:\([0-9]*\):.*/\1/' | tr '\n' ',')"
+[ "$fixture_hits" = "2,3,5,8," ] \
+  || fail "self-copy detector fixtures regressed: expected lines 2,3,5,8 got [$fixture_hits]"
+
+python3 "$TMP_DIR/detect-self-copy.py" "$SKILL_FILE" \
+  || fail "story-setup declares a copy whose source and target are the same path"
 
 # Claude Code 的 Bash 正文写入必须进入同一 pre-guard；只注册 Write/Edit 会让 cat>/tee/cp 绕过。
 python3 - "$SKILL_DIR/references/templates/settings-hooks.json" <<'PY' || fail "Claude Bash prose pre-guard is not registered"

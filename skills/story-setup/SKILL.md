@@ -72,7 +72,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 **两列基准目录不同**：`Source path` 相对正在执行的这份 skill 包，`Target path` 相对用户项目根。执行每一行（以及下面各端部署算法里的每个复制步骤）之前，先把两侧各自解析成绝对路径，**相同即 no-op，禁止复制**。OpenClaw / Reasonix / generic 的项目副本是整份 skill 拷贝，重跑时执行的就是项目里那份，两侧会落到同一个目录；照字面复制会把目录嵌进自身，重复几次即撑满磁盘。
 
-**部署前清理自嵌套残留**：删除项目里把目录嵌进自身的产物——各端 references 根下的 `agent-references/agent-references/`（可能有多层）与 `skills/story-setup/skills/`，删完再部署，并在安装报告里列出删掉的路径。
+**部署前清理自嵌套残留**：`{.claude,.codex,.zcode}/skills/story-setup/references/agent-references/` 与项目根 `skills/story-setup/references/agent-references/` 里若多出 `agent-references/` 层（可能嵌了多层），以及 `skills/story-setup/skills/`，整段删掉再部署，并在安装报告里列出删掉的路径。
 
 ### Step 1：部署清单（机械可检查）
 
