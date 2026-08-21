@@ -211,6 +211,40 @@ assert_grep 'references_dir' "$SKILL_FILE" "sentinel references_dir must be docu
 assert_grep 'resolver_strategy' "$SKILL_FILE" "sentinel resolver_strategy must be documented"
 assert_grep 'target_cli' "$SKILL_FILE" "sentinel target_cli must be documented"
 
+# 部署清单的 Source 相对 skill 包、Target 相对项目根，两个基准目录在 skills-only 端会重合。
+# 任何一行写成裸相同路径，执行方就会把目录复制进自身。
+assert_grep '相同即 no-op，禁止复制' "$SKILL_FILE" "deployment manifest must forbid copying when source and target resolve to the same directory"
+assert_grep '清理自嵌套残留' "$SKILL_FILE" "story-setup must clean self-nested copies before deploying"
+python3 - "$SKILL_FILE" <<'PY' || fail "story-setup declares a copy whose source and target are the same path"
+import re
+import sys
+
+path = sys.argv[1]
+lines = open(path, encoding='utf-8').read().splitlines()
+bad = []
+
+for idx, line in enumerate(lines, 1):
+    stripped = line.strip()
+    if stripped.startswith('|') and stripped.count('|') >= 6 and '---' not in stripped:
+        cells = [c.strip() for c in stripped.strip('|').split('|')]
+        source, target = cells[0], cells[1]
+        # `repository` 前缀显式声明源在仓库/skill 包一侧，不算裸同路径。
+        if source.startswith('repository '):
+            continue
+        if source.startswith('`') and source == target:
+            bad.append((idx, f'manifest row copies {source} onto itself'))
+        continue
+    if '复制' in stripped:
+        tokens = re.findall(r'`([^`]+)`', stripped)
+        dupes = {t for t in tokens if tokens.count(t) > 1 and '/' in t}
+        for t in sorted(dupes):
+            bad.append((idx, f'copy instruction names `{t}` as both source and target'))
+
+for idx, msg in bad:
+    print(f'{path}:{idx}: {msg}', file=sys.stderr)
+sys.exit(1 if bad else 0)
+PY
+
 # Claude Code 的 Bash 正文写入必须进入同一 pre-guard；只注册 Write/Edit 会让 cat>/tee/cp 绕过。
 python3 - "$SKILL_DIR/references/templates/settings-hooks.json" <<'PY' || fail "Claude Bash prose pre-guard is not registered"
 import json, sys

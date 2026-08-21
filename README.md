@@ -118,6 +118,8 @@ Windows 上偶尔会看到 `ENOENT ... mkdir` 报错但末尾仍显示 `Done!`�
 
 **Web AI / 通用 Agent 用户：** 平台能读取 GitHub 仓库或项目文件时，可让 Agent 读取 `skills/*/SKILL.md` 与对应 `references/`；需要本地副本时，`story-setup` 可选 `target_cli=generic`，只写通用 `AGENTS.md` 和 `skills/`。无本项目 hooks/custom agents 的环境按 skill 内软约束或 solo/direct fallback 执行。
 
+**OpenClaw / Reasonix / 通用路径需手动清一次目录残留：** 这三条路径的 skill 副本在项目 `skills/` 里，重跑 `/story-setup` 执行的就是项目里那份旧文件，自动清理到不了。重跑前先删掉 `skills/story-setup/references/agent-references/agent-references/`（可能嵌了多层）和 `skills/story-setup/skills/`，再重新安装本项目并重跑 `/story-setup`。
+
 </details>
 
 升级后如果项目里已经跑过 `/story-setup`，建议在项目根重跑一次 `/story-setup`，同步 hooks / agents / references。每版变更见 [CHANGELOG.md](CHANGELOG.md) 与 [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases)。

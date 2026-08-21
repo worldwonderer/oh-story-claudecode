@@ -17,6 +17,12 @@
 
 推荐始终重新运行 story-setup，让部署器按 owner class 处理文件。
 
+### 自嵌套残留
+
+部署清单的 Source 相对 skill 包、Target 相对项目根，两个基准目录在 skills-only 端会重合。按字面复制会把目录嵌进自身，留下 `agent-references/agent-references/`（可能多层）或 `skills/story-setup/skills/`。重新部署会先删掉这类残留。
+
+OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` 里，重跑时执行的就是项目里那份旧文件，自动清理到不了：先手动删掉上述目录，再更新 oh-story-claudecode 并重跑 story-setup。
+
 ## 文件所有权
 
 ### story-setup 管理，可替换
