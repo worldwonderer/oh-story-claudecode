@@ -223,6 +223,9 @@ import sys
 path = sys.argv[1]
 lines = open(path, encoding='utf-8').read().splitlines()
 bad = []
+in_manifest = False
+# 「复制 A 到 B」里两个路径之间只隔几个字；隔得远的是叙述句，不是复制指令。
+MAX_GAP = 16
 
 
 def norm(cell):
@@ -231,23 +234,31 @@ def norm(cell):
 
 for idx, line in enumerate(lines, 1):
     stripped = line.strip()
-    if stripped.startswith('|') and stripped.count('|') >= 6 and '---' not in stripped:
+    is_row = stripped.startswith('|') and stripped.endswith('|')
+    if is_row and 'Source path' in stripped and 'Target path' in stripped:
+        in_manifest = True
+        continue
+    if not is_row:
+        in_manifest = False
+    elif in_manifest:
+        if set(stripped) <= set('|-: '):
+            continue
         cells = [c.strip() for c in stripped.strip('|').split('|')]
-        source, target = cells[0], cells[1]
         # 源写成 `repository ...` 时显式声明了它在仓库/skill 包一侧，与项目根一侧的
         # 目标不同名，自然不会相等；裸写成同一个字符串的才是复制进自身。
-        if norm(source) == norm(target):
-            bad.append((idx, f'manifest row copies {source} onto itself'))
+        if len(cells) >= 2 and norm(cells[0]) == norm(cells[1]):
+            bad.append((idx, f'manifest row copies {cells[0]} onto itself'))
         continue
     if '复制' not in stripped and '拷贝' not in stripped:
         continue
-    # 只看紧邻的一对反引号路径：中间夹着「到」而两侧同路径，就是复制进自身。
-    # 两次出现之间还夹着别的路径时不算——那是「从 A 复制到 B，A 是唯一来源」这类正常句子。
-    spans = [(m.start(), m.group(1)) for m in re.finditer(r'`([^`]+)`', stripped)]
-    for (start, left), (end, right) in zip(spans, spans[1:]):
+    # 只看紧邻的一对反引号路径：中间只隔一个「到」而两侧同路径，就是复制进自身。
+    # 两次出现之间夹着别的路径或大段叙述时不算——那是「从 A 复制到 B，A 是唯一来源」这类正常句子。
+    spans = [(m.start(), m.end(), m.group(1)) for m in re.finditer(r'`([^`]+)`', stripped)]
+    for (_, left_end, left), (right_start, _, right) in zip(spans, spans[1:]):
+        gap = stripped[left_end:right_start]
         if '/' not in left or norm(left) != norm(right):
             continue
-        if '到' in stripped[start:end]:
+        if '到' in gap and len(gap) <= MAX_GAP:
             bad.append((idx, f'copy instruction names `{left}` as both source and target'))
 
 for idx, msg in bad:
@@ -263,6 +274,16 @@ cat > "$TMP_DIR/self-copy-fixtures.md" <<'FIXTURE'
 - 复制 `a/b/` 到 `a/b`。
 - 将 `skills/story-setup/references/agent-references/` 下所有 `.md` 复制到项目内 `.claude/skills/story-setup/references/agent-references/`。
 - `a/b/` 与 `a/b/` 都要存在；提到复制但两者之间没有「到」。
+- 拆文结果被复制进 `对标/`，用户看到的就是对标内容和自己设定一样；只有外部作品才进 `对标/`。
+- 复制 `p/q/` 到 `r/s/`，`p/q/` 保留。
+- 复制章节时 `第N章` 到 `第N章` 的编号不变。
+
+| 角色 A | 角色 B | 关系类型 | 情感倾向 | 当前状态 | 起始章节 |
+|--------|--------|---------|---------|---------|---------|
+| {名} | {名} | {类型} | {倾向} | {描述} | 第{N}章 |
+
+| Source path | Target path | Owner class | Merge mode | Validation check |
+|-------------|-------------|-------------|------------|------------------|
 | `a/b/` | `a/b` | story-setup managed | replace | resolves | 条件 |
 | repository `a/b/` | `a/b/` | story-setup managed | replace | resolves | 条件 |
 | `a/b/` | `.codex/a/b/` | story-setup managed | replace | resolves | 条件 |
@@ -271,8 +292,8 @@ FIXTURE
 # 探测器有发现时退出码为 1；`|| true` 必须在管道内，否则 pipefail 会让赋值直接中止脚本，
 # 连下面的 fail 消息都来不及打。
 fixture_hits="$({ python3 "$TMP_DIR/detect-self-copy.py" "$TMP_DIR/self-copy-fixtures.md" 2>&1 >/dev/null || true; } | sed 's/.*fixtures\.md:\([0-9]*\):.*/\1/' | tr '\n' ',')"
-[ "$fixture_hits" = "2,3,5,8," ] \
-  || fail "self-copy detector fixtures regressed: expected lines 2,3,5,8 got [$fixture_hits]"
+[ "$fixture_hits" = "2,3,5,18," ] \
+  || fail "self-copy detector fixtures regressed: expected lines 2,3,5,18 got [$fixture_hits]"
 
 python3 "$TMP_DIR/detect-self-copy.py" "$SKILL_FILE" \
   || fail "story-setup declares a copy whose source and target are the same path"
