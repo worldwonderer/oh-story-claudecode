@@ -14,7 +14,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 ## Phase 1：检测项目状态
 
-**先自检参考目录**：以正在执行的本 `SKILL.md` 所在目录为准，列出与它同级的 `references/` 下的子目录，核对下面 8 个名字是否都在**且都非空**——`agent-references`、`templates`、`opencode`、`codex`、`zcode`、`openclaw`、`reasonix`、`generic`；同级 `scripts/merge-claude-settings.py` 与 `scripts/merge-codex-hooks.py` 也必须存在（Claude/Codex hooks 合并算法依赖它们）。有缺即 skill 包没装全，**立即停止，不写任何部署文件**，报告里区分「缺目录」和「目录为空」，并给修复指令：「story-setup 参考资料包不完整，缺 {目录名}。按你的安装方式重装 oh-story-claudecode（命令行装的重跑 `npx skills add worldwonderer/oh-story-claudecode -y -g`，marketplace / Plugin Management 装的在面板里重装），再执行 /story-setup。」
+**先自检参考目录**：以正在执行的本 `SKILL.md` 所在目录为准，列出与它同级的 `references/` 下的子目录，核对下面 8 个名字是否都在**且都非空**——`agent-references`、`templates`、`opencode`、`codex`、`zcode`、`openclaw`、`reasonix`、`generic`；同级 `scripts/merge-claude-settings.py`、`scripts/merge-codex-hooks.py` 与 `scripts/copy-path-safety.py` 也必须存在（Claude/Codex hooks 合并和递归复制安全检查依赖它们）。有缺即 skill 包没装全，**立即停止，不写任何部署文件**，报告里区分「缺目录」「目录为空」和「缺脚本」，并给修复指令：「story-setup 参考资料包不完整，缺 {路径}。按你的安装方式重装 oh-story-claudecode（命令行装的重跑 `npx skills add worldwonderer/oh-story-claudecode -y -g`，marketplace / Plugin Management 装的在面板里重装），再执行 /story-setup。」
 
 > 判据是「有没有 `SKILL.md`」：只看正在执行的 `SKILL.md` 同级的 `references/`。项目内 `.claude/skills/story-setup/`、`.codex/skills/story-setup/` 和 OpenCode 的 `skills/story-setup/` 只有 `references/agent-references/`、不含 `SKILL.md`，不会是执行目录，也不要拿它们核对。ZCode / OpenClaw / Reasonix / generic 的项目副本是整份 skill 拷贝、自带 `SKILL.md`，8 个子目录本就齐全，照常核对即可。
 
@@ -70,7 +70,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 
 整个 Phase 2 幂等：目录复制、文件写入和下表各合并算法重复执行结果一致。因环境原因（工具不可用、权限被拒、网络失败）中途失败时，直接从头重跑本 Phase，不需要先清理半成品；`create only if absent` 的用户状态文件（见下表 Owner class）不会被二次覆盖。
 
-**两列基准目录不同**：`Source path` 相对正在执行的这份 skill 包，`Target path` 相对用户项目根。执行每一行（以及下面各端部署算法里的每个复制步骤）之前，先把两侧各自解析成绝对路径，**相同即 no-op，禁止复制**。OpenClaw / Reasonix / generic 的项目副本是整份 skill 拷贝，重跑时执行的就是项目里那份，两侧会落到同一个目录；照字面复制会把目录嵌进自身，重复几次即撑满磁盘。
+**两列基准目录不同**：`Source path` 相对正在执行的这份 skill 包，`Target path` 相对用户项目根。执行每一行（以及下面各端部署算法里的每个递归复制步骤）之前，先把通配符具体化为单个源/目标，再用本 `SKILL.md` 同级的 `scripts/copy-path-safety.py` 检查。该脚本按 `Path.resolve` / `realpath` 语义跟随已有 symlink，并在两侧都存在时用 `samefile` 核对文件系统对象；**只转绝对路径或比较字符串不算检查完成**。读取其 JSON：`status: same` 时 no-op，禁止复制；仅 `copy_allowed: true` 时可以复制；`source_missing`、`unsafe_target_within_source` 或 `filesystem_identity_error` 必须停止该步骤并报告。无法运行脚本时只能用当前环境的文件系统 API 做完全相同的 canonical realpath、same-object 与 target-descendant 检查；无法确认就停止，不得尝试复制。OpenClaw / Reasonix / generic 的项目副本是整份 skill 拷贝，重跑时执行的就是项目里那份；Reasonix / Codex 还可能经 `.agents/skills → ../skills` symlink 加载，路径文本不同也可能指向同一目录，照字面复制会把目录嵌进自身并撑满磁盘。
 
 **部署前清理自嵌套残留**：`{.claude,.codex,.zcode}/skills/story-setup/references/agent-references/` 与项目根 `skills/story-setup/references/agent-references/` 里若多出 `agent-references/` 层（可能嵌了多层），以及 `skills/story-setup/skills/`，整段删掉再部署，并在安装报告里列出删掉的路径。
 
@@ -85,6 +85,7 @@ metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claud
 | `skills/story-setup/references/agent-references/*.md` | `.claude/skills/story-setup/references/agent-references/*.md` | story-setup managed | replace | every `story-setup/references/agent-references/*.md` reference resolves |
 | `skills/story-setup/references/templates/settings-hooks.json` | `.claude/settings.local.json` | user+managed | replace managed registrations by stable hook identity | hook JSON valid；旧 matcher 注册已迁移、当前模板命令各一份、用户 hook 保留 |
 | `skills/story-setup/scripts/merge-claude-settings.py` | 部署时执行，不复制到项目 | story-setup helper | execute | 替换已知 story hook 注册、保留用户 hooks/顶层字段，v24→v25 迁移与重复执行幂等 |
+| `skills/story-setup/scripts/copy-path-safety.py` | 每个递归复制步骤前执行，不复制到项目专用目录 | story-setup helper | execute | JSON 仅 `copy_allowed: true` 时允许复制；symlink 同对象 no-op；target 位于 source 内时停止 |
 | generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir` |
 | `skills/story-setup/references/opencode/AGENTS.md.tmpl` | `AGENTS.md` | user+managed | marker/section merge | contains story skill routing sections | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/agents/` | `.opencode/agents/` | story-setup managed | replace | 7 agent files exist（replace 前按「配置 OpenCode Agent 模型」中的「保留已有模型配置」缓存现有 `model:`，避免覆盖用户已配模型） | target_cli 含 opencode |

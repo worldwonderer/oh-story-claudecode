@@ -12,6 +12,7 @@ AGENT_REFS_DIR="$SKILL_DIR/references/agent-references"
 SKILL_FILE="$SKILL_DIR/SKILL.md"
 SETTINGS_FILE="$SKILL_DIR/references/templates/settings-hooks.json"
 CLAUDE_MERGE="$SKILL_DIR/scripts/merge-claude-settings.py"
+COPY_PATH_SAFETY="$SKILL_DIR/scripts/copy-path-safety.py"
 TMP_DIR="$(mktemp -d)"
 CURRENT_AGENTS_VERSION="$(node -e 'process.stdout.write(String(require(process.argv[1]).agents_version))' "$SCRIPT_DIR/current-contract.json")"
 PREVIOUS_AGENTS_VERSION=$((CURRENT_AGENTS_VERSION - 1))
@@ -213,8 +214,82 @@ assert_grep 'target_cli' "$SKILL_FILE" "sentinel target_cli must be documented"
 
 # 部署清单的 Source 相对 skill 包、Target 相对项目根，两个基准目录在 skills-only 端会重合。
 # 任何一行写成裸相同路径，执行方就会把目录复制进自身。
-assert_grep '相同即 no-op，禁止复制' "$SKILL_FILE" "deployment manifest must forbid copying when source and target resolve to the same directory"
+assert_grep 'copy-path-safety\.py' "$SKILL_FILE" "deployment must invoke the recursive-copy path safety helper"
+assert_grep 'Path\.resolve.*realpath' "$SKILL_FILE" "deployment must canonicalize copy paths through symlinks"
+assert_grep 'samefile' "$SKILL_FILE" "deployment must compare existing source/target filesystem identity"
+assert_grep 'target-descendant|目标位于源目录内' "$SKILL_FILE" "deployment must reject recursive-copy targets inside their source"
 assert_grep '清理自嵌套残留' "$SKILL_FILE" "story-setup must clean self-nested copies before deploying"
+assert_file "$COPY_PATH_SAFETY"
+
+# 执行真实 helper 验证 symlink alias、同目录、子目录和安全 sibling；不能只锁 SKILL.md 措辞。
+path_fixture="$TMP_DIR/copy-path-safety"
+mkdir -p "$path_fixture/project/skills/story-setup/references/agent-references" \
+  "$path_fixture/project/.agents" "$path_fixture/source" "$path_fixture/sibling"
+
+python3 - "$COPY_PATH_SAFETY" "$path_fixture" <<'PY' || fail "copy path safety helper behavior regressed"
+import json
+import importlib.util
+import subprocess
+import sys
+from unittest import mock
+from pathlib import Path
+
+helper = sys.argv[1]
+root = Path(sys.argv[2])
+
+
+def run(source, target):
+    proc = subprocess.run(
+        [sys.executable, helper, str(source), str(target)],
+        text=True,
+        capture_output=True,
+    )
+    payload = json.loads(proc.stdout)
+    return proc.returncode, payload
+
+
+project = root / "project"
+alias = project / ".agents/skills/story-setup/references/agent-references"
+direct = project / "skills/story-setup/references/agent-references"
+try:
+    (project / ".agents/skills").symlink_to("../skills", target_is_directory=True)
+except OSError as exc:
+    # Windows runners without symlink privileges still exercise the other real helper paths.
+    print("SKIP: symlink alias fixture unavailable: {}".format(exc))
+else:
+    code, payload = run(alias, direct)
+    assert code == 0
+    assert payload["status"] == "same"
+    assert payload["copy_allowed"] is False
+    assert payload["source_realpath"] == payload["target_realpath"]
+
+source = root / "source"
+code, payload = run(source, source / "nested/target")
+assert code != 0
+assert payload["status"] == "unsafe_target_within_source"
+assert payload["copy_allowed"] is False
+assert not (source / "nested").exists()
+
+code, payload = run(source, root / "sibling/target")
+assert code == 0
+assert payload["status"] == "safe"
+assert payload["copy_allowed"] is True
+assert not (root / "sibling/target").exists()
+
+code, payload = run(root / "missing", root / "sibling/target")
+assert code != 0
+assert payload["status"] == "source_missing"
+assert payload["copy_allowed"] is False
+
+spec = importlib.util.spec_from_file_location("copy_path_safety", helper)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+with mock.patch.object(module.os.path, "samefile", side_effect=OSError("identity unavailable")):
+    payload = module.classify_copy(source, root / "sibling")
+assert payload["status"] == "filesystem_identity_error"
+assert payload["copy_allowed"] is False
+assert module.status_exit_code(payload["status"]) != 0
+PY
 # 探测器只写一份，先跑正负 fixture 自检，再扫真实 SKILL.md。
 cat > "$TMP_DIR/detect-self-copy.py" <<'PY'
 import re
