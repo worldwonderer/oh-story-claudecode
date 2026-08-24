@@ -63,7 +63,7 @@ jobs:
     # Never expose CLAWHUB_TOKEN to pull-request-controlled code, even when the
     # branch lives in the canonical repository.
     if: >-
-      github.repository == 'worldwonderer/oh-story-claudecode' &&
+      github.repository == 'zenstory-ai/oh-story-claudecode' &&
       github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15

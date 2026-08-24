@@ -32,7 +32,7 @@ scripts/                       # 开发守卫 / 测试 / 代码生成（完整�
 ---
 name: skill-name
 description: "一句话描述。触发方式：/skill-name、触发词1、触发词2"
-metadata: {"openclaw":{"source":"https://github.com/worldwonderer/oh-story-claudecode"}}
+metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudecode"}}
 ---
 ```
 

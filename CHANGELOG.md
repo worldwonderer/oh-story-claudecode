@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 ### 升级须知（本版必读）
 
 ```bash
-npx skills add worldwonderer/oh-story-claudecode -y -g
+npx skills add zenstory-ai/oh-story-claudecode -y -g
 ```
 
 然后在写作项目根目录重跑 `/story-setup`，并**新开一个会话**（专业 agent 只在会话启动时注册，正文 agent 这次改了工具白名单，不新开会话拿不到）。完整说明见 `skills/story-setup/UPGRADING.md`。
@@ -59,7 +59,7 @@ npx skills add worldwonderer/oh-story-claudecode -y -g
 ### 升级须知（本版必读）
 
 ```bash
-npx skills add worldwonderer/oh-story-claudecode -y -g
+npx skills add zenstory-ai/oh-story-claudecode -y -g
 ```
 
 然后在写作项目根目录重跑 `/story-setup`，并**新开一个会话**（专业 agent 只在会话启动时注册）。完整说明见 `skills/story-setup/UPGRADING.md`。

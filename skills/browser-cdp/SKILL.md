@@ -1,7 +1,7 @@
 ---
 name: browser-cdp
 description: "Use this skill when you need to control a Chrome browser via CDP (Chrome DevTools Protocol) to reuse existing login sessions. Covers: launching Chrome in debug mode, opening URLs, waiting for page load, evaluating JavaScript, taking snapshots, and extracting auth tokens. Trigger phrases: browser automation, CDP, agent-browser, 浏览器操作, 操作浏览器, Chrome CDP, 复用登录态, extract token from browser."
-metadata: {"openclaw":{"requires":{"bins":["agent-browser"]},"source":"https://github.com/worldwonderer/oh-story-claudecode"}}
+metadata: {"openclaw":{"requires":{"bins":["agent-browser"]},"source":"https://github.com/zenstory-ai/oh-story-claudecode"}}
 ---
 # Browser CDP 操作工具
 

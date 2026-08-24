@@ -88,7 +88,7 @@ flowchart LR
 **Option 1** Tell Claude Code / OpenCode / ZCode / OpenClaw / Codex / Reasonix, or another Web AI / agent platform that can import a GitHub repo or skill:
 
 ```
-Install this skill https://github.com/worldwonderer/oh-story-claudecode
+Install this skill https://github.com/zenstory-ai/oh-story-claudecode
 ```
 
 To upgrade, repeat the same instruction.
@@ -96,7 +96,7 @@ To upgrade, repeat the same instruction.
 **Option 2** Command line:
 
 ```bash
-npx skills add worldwonderer/oh-story-claudecode -y -g
+npx skills add zenstory-ai/oh-story-claudecode -y -g
 ```
 
 `-g` installs globally (available in every directory); drop `-g` to install only into the current directory. Re-run the same command to update.
@@ -124,7 +124,7 @@ After `$story-setup` deploys into a writing project, it creates `.codex/agents/*
 
 </details>
 
-After updating, if a project has already run `/story-setup`, re-run `/story-setup` from the project root to sync hooks / agents / references. Per-version changes are in [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/worldwonderer/oh-story-claudecode/releases).
+After updating, if a project has already run `/story-setup`, re-run `/story-setup` from the project root to sync hooks / agents / references. Per-version changes are in [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/zenstory-ai/oh-story-claudecode/releases).
 
 **Multi-agent collaboration needs setup + a fresh session:** the 7 specialist agents (story-architect, narrative-writer, consistency-checker, etc.) are written into your project's `.claude/agents/` by `/story-setup`, or into `.codex/agents/*.toml` by `$story-setup`. Claude Code and Codex register custom agents most reliably at session start; ZCode 3.3.4, OpenClaw Phase 1, Reasonix Phase 1, and the generic path default to skills + solo fallback. To check Claude/Codex agents: run `/story-review` in the new session — `Effective Mode: full/lean` means agents registered, `Fallback: ... -> solo` means they are unavailable.
 
@@ -386,7 +386,7 @@ Contributions are welcome — new skills, knowledge base additions, market data 
 ## Community
 
 - **Telegram**: <https://t.me/ohstoryclaudecode> — chat, troubleshooting, and feature discussion.
-- **GitHub Discussions**: [ask questions, get help, share workflows](https://github.com/worldwonderer/oh-story-claudecode/discussions).
+- **GitHub Discussions**: [ask questions, get help, share workflows](https://github.com/zenstory-ai/oh-story-claudecode/discussions).
 
 ## Acknowledgments
 
