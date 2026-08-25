@@ -412,6 +412,7 @@ def main() -> None:
         REPO / "skills/story-long-write/references/workflow-chapter.md": (
             "`author_preferences`",
             "作者偏好：{本章 query 命中的 prose_style/story_design 项}",
+            "不逐条展示或最大化命中",
         ),
         REPO / "skills/story-short-write/SKILL.md": (
             "作者偏好 query 中的文风/故事设计项",

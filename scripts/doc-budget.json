@@ -22,8 +22,8 @@
     },
     {
       "path": "skills/story-long-write/references/workflow-chapter.md",
-      "budget": 12000,
-      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达。+150：把筛选后的文风/故事设计项显式传给初稿和去味 agent，避免后处理抹掉作者风格"
+      "budget": 12030,
+      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达。+180：把筛选后的偏好传给初稿/去味 agent，并明确禁止为最大化命中牺牲连贯、节奏和字数"
     },
     {
       "path": "skills/story-long-write/references/workflow-setup.md",
@@ -59,7 +59,7 @@
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 36700,
+      "budget": 36730,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-daily.md",
