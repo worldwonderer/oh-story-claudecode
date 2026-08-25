@@ -584,7 +584,24 @@ function responseHeaders(contentType) {
 
 function sendJson(response, status, payload) {
   response.writeHead(status, responseHeaders("application/json; charset=utf-8"));
-  response.end(JSON.stringify(payload));
+  // Keep JSON safe even if a response is ever embedded in an HTML context.
+  // The endpoint already sends application/json with nosniff and a strict CSP;
+  // escaping HTML-significant characters adds defense in depth for user input.
+  const body = JSON.stringify(payload).replace(/[<>&\u2028\u2029]/g, (character) => {
+    switch (character) {
+      case "<":
+        return "\\u003c";
+      case ">":
+        return "\\u003e";
+      case "&":
+        return "\\u0026";
+      case "\u2028":
+        return "\\u2028";
+      default:
+        return "\\u2029";
+    }
+  });
+  response.end(body);
 }
 
 async function readWorkspaceFile(root, requestedPath) {

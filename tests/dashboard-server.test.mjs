@@ -459,6 +459,22 @@ describe("HTTP API", () => {
     assert.equal(hiddenDirectory.status, 403);
   });
 
+  test("escapes HTML-significant characters in JSON responses", async () => {
+    const root = await createWorkspace();
+    const baseUrl = await startServer(root);
+    const query = "<script>alert(1)</script>&\u2028\u2029";
+
+    const response = await fetch(
+      `${baseUrl}/api/search?q=${encodeURIComponent(query)}&scope=projects`,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "application/json; charset=utf-8");
+
+    const rawBody = await response.text();
+    assert.doesNotMatch(rawBody, /[<>&\u2028\u2029]/u);
+    assert.equal(JSON.parse(rawBody).query, query.trim());
+  });
+
   test("loads and atomically saves an editable file", async () => {
     const root = await createWorkspace();
     const baseUrl = await startServer(root);
