@@ -4,7 +4,7 @@
 # 即使主会话漏跑「确定性收尾」步骤（压缩/弱模型/分心），这些硬信号也保证被抓。
 #
 # 只兜「硬信号」（漏跑最伤、退化模型自己发现不了的）：截断、生成拒绝语 / AI 自指、
-# 工程词漏进正文、紧邻整行复读、毒句式（确定性 AI 句式指纹）、落盘失败/截断、字数欠账。
+# 工程词漏进正文、紧邻整行复读、毒句式（确定性 AI 句式指纹）、落盘失败/截断。
 # 碎句号/长段落/破折号这类 advisory，以及复读全量 / tier2 歧义词，仍由 workflow 收尾
 # 步骤的 check-ai-patterns / check-degeneration 全量跑——本 hook 不部署也不依赖那两个
 # 检测器，是独立的轻量网（毒句式规则与 check-ai-patterns.js 的同名规则统一规格）。
@@ -13,7 +13,7 @@
 # 写正文的路径绕过本 hook（Claude/OpenCode 侧 Bash 只做 pre-guard，无 post-write 兜底）；
 # 这类路径由 Codex 的 Stop 回合末 git 改动集扫描兜全。已知边界，非缺陷。
 #
-# 网与字数逻辑走 node 共享核 story_hook_core.js（和 OpenCode/ZCode 同一份），只留 bash
+# 内容网走 node 共享核 story_hook_core.js（和 OpenCode/ZCode 同一份），只留 bash
 # 做事件路由与文件类型判定。node 天生按 UTF-8 写 stdout，免掉旧内嵌 python 的 cp936 体操。
 #
 # 非阻塞（exit 0，advisory 提醒，不挡写作）；无发现时完全静默（不污染 context）；
@@ -91,11 +91,10 @@ if [ "$BYTES" -lt 200 ]; then
   OUT+="【落盘】正文仅 ${BYTES} 字节，疑似未写完/落盘失败（quota/超时中断？），请核对并补写。${NL}"
 fi
 
-# 内容网 + 字数：走 node 共享核。net 抓 截断/拒绝语/AI自指/工程词tier1/紧邻复读/毒句式
-# （硬信号，退化模型自己发现不了）；字数从 大纲/细纲_第N章*.md 的「字数目标」对照实际<90% 提示。
-# best-effort：找不到细纲/目标静默跳过，不误报。
+# 内容网走 node 共享核，抓截断/拒绝语/AI 自指/工程词 tier1/紧邻复读/毒句式。
+# 字数只由 storyctl 的公开命令测量，不在 Adapter 内复制，也不受 Node 降级影响。
 NET_MSG="$(node "$CLI" prose-net "$ABS" 2>/dev/null || true)"
-[ -n "$NET_MSG" ] && OUT+="【退化/工程词/毒句式/字数】（硬信号：截断/拒绝语/工程词/毒句式→重写；命中即处理，别留给下一章）${NL}${NET_MSG}${NL}"
+[ -n "$NET_MSG" ] && OUT+="【退化/工程词/毒句式】（硬信号：截断/拒绝语/工程词/毒句式→重写；命中即处理，别留给下一章）${NL}${NET_MSG}${NL}"
 
 [ -z "$OUT" ] && exit 0
 

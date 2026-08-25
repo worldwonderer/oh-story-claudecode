@@ -913,30 +913,6 @@ function isProsePath(absolute) {
   return ["大纲", "追踪", "设定"].some((name) => existingDir(path.join(book, name))) || fs.existsSync(path.join(book, "设定.md"))
 }
 
-function wordcountFinding(absolute, text) {
-  if (path.basename(path.dirname(absolute)) !== "正文") return null
-  const match = path.basename(absolute).match(/^第0*(\d+)章/)
-  if (!match) return null
-  const chapter = match[1]
-  const outlineDir = path.join(path.dirname(path.dirname(absolute)), "大纲")
-  let target = null
-  try {
-    for (const file of fs.readdirSync(outlineDir)) {
-      const fileMatch = file.match(/^细纲_第0*(\d+)章.*\.md$/)
-      if (!fileMatch || fileMatch[1] !== chapter) continue
-      const content = fs.readFileSync(path.join(outlineDir, file), "utf8")
-      const targetMatch = content.match(/字数目标[^0-9]{0,6}(\d{3,6})/)
-      if (targetMatch) target = Number(targetMatch[1])
-      break
-    }
-  } catch {}
-  if (!target) return null
-  const actual = Array.from(text.replace(/\r\n?/g, "\n")).length
-  return actual < target * 0.9
-    ? `字数：第${chapter}章 实际 ${actual} 字 < 目标 ${target} 的 90%（${Math.floor(target * 0.9)}）。对照细纲字数预算定位欠账的密点、一次性重写到配额，别挤牙膏回炉。`
-    : null
-}
-
 function duplicateTitleFindings(absolute) {
   const bodyDir = path.dirname(absolute)
   if (path.basename(bodyDir) !== "正文") return []
@@ -964,8 +940,6 @@ function proseAfterWrite(root, absolute) {
     if (bytes < 200) findings.push(`【落盘】正文仅 ${bytes} 字节，疑似未写完/落盘失败（quota/超时中断？），请核对并补写。`)
     const text = fs.readFileSync(absolute, "utf8")
     findings.push(...proseNetFindings(text))
-    const wordcount = wordcountFinding(absolute, text)
-    if (wordcount) findings.push(wordcount)
   } catch {
     return ""
   }
@@ -1193,7 +1167,6 @@ module.exports = {
   extractPatchTargets,
   proseBlockReason,
   isProsePath,
-  wordcountFinding,
   duplicateTitleFindings,
   proseAfterWrite,
   shellWords,

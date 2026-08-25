@@ -29,7 +29,9 @@ CLAUDE_CORE="$ROOT/skills/story-setup/references/templates/hooks/story_hook_core
 CLAUDE_COMMIT="$ROOT/skills/story-setup/references/templates/hooks/validate-story-commit.sh"
 CLAUDE_GAPS="$ROOT/skills/story-setup/references/templates/hooks/detect-story-gaps.sh"
 CLAUDE_GUARD="$ROOT/skills/story-setup/references/templates/hooks/guard-outline-before-prose.sh"
-for f in "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE" "$OPENCODE_CORE" "$CLAUDE_CORE" "$CLAUDE_COMMIT" "$CLAUDE_GAPS" "$CLAUDE_GUARD"; do
+CLAUDE_HOOK_CLI="$ROOT/skills/story-setup/references/templates/hooks/story_hook_cli.js"
+STORYCTL="$ROOT/skills/story-long-write/scripts/storyctl.py"
+for f in "$CODEX" "$OPENCODE" "$ZCODE" "$ZCODE_CORE" "$OPENCODE_CORE" "$CLAUDE_CORE" "$CLAUDE_COMMIT" "$CLAUDE_GAPS" "$CLAUDE_GUARD" "$CLAUDE_HOOK_CLI" "$STORYCTL"; do
   [ -f "$f" ] || { echo "FAIL: missing impl: $f" >&2; exit 1; }
 done
 
@@ -131,38 +133,37 @@ JS
   grep -q '^repeat_astral_seven_ok | $' "$tmp/py.txt" || { echo "FAIL: 7 个增补面字符不应触发复读" >&2; return 3; }
   grep -q '^repeat_astral_eight | 第2行 紧邻复读' "$tmp/py.txt" || { echo "FAIL: 8 个增补面字符的复读边界未命中" >&2; return 3; }
 
-  # 字数目标抽取与 90% 边界必须由运行结果证明，而不是搜实现里的正则和常量。
+  # Adapter 的正文网不再测量字数；同一份欠长正文只应由 storyctl 的公开命令判定。
+  # 这锁住职责分离：旧 90% 算法若重新混入任一 Hook，外部输出会立刻回归失败。
   mkdir -p "$tmp/book/大纲" "$tmp/book/正文"
-  printf '字数目标：1000\n' > "$tmp/book/大纲/细纲_第001章.md"
-  python3 - "$tmp/book/正文/第001章_欠账.md" "$tmp/book/正文/第001章_边界.md" <<'PY'
+  printf '字数目标：1000\n字数口径：visible_chars_v1\n' > "$tmp/book/大纲/细纲_第001章.md"
+  python3 - "$tmp/book/正文/第001章_欠账.md" <<'PY'
 from pathlib import Path
 import sys
-Path(sys.argv[1]).write_bytes(("字" * 898 + "\r\n").encode("utf-8"))
-Path(sys.argv[2]).write_bytes(("字" * 899 + "\r\n").encode("utf-8"))
+Path(sys.argv[1]).write_text("# 第1章\n" + "字" * 800 + "。\n", encoding="utf-8")
 PY
-  python3 - "$CODEX" "$tmp/book/正文/第001章_欠账.md" "$tmp/book/正文/第001章_边界.md" > "$tmp/wordcount-py.json" <<'PY'
-import importlib.util, json, pathlib, sys
-spec = importlib.util.spec_from_file_location("ch", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-paths = [pathlib.Path(value) for value in sys.argv[2:]]
-values = [m._wordcount_finding(path, path.read_text(encoding="utf-8")) for path in paths]
-sys.stdout.buffer.write(json.dumps(values, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+  python3 "$STORYCTL" wordcount check \
+    --file "$tmp/book/正文/第001章_欠账.md" --target 1000 --chapter 1 \
+    > "$tmp/storyctl-wordcount.json"
+  python3 - "$tmp/storyctl-wordcount.json" <<'PY'
+import json, sys
+result = json.load(open(sys.argv[1], encoding="utf-8"))
+assert result["schema"] == "story-wordcount-result/v1", result
+assert result["metric"] == "visible_chars_v1", result
+assert result["actual"] == 801, result
+assert result["status"] == "under", result
 PY
-  node - "$ZCODE_CORE" "$tmp/book/正文/第001章_欠账.md" "$tmp/book/正文/第001章_边界.md" > "$tmp/wordcount-js.json" <<'JS'
-const fs = require("fs")
-const core = require(process.argv[2])
-const paths = process.argv.slice(3)
-process.stdout.write(JSON.stringify(paths.map((path) => core.wordcountFinding(path, fs.readFileSync(path, "utf8")))))
-JS
-  diff "$tmp/wordcount-py.json" "$tmp/wordcount-js.json" >/dev/null || {
-    echo "FAIL: 字数目标行为 parity 不一致" >&2
-    diff "$tmp/wordcount-py.json" "$tmp/wordcount-js.json" >&2 || true
+  [ -z "$(node "$CLAUDE_HOOK_CLI" prose-net "$tmp/book/正文/第001章_欠账.md")" ] || {
+    echo "FAIL: Claude Adapter 重新把字数测量混入正文内容网" >&2
     return 3
   }
-  python3 - "$tmp/wordcount-py.json" <<'PY'
+
+  git -C "$tmp/book" init -q
+  printf '{}\n' | (cd "$tmp/book" && python3 "$CODEX" stop) > "$tmp/codex-stop.json"
+  python3 - "$tmp/codex-stop.json" <<'PY'
 import json, sys
-below, boundary = json.load(open(sys.argv[1], encoding="utf-8"))
-assert below and "实际 899 字" in below and "90%（900）" in below, below
-assert boundary is None, boundary
+result = json.load(open(sys.argv[1], encoding="utf-8"))
+assert result == {"continue": True}, result
 PY
 
   # 毒句式 fixture 防空转断言（两端同错也能 diff 通过，故对期望输出显式断言）：
@@ -672,7 +673,7 @@ run_functional
 rc=$?
 set -e
 case "$rc" in
-  0) echo "功能 parity：codex python 网 == opencode TS 网 == zcode JS 网（44 fixtures + CRLF 字数边界，含毒句式正反例/AI 自指/截断收尾与豁免标记）。" ;;
+  0) echo "功能 parity：codex python 网 == opencode TS 网 == zcode JS 网（44 fixtures，含毒句式正反例/AI 自指/截断收尾、豁免标记与 storyctl 字数职责分离）。" ;;
   2) echo "功能 parity：codex python 网 == zcode JS 网；OpenCode plugin 直跑跳过（无 TS 运行时）。" ;;
   *) fails=$((fails + 1)) ;;
 esac

@@ -779,10 +779,10 @@ def test_style_profile_is_not_a_book_existence_probe() -> None:
             "优先探 `{项目}/对标/{书名}/**/*`，回退探 `拆文库/{书名}/**/*`；"
             "**不得用 `文风.md` 兼作目录存在性探针**\n",
         ),
-        "legacy-outline-budget-total": (
+        "forbidden-outline-numeric-capacity": (
             "skills/story-long-write/references/workflow-setup.md",
-            "末尾写一行 `预算合计：X字（目标Y，范围Y-Z）`。\n",
             "末尾写一行 `目标字数合计：下限X字（章目标Y，范围Y-Z）`。\n",
+            "情节点只写语义义务，不填写逐点字数。\n",
         ),
     }
     for code, (relative_path, bad, good) in cases.items():
@@ -820,12 +820,12 @@ def test_style_profile_is_not_a_book_existence_probe() -> None:
         )
 
     # 显式禁止旧字段的说明文字本身不算违规，否则规则没法写进文档。
-    budget_rule = rules["legacy-outline-budget-total"]
+    budget_rule = rules["forbidden-outline-numeric-capacity"]
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         path = root / "skills/story-long-write/references/workflow-setup.md"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("不得再写旧字段 `预算合计`。\n", encoding="utf-8")
+        path.write_text("不得再写旧字段 `预算合计` 或 `目标字数合计`。\n", encoding="utf-8")
         require(
             not VALIDATOR.check_absent_rule(root, budget_rule),
             "an explicit prohibition of 预算合计 must stay documentable",
@@ -844,8 +844,7 @@ def test_outline_total_and_profile_gap_parity() -> None:
         "explorer-book-dir-probe",
         "explorer-profile-missing-distinct",
         "daily-profile-missing-custom-style",
-        "outline-total-field-parity",
-        "outline-total-canonical-format",
+        "outline-semantic-capacity-parity",
     }
     actual = finding_codes(VALIDATOR.validate_repository(REPO_ROOT, manifest))
     leaked = sorted(expected_clean & actual)

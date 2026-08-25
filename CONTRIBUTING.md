@@ -76,6 +76,7 @@ PR 自动运行 `.github/workflows/cross-platform.yml`。static-check job 跑以
 - `scripts/test-codex-hooks.sh` — Codex hooks 合成事件测试
 - `scripts/check-zcode-adapter.sh` — ZCode plugin/marketplace、13 Skills/Commands、受支持 Hook 事件与部署锚点检查
 - `scripts/test-zcode-hooks.sh` — ZCode 严格 JSON Hook 契约、正文守卫、连续性与跨平台 Node runner 测试
+- `python3 scripts/test-storyctl.py` — `visible_chars_v1` 计数、双层区间、结构化 CLI 与 demo 同口径证据的运行时行为回归
 - 采集脚本 `node --check` 语法校验
 
 以上为代表性列举；**强制清单按 `.github/workflows/cross-platform.yml` 为准**，每个脚本的用途与触发时机见 [scripts/README.md](scripts/README.md)。另有 `.github/workflows/cli-compat.yml` 在相关 PR、每周定时和手动触发时安装官方当前版本，真实运行 Claude Code、Codex、OpenCode、OpenClaw 的无鉴权 smoke。
@@ -104,6 +105,7 @@ bash scripts/test-degeneration.sh
 bash scripts/test-prose-backstop-hook.sh
 bash scripts/test-prose-net-parity.sh
 bash scripts/test-story-continuity.sh
+python3 scripts/test-storyctl.py
 python3 scripts/test-author-memory-commit.py
 bash scripts/check-story-setup-deployment.sh
 bash scripts/check-claude-adapter.sh

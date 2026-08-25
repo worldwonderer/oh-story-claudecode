@@ -413,38 +413,6 @@ def find_changed_prose_files(root: Path) -> list[Path]:
     return out
 
 
-def _wordcount_finding(abs_path: Path, text: str) -> str | None:
-    """字数欠账（仅长篇分章正文）：从 大纲/细纲_第N章*.md 读「字数目标」，实际 < 90% 提示。
-    与 check-prose-after-write.sh 内嵌 python / opencode wordcountFinding 同实现。"""
-    base = abs_path.name
-    if abs_path.parent.name != "正文":
-        return None
-    m = re.match(r"^第0*(\d+)章", base)
-    if not m:
-        return None
-    num = m.group(1)
-    target = None
-    for f in (abs_path.parent.parent / "大纲").glob("细纲_第*章*.md"):
-        fm = re.search(r"细纲_第0*(\d+)章", f.name)
-        if not fm or fm.group(1) != num:
-            continue
-        try:
-            txt = f.read_text(encoding="utf-8")
-        except Exception:
-            continue
-        tm = re.search(r"字数目标[^0-9]{0,6}(\d{3,6})", txt)
-        if tm:
-            target = int(tm.group(1))
-        break
-    if not target:
-        return None
-    actual = len(text.replace("\r\n", "\n").replace("\r", "\n"))
-    if actual < target * 0.9:
-        return (f"字数：第{num}章 实际 {actual} 字 < 目标 {target} 的 90%（{int(target*0.9)}）。"
-                f"对照细纲字数预算定位欠账的密点、一次性重写到配额，别挤牙膏回炉。")
-    return None
-
-
 def _discover_all_books(root: Path) -> list[Path]:
     books: list[Path] = []
     seen: set[str] = set()
@@ -1544,9 +1512,6 @@ def stop_event() -> None:
             except Exception:
                 continue
             findings = prose_net_findings(text)
-            wc = _wordcount_finding(abs_path, text)
-            if wc:
-                findings.append(wc)
             if findings:
                 blocks.append(f"=== {safe_rel(root, abs_path)} ===\n" + "\n".join(findings))
         if blocks:

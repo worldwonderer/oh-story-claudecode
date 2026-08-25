@@ -236,13 +236,19 @@ LEGACY_RULES = (
             "skills/story-setup/references/codex/agents/story-explorer.toml",
         ),
     ),
-    # 细纲情节点合计只有「目标字数合计：下限X字」一种口径。旧的「预算合计：X字」既没说
-    # 下限也没说区间，与新模板并存时会重新引入「预算是上限还是下限」的歧义。
+    # 现行字数口径不把语义情节点换算成固定容量；旧合计/Σ 契约会诱导自动补事件凑字。
     AbsentRule(
-        "legacy-outline-budget-total",
-        "outline plot-point totals use 目标字数合计 only, never the ambiguous 预算合计",
-        r"预算合计",
-        ("skills",),
+        "forbidden-outline-numeric-capacity",
+        "outline beats never use numeric totals or sigma bands to predict prose capacity",
+        r"预算合计|目标字数合计|Σ∈\[章目标",
+        (
+            "skills/story-long-write/references/workflow-setup.md",
+            "skills/story-long-write/references/artifact-protocols.md",
+            "skills/story-setup/references/templates/rules/story-outline.md",
+            "skills/story-setup/references/templates/agents/story-architect.md",
+            "skills/story-setup/references/opencode/agents/story-architect.md",
+            "skills/story-setup/references/codex/agents/story-architect.toml",
+        ),
         exempt_when=r"不得|禁止|已废弃|旧字段|旧口径",
     ),
 )
@@ -259,9 +265,8 @@ SPAWN_CAPABLE_SKILLS = (
 )
 
 
-# 细纲情节点合计字段的 canonical 副本与它的消费方：workflow-setup.md 是权威模板，
-# artifact-protocols.md 描述该模板，story-outline.md 是部署到用户项目的规则。
-OUTLINE_TOTAL_CONSUMERS = (
+# 细纲结构容量的 canonical 副本与消费方：逐点只写语义义务，不填数字配额。
+OUTLINE_SEMANTIC_CAPACITY_CONSUMERS = (
     "skills/story-long-write/references/workflow-setup.md",
     "skills/story-long-write/references/artifact-protocols.md",
     "skills/story-setup/references/templates/rules/story-outline.md",
@@ -1307,24 +1312,16 @@ def validate_repository(repo_root: Path, manifest: ContractManifest) -> List[Fin
         )
     )
 
-    # 细纲合计口径的三处消费方必须与 canonical 同字面，避免模板改了消费方没改。
-    for relative in OUTLINE_TOTAL_CONSUMERS:
+    # 三处消费方都必须明确取消逐点字数，避免旧 Σ 契约从任一部署面回流。
+    for relative in OUTLINE_SEMANTIC_CAPACITY_CONSUMERS:
         findings.extend(
             require_pattern(
                 repo_root / relative,
-                r"目标字数合计",
-                "outline-total-field-parity",
-                "outline plot-point total must use the canonical 目标字数合计 field",
+                r"不(?:填写|含)逐点字数",
+                "outline-semantic-capacity-parity",
+                "outline beats must remain semantic and must not carry per-beat word quotas",
             )
         )
-    findings.extend(
-        require_pattern(
-            repo_root / "skills/story-long-write/references/workflow-setup.md",
-            r"目标字数合计：下限X字（章目标Y，范围Y-Z）",
-            "outline-total-canonical-format",
-            "canonical outline template must spell out the 目标字数合计 lower-bound format",
-        )
-    )
 
     outline_rule = repo_root / "skills/story-setup/references/templates/rules/story-outline.md"
     outline_rule_text = read_text(outline_rule) or ""

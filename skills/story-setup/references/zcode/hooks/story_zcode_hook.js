@@ -22,7 +22,6 @@ const {
   extractPatchTargets,
   proseBlockReason,
   isProsePath,
-  wordcountFinding,
   duplicateTitleFindings,
   proseAfterWrite,
   shellWords,

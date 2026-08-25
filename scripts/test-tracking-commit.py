@@ -15,6 +15,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "skills/story-long-write/scripts/tracking_commit.py"
+STORYCTL = ROOT / "skills/story-long-write/scripts/storyctl.py"
+STORYCTL_SPEC = importlib.util.spec_from_file_location("storyctl_tracking_tests", STORYCTL)
+assert STORYCTL_SPEC and STORYCTL_SPEC.loader
+storyctl = importlib.util.module_from_spec(STORYCTL_SPEC)
+STORYCTL_SPEC.loader.exec_module(storyctl)
 
 
 def position(*, volume: str = "第一卷·军宣整顿", start: int = 1) -> dict[str, object]:
@@ -26,8 +31,11 @@ def position(*, volume: str = "第一卷·军宣整顿", start: int = 1) -> dict
     }
 
 
-def initial_document(*, last_chapter: int = 0) -> dict[str, object]:
-    return {
+def initial_document(
+    *,
+    last_chapter: int = 0,
+) -> dict[str, object]:
+    document: dict[str, object] = {
         "schema_version": 1,
         "book_title": "让你管账号，你高燃混剪炸全网",
         "last_chapter": last_chapter,
@@ -46,6 +54,7 @@ def initial_document(*, last_chapter: int = 0) -> dict[str, object]:
         "foreshadow": [],
         "timeline_events": [],
     }
+    return document
 
 
 def snapshot(*, state: str = "军内认可继续抬升", items: int = 1, repeat: int = 1) -> dict[str, object]:
@@ -176,7 +185,38 @@ class TrackingCommitTests(unittest.TestCase):
         return completed
 
     def init(self, *, last_chapter: int = 0) -> None:
-        self.run_tool("init", initial_document(last_chapter=last_chapter))
+        self.run_tool(
+            "init",
+            initial_document(last_chapter=last_chapter),
+        )
+
+    def write_chapter_contract(self, chapter: int, *, actual: int = 800, target: int = 1000) -> bytes:
+        (self.project / "大纲").mkdir(exist_ok=True)
+        (self.project / "正文").mkdir(exist_ok=True)
+        width = max(3, len(str(chapter)))
+        (self.project / "大纲" / f"细纲_第{chapter:0{width}d}章.md").write_text(
+            f"- 字数目标：{target} 字\n- 字数口径：visible_chars_v1\n",
+            encoding="utf-8",
+        )
+        body = ("# 标题\n" + "字" * actual + "。\n").encode("utf-8")
+        (self.project / "正文" / f"第{chapter:0{width}d}章_测试.md").write_bytes(body)
+        return body
+
+    def bind_wordcount(
+        self,
+        document: dict[str, object],
+        *,
+        resolution: str = "accepted_current_length",
+    ) -> dict[str, object]:
+        chapter = int(document["chapter"])
+        if "expected_state_revision" not in document:
+            document["expected_state_revision"] = self.read_state()["state_revision"]
+        document["wordcount"] = storyctl.build_project_wordcount_record(
+            self.project,
+            chapter,
+            resolution=resolution,
+        )
+        return document
 
     def read_state(self) -> dict[str, object]:
         return json.loads((self.project / "追踪/_tracking-state.json").read_text(encoding="utf-8"))
@@ -191,6 +231,9 @@ class TrackingCommitTests(unittest.TestCase):
         self.assertEqual(state["characters"], {})
         self.assertEqual(state["foreshadow"], {})
         self.assertEqual(state["timeline"], {})
+        self.assertEqual(state["wordcount_records"], {})
+        self.assertNotIn("wordcount_policy", state)
+        self.assertNotIn("wordcount_events", state)
         self.assertFalse((tracking / "_tracking-meta.json").exists())
         self.assertFalse((tracking / "时间线/事件库.json").exists())
         self.assertIn("状态修订：0", (tracking / "上下文.md").read_text(encoding="utf-8"))
@@ -213,6 +256,75 @@ class TrackingCommitTests(unittest.TestCase):
         self.assertNotIn("军方培养江晨另有尚未公开的后续安排", (tracking / "时间线/读者已知.md").read_text(encoding="utf-8"))
         self.assertTrue((tracking / "逐章记录/第001章.md").exists())
         self.run_tool("check")
+
+    def test_simple_wordcount_record_commits_the_exact_current_body(self) -> None:
+        self.init()
+        original = self.write_chapter_contract(1, actual=800, target=1000)
+        document = self.bind_wordcount(transaction(1))
+
+        self.run_tool("commit", document)
+
+        state = self.read_state()
+        self.assertEqual(state["last_committed_chapter"], 1)
+        self.assertEqual(state["state_revision"], 1)
+        record = state["wordcount_records"]["1"]
+        self.assertEqual(
+            set(record),
+            {"metric", "target", "actual", "status", "resolution", "body_sha256"},
+        )
+        self.assertEqual(record["status"], "under")
+        self.assertEqual(record["resolution"], "accepted_current_length")
+        self.assertEqual((self.project / "正文/第001章_测试.md").read_bytes(), original)
+        self.run_tool("check")
+
+    def test_body_or_target_change_rejects_a_prepared_record_without_writes(self) -> None:
+        self.init()
+        original_body = self.write_chapter_contract(1, actual=800, target=1000)
+        document = self.bind_wordcount(transaction(1))
+        before = self.read_state()
+
+        body_path = self.project / "正文/第001章_测试.md"
+        body_path.write_bytes(original_body + "变".encode("utf-8"))
+        changed_body = self.run_tool("commit", document, expect=2)
+        self.assertIn("wordcount record is stale", changed_body.stderr)
+        self.assertEqual(self.read_state(), before)
+
+        body_path.write_bytes(original_body)
+        (self.project / "大纲/细纲_第001章.md").write_text(
+            "- 字数目标：1100 字\n- 字数口径：visible_chars_v1\n", encoding="utf-8"
+        )
+        changed_target = self.run_tool("commit", document, expect=2)
+        self.assertIn("wordcount record is stale", changed_target.stderr)
+        self.assertEqual(self.read_state(), before)
+
+    def test_two_concurrent_different_commits_advance_only_one_revision(self) -> None:
+        self.init()
+        self.write_chapter_contract(1, actual=800, target=1000)
+        first = self.bind_wordcount(transaction(1, next_commitment="A"))
+        second = self.bind_wordcount(transaction(1, next_commitment="B"))
+
+        paths = []
+        for index, document in enumerate((first, second), start=1):
+            path = Path(self.temporary.name) / f"concurrent-{index}.json"
+            path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+            paths.append(path)
+        processes = [
+            subprocess.Popen(
+                [sys.executable, str(TOOL), "commit", "--project", str(self.project), "--input", str(path)],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+            )
+            for path in paths
+        ]
+        results = [process.communicate(timeout=20) + (process.returncode,) for process in processes]
+
+        self.assertEqual(sorted(result[2] for result in results), [0, 2], results)
+        state = self.read_state()
+        self.assertEqual(state["state_revision"], 1)
+        self.assertEqual(set(state["wordcount_records"]), {"1"})
+        self.assertEqual(len(list((self.project / "追踪/逐章记录").glob("第001章.md"))), 1)
 
     def test_character_snapshot_lists_are_not_limited_to_eight_items(self) -> None:
         self.init()

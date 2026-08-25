@@ -4,7 +4,7 @@
 // story_hook_cli.js — Claude Code bash hook 的 node 桥
 // Claude 侧 hook 是 bash（settings.json 挂 bash 脚本），归核逻辑走这里 require 的
 // 共享核 story_hook_core.js——和 OpenCode/ZCode 用的是同一份，由 check-shared-files
-// 保证字节相同。归核（单份实现在 core）的面：正文网/字数（prose-net）、路径抽取
+// 保证字节相同。归核（单份实现在 core）的面：正文网（prose-net）、路径抽取
 // （extract-target）、Bash 正文写入前置门（prose-command-guard）、git commit 侦测
 // （is-git-commit）、连续性（continuity）、追踪检查点（tracking-checkpoint）。
 // 尚未归核、各端独立实现的面：
@@ -104,8 +104,8 @@ if (command === "extract-target") {
     process.exit(3)
   }
 } else if (command === "prose-net") {
-  // 轻量确定性网（含毒句式）+ 字数欠账，对齐旧内嵌 python 第二段的 out 列表（net 逐条 +
-  // 可选字数行）。读文件失败静默退出（兜底不反噬流程）。
+  // 轻量确定性网（含毒句式）。字数只由 storyctl 的公开命令测量，不在 Adapter 内复制。
+  // 读文件失败静默退出（兜底不反噬流程）。
   const absolute = args[0]
   let text
   try {
@@ -114,8 +114,6 @@ if (command === "extract-target") {
     process.exit(0)
   }
   const out = core.proseNetFindings(text)
-  const wordcount = core.wordcountFinding(absolute, text)
-  if (wordcount) out.push(wordcount)
   if (out.length) process.stdout.write(out.join("\n"))
 } else if (command === "prose-toxic") {
   // 毒句式确定性检测单跑（供 guard 前置门 / 手工复扫调用；prose-net 已含同一组结果）。

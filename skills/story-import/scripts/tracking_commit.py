@@ -3,23 +3,38 @@
 
 The language model supplies compact semantic JSON.  This tool validates and
 merges that input in memory, renders every derived view, then atomically writes
-``_tracking-state.json`` last as the single commit point.  One book project has
-one serial writer; concurrent commits are intentionally unsupported.
+``_tracking-state.json`` last as the single commit point. Per-project locking
+serializes concurrent writers before revision and wordcount checks.
 """
 
 from __future__ import annotations
 
 import argparse
 import copy
+import importlib.util
 import json
 import os
 import re
 import stat
 import sys
 import tempfile
+import time
 import unicodedata
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+
+
+_WORDCOUNT_CORE_PATH = Path(__file__).with_name("wordcount_core.py")
+if not _WORDCOUNT_CORE_PATH.is_file():  # pragma: no cover - broken deployment
+    raise RuntimeError("TOOL_UNAVAILABLE: wordcount_core.py")
+_WORDCOUNT_CORE_SPEC = importlib.util.spec_from_file_location(
+    "story_wordcount_core", _WORDCOUNT_CORE_PATH
+)
+if _WORDCOUNT_CORE_SPEC is None or _WORDCOUNT_CORE_SPEC.loader is None:  # pragma: no cover
+    raise RuntimeError("unable to load wordcount core")
+wordcount_core = importlib.util.module_from_spec(_WORDCOUNT_CORE_SPEC)
+_WORDCOUNT_CORE_SPEC.loader.exec_module(wordcount_core)
 
 
 INPUT_SCHEMA_VERSION = 1
@@ -72,6 +87,13 @@ class TrackingError(ValueError):
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise TrackingError(message)
+
+
+def wordcount_value(function: Any, *args: Any, **kwargs: Any) -> Any:
+    try:
+        return function(*args, **kwargs)
+    except wordcount_core.WordcountError as exc:
+        raise TrackingError(str(exc)) from exc
 
 
 def as_mapping(value: object, label: str) -> dict[str, Any]:
@@ -186,6 +208,34 @@ def tracking_root(project: Path) -> Path:
 
 def state_path(project: Path) -> Path:
     return tracking_root(project) / "_tracking-state.json"
+
+
+@contextmanager
+def project_write_lock(project: Path, *, timeout_seconds: float = 10.0):
+    tracking = tracking_root(project)
+    tracking.mkdir(parents=True, exist_ok=True)
+    path = tracking / ".tracking-commit.lock"
+    deadline = time.monotonic() + timeout_seconds
+    descriptor: int | None = None
+    while descriptor is None:
+        try:
+            descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                raise TrackingError(
+                    "tracking commit lock is busy or stale; retry, or remove 追踪/.tracking-commit.lock after confirming no commit is running"
+                )
+            time.sleep(0.05)
+    try:
+        os.write(descriptor, f"pid={os.getpid()}\n".encode("ascii"))
+        os.fsync(descriptor)
+        yield
+    finally:
+        os.close(descriptor)
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def delta_path(tracking: Path, chapter: int) -> Path:
@@ -735,6 +785,18 @@ def render_delta(chapter: int, title: str, delta: dict[str, Any], core_names: se
     return payload
 
 
+def normalize_wordcount_records(value: object, last_chapter: int) -> dict[str, dict[str, Any]]:
+    records = as_mapping(value, "tracking state.wordcount_records")
+    normalized: dict[str, dict[str, Any]] = {}
+    for raw_chapter, raw_record in records.items():
+        require(isinstance(raw_chapter, str) and re.fullmatch(r"[1-9]\d*", raw_chapter) is not None,
+                "wordcount record chapter key is invalid")
+        chapter = int(raw_chapter)
+        require(chapter <= last_chapter, "wordcount record exceeds last committed chapter")
+        normalized[raw_chapter] = wordcount_value(wordcount_core.normalize_wordcount_record, raw_record)
+    return normalized
+
+
 def normalize_state(document: object) -> dict[str, Any]:
     root = as_mapping(document, "tracking state")
     require_known_keys(
@@ -742,6 +804,7 @@ def normalize_state(document: object) -> dict[str, Any]:
         {
             "schema_version", "book_title", "last_committed_chapter", "imported_through_chapter",
             "state_revision", "context", "characters", "foreshadow", "timeline",
+            "wordcount_records",
         },
         "tracking state",
     )
@@ -766,16 +829,19 @@ def normalize_state(document: object) -> dict[str, Any]:
     if last_chapter == 0:
         require(not foreshadow, "a chapter-0 project cannot have planted foreshadow facts")
         require(not timeline, "a chapter-0 project cannot have established timeline facts")
+    state_revision = as_int(root.get("state_revision"), "tracking state.state_revision")
+    wordcount_records = normalize_wordcount_records(root.get("wordcount_records", {}), last_chapter)
     return {
         "schema_version": TRACKING_SCHEMA_VERSION,
         "book_title": clean_text(root.get("book_title"), "tracking state.book_title", max_bytes=240),
         "last_committed_chapter": last_chapter,
         "imported_through_chapter": imported_through,
-        "state_revision": as_int(root.get("state_revision"), "tracking state.state_revision"),
+        "state_revision": state_revision,
         "context": context,
         "characters": characters,
         "foreshadow": foreshadow,
         "timeline": timeline,
+        "wordcount_records": wordcount_records,
     }
 
 
@@ -789,7 +855,10 @@ def normalize_initial_document(document: object) -> dict[str, Any]:
     root = as_mapping(document, "init input")
     require_known_keys(
         root,
-        {"schema_version", "book_title", "last_chapter", "context", "character_snapshots", "foreshadow", "timeline_events"},
+        {
+            "schema_version", "book_title", "last_chapter", "context", "character_snapshots",
+            "foreshadow", "timeline_events",
+        },
         "init input",
     )
     require(root.get("schema_version") == INPUT_SCHEMA_VERSION, "init input schema_version is unsupported")
@@ -826,17 +895,18 @@ def normalize_initial_document(document: object) -> dict[str, Any]:
             "characters": snapshots,
             "foreshadow": foreshadow,
             "timeline": timeline,
+            "wordcount_records": {},
         }
     )
 
 
-def normalize_transaction(state: dict[str, Any], document: object) -> dict[str, Any]:
+def normalize_transaction(project: Path, state: dict[str, Any], document: object) -> dict[str, Any]:
     root = as_mapping(document, "transaction")
     require_known_keys(
         root,
         {
             "schema_version", "mode", "chapter", "chapter_title", "expected_state_revision",
-            "delta", "context", "character_snapshots",
+            "delta", "context", "character_snapshots", "wordcount",
         },
         "transaction",
     )
@@ -845,6 +915,7 @@ def normalize_transaction(state: dict[str, Any], document: object) -> dict[str, 
     require(mode in {"append", "revision"}, "mode must be append or revision")
     chapter = as_int(root.get("chapter"), "chapter", minimum=1)
     expected_revision = as_int(root.get("expected_state_revision"), "expected_state_revision")
+    wordcount_input = root.get("wordcount")
     require(expected_revision == state["state_revision"], "tracking state changed since this transaction was prepared")
     last = state["last_committed_chapter"]
     if mode == "append":
@@ -864,6 +935,11 @@ def normalize_transaction(state: dict[str, Any], document: object) -> dict[str, 
         snapshots=snapshots,
         existing_core_names=existing_names,
     )
+    wordcount = None
+    if wordcount_input is not None:
+        wordcount = wordcount_value(
+            wordcount_core.validate_current_wordcount_record, project, chapter, wordcount_input
+        )
     return {
         "mode": mode,
         "chapter": chapter,
@@ -871,6 +947,7 @@ def normalize_transaction(state: dict[str, Any], document: object) -> dict[str, 
         "delta": delta,
         "context": context,
         "snapshots": snapshots,
+        "wordcount": wordcount,
     }
 
 
@@ -891,6 +968,8 @@ def merge_transaction(state: dict[str, Any], transaction: dict[str, Any]) -> dic
         next_state["last_committed_chapter"] = chapter
     next_state["state_revision"] += 1
     next_state["characters"].update(transaction["snapshots"])
+    if transaction["wordcount"] is not None:
+        next_state["wordcount_records"][str(chapter)] = transaction["wordcount"]
 
     next_context = transaction["context"]
     # 退役说的是「从此刻起离开当前状态」，只有 append 的逐章记录代表此刻；
@@ -1013,7 +1092,7 @@ def warn_sizes(views: dict[str, str], delta_payload: str | None = None) -> None:
             )
 
 
-def initialize(project: Path, document: object) -> dict[str, Any]:
+def _initialize_locked(project: Path, document: object) -> dict[str, Any]:
     tracking = tracking_root(project)
     require(not state_path(project).exists(), "tracking state already exists; init never overwrites project state")
     state = normalize_initial_document(document)
@@ -1036,11 +1115,16 @@ def initialize(project: Path, document: object) -> dict[str, Any]:
     return state
 
 
-def apply_transaction(project: Path, document: object) -> dict[str, Any]:
+def initialize(project: Path, document: object) -> dict[str, Any]:
+    with project_write_lock(project):
+        return _initialize_locked(project, document)
+
+
+def _apply_transaction_locked(project: Path, document: object) -> dict[str, Any]:
     tracking = tracking_root(project)
     require_no_retired_tracking_paths(tracking)
     state = load_state(project)
-    transaction = normalize_transaction(state, document)
+    transaction = normalize_transaction(project, state, document)
     next_state = merge_transaction(state, transaction)
 
     delta_payload = render_delta(
@@ -1065,6 +1149,11 @@ def apply_transaction(project: Path, document: object) -> dict[str, Any]:
     atomic_write_text(state_path(project), next_state_payload)
     warn_sizes(views, delta_payload)
     return next_state
+
+
+def apply_transaction(project: Path, document: object) -> dict[str, Any]:
+    with project_write_lock(project):
+        return _apply_transaction_locked(project, document)
 
 
 def check_project(project: Path) -> dict[str, Any]:

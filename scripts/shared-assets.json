@@ -45,6 +45,14 @@
       ]
     },
     {
+      "name": "story-wordcount-core",
+      "source": "skills/story-long-write/scripts/wordcount_core.py",
+      "targets": [
+        "skills/story-import/scripts/wordcount_core.py",
+        "skills/story-review/scripts/wordcount_core.py"
+      ]
+    },
+    {
       "name": "story-tracking-transaction-reference",
       "source": "skills/story-long-write/references/tracking-transaction.md",
       "targets": [

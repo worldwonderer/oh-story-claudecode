@@ -59,6 +59,10 @@ jobs:
         run: bash scripts/test-story-continuity.sh
       - name: Tracking transaction behavior regression
         run: python3 scripts/test-tracking-commit.py
+      - name: Wordcount core behavior regression
+        run: python3 scripts/test-storyctl.py
+      - name: Chapter completion lifecycle regression
+        run: python3 scripts/test-chapter-completion-lifecycle.py
       - name: Author memory transaction behavior regression
         run: python3 scripts/test-author-memory-commit.py
       - name: Check story-setup deployment
@@ -132,6 +136,10 @@ jobs:
         run: bash scripts/test-story-continuity.sh
       - name: Tracking transaction behavior regression
         run: python scripts/test-tracking-commit.py
+      - name: Wordcount core behavior regression
+        run: python scripts/test-storyctl.py
+      - name: Chapter completion lifecycle regression
+        run: python scripts/test-chapter-completion-lifecycle.py
       - name: Author memory transaction behavior regression
         run: python scripts/test-author-memory-commit.py
       - name: Workflow numbering regression
@@ -198,6 +206,10 @@ jobs:
         run: bash scripts/test-story-continuity.sh
       - name: Tracking transaction behavior regression
         run: python3 scripts/test-tracking-commit.py
+      - name: Wordcount core behavior regression
+        run: python3 scripts/test-storyctl.py
+      - name: Chapter completion lifecycle regression
+        run: python3 scripts/test-chapter-completion-lifecycle.py
       - name: Author memory transaction behavior regression
         run: python3 scripts/test-author-memory-commit.py
       - name: Workflow numbering regression

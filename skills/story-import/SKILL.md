@@ -14,7 +14,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 > Agent 兼容性：检查专业 agent 是否可用时，按 `.claude/agents/{agent}.md` → `.opencode/agents/{agent}.md` → `.codex/agents/{agent}.toml` 的顺序查找。Codex 原生子代理调用优先使用同名 `agent_type`；如果当前 Codex 运行时返回 `unknown agent_type` 或未暴露 custom-agent registry，必须降级为 solo/direct。检测到 `.zcode/` 时同样直接 solo/direct，因为 ZCode 3.3.4 不执行项目 custom agents；报告 `Fallback: project custom agents unavailable -> solo`。Claude/OpenCode 兼容面保留 `subagent_type`。
 >
-> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 25` 不一致时（标记缺失、字段缺失/非整数、小于或大于 25）**照常按文件存在性检查并 spawn**，同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 25）` 并提示重新运行 `/story-setup` 后新开会话；大于 25 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
+> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 26` 不一致时（标记缺失、字段缺失/非整数、小于或大于 26）**照常按文件存在性检查并 spawn**，同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 26）` 并提示重新运行 `/story-setup` 后新开会话；大于 26 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
 
 ## 核心原则
 
@@ -102,7 +102,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 在进入 Phase 2 之前，先检测项目是否已部署 story-setup 基础设施：
 
 - 先读取 `.story-deployed` 并执行顶部 Spawn 版本门禁；旧版 `chapter-extractor` 文件即使仍在磁盘上也不可复用。
-- 只有 `agents_version: 25` 通过后，才按 `.claude/agents/chapter-extractor.md` → `.opencode/agents/chapter-extractor.md` → `.codex/agents/chapter-extractor.toml` 检查 Phase 2 长篇并行 agent。
+- 只有 `agents_version: 26` 通过后，才按 `.claude/agents/chapter-extractor.md` → `.opencode/agents/chapter-extractor.md` → `.codex/agents/chapter-extractor.toml` 检查 Phase 2 长篇并行 agent。
 - 如果 `.story-deployed` 的 `target_cli` 包含 `zcode`，项目 agents 缺失是 ZCode 3.3.4 的预期状态：不要提示重复部署，直接以串行 solo/direct 进入分析并报告 fallback。
 
 **部署标记缺失、版本无效/过期，或当前端的 agent 不可用，且不是已部署 ZCode 项目时**，提示用户：
@@ -334,12 +334,21 @@ story-short-analyze 的拆解管道（Stage 2-6）本身**无 Stage 1 停靠点*
 
 **细纲**：从章节摘要反推生成 `大纲/细纲_第XXX章.md`：
 
+每章先通过 story-long-write 的 Wordcount Core 运行 `wordcount measure`，将 JSON 的 `actual` 作为已写章节的历史长度快照。这里记录的是原文在 `visible_chars_v1` 下的实际长度，不是让模型重新决定创作目标。依次探测 `python3`、`python`、`py -3`；找不到 Python 3 或 CLI 时返回 `TOOL_UNAVAILABLE` 并停止导入，不得用模型估算或静默跳过。
+
+```bash
+{PYTHON} {story-long-write skill 根}/scripts/storyctl.py wordcount measure \
+  --file "{原文章节文件}" \
+  --chapter {N}
+```
+
 ```markdown
 ## 细纲（第 N 章）
 
 ### 第 N 章：{章名}
 - 核心事件：{从摘要中提取}
-- 字数目标：{原文实际字数}
+- 字数目标：{storyctl 返回的 actual} 字
+- 字数口径：visible_chars_v1
 - 目标情绪：{从章节基调/情绪曲线提取；未知写 [待补充]}
 - 章首钩子：[待补充]
 - 爽点：{从情节点推断；无明确证据写 [待补充]}
@@ -366,9 +375,9 @@ story-short-analyze 的拆解管道（Stage 2-6）本身**无 Stage 1 停靠点*
 #### 情节细化
 - 情节点序列（逐行填下表；从摘要情节点反推）：
 
-| # | 情节点（谁做了什么） | 功能标签 | 密/铺/疏 | 目标字数 |
-|---|---|---|---|---|
-| 1 | {} | {功能不明写 [待补充]} | {按原文该段实际篇幅归档} | {[待补充]} |
+| # | 情节点（谁做了什么） | 功能标签 | 执行边界 |
+|---|---|---|---|
+| 1 | {} | {功能不明写 [待补充]} | {从原文确认本点没有释放什么；未知写 [待补充]} |
 - 行动成本（可无）/收益归属：{有证据才写；行动成本可无、不硬造；未知写 [待补充]}
 
 #### 结尾设定和钩子
