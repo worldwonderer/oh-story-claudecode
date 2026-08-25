@@ -23,7 +23,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 3. **用模块组装，不要重新发明**。每个题材都有验证过的剧情模式——反转怎么铺、爽点怎么爆、感情怎么拉扯。找到对的模块，把对标书的具体角色看成功能位（对手/盟友/催化剂），再映射到你的角色。用你自己的素材填充这些功能位。
 4. **只加载必需信息**。写每章时只加载"不知道就会写错"的信息。涉及角色的状态、待回收的伏笔、相关设定。其余留在文件系统里。
 5. **契约与推进决策走权威参考文件**。涉及读者契约、主角代理权、利益安全、期待债、终局储备（终局底牌/升级台阶）、机构/势力边界和 契约安全 / 需补强 / 契约破坏 风险判定时，先按 `references/reader-contract-and-progression.md` 校准，不在 SKILL.md 内复制长规则。
-6. **复用作者习惯**。若 `.story/作者记忆/作者画像.md` 已存在，写前读取匹配的 active 条目；硬门禁、当前请求、本书设定/文风优先。捕获与冲突见 [references/author-memory.md](references/author-memory.md)，写入只用 `scripts/author_memory_commit.py`，不混入追踪。
+6. **复用作者习惯**。若作者记忆 state 已存在，正文前用 `scripts/author_memory_commit.py query --kind prose_style --kind story_design` 获取本次相关 active 条目（总输出 ≤2KB），原样传给实际正文/改写 agent；设定/大纲按任务查询其他 kind。硬门禁、当前请求、本书设定/文风优先。明确长期声明在收尾用 `record` 写入并回传回执；完整规则见 [references/author-memory.md](references/author-memory.md)，不混入追踪。
 
 | 题材 | 核心情绪 | 重点参考 |
 |------|---------|---------|

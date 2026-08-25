@@ -53,9 +53,10 @@ def preference(
     scope_level: str = "global",
     scope_value: str | None = None,
     conflicts_with: list[str] | None = None,
+    kind: str = "prose_style",
 ) -> dict[str, Any]:
     return {
-        "kind": "prose_style",
+        "kind": kind,
         "scope": {"level": scope_level, "value": scope_value},
         "assertion": assertion,
         "quote": quote,
@@ -94,12 +95,21 @@ def commit(workspace: Path, input_path: Path, document: dict[str, Any], *, expec
     return run("commit", "--workspace", str(workspace), "--input", str(input_path), expect=expect)
 
 
+def record(workspace: Path, input_path: Path, document: dict[str, Any], *, expect: int = 0) -> subprocess.CompletedProcess[str]:
+    write_json(input_path, document)
+    return run("record", "--workspace", str(workspace), "--input", str(input_path), expect=expect)
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="author-memory-test-") as temporary:
         workspace = Path(temporary) / "创作工作区"
         workspace.mkdir()
         input_path = Path(temporary) / "transaction.json"
         memory = workspace / ".story" / "作者记忆"
+
+        empty_query = run("query", "--workspace", str(workspace), "--kind", "prose_style")
+        assert json.loads(empty_query.stdout)["items"] == []
+        assert not memory.exists(), "a read-only query must not initialize author memory"
 
         init_result = run("init", "--workspace", str(workspace))
         assert json.loads(init_result.stdout)["revision"] == 0
@@ -300,11 +310,122 @@ def main() -> None:
         run("check", "--workspace", str(workspace))
         assert "手工污染" not in profile.read_text(encoding="utf-8")
 
-        final = state(workspace)
-        assert final["state_revision"] == 7
-        assert set(final["applied_transactions"]) == {
-            "tx-active", "tx-pending", "tx-decide", "tx-conflict", "tx-replace", "tx-forget", "tx-reinforce"
+        recorded_preference = preference(
+            "全局偏好用具体物件承载情绪",
+            "记住：以后尽量让情绪落到具体物件上。",
+        )
+        record_event = {
+            "schema_version": 1,
+            "event_id": "conversation-message-42",
+            "operation": {"action": "remember", "preference": recorded_preference},
         }
+        recorded = json.loads(record(workspace, input_path, record_event).stdout)
+        assert recorded["receipt"] == "Author Memory Receipt: r8 · AP005"
+        assert recorded["replayed"] is False
+
+        queried = run(
+            "query",
+            "--workspace", str(workspace),
+            "--kind", "prose_style",
+            "--book", "雾港来信",
+        )
+        assert len(queried.stdout.encode("utf-8")) <= 2048
+        query_document = json.loads(queried.stdout)
+        assert [item["id"] for item in query_document["items"]] == ["AP004", "AP005"]
+        assert all(item["id"] not in {"AP001", "AP002", "AP003"} for item in query_document["items"])
+
+        forget_event = {
+            "schema_version": 1,
+            "event_id": "conversation-message-43",
+            "operation": {
+                "action": "forget",
+                "item_id": "AP005",
+                "quote": "这个全局偏好先忘掉。",
+                "reason": "author withdrew the newly recorded preference",
+            },
+        }
+        forgotten = json.loads(record(workspace, input_path, forget_event).stdout)
+        assert forgotten["receipt"] == "Author Memory Receipt: r9 · AP005"
+        replayed_record = json.loads(record(workspace, input_path, record_event).stdout)
+        assert replayed_record["replayed"] is True
+        assert replayed_record["applied_revision"] == 8
+        assert state(workspace)["items"]["AP005"]["status"] == "superseded"
+
+        final = state(workspace)
+        assert final["state_revision"] == 9
+        assert set(final["applied_transactions"]) == {
+            "tx-active", "tx-pending", "tx-decide", "tx-conflict", "tx-replace", "tx-forget", "tx-reinforce",
+            "record:conversation-message-42", "record:conversation-message-43",
+        }
+        assert all(record["item_ids"] for record in final["applied_transactions"].values())
+
+        auto_workspace = Path(temporary) / "自动初始化工作区"
+        auto_workspace.mkdir()
+        auto_event = {
+            "schema_version": 1,
+            "event_id": "first-explicit-memory",
+            "operation": {"action": "remember", "preference": preference("偏好短标题", "记住：标题短一点。")},
+        }
+        auto_result = json.loads(record(auto_workspace, input_path, auto_event).stdout)
+        assert auto_result["receipt"] == "Author Memory Receipt: r1 · AP001"
+        assert state(auto_workspace)["state_revision"] == 1
+        many_preferences = transaction(
+            "tx-query-budget",
+            1,
+            [
+                {
+                    "action": "remember",
+                    "preference": preference(
+                        f"长偏好 {index}：" + "用具体动作和物件承载信息" * 18,
+                        f"第 {index} 条用于验证查询预算的明确偏好。",
+                    ),
+                }
+                for index in range(8)
+            ] + [{
+                "action": "remember",
+                "preference": preference(
+                    "悬疑故事优先让线索改变人物关系",
+                    "悬疑里我更看重线索对关系的改变。",
+                    scope_level="genre",
+                    scope_value="悬疑",
+                    kind="story_design",
+                ),
+            }],
+        )
+        commit(auto_workspace, input_path, many_preferences)
+        bounded_query = run("query", "--workspace", str(auto_workspace), "--kind", "prose_style")
+        bounded_document = json.loads(bounded_query.stdout)
+        assert len(bounded_query.stdout.encode("utf-8")) <= 2048
+        assert bounded_document["omitted"] > 0
+        matching_design = json.loads(run(
+            "query", "--workspace", str(auto_workspace),
+            "--kind", "story_design", "--genre", "悬疑",
+        ).stdout)
+        assert [item["id"] for item in matching_design["items"]] == ["AP010"]
+        assert json.loads(run(
+            "query", "--workspace", str(auto_workspace),
+            "--kind", "story_design", "--genre", "甜宠",
+        ).stdout)["items"] == []
+        run("check", "--workspace", str(auto_workspace))
+
+    injection_contracts = {
+        REPO / "skills/story-long-write/references/workflow-chapter.md": (
+            "`author_preferences`",
+            "作者偏好：{本章 query 命中的 prose_style/story_design 项}",
+        ),
+        REPO / "skills/story-short-write/SKILL.md": (
+            "作者偏好 query 中的文风/故事设计项",
+            "作者偏好：{query 命中的 prose_style/story_design 项}",
+        ),
+        REPO / "skills/story-deslop/SKILL.md": (
+            "query --kind prose_style",
+            "作者偏好：{query 命中的 prose_style 项}",
+        ),
+    }
+    for path, required_fragments in injection_contracts.items():
+        content = path.read_text(encoding="utf-8")
+        for fragment in required_fragments:
+            assert fragment in content, f"missing author-memory injection contract in {path}: {fragment}"
 
     print("OK: author-memory transaction behavior")
 

@@ -14,9 +14,9 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 ## 作者习惯边界
 
-如工作区已有 `.story/作者记忆/作者画像.md`，审查前读取与交付格式、协作方式和作者有意表达选择相关的 active 条目。作者习惯只能帮助解释意图和组织报告，不能降低 rubric 严重度、把事实冲突判为无问题或跳过平台门禁；当前请求仍优先。完整规则见 [references/author-memory.md](references/author-memory.md)。
+若作者记忆 state 已存在，审查前用 `scripts/author_memory_commit.py query` 获取本次相关 active 条目（总输出 ≤2KB）。它们只能帮助解释意图和组织报告，不能降低 rubric 严重度、把事实冲突判为无问题或跳过平台门禁；当前请求仍优先。完整规则见 [references/author-memory.md](references/author-memory.md)。
 
-用户对报告格式或协作方式作出稳定声明时，在本轮审查完成后可用本 skill 的 `scripts/author_memory_commit.py` 记录；重复修正/推断先待确认，一次性要求不记录。审查发现、工具告警和助手建议本身绝不自动学习。
+用户对报告格式或协作方式作出稳定声明时，在本轮审查完成后用 `record` 记录并回传回执；重复修正/推断先待确认，一次性要求不记录。审查发现、工具告警和助手建议本身绝不自动学习。
 
 ---
 

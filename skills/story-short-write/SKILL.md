@@ -39,7 +39,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 - **从验证过的模式出发**：有对标书就先拆解，没有就从 `genre-styles/{题材}.md`（核心 10 题材）或 `genre-writing-formulas.md`（冷门题材）找对应的短篇剧情模式
 - **定方向就换风格**：题材方向一旦确定（如追妻火葬场），立刻加载 `references/genre-styles/{题材}.md`——正文的腔调、开篇、钩子、情绪烈度、对话金句、招式、收尾全部切到该题材。核心 10 题材（追妻火葬场 / 世情打脸 / 复仇打脸 / 总裁豪门 / 宅斗宫斗 / 民俗怪谈 / 悬疑 / 甜宠 / 双男主 / 沙雕脑洞）有专属风格包，其中追妻含 现代/古代/民国 时代变体与 小三文学/死人文学 流派分支；冷门题材用 `genre-writing-formulas.md` 的结构骨架兜底，腔调仍按 `short-craft.md` 通用底座
 - **只加载必需信息**：写每节前明确目标情绪和要用的技法，答不出就先回读参考
-- **复用作者习惯**：若工作区已有 `.story/作者记忆/作者画像.md`，写前读取匹配的 active 条目；硬门禁、当前请求和本篇设定优先。捕获与冲突按 [references/author-memory.md](references/author-memory.md)，只用 `scripts/author_memory_commit.py` 写入。
+- **复用作者习惯**：若作者记忆 state 已存在，正文前用 `scripts/author_memory_commit.py query --kind prose_style --kind story_design` 获取相关 active 条目（总输出 ≤2KB），原样传给实际正文/改写 agent；硬门禁、当前请求和本篇设定优先。明确长期声明在收尾用 `record` 写入并回传回执，细则见 [references/author-memory.md](references/author-memory.md)。
 
 ---
 
@@ -214,7 +214,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 - 每批写完后更新“已写小节摘要”（3-5 条：已揭示信息、情绪位置、未回收伏笔、下一批衔接句）。
 - 下一批先读该摘要和 `正文.md` 尾部 300-500 字再续写。
 - 只有用户明确要求子代理、主会话上下文不足，或需要隔离试写时，才检查 narrative-writer agent（查找顺序见顶部）。
-- 如可用，spawn `Agent(subagent_type: "narrative-writer", prompt: ...)`，只传项目目录、输出文件、情绪目标、题材风格包、小节大纲、角色、主/副对标召回摘要、格式硬约束和写作硬约束。
+- 如可用，spawn `Agent(subagent_type: "narrative-writer", prompt: ...)`，只传项目目录、输出文件、情绪目标、题材风格包、小节大纲、角色、主/副对标召回摘要、作者偏好 query 中的文风/故事设计项、格式硬约束和写作硬约束。
 - 不把本 skill 整段规则塞进 prompt；细节以已加载的 `short-format.md`、题材包和 `short-craft.md` 为准。
 - 无论谁写，写入 `正文.md` 前都按同一格式规范重排，保证主会话与子代理输出一致。
 
@@ -350,7 +350,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 #### Agent 调用：narrative-writer（去AI味）+ consistency-checker
 
 精修阶段，如果项目已部署对应 agent，可 spawn：
-- `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：去AI味+格式检查\n检查范围：{正文文件}\n删除优先：每条 AI 味项先判能否删除——删后不丢伏笔/钩子/角色/情节/必要信息的直接删，会丢才润色（删除受比例上限与字数下限约束，跌破下限改降AI重写）\n必须检查：先否定再肯定的翻转句式，发现后直接改成后项或动作细节；检查像/好像/仿佛/如同等比喻是否成片堆叠，确属堆叠时只留最有功能的少数比喻，其余回到具体画面；检查是否连续使用头皮发紧/眼皮一跳/心口一沉/胃里翻涌等精致戏剧反应，能写普通动作/普通感觉就写普通动作/普通感觉；已有手机/聊天记录/公告/账单/病历/证据截图等信息，保留为角色看到或处理的场内载体，不改成叙述者解释；任务卡点只在角色本来有要办的事且能加重情绪/证据/关系/反转时使用，不为自然感补流程")` — 执行去AI味（7 Gate）和格式合规检查
+- `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：去AI味+格式检查\n检查范围：{正文文件}\n作者偏好：{query 命中的 prose_style/story_design 项}\n删除优先：每条 AI 味项先判能否删除——删后不丢伏笔/钩子/角色/情节/必要信息的直接删，会丢才润色（删除受比例上限与字数下限约束，跌破下限改降AI重写）\n必须检查：先否定再肯定的翻转句式，发现后直接改成后项或动作细节；检查像/好像/仿佛/如同等比喻是否成片堆叠，确属堆叠时只留最有功能的少数比喻，其余回到具体画面；检查是否连续使用头皮发紧/眼皮一跳/心口一沉/胃里翻涌等精致戏剧反应，能写普通动作/普通感觉就写普通动作/普通感觉；已有手机/聊天记录/公告/账单/病历/证据截图等信息，保留为角色看到或处理的场内载体，不改成叙述者解释；任务卡点只在角色本来有要办的事且能加重情绪/证据/关系/反转时使用，不为自然感补流程")` — 执行去AI味（7 Gate）和格式合规检查
 - `Agent(subagent_type: "consistency-checker", prompt: "项目目录：{dir}\n检查范围：{正文文件}\n检查类型：事实冲突+伏笔断线+角色属性不一致")` — 执行一致性检查
 
 如 agent 不可用，由主线程直接执行。

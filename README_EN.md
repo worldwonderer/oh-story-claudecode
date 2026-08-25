@@ -130,7 +130,7 @@ After updating, if a project has already run `/story-setup`, re-run `/story-setu
 
 **Import and continuation order:** run `/story-setup` from the writing-project root first to deploy hooks, agents, and `AGENTS.md`; start or refresh the session, then run `/story-import` for the existing novel and continue with `/story-long-write 日更` or `/story-long-write 写第N章`. You can also run `/story-import` directly; if setup is missing, it offers to run setup first or continue with a serial import.
 
-**Author preferences persist across sessions:** tell `/story` to remember a writing habit. Stable, explicit preferences go into workspace-level `.story/作者记忆/`; repeated corrections and inferred patterns stay pending, and conflicts require the author to choose a replacement. This memory is separate from per-book continuity tracking, and current instructions, book settings, and hard gates always take priority.
+**Author preferences persist across sessions:** tell `/story` to remember a writing habit; the write counts as successful only when it returns an `Author Memory Receipt`. Normal writing queries only relevant confirmed items with a hard 2 KB output cap, rather than injecting the full profile, candidates, and history into the prose prompt. This memory stays separate from per-book continuity tracking, and current instructions, book settings, and hard gates always take priority.
 
 ## Skills
 

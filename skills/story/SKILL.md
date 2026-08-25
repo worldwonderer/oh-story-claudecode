@@ -1,6 +1,6 @@
 ---
 name: story
-description: "网络小说工具箱主入口。根据用户需求自动路由到对应 skill，并可启动本地 Dashboard 查看拆文库、写作项目和编辑文本。触发方式：/story、$story、/story dashboard、$story dashboard、/网文、「我想写小说」「打开工作台」「检查更新」。"
+description: "网络小说工具箱主入口。根据用户需求自动路由到对应 skill，并可管理作者习惯、启动本地 Dashboard。触发方式：/story、$story、/story dashboard、/网文、「我想写小说」「记住我的写作习惯」「打开工作台」「检查更新」。"
 metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudecode"}}
 ---
 # story：网文工具箱路由
@@ -39,7 +39,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 ## 作者记忆
 
-用户要求记住、查看、确认、替换或忘掉作者习惯时，加载 [references/author-memory.md](references/author-memory.md)，并只用本 skill 的 `scripts/author_memory_commit.py` 管理工作区级 `.story/作者记忆/`。显示画像或待确认项是只读操作；不存在时直接说明尚未建立，不为查看请求创建空记忆。
+用户要求记住、查看、确认、替换或忘掉作者习惯时，加载 [references/author-memory.md](references/author-memory.md)，并只用本 skill 的 `scripts/author_memory_commit.py` 管理工作区级 `.story/作者记忆/`。常用变更走单事件 `record`；工具未返回 `ok: true` 和 `Author Memory Receipt` 前，不得声称已记住。显示画像或待确认项是只读操作；不存在时直接说明尚未建立。
 
 新增习惯必须保留用户原话和适用范围。一次性要求只执行不记录；小说事实写入本书设定/追踪；推断和重复修正先进入待确认；与已生效习惯冲突时显式 replace，不原地改写历史。用户没有指定工作区时，按协议定位已有作者记忆的最近祖先或当前创作工作区，禁止默认写到用户主目录。
 

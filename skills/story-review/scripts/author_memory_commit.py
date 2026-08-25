@@ -28,6 +28,7 @@ STATE_MAX_BYTES = 2 * 1024 * 1024
 PROFILE_MAX_BYTES = 12288
 PENDING_MAX_BYTES = 12288
 JOURNAL_MAX_BYTES = 24576
+QUERY_MAX_BYTES = 2048
 
 KINDS = ("prose_style", "story_design", "workflow", "delivery", "interaction")
 KIND_TITLES = {
@@ -286,11 +287,14 @@ def validate_state(value: object) -> dict[str, Any]:
     for transaction_id, record in transactions.items():
         clean_text(transaction_id, "state.applied_transactions key", max_bytes=128)
         mapping = as_mapping(record, f"state.applied_transactions.{transaction_id}")
-        require_known_keys(mapping, {"revision", "digest"}, f"state.applied_transactions.{transaction_id}")
+        require_known_keys(mapping, {"revision", "digest", "item_ids"}, f"state.applied_transactions.{transaction_id}")
         transaction_revision = as_int(mapping.get("revision"), f"state.applied_transactions.{transaction_id}.revision", minimum=1)
         require(transaction_revision == journal_revisions[transaction_id], f"state.applied_transactions.{transaction_id}.revision does not match journal")
         digest = clean_text(mapping.get("digest"), f"state.applied_transactions.{transaction_id}.digest", max_bytes=64)
         require(len(digest) == 64 and all(char in "0123456789abcdef" for char in digest), f"state.applied_transactions.{transaction_id}.digest is invalid")
+        item_ids = clean_id_list(mapping.get("item_ids"), f"state.applied_transactions.{transaction_id}.item_ids")
+        require(bool(item_ids), f"state.applied_transactions.{transaction_id}.item_ids must not be empty")
+        require(all(item_id in items for item_id in item_ids), f"state.applied_transactions.{transaction_id}.item_ids references an unknown item")
     return {
         "schema_version": STATE_SCHEMA_VERSION,
         "state_revision": revision,
@@ -377,6 +381,20 @@ def normalize_transaction(value: object) -> dict[str, Any]:
         "expected_state_revision": as_int(transaction.get("expected_state_revision"), "transaction.expected_state_revision"),
         "operations": normalized_operations,
     }
+
+
+def normalize_record_event(value: object) -> dict[str, Any]:
+    event = as_mapping(value, "event")
+    require_known_keys(event, {"schema_version", "event_id", "operation"}, "event")
+    require(event.get("schema_version") == INPUT_SCHEMA_VERSION, f"event.schema_version must be {INPUT_SCHEMA_VERSION}")
+    event_id = clean_text(event.get("event_id"), "event.event_id", max_bytes=120)
+    normalized = normalize_transaction({
+        "schema_version": INPUT_SCHEMA_VERSION,
+        "transaction_id": f"record:{event_id}",
+        "expected_state_revision": 0,
+        "operations": [event.get("operation")],
+    })
+    return {"event_id": event_id, "operation": normalized["operations"][0]}
 
 
 def transaction_digest(transaction: dict[str, Any]) -> str:
@@ -552,7 +570,16 @@ def apply_transaction(state: dict[str, Any], transaction: dict[str, Any], digest
         "committed_at": committed_at,
         "summaries": summaries,
     })
-    updated["applied_transactions"][transaction["transaction_id"]] = {"revision": revision, "digest": digest}
+    item_ids = sorted(
+        (item_id for item_id, item in updated["items"].items() if item["updated_revision"] == revision),
+        key=lambda item_id: int(item_id[2:]),
+    )
+    require(bool(item_ids), "transaction did not update any author-memory item")
+    updated["applied_transactions"][transaction["transaction_id"]] = {
+        "revision": revision,
+        "digest": digest,
+        "item_ids": item_ids,
+    }
     return validate_state(updated), summaries
 
 
@@ -681,8 +708,108 @@ def command_commit(workspace: Path, input_path: Path) -> dict[str, Any]:
         "revision": updated["state_revision"],
         "transaction_id": transaction["transaction_id"],
         "replayed": replayed,
+        "item_ids": updated["applied_transactions"][transaction["transaction_id"]]["item_ids"],
         "summaries": summaries,
     }
+
+
+def command_record(workspace: Path, input_path: Path) -> dict[str, Any]:
+    require(workspace.exists() and workspace.is_dir(), f"workspace does not exist: {workspace}")
+    event = normalize_record_event(read_json(input_path))
+    path = state_path(workspace)
+    state = validate_state(read_json(path)) if path.exists() else empty_state()
+    transaction_id = f"record:{event['event_id']}"
+    applied = state["applied_transactions"].get(transaction_id)
+    expected_revision = applied["revision"] - 1 if applied is not None else state["state_revision"]
+    transaction = {
+        "schema_version": INPUT_SCHEMA_VERSION,
+        "transaction_id": transaction_id,
+        "expected_state_revision": expected_revision,
+        "operations": [event["operation"]],
+    }
+    digest = transaction_digest(transaction)
+    updated, summaries = apply_transaction(state, transaction, digest)
+    replayed = updated is state
+    write_snapshot(workspace, updated)
+    record = updated["applied_transactions"][transaction_id]
+    item_ids = record["item_ids"]
+    receipt = f"Author Memory Receipt: r{record['revision']} · {', '.join(item_ids)}"
+    return {
+        "ok": True,
+        "command": "record",
+        "revision": updated["state_revision"],
+        "applied_revision": record["revision"],
+        "event_id": event["event_id"],
+        "replayed": replayed,
+        "item_ids": item_ids,
+        "receipt": receipt,
+        "summaries": summaries,
+    }
+
+
+def same_scope_value(item_value: str | None, requested: str | None) -> bool:
+    return requested is not None and item_value is not None and item_value.casefold() == requested.casefold()
+
+
+def command_query(
+    workspace: Path,
+    kinds: list[str] | None,
+    book: str | None,
+    genre: str | None,
+    workflow: str | None,
+) -> dict[str, Any]:
+    require(workspace.exists() and workspace.is_dir(), f"workspace does not exist: {workspace}")
+    path = state_path(workspace)
+    if not path.exists():
+        return {"ok": True, "command": "query", "initialized": False, "revision": 0, "items": [], "omitted": 0}
+    state = validate_state(read_json(path))
+    requested_kinds = set(kinds or KINDS)
+    requested_scopes = {
+        "book": optional_text(book, "query.book", max_bytes=180),
+        "genre": optional_text(genre, "query.genre", max_bytes=180),
+        "workflow": optional_text(workflow, "query.workflow", max_bytes=180),
+    }
+
+    def relevant(item: dict[str, Any]) -> bool:
+        if item["status"] != "active" or item["kind"] not in requested_kinds:
+            return False
+        level = item["scope"]["level"]
+        return level == "global" or same_scope_value(item["scope"]["value"], requested_scopes[level])
+
+    scope_rank = {"book": 0, "genre": 1, "workflow": 2, "global": 3}
+    candidates = sorted(
+        (item for item in state["items"].values() if relevant(item)),
+        key=lambda item: (
+            scope_rank[item["scope"]["level"]],
+            -RANK[item["importance"]],
+            -item["confirmation_count"],
+            int(item["id"][2:]),
+        ),
+    )
+    result: dict[str, Any] = {
+        "ok": True,
+        "command": "query",
+        "initialized": True,
+        "revision": state["state_revision"],
+        "items": [],
+        "omitted": len(candidates),
+    }
+    for item in candidates:
+        compact = {
+            "id": item["id"],
+            "kind": item["kind"],
+            "scope": item["scope"],
+            "assertion": item["assertion"],
+        }
+        result["items"].append(compact)
+        result["omitted"] = len(candidates) - len(result["items"])
+        payload = json.dumps(result, ensure_ascii=False, sort_keys=True) + "\n"
+        if len(payload.encode("utf-8")) > QUERY_MAX_BYTES:
+            result["items"].pop()
+            result["omitted"] += 1
+            break
+    require(len((json.dumps(result, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")) <= QUERY_MAX_BYTES, "query result exceeds its fixed byte budget")
+    return result
 
 
 def command_check(workspace: Path) -> dict[str, Any]:
@@ -708,6 +835,15 @@ def build_parser() -> argparse.ArgumentParser:
     commit = subparsers.add_parser("commit")
     commit.add_argument("--workspace", required=True, type=Path)
     commit.add_argument("--input", required=True, type=Path)
+    record = subparsers.add_parser("record")
+    record.add_argument("--workspace", required=True, type=Path)
+    record.add_argument("--input", required=True, type=Path)
+    query = subparsers.add_parser("query")
+    query.add_argument("--workspace", required=True, type=Path)
+    query.add_argument("--kind", action="append", choices=KINDS)
+    query.add_argument("--book")
+    query.add_argument("--genre")
+    query.add_argument("--workflow")
     return parser
 
 
@@ -718,6 +854,10 @@ def main() -> int:
             result = command_init(args.workspace)
         elif args.command == "commit":
             result = command_commit(args.workspace, args.input)
+        elif args.command == "record":
+            result = command_record(args.workspace, args.input)
+        elif args.command == "query":
+            result = command_query(args.workspace, args.kind, args.book, args.genre, args.workflow)
         else:
             result = command_check(args.workspace)
         emit(result)

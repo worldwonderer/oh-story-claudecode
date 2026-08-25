@@ -65,6 +65,7 @@
      - `selected_emotion_module`、`rhythm_reference` 及来源路径。
      - `genre_prose_card`（题材正文提示卡摘要，只含本章相关条目）。
      - 文风路径、文风召回指令、原文锚点片段。
+     - `author_preferences`：作者记忆 `query` 结果中匹配本章的 `prose_style` / `story_design` 项；无则不传，禁止把完整作者画像或待确认项塞进 prompt。
      - 阶段位置、本章结构公式、本章可释放信息、本章禁止提前释放信息。
      - 字数目标、情节点预算、格式硬约束。
      - 细纲优先边界（内容层）：只展开本章细纲，不自造新剧情；每条情节点都要独立落地，不许漏、不许两条并一句；若字数目标靠现有情节点无法达标，返回 `outline_underfilled` 欠账点，由主会话补纲/确认后再写。
@@ -130,11 +131,10 @@ advisory 只提示可疑处，先看脚本给出的例外；故事内系统/界�
 
 ### Agent 调用：narrative-writer（去AI味审查）
 
-质量检查阶段，如果项目已部署 narrative-writer agent（优先检查 `.claude/agents/` 下的 `narrative-writer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），可 spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：审查+去AI味\n检查范围：{本次写作的章节}\n删除优先：每条 AI 味项先判能否删除——删后不丢伏笔/钩子/角色/情节/必要信息的直接删，会丢才润色（删除受比例上限与字数下限约束，跌破下限改降AI重写）\n检查项按你自己的 7 Gate、禁止事项与写完后对话自检全量执行，其中否定翻转句式和台词里的工整否定清单不因脚本豁免台词而跳过")` 执行文字质量审查和去AI味检查。如 agent 不可用，由主线程直接执行，检查项对照 `references/anti-ai-writing.md` 与 `references/banned-words.md`。
+质量检查阶段，如果项目已部署 narrative-writer agent（优先检查 `.claude/agents/` 下的 `narrative-writer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），可 spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：审查+去AI味\n检查范围：{本次写作的章节}\n作者偏好：{本章 query 命中的 prose_style/story_design 项}\n删除优先：每条 AI 味项先判能否删除——删后不丢伏笔/钩子/角色/情节/必要信息的直接删，会丢才润色（删除受比例上限与字数下限约束，跌破下限改降AI重写）\n检查项按你自己的 7 Gate、禁止事项与写完后对话自检全量执行，其中否定翻转句式和台词里的工整否定清单不因脚本豁免台词而跳过")` 执行文字质量审查和去AI味检查。如 agent 不可用，由主线程直接执行，检查项对照 `references/anti-ai-writing.md` 与 `references/banned-words.md`。
 
 检查后若正文修订改变了连续性事实，必须构造 `mode=revision` 的同章追踪事务并执行 `scripts/tracking_commit.py commit`：
 - 伏笔变化用 `foreshadow_changes` 更新同一 ID 的当前行，不追加重复历史；
 - 时间线变化写入 `timeline_events`，由 `_tracking-state.json` 统一派生 `作者真相.md` 与 `读者已知.md`，不得把作者秘密泄露到读者视图；
 - 核心角色状态变化同时提交该角色截至当前章的完整快照；
 - 事务失败后保留原事务 JSON，修正写入环境并重跑同一 `commit`；成功后执行 `check`，确认 state 与全部派生视图一致再继续写作。
-

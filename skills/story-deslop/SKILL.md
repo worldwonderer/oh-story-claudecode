@@ -48,7 +48,7 @@ AI味不按语法错误处理，也不需要"修正"。它属于风格问题：�
 
 ### 作者习惯
 
-如工作区已有 `.story/作者记忆/作者画像.md`，改写前读取匹配的 active 文风条目；当前请求、原文剧情功能和本 skill 保护规则优先于作者记忆。用户在本轮明确声明长期文风习惯时，完成改写后按 [references/author-memory.md](references/author-memory.md) 用本 skill 的 `scripts/author_memory_commit.py` 处理；重复修正/推断先待确认，一次性要求、检测器 findings 和助手自己的改写结果不记录。
+若作者记忆 state 已存在，改写前用 `scripts/author_memory_commit.py query --kind prose_style` 获取匹配的 active 文风条目（总输出 ≤2KB），并把这些条目同时交给 inline/spawn 的正文执行者；当前请求、原文剧情功能和本 skill 保护规则优先。用户明确声明长期文风习惯时，改写后按 [references/author-memory.md](references/author-memory.md) 用 `record` 写入并回传回执；重复修正/推断先待确认，一次性要求、检测器 findings 和助手自己的结果不记录。
 
 ---
 
@@ -170,7 +170,7 @@ node scripts/check-ai-patterns.js --check --fail-on=blocking <正文文件...>
 「诊断与分级」完成后，按以下顺序选择执行路径：
 
 1. **已在 narrative-writer 子代理内**：直接 inline 执行 Gate A-G，不再 spawn（嵌套 spawn 会被静默降级）。
-2. **未在子代理内且 agent 目录（优先 `.claude/agents/`，其次 `.opencode/agents/`，再检查 `.codex/agents/`）下的 `narrative-writer.md` 或 `.codex/agents/narrative-writer.toml` 存在**：spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：去AI味\n检查范围：{待处理的正文文件}\nAI味等级：{诊断与分级结果}\n处理策略：{轻度/中度/重度对应的 Gate 范围}\n删除优先：每条 AI 味项先判能否删除——删后不丢伏笔/钩子/角色/情节/人物记忆/情绪承接/因果锚点/必要信息/必要转折的直接删，会丢才进 Gate 润色；看似解释/评价但承担小连贯的句子，压成白话承接、动作或物件锚点，不机械删除；已有任务/手续/物件/证据缺口可以压成角色当下要处理的具体卡点，但不新增原文没有的事件链；删除服从比例上限与字数下限，跌破下限改降AI重写。\n模式处理：按 references/anti-ai-writing.md 的问题模式目录执行；模式 8（解释腔/上帝视角/安排感）归入 Gate G，其余新增模式归入 Gate A-F 的对应处理。相邻段重复表达同一信息/动作/情绪时，按 Gate C/D 合并去重；")`。
+2. **未在子代理内且 agent 目录（优先 `.claude/agents/`，其次 `.opencode/agents/`，再检查 `.codex/agents/`）下的 `narrative-writer.md` 或 `.codex/agents/narrative-writer.toml` 存在**：spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：去AI味\n检查范围：{待处理的正文文件}\n作者偏好：{query 命中的 prose_style 项}\nAI味等级：{诊断与分级结果}\n处理策略：{轻度/中度/重度对应的 Gate 范围}\n删除优先：每条 AI 味项先判能否删除——删后不丢伏笔/钩子/角色/情节/人物记忆/情绪承接/因果锚点/必要信息/必要转折的直接删，会丢才进 Gate 润色；看似解释/评价但承担小连贯的句子，压成白话承接、动作或物件锚点，不机械删除；已有任务/手续/物件/证据缺口可以压成角色当下要处理的具体卡点，但不新增原文没有的事件链；删除服从比例上限与字数下限，跌破下限改降AI重写。\n模式处理：按 references/anti-ai-writing.md 的问题模式目录执行；模式 8（解释腔/上帝视角/安排感）归入 Gate G，其余新增模式归入 Gate A-F 的对应处理。相邻段重复表达同一信息/动作/情绪时，按 Gate C/D 合并去重；")`。
 3. **agent 不存在或 spawn 失败**：主线程 inline 执行。
 
 #### 删除优先判断（先于各 Gate）

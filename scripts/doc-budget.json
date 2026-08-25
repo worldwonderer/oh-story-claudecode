@@ -12,8 +12,8 @@
   "files": [
     {
       "path": "skills/story-long-write/SKILL.md",
-      "budget": 13330,
-      "why": "长篇任一场景都无条件加载。+130：作者画像若只在某条 workflow 按需出现，开书/日更/单章会有路径漏读，跨会话偏好无法稳定生效；入口只保留读取优先级和 reference 路由，完整协议仍是冷路径"
+      "budget": 13420,
+      "why": "长篇任一场景都无条件加载。+90：作者记忆若只在某条 workflow 按需出现，开书/日更/单章会有路径漏查；入口只保留按 kind 的 ≤2KB 查询、优先级、单事件回执和 reference 路由，完整协议仍是冷路径"
     },
     {
       "path": "skills/story-long-write/references/workflow-daily.md",
@@ -22,8 +22,8 @@
     },
     {
       "path": "skills/story-long-write/references/workflow-chapter.md",
-      "budget": 11850,
-      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达"
+      "budget": 12000,
+      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达。+150：把筛选后的文风/故事设计项显式传给初稿和去味 agent，避免后处理抹掉作者风格"
     },
     {
       "path": "skills/story-long-write/references/workflow-setup.md",
@@ -59,7 +59,7 @@
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 36460,
+      "budget": 36700,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-daily.md",
@@ -68,7 +68,7 @@
     },
     {
       "label": "长篇开书",
-      "budget": 25630,
+      "budget": 25720,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-setup.md"
