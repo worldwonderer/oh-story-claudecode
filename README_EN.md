@@ -130,12 +130,14 @@ After updating, if a project has already run `/story-setup`, re-run `/story-setu
 
 **Import and continuation order:** run `/story-setup` from the writing-project root first to deploy hooks, agents, and `AGENTS.md`; start or refresh the session, then run `/story-import` for the existing novel and continue with `/story-long-write 日更` or `/story-long-write 写第N章`. You can also run `/story-import` directly; if setup is missing, it offers to run setup first or continue with a serial import.
 
+**Author preferences persist across sessions:** tell `/story` to remember a writing habit. Stable, explicit preferences go into workspace-level `.story/作者记忆/`; repeated corrections and inferred patterns stay pending, and conflicts require the author to choose a replacement. This memory is separate from per-book continuity tracking, and current instructions, book settings, and hard gates always take priority.
+
 ## Skills
 
 | Skill | Trigger | Description |
 |:------|:--------|:------------|
 | `story-setup` | `/story-setup` / `$story-setup` | Environment setup — Claude/OpenCode/Codex/ZCode/OpenClaw/Reasonix plus generic (safe merge) |
-| `story` | `/story` / `$story` / `/story dashboard` | Toolbox router plus a local deconstruction/project dashboard |
+| `story` | `/story` / `$story` / `/story dashboard` | Toolbox router, author-preference management, and local deconstruction/project dashboard |
 | `story-long-write` | `/story-long-write` | Long-form writing — outline building, character design, prose output |
 | `story-long-analyze` | `/story-long-analyze` | Long-form deconstruction — Golden First 3 Chapters, payoff design, pacing analysis |
 | `story-long-scan` | `/story-long-scan` | Long-form trend scan — Qidian/Fanqie/Jinjiang market trends |
@@ -150,7 +152,7 @@ After updating, if a project has already run `/story-setup`, re-run `/story-setu
 
 > `story-deslop` uses local prose linting: blocking applies only to deterministic style/punctuation issues, while other findings require read-through judgment; external detectors such as Zhuque are self-check references, not replacements for human review.
 
-Natural language also triggers: `帮我开书` ("help me start writing") → `story-long-write`, `这篇太AI了` ("this is too AI-ish") → `story-deslop`, `把我的书导进来` ("import my book") → `story-import`, `打开工作台` ("open the dashboard") → `story dashboard`, `沈栀现在什么状态` ("what's Shen Zhi's current status") → `story-explorer`.
+Natural language also triggers: `帮我开书` ("help me start writing") → `story-long-write`, `这篇太AI了` ("this is too AI-ish") → `story-deslop`, `把我的书导进来` ("import my book") → `story-import`, `打开工作台` ("open the dashboard") → `story dashboard`, `记住我的写作习惯` ("remember my writing habits") → `story` author memory, `沈栀现在什么状态` ("what's Shen Zhi's current status") → `story-explorer`.
 
 ### Story Dashboard
 
@@ -281,6 +283,16 @@ Agents load writing theory from `references/` on demand (character design, dialo
 A long-form novel can easily reach hundreds of thousands of words across hundreds of chapters. Setting conflicts, broken foreshadowing, timeline inconsistencies — relying on memory alone is a recipe for disaster.
 
 The file system separates settings, outlines, prose, and tracking into independent dimensions. The conversation handles creation; the file system handles memory.
+
+Workspace-level author memory stays separate from any one book:
+
+```text
+.story/作者记忆/
+├── _author-memory-state.json  # Single structured authority
+├── 作者画像.md               # Confirmed preferences used in creation
+├── 待确认.md                 # Inferences, repeated corrections, conflict candidates
+└── 变更记录.md               # Auditable replacement and withdrawal history
+```
 
 **Long-form:**
 

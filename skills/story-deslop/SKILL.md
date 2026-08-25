@@ -46,6 +46,10 @@ AI味不按语法错误处理，也不需要"修正"。它属于风格问题：�
 
 去AI味治读感，不承诺任何分数结果。若用户贴出工具报告，只把能对应到正文的问题转成具体修改点；不写“0% AI / 100% 真人”，不注水、故意错字或打乱标点。去AI味仍以原文剧情边界为准，不把表达修复变成新增情节或新增事件链。
 
+### 作者习惯
+
+如工作区已有 `.story/作者记忆/作者画像.md`，改写前读取匹配的 active 文风条目；当前请求、原文剧情功能和本 skill 保护规则优先于作者记忆。用户在本轮明确声明长期文风习惯时，完成改写后按 [references/author-memory.md](references/author-memory.md) 用本 skill 的 `scripts/author_memory_commit.py` 处理；重复修正/推断先待确认，一次性要求、检测器 findings 和助手自己的改写结果不记录。
+
 ---
 
 ## 自然文本基准
@@ -423,6 +427,7 @@ node scripts/normalize-punctuation.js <正文文件...>
 | [scripts/normalize-punctuation.js](scripts/normalize-punctuation.js) | 文件模式落盘后做确定性标点收尾；默认保留引号风格 |
 | [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | 文件模式「AI味扫描」预检与「确定性收尾」复扫（只看引号外叙述），只报告不改写 |
 | [scripts/check-degeneration.js](scripts/check-degeneration.js) | 文件模式「确定性收尾」复扫，只报告不改写 |
+| [references/author-memory.md](references/author-memory.md) + [scripts/author_memory_commit.py](scripts/author_memory_commit.py) | 读取或更新跨会话作者文风习惯时 |
 
 ---
 

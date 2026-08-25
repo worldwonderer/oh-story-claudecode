@@ -59,6 +59,8 @@ jobs:
         run: bash scripts/test-story-continuity.sh
       - name: Tracking transaction behavior regression
         run: python3 scripts/test-tracking-commit.py
+      - name: Author memory transaction behavior regression
+        run: python3 scripts/test-author-memory-commit.py
       - name: Check story-setup deployment
         run: bash scripts/check-story-setup-deployment.sh
       - name: Check Claude Code adapter
@@ -130,6 +132,8 @@ jobs:
         run: bash scripts/test-story-continuity.sh
       - name: Tracking transaction behavior regression
         run: python scripts/test-tracking-commit.py
+      - name: Author memory transaction behavior regression
+        run: python scripts/test-author-memory-commit.py
       - name: Workflow numbering regression
         shell: bash
         run: bash scripts/test-skill-numbering.sh
@@ -194,6 +198,8 @@ jobs:
         run: bash scripts/test-story-continuity.sh
       - name: Tracking transaction behavior regression
         run: python3 scripts/test-tracking-commit.py
+      - name: Author memory transaction behavior regression
+        run: python3 scripts/test-author-memory-commit.py
       - name: Workflow numbering regression
         run: bash scripts/test-skill-numbering.sh
       - name: Punctuation normalizer regression

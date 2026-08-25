@@ -128,12 +128,14 @@ Windows 上偶尔会看到 `ENOENT ... mkdir` 报错但末尾仍显示 `Done!`�
 
 **导入续写顺序：** 推荐先在写作项目根运行 `/story-setup`（部署 hooks/agents/AGENTS），新开/刷新会话后运行 `/story-import` 导入已有小说，再用 `/story-long-write 日更` 或 `/story-long-write 写第N章` 续写。也可以直接运行 `/story-import`；它会先检测是否已 setup，未部署时让你选择先去 setup 或继续串行导入。
 
+**作者习惯会跨会话延续：** 对 `/story` 说“记住我的写作习惯”，稳定的明确偏好会进入工作区 `.story/作者记忆/`；重复修正和推断只进待确认，冲突偏好必须由作者选择后替代。它与每本书的剧情追踪分开，当前要求、本书设定和硬性门禁始终优先。
+
 ## Skills
 
 | Skill | 触发 | 说明 |
 |:------|:-----|:-----|
 | `story-setup` | `/story-setup` `$story-setup` `/准备写书` | 环境部署 · Claude/OpenCode/Codex/ZCode/OpenClaw/Reasonix + generic（已有配置安全合并） |
-| `story` | `/story` `$story` `/story dashboard` | 工具箱路由 · 模糊意图分发 + 本地拆文/项目 Dashboard |
+| `story` | `/story` `$story` `/story dashboard` | 工具箱路由 · 模糊意图分发 + 作者习惯管理 + 本地拆文/项目 Dashboard |
 | `story-long-write` | `/story-long-write` `/写长篇` | 长篇写作 · 大纲搭建、人物设定、正文输出 |
 | `story-long-analyze` | `/story-long-analyze` | 长篇拆文 · 黄金三章、爽点设计、节奏分析 |
 | `story-long-scan` | `/story-long-scan` | 长篇扫榜 · 起点/番茄/晋江市场趋势 |
@@ -153,6 +155,7 @@ Windows 上偶尔会看到 `ENOENT ... mkdir` 报错但末尾仍显示 `Done!`�
 - 「这篇太 AI 了」→ `story-deslop`
 - 「把我的书导进来」→ `story-import`
 - 「打开工作台」→ `story dashboard`（本机浏览拆文库与写作项目，可轻量编辑）
+- 「记住我的写作习惯」→ `story` 作者记忆（原话证据、待确认、冲突替代）
 - 「沈栀现在什么状态」→ 自动 spawn `story-explorer` agent
 
 ### Story Dashboard
@@ -283,6 +286,16 @@ Agent 按需加载 `references/` 中的写作理论（角色设计、对话技�
 一部长篇动辄几十万字、几百章。设定冲突、伏笔断线、时间线对不上——写到最后全靠记忆硬撑，迟早翻车。
 
 用文件系统把设定、大纲、正文、追踪拆开，每个维度独立维护。对话只负责创作，不负责记忆。
+
+工作区级作者记忆独立于单本小说：
+
+```text
+.story/作者记忆/
+├── _author-memory-state.json  # 唯一结构化权威
+├── 作者画像.md               # 已确认、可用于创作的偏好
+├── 待确认.md                 # 推断、重复修正和冲突候选
+└── 变更记录.md               # 可审计的替代与撤回历史
+```
 
 **长篇：**
 

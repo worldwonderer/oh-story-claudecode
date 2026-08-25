@@ -104,6 +104,7 @@ bash scripts/test-degeneration.sh
 bash scripts/test-prose-backstop-hook.sh
 bash scripts/test-prose-net-parity.sh
 bash scripts/test-story-continuity.sh
+python3 scripts/test-author-memory-commit.py
 bash scripts/check-story-setup-deployment.sh
 bash scripts/check-claude-adapter.sh
 bash scripts/check-codex-adapter.sh

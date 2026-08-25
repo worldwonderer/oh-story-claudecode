@@ -53,6 +53,26 @@
       ]
     },
     {
+      "name": "story-author-memory-transaction",
+      "source": "skills/story/scripts/author_memory_commit.py",
+      "targets": [
+        "skills/story-deslop/scripts/author_memory_commit.py",
+        "skills/story-long-write/scripts/author_memory_commit.py",
+        "skills/story-review/scripts/author_memory_commit.py",
+        "skills/story-short-write/scripts/author_memory_commit.py"
+      ]
+    },
+    {
+      "name": "story-author-memory-reference",
+      "source": "skills/story/references/author-memory.md",
+      "targets": [
+        "skills/story-deslop/references/author-memory.md",
+        "skills/story-long-write/references/author-memory.md",
+        "skills/story-review/references/author-memory.md",
+        "skills/story-short-write/references/author-memory.md"
+      ]
+    },
+    {
       "name": "scan-cdp-utils",
       "source": "skills/story-long-scan/scripts/cdp-utils.js",
       "targets": [

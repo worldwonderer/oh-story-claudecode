@@ -12,8 +12,8 @@
   "files": [
     {
       "path": "skills/story-long-write/SKILL.md",
-      "budget": 13200,
-      "why": "长篇任一场景都无条件加载"
+      "budget": 13330,
+      "why": "长篇任一场景都无条件加载。+130：作者画像若只在某条 workflow 按需出现，开书/日更/单章会有路径漏读，跨会话偏好无法稳定生效；入口只保留读取优先级和 reference 路由，完整协议仍是冷路径"
     },
     {
       "path": "skills/story-long-write/references/workflow-daily.md",
@@ -59,7 +59,7 @@
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 36300,
+      "budget": 36460,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-daily.md",
@@ -68,7 +68,7 @@
     },
     {
       "label": "长篇开书",
-      "budget": 25500,
+      "budget": 25630,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-setup.md"
