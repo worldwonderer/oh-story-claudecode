@@ -112,9 +112,16 @@ def system_block():
     return t
 
 
-def refs_block():
+# DeepSeek 次要臂用的精简参考集：它的 64k 上下文装不下完整 prompt。
+# 只用于「跨架构次要臂」，两臂在该臂内仍逐字节相同。
+LEAN_DROP = ("anti-ai-writing.md", "emotional-arc-design.md")
+
+
+def refs_block(lean=False):
     parts = []
     for name in INLINE_REFS:
+        if lean and name in LEAN_DROP:
+            continue
         parts.append(f"\n\n===== 参考文件：story-setup/references/agent-references/{name} =====\n\n"
                      + read(os.path.join(AREF, name)))
     parts.append("\n\n===== 参考文件：genre-prose-cards/都市脑洞.md（本书主题材卡） =====\n\n"
@@ -209,11 +216,11 @@ def task_block(o, n, arm, seg, split, seg1_text=None, remaining=None):
     )
 
 
-def build(n, arm, seg, split=None, seg1_text=None, remaining=None):
+def build(n, arm, seg, split=None, seg1_text=None, remaining=None, lean=False):
     o = parse_outline(n)
     if split is None:
         split = (len(o["points"]) + 1) // 2
-    return (system_block() + refs_block() + materials_block(o, n)
+    return (system_block() + refs_block(lean) + materials_block(o, n)
             + task_block(o, n, arm, seg, split, seg1_text, remaining)), o, split
 
 
