@@ -1,0 +1,20 @@
+{
+ "_source": "demo/长篇/让你管账号，你高燃混剪炸全网/大纲/卷纲_第1卷.md 「章节定位分布」表，逐字誊录，未做任何判断",
+ "ch04": {"pos": "关系回收",   "pressure": 2, "emotion": 7},
+ "ch05": {"pos": "普通推进",   "pressure": 3, "emotion": 6},
+ "ch06": {"pos": "普通推进",   "pressure": 3, "emotion": 6},
+ "ch07": {"pos": "关系回收",   "pressure": 2, "emotion": 5},
+ "ch08": {"pos": "关系回收",   "pressure": 2, "emotion": 6},
+ "ch09": {"pos": "普通推进",   "pressure": 3, "emotion": 6},
+ "ch10": {"pos": "高压",       "pressure": 4, "emotion": 8},
+ "ch11": {"pos": "高压+关系",  "pressure": 4, "emotion": 8},
+ "ch12": {"pos": "关系回收",   "pressure": 2, "emotion": 7},
+ "ch13": {"pos": "普通推进",   "pressure": 3, "emotion": 6},
+ "ch14": {"pos": "普通推进",   "pressure": 3, "emotion": 5},
+ "ch15": {"pos": "普通推进",   "pressure": 3, "emotion": 7},
+ "ch16": {"pos": "高压",       "pressure": 4, "emotion": 9},
+ "ch17": {"pos": "高压",       "pressure": 5, "emotion": 9},
+ "ch18": {"pos": "高压",       "pressure": 4, "emotion": 8},
+ "ch19": {"pos": "关系回收",   "pressure": 2, "emotion": 10},
+ "ch20": {"pos": "高压+关系",  "pressure": 4, "emotion": 9}
+}
