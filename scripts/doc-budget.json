@@ -22,8 +22,8 @@
     },
     {
       "path": "skills/story-long-write/references/workflow-chapter.md",
-      "budget": 12030,
-      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达。+180：把筛选后的偏好传给初稿/去味 agent，并明确禁止为最大化命中牺牲连贯、节奏和字数"
+      "budget": 12400,
+      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达。+180：把筛选后的偏好传给初稿/去味 agent，并明确禁止为最大化命中牺牲连贯、节奏和字数；+370：新增「拒绝概述」密度层——细纲用一个词概括掉的地方（一批人/一段时间/一次过程/一片反应/一组数字）必须落到能被一个镜头拍下来的东西上，附可跨题材复用的证伪判据（把这个细节挪到另一本书的另一个角色身上还成不成立）＋情绪不许直接告知＋可复述画面自查。实测这是唯一有效的一条：GPT 侧盲评 11.83→21.17（+8.83 来自具体度、+5.00 来自禁情绪告知），而四种改编排顺序的策略（时空表默认交错、块内自由织写、无编号场景卡、每场贯穿动作）全部在 ±2/25 噪声内。跨 2 本书 4 章复跑仍 +4.33～+8.67，零题材串味。"
     },
     {
       "path": "skills/story-long-write/references/workflow-setup.md",
@@ -42,8 +42,8 @@
     },
     {
       "path": "skills/story-long-write/references/writing-craft.md",
-      "budget": 8300,
-      "why": "narrative-writer 每章写作时读"
+      "budget": 8340,
+      "why": "narrative-writer 每章写作时读；+40：疏密分配表的低压章行不再开「中等分辨率」处方——实测该行给「铺垫/日常/关系升温」章开的方子正是失败形态，另补一句低压章同样适用。"
     },
     {
       "path": "skills/story-long-write/references/anti-ai-writing.md",
@@ -59,7 +59,7 @@
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 36730,
+      "budget": 37090,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-daily.md",
@@ -76,7 +76,7 @@
     },
     {
       "label": "正文 agent 上下文",
-      "budget": 39120,
+      "budget": 39230,
       "files": [
         "skills/story-setup/references/templates/agents/narrative-writer.md",
         "skills/story-long-write/references/writing-craft.md",
