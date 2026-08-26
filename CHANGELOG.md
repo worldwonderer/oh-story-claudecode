@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
+
+自 `v0.7.7` 起采用组织统一格式：版本标题写作 `## [X.Y.Z] - YYYY-MM-DD` 并在文末维护
+compare 链接；小节名使用 Keep a Changelog 的六个英文类别（`Added` / `Changed` /
+`Deprecated` / `Removed` / `Fixed` / `Security`），正文为中文。收紧到会拒绝旧输入的改动
+记入 `Changed`。`v0.7.6` 及更早的小节保持原样。
+
+## [Unreleased]
+
 ## v0.7.6
 
 > 这版的重点在正文那一段。写正文的专业 agent 有三条规则一直在空转：它被要求「写完必须立即统计字数」，可它的工具白名单里根本没有 Bash，那条命令跑不了，而同一句话又禁掉了唯一的替代手段——于是整个「字数达标是硬性要求」小节挂在一条无法执行的命令上；被要求「返回前报出句长分布」，同样无从计算，只能编，而主会话正拿这个数做质量校验。第三条更隐蔽：模板里「正文逐项展开细纲」是最高优先级的明令，而「可自由编排、合并穿插情节点」写在主 skill 里、从不进 spawn 提示词，子代理也不读主 skill——它只看见限制的半边，就按一个情节点一段平推成流水账。三条都已修好。同时新增细纲照搬检测：细纲把情节点写成成品散文句时，正文只剩誊抄，全章最好的几句其实在写细纲那一步就写完了，此前没有任何检测。**本版 `agents_version` 为 25**（v0.7.5 是 24），已部署的项目要重新跑 `/story-setup` 并新开会话。
