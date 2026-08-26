@@ -4,7 +4,7 @@
 输入（命令行给 runs 目录）：
   <dir>/*.final.md            成稿
   <dir>/*.meta.json           写作元数据（chapter/model/arm/rep/chars/target）
-  <dir>/*.ext.{gpt,gpt2,kimi}.json 三名抽取员的候选清单与覆盖判定
+  <dir>/*.ext.{gpt,gpt2,gpt3}.json 三名抽取员的候选清单与覆盖判定
   <dir>/*.judge.json          可替换性判定（合并候选后一次判定）→ nsd_by_extractor / off
   <dir>/*.tell.json           情绪直陈句计数
   <dir>/pref.*.json           成对偏好投票（4 票/对：2 家评委 × 2 种呈现顺序）
@@ -17,7 +17,7 @@ import glob, json, os, random, statistics as st, sys
 N_PERM, N_BOOT, SEED = 10000, 10000, 20260826
 ALPHA_PRIMARY = 0.025          # 两个共同主指标，Bonferroni
 CLASS_SCORE = {"none": 1.0, "concrete": 0.0, "abstract": -1.0}
-EXTRACTORS = ("gpt", "gpt2", "kimi")
+EXTRACTORS = ("gpt", "gpt2", "gpt3")
 
 
 # ---------------- 装载 ----------------

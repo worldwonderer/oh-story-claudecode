@@ -20,7 +20,7 @@ import run_write
 # 抽取员 3 名：两次独立的 GPT 抽样 + 一次 Kimi 抽样。
 # DeepSeek（codewhale）不能当抽取员/计数员——实测它对「输出一长串条目」的任务稳定返回空串
 # （10 条可以，40 条起为空），只在输出极短的任务上可靠，故只用作偏好评委与章节分类员。
-EXTRACTORS = ("gpt", "gpt2", "kimi")
+EXTRACTORS = ("gpt", "gpt2", "gpt3")
 JUDGE_MODEL = "gpt"          # 可替换性判定员：全程看不到正文
 TELL_MODEL = "gpt"           # 情绪直陈计数员
 # 偏好评委必须没写过这一对稿子
@@ -91,9 +91,11 @@ def cmd_extract(a):
         prose = open(p, encoding="utf-8").read()
         o = bp.parse_outline(int(meta["chapter"][2:]))
         res, mt = M.extract(ex, prose, o["points"])
-        out = os.path.join(a.dir, f"{rid}.ext.{ex}.json")
-        jdump(out, {"run": rid, "extractor": ex, "result": res, "meta": mt})
-        return f"{rid} ext:{ex} " + ("ok n=%d" % len(res["details"]) if res else "FAIL")
+        if res is None:
+            return f"{rid} ext:{ex} FAIL {str(mt)[:120]}"
+        jdump(os.path.join(a.dir, f"{rid}.ext.{ex}.json"),
+              {"run": rid, "extractor": ex, "result": res, "meta": mt})
+        return f"{rid} ext:{ex} ok n={len(res['details'])}"
     pool(jobs, go, a.workers)
 
 
@@ -124,9 +126,7 @@ def cmd_judge(a):
                     index[key] = len(merged); merged.append(key)
         res, mt = M.judge(JUDGE_MODEL, merged)
         if res is None:
-            jdump(os.path.join(a.dir, f"{rid}.judge.json"),
-                  {"run": rid, "result": None, "meta": mt})
-            return f"{rid} judge FAIL"
+            return f"{rid} judge FAIL {str(mt)[:120]}"
         verdict = {}
         for it in res["items"]:
             if 1 <= it["i"] <= len(merged):
@@ -153,9 +153,11 @@ def cmd_tell(a):
     def go(j):
         rid, p = j
         res, mt = M.tell(TELL_MODEL, open(p, encoding="utf-8").read())
+        if res is None:
+            return f"{rid} tell FAIL {str(mt)[:120]}"
         jdump(os.path.join(a.dir, f"{rid}.tell.json"),
               {"run": rid, "result": res, "meta": mt})
-        return f"{rid} tell " + (f"ok n={res['n']}" if res else "FAIL")
+        return f"{rid} tell ok n={res['n']}"
     pool(jobs, go, a.workers)
 
 
@@ -174,7 +176,10 @@ def cmd_pref(a):
             pairs.append((ch, mdl, rep, p, q))
     jobs = []
     for ch, mdl, rep, pbase, pv2 in pairs:
-        for jm in PREF_JUDGES[mdl]:
+        allowed = PREF_JUDGES[mdl]
+        if a.pref_judges:
+            allowed = tuple(j for j in allowed if j in a.pref_judges)
+        for jm in allowed:
             for order in ("bv", "vb"):   # 甲=base/乙=v2  与  甲=v2/乙=base
                 pid = f"{ch}__{mdl}__{rep}__{jm}__{order}"
                 if not os.path.exists(os.path.join(a.dir, f"pref.{pid}.json")):
@@ -185,6 +190,8 @@ def cmd_pref(a):
         tv = open(pv2, encoding="utf-8").read()
         first, second = (tb, tv) if order == "bv" else (tv, tb)
         res, mt = M.pref(jm, first, second)
+        if res is None:
+            return f"{pid} FAIL {str(mt)[:120]}"
         rec = {"pid": pid, "judge": jm, "order": order, "result": res, "meta": mt}
         if res:
             w = res["winner"]
@@ -205,6 +212,8 @@ if __name__ == "__main__":
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--extractors", nargs="*", default=None,
                     help="只跑指定抽取员（纯调度用，默认跑全部三名）")
+    ap.add_argument("--pref-judges", nargs="*", default=None, dest="pref_judges",
+                    help="只跑指定偏好评委（纯调度用，默认按 PREF_JUDGES）")
     a = ap.parse_args()
     {"write": cmd_write, "extract": cmd_extract, "judge": cmd_judge,
      "tell": cmd_tell, "pref": cmd_pref}[a.cmd](a)
