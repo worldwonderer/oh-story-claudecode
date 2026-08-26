@@ -135,9 +135,11 @@ def cmd_judge(a):
             keys = {d.strip() for d in exts[ex] if d.strip()}
             per[ex] = sum(1 for k in keys if k in verdict and not verdict[k]["movable"])
         off = sum(1 for k, v in verdict.items() if v["offgenre"])
+        union_nsd = sum(1 for k, v in verdict.items() if not v["movable"])
         jdump(os.path.join(a.dir, f"{rid}.judge.json"),
               {"run": rid, "candidates": len(merged), "judged": len(verdict),
-               "nsd_by_extractor": per, "off": off, "items": res["items"], "meta": mt})
+               "nsd_union": union_nsd, "nsd_by_extractor": per, "off": off,
+               "items": res["items"], "meta": mt})
         return f"{rid} judge ok cand={len(merged)} nsd={per}"
     pool(jobs, go, a.workers)
 

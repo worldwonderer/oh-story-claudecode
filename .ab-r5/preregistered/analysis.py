@@ -56,9 +56,14 @@ def load(d, classes_path):
             if td.get("result"):
                 tell = td["result"]["n"]
         ch = meta["chapter"]
+        union = jd.get("nsd_union")
+        if union is None:                       # 旧产物兜底：从逐条判定重算
+            union = sum(1 for it in jd.get("items", []) if not it["movable"])
         rows.append({
             "run": rid, "chapter": ch, "model": meta["model"], "arm": meta["arm"],
-            "rep": meta["rep"], "nsd_list": nsd_list, "nsd": st.median(nsd_list),
+            "rep": meta["rep"], "nsd_list": nsd_list,
+            "nsd": union,                       # 主口径：并集（见协议偏离 1）
+            "nsd_median3": st.median(nsd_list), # 敏感性：逐抽取员中位数（原冻结口径）
             "cov": st.median(cov_list) if cov_list else None,
             "cov_total": meta["points"], "off": jd["off"], "tell": tell,
             "chars": meta["chars"], "target": meta["target"],
@@ -284,7 +289,7 @@ def main(d, classes_path):
 
     # ---- 主指标 1：NSD ----
     print("\n" + "-" * 90)
-    print("主指标 1（机制）：NSD 不可替换具体细节数")
+    print("主指标 1（机制）：NSD 不可替换具体细节数（并集口径，见协议偏离 1）")
     eff = cell_effects(rows, "nsd")
     obs, p = perm_test_cells(rows, "nsd")
     lo, hi = cluster_boot_ci(eff)
@@ -294,6 +299,11 @@ def main(d, classes_path):
     print(f"  章节整簇 bootstrap 95% CI = [{lo:+.3f}, {hi:+.3f}]")
     nsd_pass = (p < ALPHA_PRIMARY and lo > 0)
     print(f"  → {'通过' if nsd_pass else '未通过'}（阈值 p<{ALPHA_PRIMARY} 且 CI 下界>0）")
+    eff_m = cell_effects(rows, "nsd_median3")
+    obs_m, p_m = perm_test_cells(rows, "nsd_median3")
+    lo_m, hi_m = cluster_boot_ci(eff_m, seed=SEED + 7)
+    print(f"  [敏感性·原冻结口径 逐抽取员中位数] 平均效应 {obs_m:+.3f}, p = {p_m:.4f}, "
+          f"CI [{lo_m:+.3f}, {hi_m:+.3f}]")
 
     # ---- 主指标 2：成对偏好 ----
     print("\n" + "-" * 90)
@@ -310,6 +320,25 @@ def main(d, classes_path):
     print(f"  章节整簇 bootstrap 95% CI = [{plo:+.3f}, {phi:+.3f}]")
     pref_pass = (pp < ALPHA_PRIMARY and plo > 0)
     print(f"  → {'通过' if pref_pass else '未通过'}（阈值 p<{ALPHA_PRIMARY} 且 CI 下界>0）")
+    # 稳健读数（次要）：只保留「换了呈现顺序后仍选同一臂」的评委票
+    byjudge = {}
+    for p_ in prefs:
+        byjudge.setdefault((p_["chapter"], p_["model"], p_["rep"], p_["judge"]),
+                           {})[p_["order"]] = p_["winner"]
+    rob = {}
+    for (ch, m, rep, jm), o in byjudge.items():
+        if len(o) < 2:
+            continue
+        w = set(o.values())
+        v = 1 if w == {"v2"} else -1 if w == {"base"} else 0
+        rob.setdefault((ch, m, rep), []).append(v)
+    rob_sc = [(ch, m, sum(v) / len(v), len(v)) for (ch, m, rep), v in sorted(rob.items())]
+    if rob_sc:
+        r_obs, r_p = pref_test(rob_sc, seed=SEED + 8)
+        rlo, rhi = cluster_boot_ci([(c, m, s_) for c, m, s_, _ in rob_sc], seed=SEED + 9)
+        nz = sum(1 for _, _, s_, _ in rob_sc if s_ != 0)
+        print(f"  [稳健读数·只算换序后仍选同一臂的票] {len(rob_sc)} 对中 {nz} 对给出方向；"
+              f"均值 {r_obs:+.3f}, p = {r_p:.4f}, CI [{rlo:+.3f}, {rhi:+.3f}]")
 
     # ---- 预先声明的敏感性分析：剔除长度差过大的配对 ----
     chars = {r["run"]: r for r in rows}
