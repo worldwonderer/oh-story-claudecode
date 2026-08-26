@@ -176,9 +176,8 @@ def cmd_pref(a):
             pairs.append((ch, mdl, rep, p, q))
     jobs = []
     for ch, mdl, rep, pbase, pv2 in pairs:
-        allowed = PREF_JUDGES[mdl]
-        if a.pref_judges:
-            allowed = tuple(j for j in allowed if j in a.pref_judges)
+        # 给了 --pref-judges 就整体替换评委集合（用于补跑另一家评委），否则用冻结默认
+        allowed = tuple(a.pref_judges) if a.pref_judges else PREF_JUDGES[mdl]
         for jm in allowed:
             for order in ("bv", "vb"):   # 甲=base/乙=v2  与  甲=v2/乙=base
                 pid = f"{ch}__{mdl}__{rep}__{jm}__{order}"

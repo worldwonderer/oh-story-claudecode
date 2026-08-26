@@ -1,0 +1,146 @@
+[
+ {
+  "judge": "ds",
+  "run": "ch04__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch04__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch04__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch04__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch07__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch07__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch07__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch07__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch10__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch10__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch10__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch10__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch13__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch13__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch13__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch13__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch16__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch16__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch16__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch16__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch19__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "ds",
+  "run": "ch19__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch19__base__gpt__r1",
+  "order": "of",
+  "pick": "orig"
+ },
+ {
+  "judge": "gpt",
+  "run": "ch19__base__gpt__r1",
+  "order": "fo",
+  "pick": "orig"
+ }
+]
