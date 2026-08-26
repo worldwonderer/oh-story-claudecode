@@ -167,15 +167,33 @@ def chapter_check(project: Path, chapter: int) -> dict[str, Any]:
         actions: list[str] = []
     elif length_ok:
         actions = ["commit"]
+    elif length["status"] == "over":
+        actions = ["compress-once", "accept-current-length", "revise-outline-or-target", "discard"]
     else:
         actions = ["accept-current-length", "revise-outline-or-target", "discard"]
     tracking = _tracking_module()
     state = _tracking_call(tracking.load_state, project)
+    compression = None
+    if length["status"] == "over" and quality["status"] == "pass":
+        actual = length["actual"]
+        compression = {
+            "mode": "single_pass_remove_only",
+            "remove_to_internal_band": {
+                "min": actual - length["internal_band"]["max"],
+                "max": actual - length["internal_band"]["min"],
+            },
+            "remove_to_user_band": {
+                "min": actual - length["user_band"]["max"],
+                "max": actual - length["user_band"]["min"],
+            },
+        }
     return {
         "schema": CHAPTER_CHECK_SCHEMA,
         "chapter": chapter,
         "length": length,
         "quality": quality,
+        "compression": compression,
+        "state_revision": state["state_revision"],
         "tracking_committed": state["last_committed_chapter"] >= chapter,
         "next_chapter_started": state["last_committed_chapter"] > chapter,
         "available_actions": actions,

@@ -146,7 +146,12 @@ class FinalChapterFlowTests(unittest.TestCase):
         # 2: under never auto-commits; accept re-reads changed body and target, then commits once.
         self.write_contract(2, 800)
         checked = self.run_chapter("check", 2)
-        self.assertIn("accept-current-length", checked["available_actions"])
+        self.assertEqual(
+            checked["available_actions"],
+            ["accept-current-length", "revise-outline-or-target", "discard"],
+        )
+        self.assertIsNone(checked["compression"])
+        self.assertEqual(checked["state_revision"], self.state()["state_revision"])
         rejected = self.run_chapter(
             "commit", 2, document=transaction(2, self.state()["state_revision"]), expect=2
         )
@@ -161,21 +166,53 @@ class FinalChapterFlowTests(unittest.TestCase):
         self.assertEqual((record["target"], record["actual"], record["status"]), (1100, 801, "under"))
         self.assertEqual(record["resolution"], "accepted_current_length")
 
-        # 3: blocking quality failure cannot commit; after an explicit quality fix, next chapter proceeds.
-        self.write_contract(3, 1000, blocking=True)
-        failed = self.run_chapter("check", 3, expect=2)
-        self.assertEqual(failed["quality"]["status"], "fail")
-        blocked = self.run_chapter(
+        # 3: over offers exactly one net-delete pass with deterministic removal ranges.
+        self.write_contract(3, 1200)
+        checked = self.run_chapter("check", 3)
+        self.assertEqual(checked["length"]["status"], "over")
+        self.assertEqual(
+            checked["available_actions"],
+            ["compress-once", "accept-current-length", "revise-outline-or-target", "discard"],
+        )
+        self.assertEqual(
+            checked["compression"],
+            {
+                "mode": "single_pass_remove_only",
+                "remove_to_internal_band": {"min": 80, "max": 320},
+                "remove_to_user_band": {"min": 50, "max": 350},
+            },
+        )
+        rejected = self.run_chapter(
             "commit", 3, document=transaction(3, self.state()["state_revision"]), expect=2
         )
-        self.assertIn("blocking quality", blocked["message"])
+        self.assertIn("outside the user band", rejected["message"])
         self.assertEqual(self.state()["last_committed_chapter"], 2)
-        self.write_contract(3, 1000)
+
+        # Simulate the one allowed compression pass; a fresh check now enters the band and commits.
+        self.write_contract(3, 1100)
+        checked = self.run_chapter("check", 3)
+        self.assertEqual(checked["length"]["status"], "internal_pass")
+        self.assertEqual(checked["available_actions"], ["commit"])
+        self.assertIsNone(checked["compression"])
         self.run_chapter("commit", 3, document=transaction(3, self.state()["state_revision"]))
 
+        # 4: blocking quality failure cannot commit; after an explicit quality fix, next chapter proceeds.
+        self.write_contract(4, 1200, blocking=True)
+        failed = self.run_chapter("check", 4, expect=2)
+        self.assertEqual(failed["quality"]["status"], "fail")
+        self.assertEqual(failed["available_actions"], [])
+        self.assertIsNone(failed["compression"])
+        blocked = self.run_chapter(
+            "commit", 4, document=transaction(4, self.state()["state_revision"]), expect=2
+        )
+        self.assertIn("blocking quality", blocked["message"])
+        self.assertEqual(self.state()["last_committed_chapter"], 3)
+        self.write_contract(4, 1000)
+        self.run_chapter("commit", 4, document=transaction(4, self.state()["state_revision"]))
+
         state = self.state()
-        self.assertEqual(state["last_committed_chapter"], 3)
-        self.assertEqual(set(state["wordcount_records"]), {"1", "2", "3"})
+        self.assertEqual(state["last_committed_chapter"], 4)
+        self.assertEqual(set(state["wordcount_records"]), {"1", "2", "3", "4"})
         self.assertNotIn("wordcount_events", state)
         self.assertNotIn("wordcount_policy", state)
 

@@ -36,8 +36,8 @@
 | `test-prose-backstop-hook.sh` | `check-prose-after-write.sh` 回归 | CI |
 | `test-story-continuity.sh` | `detect-story-gaps.sh` 跨批连续性兜底回归 | CI |
 | `test-tracking-commit.py` | 单权威追踪行为：原子 state、字数事件链、hash 失效、激活边界、幂等与并发提交 | CI |
-| `test-storyctl.py` | `visible_chars_v1`、双层区间、内容寻址事件、动作能力矩阵与 demo 同口径证据 | Linux / Windows / macOS CI |
-| `test-chapter-completion-lifecycle.py` | 公开 CLI 的 checkpoint、正常提交、带外接受、blocking quality 阻断与下一章继续 | Linux / Windows / macOS CI |
+| `test-storyctl.py` | `visible_chars_v1`、双层区间、提交记录与 demo 同口径证据 | Linux / Windows / macOS CI |
+| `test-chapter-completion-lifecycle.py` | 公开 CLI 的 checkpoint、正常提交、欠长接受、超长单次压缩区间、blocking quality 阻断与下一章继续 | Linux / Windows / macOS CI |
 | `test-author-memory-commit.py` | 工作区作者记忆行为：单事件回执、≤2KB 相关查询、证据候选、冲突替代、撤回、失败零写入、旧修订、幂等重放与派生修复 | CI |
 | `test-codex-hooks.sh` | Codex hook 合成 stdin/stdout 契约 | CI |
 | `test-static-check.py` | 真 frontmatter block、精确路径/锚点、跨 Skill 引用、fence、死 reference、Agent 与章节链接 fixture | CI |
