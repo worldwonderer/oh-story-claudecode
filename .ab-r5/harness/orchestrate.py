@@ -83,7 +83,8 @@ def essays(d):
 # ---------------- extract ----------------
 
 def cmd_extract(a):
-    jobs = [(rid, p, meta, ex) for rid, p, meta in essays(a.dir) for ex in EXTRACTORS
+    want = a.extractors or list(EXTRACTORS)
+    jobs = [(rid, p, meta, ex) for rid, p, meta in essays(a.dir) for ex in want
             if not os.path.exists(os.path.join(a.dir, f"{rid}.ext.{ex}.json"))]
     def go(j):
         rid, p, meta, ex = j
@@ -202,6 +203,8 @@ if __name__ == "__main__":
     ap.add_argument("--models", nargs="*", default=["gpt", "kimi"])
     ap.add_argument("--reps", nargs="*", default=["r1"])
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--extractors", nargs="*", default=None,
+                    help="只跑指定抽取员（纯调度用，默认跑全部三名）")
     a = ap.parse_args()
     {"write": cmd_write, "extract": cmd_extract, "judge": cmd_judge,
      "tell": cmd_tell, "pref": cmd_pref}[a.cmd](a)
