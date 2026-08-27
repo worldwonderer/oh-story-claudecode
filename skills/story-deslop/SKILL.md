@@ -118,7 +118,7 @@ node scripts/check-ai-patterns.js --check --fail-on=blocking <正文文件...>
 ```
 
 - severity=blocking 的类别（`not-is-comparison` / `em-dash` / `voice-contrast` / `negation-parade` / `reverse-not-is` / `trailer-ending` / `trailer-summary`）并入 Gate B，属于写作/去 AI 味时优先处理的 blocking 类问题。
-- 其他 findings（碎句号、长段落、微动作、动作清单、抽象总结、套词、比喻密度、解释链、公文腔、过度精炼、低连接密度、引号强调滥用、`formulaic-parallelism` 工整并列）只作读感提示；完整类别和修法见 `references/anti-ai-writing.md`。其中工整并列会扫描台词，必须读语境判断，不能因为 hook 对台词低误报豁免就跳过。
+- 其他 findings（碎句号、长段落、微动作、套式反应细节、动作清单、抽象总结、套词、比喻密度、解释链、公文腔、过度精炼、低连接密度、引号强调滥用、`formulaic-parallelism` 工整并列）只作读感提示；完整类别和修法见 `references/anti-ai-writing.md`。其中工整并列会扫描台词，必须读语境判断，不能因为 hook 对台词低误报豁免就跳过。
 - 处理方式：删掉否定铺垫，直接写后项；或改成角色动作、物件细节、身体反应来呈现。
 - 若用户只要检测，保留报告不改文。若执行去 AI 味，只改确实损害读感且无叙事功能的问题；功能性写法标 `[需复核]` 并保留。
 

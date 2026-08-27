@@ -387,6 +387,51 @@ NODE
 
 echo "micro-action-tic (电报体微动作复读) regression tests passed."
 
+# --- 套式反应细节：部位微动作/语气比喻成片，提示删除测试而非禁身体描写 ---
+FIXTURE_STOCK_REACTION="$TMP_DIR/fixture-stock-reaction.md"
+printf '%s\n' \
+  '指尖在窗台上轻轻叩了一下。' \
+  '她望向窗外别处，指尖却在袖口里攥紧了一下。' \
+  '徐管事的语气平静得像在念一份货单。' \
+  '他扶着栏杆的那只手，指节泛白。' \
+  '指尖在窗棂上轻轻叩了一下。' > "$FIXTURE_STOCK_REACTION"
+set +e
+node "$SCRIPT" --json "$FIXTURE_STOCK_REACTION" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const sr = r.findings.filter((f) => f.type === 'stock-reaction-tic');
+if (sr.length !== 1) throw new Error('成片身体微动作/语气比喻应报 1 处 stock-reaction-tic: ' + JSON.stringify(r.findings));
+if (sr[0].severity !== 'advisory') throw new Error('stock-reaction-tic 应为 advisory');
+if (!sr[0].excerpt.includes('指尖在窗台') || !sr[0].excerpt.includes('语气平静得像在念')) {
+  throw new Error('stock-reaction-tic excerpt 应返回可定位原句: ' + JSON.stringify(sr[0]));
+}
+NODE
+
+set +e
+node "$SCRIPT" --fail-on=blocking "$FIXTURE_STOCK_REACTION" > /dev/null 2>&1
+stock_reaction_blk=$?
+set -e
+[ "$stock_reaction_blk" -eq 0 ] || { echo "FAIL: stock-reaction-tic --fail-on=blocking 应退出 0，实际 $stock_reaction_blk" >&2; exit 1; }
+
+FIXTURE_STOCK_REACTION_NORMAL="$TMP_DIR/fixture-stock-reaction-normal.md"
+printf '%s\n' \
+  '他握扳手的手指发白，钢丝割开虎口，血顺着扳手滴进齿轮；机器仍旧卡着。' \
+  '她在引用栏抄下“指节泛白”，随后删掉，改回谈判破裂后的实际结果。' \
+  '门外的人催了第二遍，他把缺页的合同递回去，拒绝签字。' > "$FIXTURE_STOCK_REACTION_NORMAL"
+set +e
+node "$SCRIPT" --json "$FIXTURE_STOCK_REACTION_NORMAL" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const sr = r.findings.filter((f) => f.type === 'stock-reaction-tic');
+if (sr.length !== 0) throw new Error('低密度且有物理后果的身体细节/引号内引用不应报 stock-reaction-tic: ' + JSON.stringify(sr));
+NODE
+
+echo "stock-reaction-tic (套式反应细节) regression tests passed."
+
 # --- issue #205：抽象总结复读（命运/棋局/这一刻终于明白/才刚刚开始）---
 # 尾部补 16 行中性叙述：把「才刚刚开始」推出 trailer-ending 的文末 600 字窗口，
 # 让本 fixture 保持只验证 advisory 的 abstract-summary-tic。

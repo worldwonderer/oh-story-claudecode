@@ -282,6 +282,7 @@ AI 喜欢把事情凑成三个以显"完整"。-> 砍到只剩最有力的一条
 | 升华式收尾 | 结尾对仗拔高、金句点题 -> 用一个动作或一句留白收住，把"意思"压进画面里 |
 | 抽象命运/开端收束 | 「命运终于露出獠牙」「早已布好的棋局」「这一刻终于明白」「属于他的反击才刚刚开始」-> 改成角色当下可见的文件、动作、对话或物理后果；`check-ai-patterns.js` 报 `abstract-summary-tic` 时优先处理 |
 | 套词密度过高 | 仿佛/一丝/一抹/深吸一口气/平静无波/指节泛白等成串复现（`cliche-density-tic`）-> 不是同义词轮换，整段回到角色当下证据：文件、动作、对话、物理后果 |
+| 套式反应细节 | 指尖轻叩、袖口里攥紧、指节泛白、目光移开、“语气平静得像在念……”等反应成片（`stock-reaction-tic`）-> 逐处做删除测试；只标注情绪而不改变选择、关系、物件或动作结果的删掉，不换部位和同义动作；有伤势、动作失败或情节后果的身体细节可留 |
 | 比喻密度过高 | 像/好像/仿佛/如同等比喻标记成片复现（`metaphor-density-tic`）-> 保留最能传递信息或情绪的一两个，其余改回具体动作、物件、声音、后果；不要换成新比喻 |
 | 系统公告公文腔过密 | 方括号规则/面板/公告行里硬规则词成片（`system-notice-formality-tic`）-> 保留为角色看见的屏幕/公告/规则载体；只在载体内部白话化部分硬词，或补角色当场看懂的具体后果，不改成叙述者解释 |
 
@@ -575,7 +576,7 @@ AI 喜欢把事情凑成三个以显"完整"。-> 砍到只剩最有力的一条
 - [ ] **标点不压平**：没有把质问、爆发、犹豫全部压成句号；也没有随机堆砌 `？`/`！`，或用 `……`/`——` 硬造停顿
 - [ ] **Show Don't Tell**：用行为代替形容词，用细节代替总结
 - [ ] **句长达标**：叙述默认是逗号长句（逗号之间 8-12 字、整句 20-30 字，规则 3）；短句只作偶尔的孤立重拍，用完回到逗号长句；没有连着的 ≤5 字碎片，没有通篇短句像提纲
-- [ ] **detector advisory 逐条复核**：`micro-action-tic` / `abstract-summary-tic` / `cliche-density-tic` / `metaphor-density-tic` / `reasoning-chain-tic` / `system-notice-formality-tic` / `overcompressed-prose-tic` / `low-connective-density-tic` / `action-list-tic` 命中时按脚本给出的修法处理：先通读判断是不是机械复现，确属再改；功能性写法保留或标 `[需复核]`，不做同义词轮换、不机械注水
+- [ ] **detector advisory 逐条复核**：`micro-action-tic` / `stock-reaction-tic` / `abstract-summary-tic` / `cliche-density-tic` / `metaphor-density-tic` / `reasoning-chain-tic` / `system-notice-formality-tic` / `overcompressed-prose-tic` / `low-connective-density-tic` / `action-list-tic` 命中时按脚本给出的修法处理：先通读判断是不是机械复现，确属再改；功能性写法保留或标 `[需复核]`，不做同义词轮换、不机械注水
 - [ ] **不做硬指标投机**：不为反检测强制每句换行、50-60 字一行、对话 50%-60%、英文点省略号，或把 `地/得` 全改成 `的`
 - [ ] **任务卡点服从原文边界**：抽象总结若改成角色办事被卡住，必须来自原文已有任务/证据/手续/物件缺口；不新增原文没有的事件链
 - [ ] **去AI三遍法执行**：轻度只做Pass1，中度做Pass1+2，重度完整三遍

@@ -243,9 +243,9 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 > **节长速算**：平均每行 15 字 × 55 行 ≈ 825 字。写到第 30 行时如果还不到 500 字，说明子事件数量不够，需要补充更多子事件或对话。
 
-每个小节按「三维度揉进」写作（详见 short-craft.md 第 10 节）：每个子事件将发生、感知、反应三个维度揉进同一段连续正文，子事件合计 ≥150 字。维度揉进不等于按维度分段——禁止"先写发生再补感知再补反应"的堆叠写法；也不等于一段到底，按新动作/新物件/新信息/新对话断段。长度只是诊断，先判断是否完整戏剧单元；混入多个动作/信息才拆，完整推理、氛围或情绪链可以保留稍长段。
+每个小节按「场景信息揉进」写作（详见 short-craft.md 第 10 节）：发生是主干，感知和反应只在提供新信息时加入；用到的维度揉进同一镜头，子事件合计 ≥150 字。揉进不等于按维度分段——禁止"先写发生再补感知再补反应"的堆叠写法，也不要求三项齐全；同样不等于一段到底，按新动作/新物件/新信息/新对话断段。长度只是诊断，先判断是否完整戏剧单元；混入多个动作/信息才拆，完整推理、氛围或情绪链可以保留稍长段。
 
-**写完后对照 小节大纲.md 检查**：每个子事件三个维度都揉进了？本节情绪到位？伏笔/物件已植入？新增任务卡点是否卡出了情绪、证据或关系变化（删掉无损则压缩）？节长 <800 字 → 补充更多子事件/对话后再写下一节。
+**写完后对照 小节大纲.md 检查**：每个子事件的现场、因果和下一步是否读得懂？已经写入的感知/反应是否提供不同信息，而非凑格？本节情绪到位？伏笔/物件已植入？新增任务卡点是否卡出了情绪、证据或关系变化（删掉无损则压缩）？节长 <800 字 → 补充更多子事件/对话后再写下一节，不拿感官或身体动作注水。
 
 按以下结构分段写：
 
@@ -402,7 +402,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 | [references/quality-checklist.md](references/quality-checklist.md) | 精修检查时 |
 | [references/banned-words.md](references/banned-words.md) | 禁用词表 |
 | [scripts/normalize-punctuation.js](scripts/normalize-punctuation.js) | Phase 4 文件模式确定性标点收尾 |
-| [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | Phase 3 完成门槛与 Phase 4 复扫；报告高危 AI 句式、破折号、碎句号、长段落、微动作复读、抽象总结、套词/比喻密度、解释链、系统公告腔、提纲感短段、低连接密度 |
+| [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | Phase 3 完成门槛与 Phase 4 复扫；报告高危 AI 句式、破折号、碎句号、长段落、微动作复读、套式反应细节、抽象总结、套词/比喻密度、解释链、系统公告腔、提纲感短段、低连接密度 |
 | [scripts/check-degeneration.js](scripts/check-degeneration.js) | Phase 3 完成门槛与 Phase 4 复扫；报告模型退化（复读/截断/工程词泄漏），blocking 需重新生成 |
 | [references/dialogue-mastery.md](references/dialogue-mastery.md) | 写对话时 |
 | [references/output-contract.md](references/output-contract.md) | Phase 2 对标上下文加载时（理解 analyze 产出格式与消费规范） |
