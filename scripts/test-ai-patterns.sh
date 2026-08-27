@@ -409,6 +409,25 @@ if (!sr[0].excerpt.includes('指尖在窗台') || !sr[0].excerpt.includes('语�
 }
 NODE
 
+FIXTURE_STOCK_REACTION_VARIANTS="$TMP_DIR/fixture-stock-reaction-variants.md"
+printf '%s\n' \
+  '胸口像被什么东西轻轻撞了一下。' \
+  '他喉结滚了滚，没接话。' \
+  '她的声音也放轻了。' \
+  '老人的眼圈一下就红了。' > "$FIXTURE_STOCK_REACTION_VARIANTS"
+set +e
+node "$SCRIPT" --json "$FIXTURE_STOCK_REACTION_VARIANTS" > "$OUT"
+set -e
+node - "$OUT" <<'NODE'
+const fs = require('fs');
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const sr = r.findings.filter((f) => f.type === 'stock-reaction-tic');
+if (sr.length !== 1) throw new Error('胸口碰撞/喉结/声音放轻/眼圈红等同族反应成片也应报 1 处: ' + JSON.stringify(r.findings));
+if (!sr[0].excerpt.includes('胸口像被') || !sr[0].excerpt.includes('声音也放轻')) {
+  throw new Error('stock-reaction-tic 变体 excerpt 应返回可定位原句: ' + JSON.stringify(sr[0]));
+}
+NODE
+
 set +e
 node "$SCRIPT" --fail-on=blocking "$FIXTURE_STOCK_REACTION" > /dev/null 2>&1
 stock_reaction_blk=$?

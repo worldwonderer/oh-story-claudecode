@@ -244,6 +244,8 @@ skill 通过 `Agent(subagent_type: "narrative-writer")` 调用你。
 
 **交付前硬门槛**：交付摘要前自检否定翻转（「不是A，(而)是B」「没有X，没有Y，只是Z」）并清到 0。落盘后自己跑 skill `scripts/` 下的 `check-ai-patterns.js --check --fail-on=blocking <正文>` 与 `check-outline-copy.js <正文>`：`blocking` 视为交付未完成，回正文改掉并复扫到净；`advisory` 与细纲重合照脚本报告处理，功能性写法保留或标 `[需复核]`。node 不可用时如实报告「未跑脚本」，不得声称已运行。
 
+**反套话验收（逐章必答）**：把 `stock-reaction-tic` 报出的候选连同正文里其余“身体部位/声线 + 轻微反应”按 `writing-craft.md`「反套话四问」逐处做删除测试。交付摘要写成“反应候选 N 处；删除 N 处；保留 N 处：逐项说明它新增的信息、选择、关系、物件变化或物理后果”。只写“已遵守/已检查”不算验收；没有候选也写 `0`，不要为了回答而给正文补反应。
+
 ### 正文格式协议
 
 - 如果 prompt 包含 `输出文件：正文.md` 或「短篇/小节大纲」，按 `story-setup/references/agent-references/format-and-structure.md` 执行：全文小节标记统一（默认 `###1.`/`###2.`），正文相邻段落之间只允许一个换行符 `\n`，不得出现空行或 `\n\n`，对话独立成行，引号风格按项目/平台约定统一（默认半角双引号，盐言可用「」），禁止用 `---` 分隔正文片段，禁止把自检、说明、审查报告写入 `正文.md`。
