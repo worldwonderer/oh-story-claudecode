@@ -101,6 +101,29 @@ class VisibleCharsTests(unittest.TestCase):
         )
 
 
+class OutlineTargetTests(unittest.TestCase):
+    def test_outline_target_accepts_utf8_bom_and_crlf(self) -> None:
+        plain = "- 字数目标：1000 字\n- 字数口径：visible_chars_v1\n"
+        self.assertEqual(storyctl.target_from_outline(plain), 1000)
+        self.assertEqual(storyctl.target_from_outline("\ufeff" + plain), 1000)
+        self.assertEqual(
+            storyctl.target_from_outline("\ufeff" + plain.replace("\n", "\r\n")),
+            1000,
+        )
+
+    def test_outline_target_rejections_remain_unchanged(self) -> None:
+        with self.assertRaisesRegex(storyctl.WordcountError, "字数口径"):
+            storyctl.target_from_outline(
+                "- 字数目标：1000 字\n- 字数口径：VISIBLE_CHARS_V1\n"
+            )
+        with self.assertRaisesRegex(storyctl.WordcountError, "字数目标"):
+            storyctl.target_from_outline(
+                "- 字数目标：1000 字\n"
+                "- 字数目标：1200 字\n"
+                "- 字数口径：visible_chars_v1\n"
+            )
+
+
 class CheckpointTests(unittest.TestCase):
     def test_checkpoint_reports_only_current_count_and_remaining_user_range(self) -> None:
         result = storyctl.checkpoint_wordcount("字" * 558, 2200, chapter=28)
@@ -134,6 +157,51 @@ class CheckpointTests(unittest.TestCase):
 
 
 class StoryctlCliTests(unittest.TestCase):
+    def test_chapter_check_cli_reads_bom_crlf_outline_target(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="storyctl-bom-outline-") as directory:
+            project = Path(directory)
+            (project / "大纲").mkdir()
+            (project / "正文").mkdir()
+            outline = project / "大纲/细纲_第001章.md"
+            with outline.open("w", encoding="utf-8", newline="") as output:
+                output.write("\ufeff- 字数目标：1000 字\r\n- 字数口径：visible_chars_v1\r\n")
+            (project / "正文/第001章_测试.md").write_text(
+                "# 第一章\n" + "字" * 999 + "。", encoding="utf-8"
+            )
+            tracking = storyctl._tracking_module()
+            tracking.initialize(
+                project,
+                {
+                    "schema_version": 1,
+                    "book_title": "BOM 大纲测试",
+                    "last_chapter": 0,
+                    "context": {
+                        "position": {
+                            "volume": "第一卷",
+                            "volume_start_chapter": 1,
+                            "story_time": "当日",
+                            "scene": "测试",
+                        },
+                        "long_term_constraints": ["只写批准内容。"],
+                        "active_character_names": [],
+                        "continuity_risks": [],
+                        "recent_chapters": [],
+                        "next_chapter_commitments": [],
+                    },
+                    "character_snapshots": {},
+                    "foreshadow": [],
+                    "timeline_events": [],
+                },
+            )
+            completed, result = run_cli(
+                "chapter", "check", "--project", str(project), "--chapter", "1"
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(result["schema"], "story-chapter-check/v1")
+        self.assertEqual(result["length"]["target"], 1000)
+        self.assertEqual(result["length"]["status"], "internal_pass")
+
     def test_wordcount_measure_returns_actual_without_a_target(self) -> None:
         with tempfile.TemporaryDirectory(prefix="storyctl-measure-") as directory:
             body = Path(directory) / "chapter.md"

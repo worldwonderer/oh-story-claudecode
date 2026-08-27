@@ -162,6 +162,8 @@ def checkpoint_wordcount(
 
 def target_from_outline(value: str) -> int:
     text = normalize_newlines(value)
+    if text.startswith("\ufeff"):
+        text = text[1:]
     targets = list(dict.fromkeys(_TARGET_LINE_RE.findall(text)))
     metrics = list(dict.fromkeys(_METRIC_LINE_RE.findall(text)))
     require(len(targets) == 1, "字数目标 must appear exactly once with one value")
