@@ -12,6 +12,35 @@ compare 链接；小节名使用 Keep a Changelog 的六个英文类别（`Added
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-08-26
+
+> 补丁号不传达这一点：本版收紧了长篇章节完成条件。缺少合法「字数目标」不再回退到 3000；欠字不会自动添加独立剧情，超字只允许一次不新增语义的净删压缩；发现新增承诺、关系变化、支线或后续义务等独立故事内容时会阻止自动提交，改由用户决定接受、修改目标/细纲、返修或放弃。
+
+### Added
+
+- 新增工作区级作者记忆（#368）：用户明确要求记住的稳定偏好经确认后写入 `.story/作者记忆/`，保留原话证据、候选、冲突替代和撤回记录；普通写作只召回与当前任务相关的已确认条目，不与单本小说追踪混用。
+- `story-cover` 在 Codex 中优先使用内置 ImageGen（#358），无需额外配置图片 API Key；其他 Runtime 继续使用 GPT-Image API 回退。
+- 新增结构化 GitHub Issue Forms：确定性 Bug、输出质量 Case、功能请求分别收集复现步骤、具体输出证据和可验收结果，关闭空白 Issue。
+
+### Changed
+
+- 长篇正文改用 `storyctl.py` 的 `visible_chars_v1` 作为唯一字数口径（#370）：写作中只做一次测量 checkpoint，完成时统一检查长度与 blocking quality；只有提交追踪事务后才能进入下一章。
+- 字数处置改为用户主导（#370）：欠字不自动灌水，超字最多压缩一次；仍在目标带外时由用户选择接受自然长度、修改目标或细纲、返修、放弃。旧输入缺少合法「字数目标」现在会停止，而不是静默回退到 3000。
+- 新建、补建和改写细纲的情节点改为五列表格；story-explorer 对已登记但主产物缺失的对标 fail-closed，narrative-writer、story-architect、character-designer 按任务条件读取 reference（#362）。
+- 仓库与安装地址迁移到 `zenstory-ai/oh-story-claudecode`；命令行安装改为 `npx skills add zenstory-ai/oh-story-claudecode -y -g`。
+- 发布 `agents_version: 26` 与 `setup_skill_version: 1.2.8`。已部署项目需先更新技能包，在项目根重新运行 `/story-setup`，再新开会话。
+
+### Fixed
+
+- story-setup 不再把 `agent-references` 复制进自身或生成递归 `skills/story-setup/skills/`（#364）；复制前按 realpath / samefile 拒绝源目标同对象及目标嵌入源目录，并清理已知嵌套残留。
+- Agent reference 表不再出现“列出了文件但实际不触发读取”的空转；对标缺失也不再静默换用另一本（#362）。
+- Codex / OpenCode 生成器和 adapter 检查兼容 Python 3.9；macOS 系统 Python 不再因 `Path.write_text(newline=...)` 或缺少标准库 `tomllib` 而中断。
+- 当前契约测试改为验证真实行为与失败边界，补齐清理守卫、部署复制和章节完成生命周期回归（#359、#370）。
+
+### Security
+
+- Dashboard 的 JSON 响应统一经过安全序列化并补充响应边界测试，避免项目名、路径或文件内容破坏响应结构（#369）。
+
 ## v0.7.6
 
 > 这版的重点在正文那一段。写正文的专业 agent 有三条规则一直在空转：它被要求「写完必须立即统计字数」，可它的工具白名单里根本没有 Bash，那条命令跑不了，而同一句话又禁掉了唯一的替代手段——于是整个「字数达标是硬性要求」小节挂在一条无法执行的命令上；被要求「返回前报出句长分布」，同样无从计算，只能编，而主会话正拿这个数做质量校验。第三条更隐蔽：模板里「正文逐项展开细纲」是最高优先级的明令，而「可自由编排、合并穿插情节点」写在主 skill 里、从不进 spawn 提示词，子代理也不读主 skill——它只看见限制的半边，就按一个情节点一段平推成流水账。三条都已修好。同时新增细纲照搬检测：细纲把情节点写成成品散文句时，正文只剩誊抄，全章最好的几句其实在写细纲那一步就写完了，此前没有任何检测。**本版 `agents_version` 为 25**（v0.7.5 是 24），已部署的项目要重新跑 `/story-setup` 并新开会话。
@@ -921,3 +950,6 @@ npx skills add zenstory-ai/oh-story-claudecode -y -g
 
 - 初始版本：长篇/短篇写作、拆文、扫榜、去 AI 味、浏览器操控
 - 用 52000+ 本真实数据增强知识库
+
+[Unreleased]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.7...HEAD
+[0.7.7]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.6...v0.7.7

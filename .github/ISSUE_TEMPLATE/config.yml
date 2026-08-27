@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题与流程求助
+    url: https://github.com/zenstory-ai/oh-story-claudecode/discussions/categories/q-a
+    about: 不确定如何使用、配置或选择 Skill 时，请先在 Q&A 提问。
+  - name: 社区交流与经验分享
+    url: https://github.com/zenstory-ai/oh-story-claudecode/discussions
+    about: 分享工作流、讨论想法或展示作品。

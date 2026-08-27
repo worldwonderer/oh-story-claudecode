@@ -24,6 +24,15 @@ scripts/                       # 开发守卫 / 测试 / 代码生成（完整�
 
 每个 skill 由一个 `SKILL.md`（入口）和 `references/` 目录（知识库）组成。
 
+## 反馈与需求
+
+- 可稳定复现的命令、文件、状态或 Runtime 异常：提交 **Bug 报告**。
+- 文风、人物、节奏、逻辑或 AI 味不符合预期：提交 **输出质量 Case**，提供最小必要上下文、连续输出片段、具体问题位置和期望方向。
+- 新能力或 Runtime / IDE 适配：提交 **功能请求**，说明真实使用问题、可验收结果；适配请求同时提供官方扩展或 Skills 文档。
+- 使用方法、流程选择和一般交流：前往 [GitHub Discussions](https://github.com/zenstory-ai/oh-story-claudecode/discussions)。
+
+Issue 是可采取行动的工作输入。缺少复现步骤、实际输出、具体问题位置或验收结果时，维护者会要求补充；长期无法补全的信息不会进入研发排期。不要提交 API Key、Token、个人信息、无权公开或不愿公开的书稿。
+
 ## Skill 格式
 
 `SKILL.md` 开头必须有 frontmatter：

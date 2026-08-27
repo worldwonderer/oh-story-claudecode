@@ -1,0 +1,154 @@
+name: Bug 报告
+description: 报告可以复现的命令、文件、状态或 Runtime 异常
+title: "[Bug] "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请提供最小、可复现的信息；只有“不能用”或一张报错截图通常无法定位问题。
+
+        如果问题是生成内容的文风、人物、节奏或 AI 味不符合预期，请改用「输出质量 Case」。使用方法和流程疑问请前往 Discussions。
+
+  - type: input
+    id: version
+    attributes:
+      label: Oh Story 版本
+      description: 可查看 `skills/story/VERSION`；若使用 main，请填写 commit SHA。
+      placeholder: 例如 0.7.7 或 a03f0a8
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Claude Code
+        - Codex
+        - OpenCode
+        - ZCode
+        - OpenClaw
+        - Reasonix
+        - 通用 Agent / Web AI
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: runtime_version
+    attributes:
+      label: Runtime 版本
+      description: 请填写 CLI 或客户端版本；不知道时说明“不知道”。
+      placeholder: 例如 Codex 0.123.0
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: 模型
+      placeholder: 例如 Claude Opus 4.6 / GPT-5 / GLM-5.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: skill
+    attributes:
+      label: 使用的 Skill
+      multiple: true
+      options:
+        - story
+        - story-setup
+        - story-import
+        - story-long-write
+        - story-long-analyze
+        - story-long-scan
+        - story-short-write
+        - story-short-analyze
+        - story-short-scan
+        - story-deslop
+        - story-review
+        - story-cover
+        - browser-cdp
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: operating_system
+    attributes:
+      label: 操作系统
+      placeholder: 例如 Windows 11 / macOS 15.6 / Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题概述
+      description: 说明哪个动作失败，以及问题对你造成了什么影响。
+      placeholder: 执行……后，本应……，实际……，导致……
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 最小复现步骤
+      description: 从一个可确认的起点开始，逐步列出命令、操作和必要输入。
+      placeholder: |
+        1. 在……目录执行……
+        2. 选择……
+        3. 打开……
+        4. 出现……
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: 复现稳定性
+      options:
+        - 每次都能复现
+        - 多数时候能复现
+        - 偶尔复现
+        - 只出现过一次
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+      placeholder: 完成上述步骤后，应该发生什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      placeholder: 实际发生了什么？请包含完整错误信息，不要只写“失败”。
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 日志、截图或最小样例
+      description: 请粘贴相关日志并使用代码块；删除 API Key、Token、真实姓名、未公开书稿等敏感信息。
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我搜索过现有 Issue 和 Discussion，没有找到同一问题。
+          required: true
+        - label: 我已删除 API Key、Token、个人信息和不愿公开的正文内容。
+          required: true
+

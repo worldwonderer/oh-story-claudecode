@@ -152,7 +152,7 @@ mkdir -p "$ROOT/book/追踪"
 cat > "$ROOT/.story-deployed" <<'TXT'
 deployed_at: 2026-06-25T00:00:00Z
 agents_version: 19
-setup_skill_version: 1.2.7
+setup_skill_version: 1.2.8
 target_cli: codex
 resolver_strategy: project-local-skill-reference
 references_dir: .codex/skills/story-setup/references/agent-references

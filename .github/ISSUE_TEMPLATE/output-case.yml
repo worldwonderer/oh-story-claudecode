@@ -1,0 +1,141 @@
+name: 输出质量 Case
+description: 提交文风、人物、节奏、逻辑或 AI 味不符合预期的具体生成案例
+title: "[Output Case] "
+labels:
+  - output-case
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这里收集可以分析的真实生成案例。请给出必要上下文、实际输出和具体问题；只有“AI 味重”“写得不好”无法进入研发排期。
+
+        Issue 是公开的。只提交你有权公开的内容，不要粘贴完整书稿、API Key、Token 或个人信息。
+
+  - type: input
+    id: version
+    attributes:
+      label: Oh Story 版本
+      description: 可查看 `skills/story/VERSION`；若使用 main，请填写 commit SHA。
+      placeholder: 例如 0.7.7 或 a03f0a8
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Claude Code
+        - Codex
+        - OpenCode
+        - ZCode
+        - OpenClaw
+        - Reasonix
+        - 通用 Agent / Web AI
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: 模型
+      placeholder: 请填写实际执行写作的模型名称和版本
+    validations:
+      required: true
+
+  - type: dropdown
+    id: skill
+    attributes:
+      label: 使用的 Skill
+      multiple: true
+      options:
+        - story-long-write
+        - story-short-write
+        - story-deslop
+        - story-review
+        - story-import
+        - story-long-analyze
+        - story-short-analyze
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: 原本想得到什么
+      description: 写清这一段要完成的剧情、人物或情绪目标，不要只写“文笔要好”。
+      placeholder: 例如：女主已经怀疑男主，但暂时不能揭穿；她应保持自然，通过细节试探对方。
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 最小必要上下文
+      description: 只提供判断该 Case 所需的设定、细纲、前文或指令，不要粘贴整个项目。
+      placeholder: 角色约束、相关情节点、紧邻前文、额外提示词等。
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: 实际输出片段
+      description: 建议 200–1500 字，保留足够前后文；过长时截取最能说明问题的连续片段。
+      placeholder: 粘贴实际生成的连续片段。
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 具体哪里不符合预期
+      description: 至少引用一个具体位置，并说明它违反了哪个人物、剧情、文风或节奏要求。
+      placeholder: |
+        引用：“原来你一直都在骗我！”她失声喊道。
+        问题：角色反应过于直接，违反“习惯隐藏情绪”的设定，也提前释放了本章冲突。
+    validations:
+      required: true
+
+  - type: textarea
+    id: direction
+    attributes:
+      label: 期望方向
+      description: 不要求完整改写，但要说明怎样的处理更符合目标。
+      placeholder: 希望她先假装相信，再通过询问时间、观察衣服痕迹来试探。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: 重试情况
+      options:
+        - 相同输入多次出现相同问题
+        - 相似章节反复出现相同问题
+        - 重新生成后消失
+        - 尚未重试
+    validations:
+      required: true
+
+  - type: input
+    id: attempts
+    attributes:
+      label: 尝试次数
+      placeholder: 例如 3 次生成中 2 次出现
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已标出具体问题，而不只是“AI 味重”“没有感情”等总体评价。
+          required: true
+        - label: 我有权公开以上内容，并已删除 API Key、Token、个人信息和不愿公开的书稿。
+          required: true
+

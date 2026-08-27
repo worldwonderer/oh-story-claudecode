@@ -1,0 +1,83 @@
+name: 功能请求
+description: 提议有明确用户问题、使用场景和验收结果的新能力
+title: "[Feature] "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        功能请求需要说明要解决的真实问题，而不只是一个功能名称。Runtime / IDE 适配请求请同时提供官方扩展或 Skills 文档。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题
+      description: 谁在什么场景下遇到了什么阻碍？当前为什么无法完成？
+      placeholder: 当我……时，因为……，目前无法……
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 描述你期望增加或改变的能力，不要求给出实现细节。
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 可验收结果
+      description: 说明实现后用户能完成什么，以及怎样判断功能已经可用。
+      placeholder: 实现后，在……环境执行……应当……
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_workaround
+    attributes:
+      label: 当前替代方案
+      description: 目前是否能通过已有 Skill、通用 Skills 路径或手工步骤完成？
+    validations:
+      required: true
+
+  - type: input
+    id: runtime_docs
+    attributes:
+      label: Runtime / IDE 官方文档
+      description: 仅适配请求必填；其他功能请求可填“不适用”。
+      placeholder: 官方扩展、插件、Agent、Skills 或 Hooks 文档链接
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: 贡献意愿
+      options:
+        - 我可以帮助测试
+        - 我可以尝试提交 PR
+        - 我可以提供环境或复现材料
+        - 暂时只能提出需求
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: 其他上下文
+      description: 可补充截图、相似产品行为、相关 Issue 或资料。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我搜索过现有 Issue 和 Discussion，没有找到相同请求。
+          required: true
+        - label: 我确认这不是单纯的使用方法问题；使用问题应前往 Discussions。
+          required: true
+

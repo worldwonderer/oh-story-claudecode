@@ -96,7 +96,8 @@ def main() -> int:
         return 0
 
     args.dest.parent.mkdir(parents=True, exist_ok=True)
-    args.dest.write_text(expected, encoding="utf-8", newline="\n")
+    with args.dest.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(expected)
     print(f"Wrote {args.dest} ({len(HOOKS)} registrations)")
     return 0
 

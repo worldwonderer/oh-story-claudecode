@@ -155,7 +155,7 @@ echo "  OK Bash write post-check"
 
 cat > "$ROOT/.story-deployed" <<'EOF'
 agents_version: 19
-setup_skill_version: 1.2.7
+setup_skill_version: 1.2.8
 target_cli: zcode
 resolver_strategy: project-local-skill-reference
 references_dir: .zcode/skills/story-setup/references/agent-references

@@ -2,10 +2,10 @@
 
 ## 当前版本
 
-- `setup_skill_version: 1.2.7`
-- `agents_version: 25`
+- `setup_skill_version: 1.2.8`
+- `agents_version: 26`
 
-`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `25`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `25`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v25 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
+`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `26`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `26`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v26 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
 
 ## 升级策略
 
@@ -50,12 +50,21 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 - `{书名}/设定/`、`大纲/`、`追踪/`
 - `.active-book`
 
-## v25 当前契约
+## v26 当前契约
 
 - 长篇字数只由 `storyctl.py` 的 `visible_chars_v1` 运行时入口测量。写作中只增加一次纯 `checkpoint`，最终 `chapter check` 同时返回长度与现有 blocking quality；用户带内可提交，`under` 禁止自动补写并由用户接受自然长度或改目标/细纲/放弃，`over` 默认只做一次不新增语义的净删型压缩并复检，仍带外则交由用户决策。tracking 提交后才进入下一章。
 - Claude、OpenCode、Codex、ZCode 的正文 Hook 不再各自解析细纲、计算字符数或执行旧 90% 欠账提示；Adapter 只保留正文内容网，避免与 `storyctl` 形成第二套字数口径。
 - narrative-writer 与 story-architect 使用显式字数口径，不再填写逐情节点数字配额，也不在缺少目标时回退 3000 字；后半段只能完成尚未写的批准情节点，完成即停，不为字数新增独立剧情。
 - 使用 `story-import` 导入时按 `storyctl wordcount measure` 记录已写章节的当前口径长度；无法执行 Python 3/CLI 时明确停止，不用模型估算代替。
+- 工作区新增 `.story/作者记忆/`：只有带原话证据、经过确认的稳定偏好才进入作者画像；候选、冲突替代和撤回保留审计记录。它与单本小说追踪隔离，当前指令、本书设定和硬门禁优先。
+- story-explorer 遇到已登记但主产物缺失的对标时 fail-closed，不再静默换用另一本；narrative-writer、story-architect、character-designer 的 reference 表改为按任务条件读取，避免列出但不触发。
+- 新建细纲的情节点使用五列表格记录内容、功能、人物、约束与落点；不再把逐点字数配额当正文编排指令。存量细纲仍可继续日更，只有新建、补建或改纲时采用新格式。
+- 部署器在复制前按 realpath / samefile 拦截源目标同对象和目标嵌入源目录，并清理已知嵌套残留；OpenClaw / Reasonix / generic 的项目内旧副本需按本页“自嵌套残留”先手动处理。
+
+重新部署后需**新开会话**，custom agent 与 hooks 才会重新注册。
+
+## v25 历史契约
+
 - Claude Code 的正文前置守卫现在也注册到 Bash：常见的重定向、`tee`、`touch`、`cp`、`mv`、`install` 写入正文时复用共享 JS 核识别目标并执行大纲/追踪门；只读命令里的引号示例与 heredoc 正文提及不拦，并按 hook `cwd` 解析相对路径。该面是**静态 best-effort 识别，不是 shell 沙箱**：环境变量间接路径、运行时生成命令与未列出的任意写文件程序无法可靠静态判定；这类写入应改用 Write/Edit。Bash 命令面依赖 node，node/共享核异常时显式告警后 fail-open；Write/Edit/MultiEdit 的纯 bash 兜底不受影响。
 - Codex Python 与共享 JS 的书目录发现统一限制为项目下 4 层，并剪枝隐藏目录、`node_modules`，避免 SessionStart/Stop 无界扫描和跨端发现范围漂移。
 - narrative-writer 与部署 reference 增加“普通名词不用引号强调”的 Gate B；合法对话、直接引用、书名/代号和场内系统载体原文保留。
@@ -93,7 +102,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 ## 升级步骤
 
 1. 在项目根目录重新运行 story-setup。
-2. 确认 `.story-deployed` 写入 `agents_version: 25` 与 `setup_skill_version: 1.2.7`。
+2. 确认 `.story-deployed` 写入 `agents_version: 26` 与 `setup_skill_version: 1.2.8`。
 3. 确认目标 CLI 的 agents、hooks/rules 和 reference bundle 都通过安装验证。
 4. 新开会话，使 custom agents 与 hooks 按当前文件重新注册。
 5. **长篇在写项目必做**：检查每本书的 `追踪/_tracking-state.json` 是否存在。不存在就是旧追踪结构，按下方「追踪模型迁移」重建，否则写下一章会被拦。

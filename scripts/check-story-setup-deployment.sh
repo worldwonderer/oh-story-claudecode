@@ -15,6 +15,7 @@ CLAUDE_MERGE="$SKILL_DIR/scripts/merge-claude-settings.py"
 COPY_PATH_SAFETY="$SKILL_DIR/scripts/copy-path-safety.py"
 TMP_DIR="$(mktemp -d)"
 CURRENT_AGENTS_VERSION="$(node -e 'process.stdout.write(String(require(process.argv[1]).agents_version))' "$SCRIPT_DIR/current-contract.json")"
+CURRENT_SETUP_VERSION="$(node -e 'process.stdout.write(String(require(process.argv[1]).setup_skill_version))' "$SCRIPT_DIR/current-contract.json")"
 PREVIOUS_AGENTS_VERSION=$((CURRENT_AGENTS_VERSION - 1))
 NEXT_AGENTS_VERSION=$((CURRENT_AGENTS_VERSION + 1))
 
@@ -66,7 +67,7 @@ write_sentinel() {
   cat > "$root/.story-deployed" <<SENTINEL
 deployed_at: 2026-05-24T00:00:00Z
 agents_version: $CURRENT_AGENTS_VERSION
-setup_skill_version: 1.2.7
+setup_skill_version: $CURRENT_SETUP_VERSION
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
@@ -525,7 +526,7 @@ copy_hooks "$bad_sentinel_root"
 cat > "$bad_sentinel_root/.story-deployed" <<SENTINEL
 deployed_at: 2026-05-24T00:00:00Z
 agents_version: $CURRENT_AGENTS_VERSION
-setup_skill_version: 1.2.7
+setup_skill_version: $CURRENT_SETUP_VERSION
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
 SENTINEL
@@ -540,7 +541,7 @@ copy_hooks "$stale_previous_root"
 cat > "$stale_previous_root/.story-deployed" <<SENTINEL
 deployed_at: 2026-05-24T00:00:00Z
 agents_version: $PREVIOUS_AGENTS_VERSION
-setup_skill_version: 1.2.7
+setup_skill_version: $CURRENT_SETUP_VERSION
 target_cli: claude-code
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references
@@ -598,7 +599,7 @@ touch "$multi_end_root/.codex/skills/story-setup/references/agent-references/dum
 cat > "$multi_end_root/.story-deployed" <<SENTINEL
 deployed_at: 2026-05-24T00:00:00Z
 agents_version: $CURRENT_AGENTS_VERSION
-setup_skill_version: 1.2.7
+setup_skill_version: $CURRENT_SETUP_VERSION
 target_cli: claude-code,codex
 resolver_strategy: project-local-skill-reference
 references_dir: .claude/skills/story-setup/references/agent-references,.codex/skills/story-setup/references/agent-references
@@ -716,7 +717,7 @@ assert_grep "agents_version.*小于 \`$CURRENT_AGENTS_VERSION\`|版本 < $CURREN
 assert_grep "agents_version.*大于 \`$CURRENT_AGENTS_VERSION\`" "$SKILL_DIR/SKILL.md" "story-setup must stop before downgrading a newer deployment"
 assert_grep 'Notice: agents bundle 版本不匹配' "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must surface an agents_version mismatch"
 assert_grep "大于 $CURRENT_AGENTS_VERSION 时额外提示先更新 oh-story-claudecode" "$REPO_ROOT/skills/story-review/SKILL.md" "story-review must tell newer deployments to update the package first"
-assert_grep '^version:[[:space:]]*1\.2\.7$' "$SKILL_FILE" "story-setup frontmatter must match the deployed setup version"
+assert_grep "^version:[[:space:]]*$CURRENT_SETUP_VERSION$" "$SKILL_FILE" "story-setup frontmatter must match the deployed setup version"
 
 # Phase 1 自检的目录名单是硬编码的，必须与实际 references/ 子目录集合一致。
 # 漏写一个 → 半装的包检不出；名单里多出已删除的目录 → 完好的包被判残缺，fail-closed 卡死所有部署。

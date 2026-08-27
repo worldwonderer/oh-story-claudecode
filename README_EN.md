@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-08-21 -->
+<!-- Last synced with README.md: 2026-08-26 -->
 
 **English** | [中文](README.md)
 
@@ -18,6 +18,8 @@ Professional authors follow a three-step method:
 
 Built around four pillars: reverse-engineering hits · plot modularization · layered state management · human-AI collaboration.
 
+> Starting in v0.7.7: long-form chapter length and completion now use one machine-enforced source of truth. `storyctl.py` takes one measurement-only checkpoint during drafting, then checks both length and blocking quality at completion. Under-length chapters are no longer padded with new story content; over-length chapters get at most one meaning-preserving compression pass before the choice returns to the user. A missing or invalid word target no longer falls back to 3,000. New workspace-level author memory carries confirmed stable preferences across sessions while remaining separate from per-book continuity. Codex cover generation now prefers its built-in ImageGen. Setup also fixes self-copying reference bundles and nested residue. **This release ships `agents_version` 26** — update the skill pack, rerun `/story-setup`, and start a new session.
+>
 > Starting in v0.7.6: the focus is the prose stage. Three rules in `narrative-writer` had been running on empty. "Count the words immediately after writing" hands the agent a Bash command, but Bash was never in its tool allowlist — and the same sentence forbids the only alternative, model estimation — so "hitting the word target is a hard requirement" rested on nothing executable. "Report the sentence-length distribution before returning" was equally uncomputable and could only be invented, while the main session was using that number as a quality check. And "expand every outline item in order" sat under a top-priority heading, while the half that loosens it — you may freely rearrange, merge, and interleave plot points — lived only in the main skill, never entered the spawn prompt, and was never read by the subagent; seeing only the restriction, it flattened the chapter into one paragraph per plot point. All three are fixed; in a live run the first draft landed inside the acceptance range (the control group came in under 73% of the floor). New outline-copy detection catches prose that has degenerated into transcription when outline items are written as finished prose sentences, with a companion "verbatim anchor" field so lines that must appear word-for-word (oaths, system panels, case-file quotes) are not flagged. Also: writing prose via a Bash redirect on Claude Code now hits the outline/tracking guard, and the text loaded on every session drops another fifth (book-opening −30%, revision −41%). **This release ships `agents_version` 25** — deployed projects must rerun `/story-setup` and start a new session.
 >
 > Starting in v0.7.5: a stability release. The prose-write guard on Claude Code gains the tracking checkpoint the other three CLIs have had since v0.7.3 — the primary CLI previously let you silently write chapters with no tracking at all. `story-long-write`'s SKILL.md, the one file loaded in full every time the skill fires, drops from 82 KB to 54 KB (the three book-opening phases move into an on-demand `workflow-setup.md`, so daily-update sessions stop paying for outlining steps they never use). And a batch of over-accumulated restriction rules is cleared out — one of which flagged an ordinary "he said" in prose as a violation. **This release ships `agents_version` 24** — deployed projects must rerun `/story-setup` and start a new session.
@@ -399,6 +401,7 @@ Contributions are welcome — new skills, knowledge base additions, market data 
 
 - **Telegram**: <https://t.me/ohstoryclaudecode> — chat, troubleshooting, and feature discussion.
 - **GitHub Discussions**: [ask questions, get help, share workflows](https://github.com/zenstory-ai/oh-story-claudecode/discussions).
+- **GitHub Issues**: [bugs, output-quality cases, and feature requests](https://github.com/zenstory-ai/oh-story-claudecode/issues/new/choose). Use the structured forms and include reproducible evidence or a concrete output sample.
 
 ## Acknowledgments
 

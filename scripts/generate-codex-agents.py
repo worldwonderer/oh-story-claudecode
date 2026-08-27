@@ -141,7 +141,8 @@ def publish_rendered(rendered: dict[str, str], dst_dir: Path) -> list[Path]:
     )
     try:
         for filename, output in rendered.items():
-            (staging / filename).write_text(output, encoding="utf-8", newline="\n")
+            with (staging / filename).open("w", encoding="utf-8", newline="\n") as handle:
+                handle.write(output)
 
         existing = sorted(dst_dir.glob("*.toml"))
         for path in existing:

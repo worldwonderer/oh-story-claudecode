@@ -358,10 +358,12 @@ def publish_tree(rendered: dict[str, str], agents_md: str, dst_root: Path) -> No
         agents_dir.mkdir()
         backup_agents.mkdir()
         for filename, output in rendered.items():
-            (agents_dir / filename).write_text(output, encoding="utf-8", newline="\n")
+            with (agents_dir / filename).open("w", encoding="utf-8", newline="\n") as handle:
+                handle.write(output)
 
         staged_agents_md = staging / "AGENTS.md.tmpl"
-        staged_agents_md.write_text(agents_md, encoding="utf-8", newline="\n")
+        with staged_agents_md.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(agents_md)
 
         existing_md = sorted(existing_agents.glob("*.md"))
         for path in existing_md:
