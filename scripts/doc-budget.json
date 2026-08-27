@@ -22,8 +22,8 @@
     },
     {
       "path": "skills/story-long-write/references/workflow-chapter.md",
-      "budget": 12030,
-      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达。+180：把筛选后的偏好传给初稿/去味 agent，并明确禁止为最大化命中牺牲连贯、节奏和字数"
+      "budget": 12200,
+      "why": "单章正文与质量检查，日更/单章路径都加载。含 spawn prompt 的正文形状层约束——细纲边界只传「不许自造」半边时，子代理会一条情节点一段平推（#255 的复发路径），形状半边必须随 prompt 传达。+180：把筛选后的偏好传给初稿/去味 agent，并明确禁止为最大化命中牺牲连贯、节奏和字数。+170：把 stock-reaction-tic 接到逐处删除测试和可核验交付摘要，避免 advisory 被笼统略过"
     },
     {
       "path": "skills/story-long-write/references/workflow-setup.md",
@@ -32,34 +32,34 @@
     },
     {
       "path": "skills/story-short-write/SKILL.md",
-      "budget": 16800,
-      "why": "短篇任一场景都无条件加载"
+      "budget": 16900,
+      "why": "短篇任一场景都无条件加载。+100：移除把三维度和身体反应当逐段配额的旧指令，并明确功能性身体细节边界"
     },
     {
       "path": "skills/story-setup/references/templates/agents/narrative-writer.md",
-      "budget": 13320,
-      "why": "正文 agent 的系统提示，每章每次 spawn 都付。正文规则中的 reference 引用必须保留 canonical agent-references 前缀，否则运行时无法可靠定位部署文件；本次同时加入正文形状、机器统计与细纲重合复核规则。+150：参考文件表的「何时读取」改为可判定的必读条件——旧措辞「按需读取…时」是场景描述，被当成自由裁量，实测同一章 6 轮全部漏读 writing-craft.md（9 个参考文件里只读到 banned-words.md，而它是靠 spawn prompt 点名才被读的）；条件化后同条件 1 轮命中 5 读 4 不读，判定全对且未出现全量预加载"
+      "budget": 13700,
+      "why": "正文 agent 的系统提示，每章每次 spawn 都付。正文规则中的 reference 引用必须保留 canonical agent-references 前缀，否则运行时无法可靠定位部署文件；本次同时加入正文形状、机器统计与细纲重合复核规则。+150：参考文件表的「何时读取」改为可判定的必读条件——旧措辞「按需读取…时」是场景描述，被当成自由裁量，实测同一章 6 轮全部漏读 writing-craft.md（9 个参考文件里只读到 banned-words.md，而它是靠 spawn prompt 点名才被读的）；条件化后同条件 1 轮命中 5 读 4 不读，判定全对且未出现全量预加载。+380：三维度改为按需信息，并把反套话删除/保留计数变成逐章交付验收；12 次实测显示只改技法文本不足以保证执行"
     },
     {
       "path": "skills/story-long-write/references/writing-craft.md",
-      "budget": 8300,
-      "why": "narrative-writer 每章写作时读"
+      "budget": 9000,
+      "why": "narrative-writer 每章写作时读。+700：重写情绪落地、场景三维度与动静节奏，删除『情绪词逐个替换成身体动作』的生成根因，并加入功能删除测试；固定章实验身体部位依赖下降 65.5%"
     },
     {
       "path": "skills/story-long-write/references/anti-ai-writing.md",
-      "budget": 13900,
-      "why": "去AI味每章读"
+      "budget": 14100,
+      "why": "去AI味每章读。+200：Show Don't Tell 不再强制情绪外化为身体动作，补充选择/台词/物件/后果优先与功能性保留边界"
     },
     {
       "path": "skills/story-long-write/references/banned-words.md",
-      "budget": 3800,
-      "why": "禁用词扫描每章读"
+      "budget": 4000,
+      "why": "禁用词扫描每章读。+200：登记指尖轻叩、指节泛白、喉结滚动、声音放轻等成片反应簇及删除测试，不把单个身体词设为禁词"
     }
   ],
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 36730,
+      "budget": 36900,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-daily.md",
@@ -76,7 +76,7 @@
     },
     {
       "label": "正文 agent 上下文",
-      "budget": 39120,
+      "budget": 40700,
       "files": [
         "skills/story-setup/references/templates/agents/narrative-writer.md",
         "skills/story-long-write/references/writing-craft.md",
