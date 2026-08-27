@@ -24,6 +24,7 @@ def run_cli(*arguments: str) -> tuple[subprocess.CompletedProcess[str], dict[str
         [sys.executable, str(STORYCTL_PATH), *arguments],
         cwd=ROOT,
         text=True,
+        encoding="utf-8",
         capture_output=True,
         check=False,
     )
