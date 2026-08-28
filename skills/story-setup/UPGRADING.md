@@ -2,10 +2,10 @@
 
 ## 当前版本
 
-- `setup_skill_version: 1.3.0`
-- `agents_version: 27`
+- `setup_skill_version: 1.2.8`
+- `agents_version: 26`
 
-`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `27`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`，Antigravity 用 `/skills` 或自然语言点名）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `27`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v27 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
+`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `26`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`，Antigravity 用 `/skills` 或自然语言点名）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `26`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v26 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
 
 ## 升级策略
 
@@ -52,7 +52,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 - `{书名}/设定/`、`大纲/`、`追踪/`
 - `.active-book`
 
-## v27 当前契约
+## v26 当前契约
 
 - 新增 Google Antigravity 2.0 项目部署：13 个 skill 真实复制到 `.agents/skills/`，7 个 Claude agent 真源确定性转换为 `.agents/agents/agent-name/agent.md`（`agent-name` 为实际名称），并安装 `.agents/rules/oh-story.md` Always-On Rule。
 - Antigravity Workspace Hooks 只使用官方 `PreToolUse`、`PostToolUse`、`PreInvocation`、`Stop` 事件；写前门禁直接返回 allow/deny，PostToolUse 按协议只返回 `{}`，写后正文 findings 通过 session artifact 交给下一次 PreInvocation，Stop 最多续跑一次。
@@ -60,8 +60,6 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 - Antigravity custom agent 通过 `invoke_subagent` + 同名 `TypeName` 调用；运行时无该能力时按既有 solo/direct 规则降级。外部 Hook API 没有 PreCompact/PostCompact，压缩后上下文恢复由 Always-On Rule 强制读取 `追踪/上下文.md`。
 
 重新部署后需**新开 Antigravity conversation**，使 Skills、Rules、Agents 与 Hooks 重新扫描；IDE 与交互式 `agy` 建议分别 smoke test。
-
-## v26 历史契约
 
 - 长篇字数只由 `storyctl.py` 的 `visible_chars_v1` 运行时入口测量。写作中只增加一次纯 `checkpoint`，最终 `chapter check` 同时返回长度与现有 blocking quality；用户带内可提交，`under` 禁止自动补写并由用户接受自然长度或改目标/细纲/放弃，`over` 默认只做一次不新增语义的净删型压缩并复检，仍带外则交由用户决策。tracking 提交后才进入下一章。
 - Claude、OpenCode、Codex、ZCode 的正文 Hook 不再各自解析细纲、计算字符数或执行旧 90% 欠账提示；Adapter 只保留正文内容网，避免与 `storyctl` 形成第二套字数口径。
@@ -113,7 +111,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 ## 升级步骤
 
 1. 在项目根目录重新运行 story-setup。
-2. 确认 `.story-deployed` 写入 `agents_version: 27` 与 `setup_skill_version: 1.3.0`。
+2. 确认 `.story-deployed` 写入 `agents_version: 26` 与 `setup_skill_version: 1.2.8`。
 3. 确认目标 CLI 的 agents、hooks/rules 和 reference bundle 都通过安装验证。
 4. 新开会话，使 custom agents 与 hooks 按当前文件重新注册。
 5. **长篇在写项目必做**：检查每本书的 `追踪/_tracking-state.json` 是否存在。不存在就是旧追踪结构，按下方「追踪模型迁移」重建，否则写下一章会被拦。

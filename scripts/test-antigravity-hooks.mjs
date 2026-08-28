@@ -113,7 +113,7 @@ try {
   assert.ok(!fs.existsSync(pending), "clean rewrite must clear pending findings")
   assert.deepEqual(invoke("pre-invocation", { invocationNum: 1 }).value, {})
 
-  write(".story-deployed", "agents_version: 27\ntarget_cli: antigravity\n")
+  write(".story-deployed", "agents_version: 26\ntarget_cli: antigravity\n")
   write(".active-book", "长书\n")
   write("长书/设定/世界观.md", "# 世界观\n")
   write("长书/追踪/上下文.md", "# 上下文\n")
