@@ -37,6 +37,8 @@ jobs:
         run: bash scripts/check-shared-files.sh
       - name: Shared-asset manifest regression
         run: python3 scripts/test-shared-assets.py
+      - name: Shared-reference manifest regression
+        run: python3 scripts/test-shared-references.py
       - name: Punctuation normalizer regression
         run: node scripts/test-normalize-punctuation.js
       - name: Scan runtime regression
@@ -49,6 +51,11 @@ jobs:
         run: bash scripts/test-ai-patterns.sh
       - name: Outline-copy detector regression
         run: bash scripts/test-outline-copy.sh
+      - name: Phase 2 contract verifier regression
+        run: |
+          node scripts/test-phase2-contract.js
+          node scripts/test-delivery-contract.js
+          node scripts/test-reference-gates.js
       - name: Degeneration detector regression
         run: bash scripts/test-degeneration.sh
       - name: Prose backstop hook regression
@@ -124,6 +131,11 @@ jobs:
       - name: Outline-copy detector regression
         shell: bash
         run: bash scripts/test-outline-copy.sh
+      - name: Phase 2 contract verifier regression
+        run: |
+          node scripts/test-phase2-contract.js
+          node scripts/test-delivery-contract.js
+          node scripts/test-reference-gates.js
       - name: Degeneration detector regression
         shell: bash
         run: bash scripts/test-degeneration.sh
@@ -200,6 +212,11 @@ jobs:
         run: bash scripts/test-ai-patterns.sh
       - name: Outline-copy detector regression
         run: bash scripts/test-outline-copy.sh
+      - name: Phase 2 contract verifier regression
+        run: |
+          node scripts/test-phase2-contract.js
+          node scripts/test-delivery-contract.js
+          node scripts/test-reference-gates.js
       - name: Degeneration detector regression
         run: bash scripts/test-degeneration.sh
       - name: Prose backstop hook regression

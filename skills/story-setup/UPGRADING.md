@@ -2,10 +2,10 @@
 
 ## 当前版本
 
-- `setup_skill_version: 1.2.8`
-- `agents_version: 26`
+- `setup_skill_version: 1.2.10`
+- `agents_version: 28`
 
-`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `26`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`，Antigravity 用 `/skills` 或自然语言点名）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `26`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v26 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
+`.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `28`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`，Antigravity 用 `/skills` 或自然语言点名）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `28`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v28 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
 
 ## 升级策略
 
@@ -52,7 +52,26 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 - `{书名}/设定/`、`大纲/`、`追踪/`
 - `.active-book`
 
-## v26 当前契约
+## v28 当前契约
+
+- `agent-reference-profiles.md` 成为 story-architect 唯一资料清单；Agent 模板不再复制第二份 inventory。部署守卫会校验 Common / Long / Short 所有权、文件存在性和表外读取。
+- 悬念、反转和质量标准改为 profile 专属：long 使用 `long-suspense.md`、`long-reversal.md`、`long-quality.md`，short 使用对应 `short-*` 文件；`agent-quality.md` 只保留跨体裁五维核心。
+- 长篇题材资料改为 `long-genre-catalog.md` + `long-genre-mechanics.md`，不再把短篇三幕结构放进 Common；短篇继续使用 `short-genre-formulas.md`。
+- `format-and-structure.md` 只服务短篇/import/setup；长篇改用独立 `long-format.md`，不再“只读同一文件的一部分”。
+- 跨 Skill 近似副本由 `shared-references.json` 的 `derived_groups` 登记来源与分化原因；目录镜像清单必须覆盖 source tree 全部文件。
+
+重新部署后需**新开会话**，custom agent 与 hooks 才会重新注册。
+
+## v27 历史契约
+
+- story-architect 保持单一 Agent 名称，但每次任务先选择 `long` / `short` reference profile，只加载 common + 当前篇幅资产；无法判定时显式返回 unresolved，不混合两套口径。
+- `plot-core-methods.md` 由 story-architect 在卡文、剧情循环、五步高潮、过渡、长线期待和日纲推进场景中条件消费；部署守卫会拒绝没有 Agent 消费链的 reference。
+- 长篇 profile 使用 `genre-prose-cards.md` 与 `long-emotional-methods.md`，短篇 profile 使用 `short-genre-formulas.md`、`short-paragraph-hooks.md` 与 `short-emotional-methods.md`，长篇不再继承每节 500–800 字等短篇默认值。
+- setup reference bundle 的 profile 文件和语义别名属于 story-setup 管理资产；重新部署会替换旧 bundle，部署后必须新开会话。
+
+重新部署后需**新开会话**，custom agent 与 hooks 才会重新注册。
+
+## v26 历史契约
 
 - 新增 Google Antigravity 2.0 项目部署：13 个 skill 真实复制到 `.agents/skills/`，7 个 Claude agent 真源确定性转换为 `.agents/agents/agent-name/agent.md`（`agent-name` 为实际名称），并安装 `.agents/rules/oh-story.md` Always-On Rule。
 - Antigravity Workspace Hooks 只使用官方 `PreToolUse`、`PostToolUse`、`PreInvocation`、`Stop` 事件；写前门禁直接返回 allow/deny，PostToolUse 按协议只返回 `{}`，写后正文 findings 通过 session artifact 交给下一次 PreInvocation，Stop 最多续跑一次。
@@ -111,7 +130,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 ## 升级步骤
 
 1. 在项目根目录重新运行 story-setup。
-2. 确认 `.story-deployed` 写入 `agents_version: 26` 与 `setup_skill_version: 1.2.8`。
+2. 确认 `.story-deployed` 写入 `agents_version: 28` 与 `setup_skill_version: 1.2.10`。
 3. 确认目标 CLI 的 agents、hooks/rules 和 reference bundle 都通过安装验证。
 4. 新开会话，使 custom agents 与 hooks 按当前文件重新注册。
 5. **长篇在写项目必做**：检查每本书的 `追踪/_tracking-state.json` 是否存在。不存在就是旧追踪结构，按下方「追踪模型迁移」重建，否则写下一章会被拦。

@@ -102,7 +102,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 
 完成核心设定后，创建以下 artifact（加载 [references/artifact-protocols.md](artifact-protocols.md) 中对应模板）：
 - **设定/关系.md**：角色关系映射（参考 character-relations.md「四种关系类型」）
-- **设定/题材定位.md**：题材核心梗三分法+对标分析（参考 genre-core-mechanics.md「核心梗解析」）。对标分析表保留 2-3 行摘要，详细数据见 `对标/` 目录
+- **设定/题材定位.md**：题材核心梗三分法+对标分析（参考 long-genre-mechanics.md「核心梗解析」）。对标分析表保留 2-3 行摘要，详细数据见 `对标/` 目录
 - **设定/题材正文提示卡.md**：从 `设定/题材定位.md` + `references/genre-prose-cards.md`（索引）+ `references/genre-prose-cards/`（单题材正文卡目录，按题材分类优先）+ `references/style-genre-modules.md`（通用流派补充）抽取本书正文层题材卡，只写题材边界、核心逻辑、读者期待、核心爽点/情绪、正文落点、前中后期打法、节奏密度、场景颗粒、禁止漂移；不写通用格式规则，不覆盖 `设定/文风.md`
 
 > **多对标书时**：参 `references/cross-book-recall.md`，副对标 anchor 入「对标分析」表附录
@@ -271,7 +271,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 
 大纲完成后，创建以下 artifact（加载 [references/artifact-protocols.md](artifact-protocols.md) 中对应模板）：
 - **大纲/大纲.md**：全书卷级鸟瞰（卷名+字数+章数+核心事件+状态变化，一段式汇总）
-- **大纲/卷纲_第X卷.md**：每卷的剧情单元+情绪弧线（含章节定位）+人物弧线+伏笔+反转+对标结构坐标（参考 outline-methods.md「大纲三层结构法」 + outline-structure-theory.md「章节定位与张弛 / 对标节奏迁移」 + emotional-arc-design.md「六种弧线速查」 + reversal-toolkit.md「反转类型」）
+- **大纲/卷纲_第X卷.md**：每卷的剧情单元+情绪弧线（含章节定位）+人物弧线+伏笔+反转+对标结构坐标（参考 outline-methods.md「大纲三层结构法」 + outline-structure-theory.md「章节定位与张弛 / 对标节奏迁移」 + emotional-arc-design.md「六种弧线速查」 + long-reversal.md「反转类型」）
 - **追踪事务初始状态**：按 `references/tracking-transaction.md` 构造第 0 章初始化 JSON，执行 `scripts/tracking_commit.py init`，生成检查点、续写状态卡（固定 7 栏）、空的伏笔/时间线视图与目录；紧接着运行 `check`，通过后删除初始化事务 JSON；核心角色动态快照可在第一次正文事务中创建
 
 前 3 章细纲额外加载 [references/opening-design.md](opening-design.md)（黄金三章法则+六大标准）。

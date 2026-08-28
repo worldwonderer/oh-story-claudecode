@@ -12,8 +12,8 @@
   "files": [
     {
       "path": "skills/story-long-write/SKILL.md",
-      "budget": 13420,
-      "why": "长篇任一场景都无条件加载。+90：作者记忆若只在某条 workflow 按需出现，开书/日更/单章会有路径漏查；入口只保留按 kind 的 ≤2KB 查询、优先级、单事件回执和 reference 路由，完整协议仍是冷路径"
+      "budget": 14400,
+      "why": "长篇任一场景都无条件加载。+90：作者记忆若只在某条 workflow 按需出现，开书/日更/单章会有路径漏查；入口只保留按 kind 的 ≤2KB 查询、优先级、单事件回执和 reference 路由，完整协议仍是冷路径。+680：真实写作 A/B 发现单章路径会只读 workflow 后以 rg 摘取正文 references；首屏加入按路由、直接写作与题材条件分层的完整读取门禁，并明确局部检索不算读完。+300：第二轮 A/B 发现完整加载后会稀释当前细纲的时间与停笔约束；加入写前 Constraint Lock，把用户范围、必做/禁做、时间锚与章尾债重新置于最近上下文"
     },
     {
       "path": "skills/story-long-write/references/workflow-daily.md",
@@ -32,8 +32,8 @@
     },
     {
       "path": "skills/story-short-write/SKILL.md",
-      "budget": 16900,
-      "why": "短篇任一场景都无条件加载。+100：移除把三维度和身体反应当逐段配额的旧指令，并明确功能性身体细节边界"
+      "budget": 18400,
+      "why": "短篇任一场景都无条件加载。+100：移除把三维度和身体反应当逐段配额的旧指令，并明确功能性身体细节边界。+1500：6+6 首屏/尾部对照与缺引用 5+5 实验显示，Reference Gate 必须在首屏并 fail-closed；补 Phase 2 确定性 verifier、具名失败和最多两轮定向 repair，避免只读 SKILL.md 即写作。在原预算内替换冲突的手工字数说明：真实写作 A/B 暴露 6000-8000 用户范围与无条件 ≥8000 互相冲突；现明确用户范围优先，并加入最终 delivery verifier 与定向修复闭环"
     },
     {
       "path": "skills/story-setup/references/templates/agents/narrative-writer.md",
@@ -59,7 +59,7 @@
   "paths": [
     {
       "label": "长篇日更主会话",
-      "budget": 36900,
+      "budget": 37900,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-daily.md",
@@ -68,7 +68,7 @@
     },
     {
       "label": "长篇开书",
-      "budget": 25720,
+      "budget": 26700,
       "files": [
         "skills/story-long-write/SKILL.md",
         "skills/story-long-write/references/workflow-setup.md"

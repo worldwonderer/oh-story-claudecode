@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "name": "prose-anti-ai-guide",
+      "source": "skills/story-long-write/references/anti-ai-writing.md",
+      "targets": [
+        "skills/story-deslop/references/anti-ai-writing.md",
+        "skills/story-review/references/anti-ai-writing.md",
+        "skills/story-setup/references/agent-references/anti-ai-writing.md"
+      ]
+    },
+    {
+      "name": "author-memory-reference",
+      "source": "skills/story/references/author-memory.md",
+      "targets": [
+        "skills/story-long-write/references/author-memory.md",
+        "skills/story-short-write/references/author-memory.md",
+        "skills/story-deslop/references/author-memory.md",
+        "skills/story-review/references/author-memory.md"
+      ]
+    },
+    {
+      "name": "prose-banned-words",
+      "source": "skills/story-long-write/references/banned-words.md",
+      "targets": [
+        "skills/story-short-write/references/banned-words.md",
+        "skills/story-deslop/references/banned-words.md",
+        "skills/story-review/references/banned-words.md",
+        "skills/story-setup/references/agent-references/banned-words.md"
+      ]
+    },
+    {
+      "name": "character-basics",
+      "source": "skills/story-long-write/references/character-basics.md",
+      "targets": ["skills/story-setup/references/agent-references/character-basics.md"]
+    },
+    {
+      "name": "character-design-methods",
+      "source": "skills/story-long-write/references/character-design-methods.md",
+      "targets": ["skills/story-setup/references/agent-references/character-design-methods.md"]
+    },
+    {
+      "name": "character-relations",
+      "source": "skills/story-long-write/references/character-relations.md",
+      "targets": [
+        "skills/story-review/references/character-relations.md",
+        "skills/story-setup/references/agent-references/character-relations.md"
+      ]
+    },
+    {
+      "name": "dialogue-mastery",
+      "source": "skills/story-long-write/references/dialogue-mastery.md",
+      "targets": [
+        "skills/story-short-write/references/dialogue-mastery.md",
+        "skills/story-review/references/dialogue-mastery.md",
+        "skills/story-setup/references/agent-references/dialogue-mastery.md"
+      ]
+    },
+    {
+      "name": "emotional-arc-design",
+      "source": "skills/story-long-write/references/emotional-arc-design.md",
+      "targets": ["skills/story-setup/references/agent-references/emotional-arc-design.md"]
+    },
+    {
+      "name": "short-emotional-methods",
+      "source": "skills/story-short-write/references/emotional-methods.md",
+      "targets": ["skills/story-setup/references/agent-references/short-emotional-methods.md"]
+    },
+    {
+      "name": "format-and-structure",
+      "source": "skills/story-import/references/format-and-structure.md",
+      "targets": ["skills/story-setup/references/agent-references/format-and-structure.md"]
+    },
+    {
+      "name": "genre-prose-card-index",
+      "source": "skills/story-long-write/references/genre-prose-cards.md",
+      "targets": ["skills/story-setup/references/agent-references/genre-prose-cards.md"]
+    },
+    {
+      "name": "short-genre-formulas",
+      "source": "skills/story-short-write/references/genre-writing-formulas.md",
+      "targets": ["skills/story-setup/references/agent-references/short-genre-formulas.md"]
+    },
+    {
+      "name": "long-chapter-hooks",
+      "source": "skills/story-long-write/references/long-chapter-hooks.md",
+      "targets": ["skills/story-setup/references/agent-references/long-chapter-hooks.md"]
+    },
+    {
+      "name": "short-chapter-hooks",
+      "source": "skills/story-short-write/references/hooks-chapter.md",
+      "targets": ["skills/story-setup/references/agent-references/short-chapter-hooks.md"]
+    },
+    {
+      "name": "short-paragraph-hooks",
+      "source": "skills/story-short-write/references/hooks-paragraph.md",
+      "targets": ["skills/story-setup/references/agent-references/short-paragraph-hooks.md"]
+    },
+    {
+      "name": "long-suspense",
+      "source": "skills/story-long-write/references/long-suspense.md",
+      "targets": ["skills/story-setup/references/agent-references/long-suspense.md"]
+    },
+    {
+      "name": "short-suspense",
+      "source": "skills/story-short-write/references/short-suspense.md",
+      "targets": ["skills/story-setup/references/agent-references/short-suspense.md"]
+    },
+    {
+      "name": "opening-design",
+      "source": "skills/story-long-write/references/opening-design.md",
+      "targets": ["skills/story-setup/references/agent-references/opening-design.md"]
+    },
+    {
+      "name": "outline-conflict",
+      "source": "skills/story-long-write/references/outline-conflict.md",
+      "targets": ["skills/story-setup/references/agent-references/outline-conflict.md"]
+    },
+    {
+      "name": "outline-methods",
+      "source": "skills/story-long-write/references/outline-methods.md",
+      "targets": ["skills/story-setup/references/agent-references/outline-methods.md"]
+    },
+    {
+      "name": "outline-rhythm",
+      "source": "skills/story-long-write/references/outline-rhythm.md",
+      "targets": ["skills/story-setup/references/agent-references/outline-rhythm.md"]
+    },
+    {
+      "name": "short-output-contract",
+      "source": "skills/story-short-write/references/output-contract.md",
+      "targets": ["skills/story-short-analyze/references/output-contract.md"]
+    },
+    {
+      "name": "plot-core-methods",
+      "source": "skills/story-long-write/references/plot-core-methods.md",
+      "targets": [
+        "skills/story-review/references/plot-core-methods.md",
+        "skills/story-setup/references/agent-references/plot-core-methods.md"
+      ]
+    },
+    {
+      "name": "short-market-data",
+      "source": "skills/story-short-analyze/references/real-market-data.md",
+      "targets": ["skills/story-short-scan/references/real-market-data.md"]
+    },
+    {
+      "name": "long-reversal",
+      "source": "skills/story-long-write/references/long-reversal.md",
+      "targets": ["skills/story-setup/references/agent-references/long-reversal.md"]
+    },
+    {
+      "name": "short-reversal",
+      "source": "skills/story-short-write/references/short-reversal.md",
+      "targets": ["skills/story-setup/references/agent-references/short-reversal.md"]
+    },
+    {
+      "name": "long-genre-catalog",
+      "source": "skills/story-long-write/references/long-genre-catalog.md",
+      "targets": ["skills/story-setup/references/agent-references/long-genre-catalog.md"]
+    },
+    {
+      "name": "long-genre-mechanics",
+      "source": "skills/story-long-write/references/long-genre-mechanics.md",
+      "targets": ["skills/story-setup/references/agent-references/long-genre-mechanics.md"]
+    },
+    {
+      "name": "state-tracking",
+      "source": "skills/story-long-write/references/state-tracking.md",
+      "targets": ["skills/story-import/references/state-tracking.md"]
+    },
+    {
+      "name": "style-combat-face",
+      "source": "skills/story-long-write/references/style-combat-face.md",
+      "targets": ["skills/story-setup/references/agent-references/style-combat-face.md"]
+    },
+    {
+      "name": "style-genre-modules",
+      "source": "skills/story-long-write/references/style-genre-modules.md",
+      "targets": ["skills/story-setup/references/agent-references/style-genre-modules.md"]
+    },
+    {
+      "name": "tracking-transaction-reference",
+      "source": "skills/story-long-write/references/tracking-transaction.md",
+      "targets": [
+        "skills/story-import/references/tracking-transaction.md",
+        "skills/story-review/references/tracking-transaction.md"
+      ]
+    }
+  ],
+  "derived_groups": [
+    {
+      "name": "analysis-paragraph-hooks",
+      "reason": "Analysis rubric is being rewritten from the short-writing hook playbook; setup keeps the installable writer copy.",
+      "members": [
+        "skills/story-short-analyze/references/analysis-paragraph-hooks.md",
+        "skills/story-short-write/references/hooks-paragraph.md",
+        "skills/story-setup/references/agent-references/short-paragraph-hooks.md"
+      ]
+    },
+    {
+      "name": "analysis-character-design",
+      "reason": "Analysis rubric retains the writer method taxonomy while its instructions migrate to evidence language.",
+      "members": [
+        "skills/story-short-analyze/references/analysis-character-design.md",
+        "skills/story-long-write/references/character-design-methods.md",
+        "skills/story-setup/references/agent-references/character-design-methods.md"
+      ]
+    },
+    {
+      "name": "analysis-character-relations",
+      "reason": "Shared relationship taxonomy has distinct analysis, review and writing consumers.",
+      "members": [
+        "skills/story-short-analyze/references/analysis-character-relations.md",
+        "skills/story-long-write/references/character-relations.md",
+        "skills/story-review/references/character-relations.md",
+        "skills/story-setup/references/agent-references/character-relations.md"
+      ]
+    },
+    {
+      "name": "analysis-character-basics",
+      "reason": "Analysis rubric retains the character taxonomy while its consumer contract diverges from writing.",
+      "members": [
+        "skills/story-short-analyze/references/analysis-character-basics.md",
+        "skills/story-long-write/references/character-basics.md",
+        "skills/story-setup/references/agent-references/character-basics.md"
+      ]
+    },
+    {
+      "name": "analysis-reader-profile",
+      "reason": "Reader taxonomy is reused but analysis requires evidence and uncertainty reporting.",
+      "members": [
+        "skills/story-short-analyze/references/analysis-reader-profile.md",
+        "skills/story-long-write/references/genre-readers.md",
+        "skills/story-setup/references/agent-references/genre-readers.md"
+      ]
+    },
+    {
+      "name": "chapter-hook-family",
+      "reason": "Long and short writing hooks share a historical taxonomy but now carry different density contracts.",
+      "members": [
+        "skills/story-short-write/references/hooks-chapter.md",
+        "skills/story-long-write/references/long-chapter-hooks.md",
+        "skills/story-setup/references/agent-references/short-chapter-hooks.md",
+        "skills/story-setup/references/agent-references/long-chapter-hooks.md"
+      ]
+    },
+    {
+      "name": "long-emotional-methods-deployment",
+      "reason": "Setup adjusts the title and project-local reader-contract link while deploying the long method.",
+      "members": [
+        "skills/story-long-write/references/emotional-methods.md",
+        "skills/story-setup/references/agent-references/long-emotional-methods.md"
+      ]
+    },
+    {
+      "name": "writing-craft-deployment",
+      "reason": "Setup changes only routing lines so its self-contained bundle can reference long and short profile assets.",
+      "members": [
+        "skills/story-long-write/references/writing-craft.md",
+        "skills/story-setup/references/agent-references/writing-craft.md"
+      ]
+    },
+    {
+      "name": "analysis-writing-techniques",
+      "reason": "Analysis technique rubric derives from the short-writing technique catalog.",
+      "members": [
+        "skills/story-short-analyze/references/analysis-writing-techniques.md",
+        "skills/story-short-write/references/genre-writing-techniques.md"
+      ]
+    }
+  ],
+  "tree_groups": [
+    {
+      "name": "long-genre-prose-cards",
+      "source": "skills/story-long-write/references/genre-prose-cards",
+      "targets": ["skills/story-setup/references/agent-references/genre-prose-cards"],
+      "files": [
+        "东方仙侠.md",
+        "传统玄幻.md",
+        "历史古代.md",
+        "历史脑洞.md",
+        "双男主.md",
+        "古言脑洞.md",
+        "古风世情.md",
+        "女频悬疑.md",
+        "女频种田.md",
+        "宫斗宅斗.md",
+        "年代.md",
+        "快穿.md",
+        "悬疑灵异.md",
+        "悬疑脑洞.md",
+        "战神赘婿.md",
+        "抗战谍战.md",
+        "星光璀璨.md",
+        "民国言情.md",
+        "游戏体育.md",
+        "玄幻脑洞.md",
+        "玄幻言情.md",
+        "现言脑洞.md",
+        "科幻末世.md",
+        "职场婚恋.md",
+        "西方奇幻.md",
+        "豪门总裁.md",
+        "都市修真.md",
+        "都市日常.md",
+        "都市种田.md",
+        "都市脑洞.md",
+        "都市高武.md",
+        "青春甜宠.md"
+      ]
+    }
+  ]
+}

@@ -134,8 +134,8 @@ node scripts/test-antigravity-hooks.mjs
 
 grep -q 'target_cli = antigravity' skills/story-setup/SKILL.md \
   || fail "story-setup does not detect Antigravity"
-grep -q 'agents_version: 26' skills/story-setup/SKILL.md \
-  || fail "story-setup deployment contract is not v26"
+grep -q 'agents_version: 28' skills/story-setup/SKILL.md \
+  || fail "story-setup deployment contract is not v28"
 grep -q 'Antigravity 部署算法' skills/story-setup/SKILL.md \
   || fail "story-setup lacks Antigravity deployment algorithm"
 

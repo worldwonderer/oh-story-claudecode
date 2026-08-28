@@ -1,6 +1,6 @@
 ---
 name: story-short-analyze
-version: 3.0.0
+version: 3.1.0
 description: "短篇网文拆文。拆解爆款短篇小说（番茄短篇 / 故事会 / 知乎盐选 / 追妻 / 世情 / 重生 / 虐渣等通俗题材）的故事核、结构、情感线、反转设计、写作手法、共鸣层次。单一全量拆解管道：跑完 Stage 2-6 产出完整拆文报告，落盘到 拆文库/{书名}/，下游 story-short-write 同时读拆文报告 + 情节节点 + 写作手法 + 原文 + _meta.json 写下一篇。触发方式：/story-short-analyze、/短篇拆文、「拆短篇」「拆这篇短文」「短篇拆文」「精细拆解短篇」「8000 字短篇拆解」「番茄短篇拆文」「故事会拆解」「盐言故事拆解」「分析这篇短篇」——均进入同一管道。"
 metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudecode"}}
 ---
@@ -44,7 +44,7 @@ word_count = 全文字数
 
 ```
 用户提到具体题材（追妻 / 重生 / 虐文 / ...）？
-  ├─ 是 → 加载 genre-catalog.md 对应题材的「短篇视角」章节作为拆文标尺
+  ├─ 是 → 加载 analysis-short-genres.md 对应题材行作为短篇源文识别标尺
   └─ 否 → 关键词扫描确定题材；扫不到则 genre_detected = "通用"，用通用模板（Stage 2-6）
 ```
 
@@ -64,8 +64,8 @@ word_count = 全文字数
 - 沙雕 / 脑洞 / 弹幕 / 系统 / 反套路 → 沙雕
 - 仙侠 / 修仙 / 门派 → 仙侠
 
-题材作为「对照标尺」加载——见 `references/genre-catalog.md` 等文件首段「## 用作
-拆文标尺时」说明。
+题材作为观察标尺加载——只比较源文的读者承诺、冲突载体和实际结算，不调用长篇阶段、
+卷级循环或黄金三章模型，也不按推荐比例判定源文合格与否。
 
 ### Step 4：续跑检查（lightweight resume）
 
@@ -173,14 +173,14 @@ word_count = 全文字数
 
 Stage 6 内容写完后，**不**立刻 append `6` 到 `stages_completed[]`。先跑三道检查：
 
-### Step 1：拆文报告 AI 腔自检
+### Step 1：拆文报告表达自检
 
-扫描 `拆文报告.md` 全文 against [references/banned-words.md](references/banned-words.md)
-词表 + [references/anti-ai-writing.md](references/anti-ai-writing.md) 句式规则。
+按 [references/analysis-report-style.md](references/analysis-report-style.md) 扫描
+`拆文报告.md` 全文的证据链和高风险表达。
 扫描时跳过源文引用——以 `>` 开头的引用行、以及表格中「关键台词 / 原文引用」列的引号直引不计入，只扫分析师本人写的措辞。
 
-- **命中** → 不写 `stages_completed[6]`，列出命中位置，提示用户人工修订**拆文报告
-  本身**的 AI 腔（不是源文——源文里有 AI 腔正常报告即可，但报告本身不能写成 AI 腔）。
+- **命中** → 不写 `stages_completed[6]`，列出命中位置，修订**拆文报告本身**的
+  证据不足、空转套话或越界推测；不要改写源文。
 - **未命中** → 继续「structure_counts 数值校验」。
 
 > 守门员定位：本节检查「我们写的拆文报告」；不要评价「源文是否 AI 写的」。
@@ -239,9 +239,8 @@ Stage 6 内容写完后，**不**立刻 append `6` 到 `stages_completed[]`。�
 | [references/output-contract.md](references/output-contract.md) | 全程：Stage→文件映射 / `_meta.json` schema（含 structure_counts）/ 下游消费规范 / 验收接入点 |
 | [references/output-templates.md](references/output-templates.md) | 拆文时：输出模板 + 结构库 + 质量检查（含 [BLOCK]/[WARN] 标注） |
 | [references/material-decomposition.md](references/material-decomposition.md) | 拆文方法论：情节节点提取 + 写作手法 + 情感线 + 节奏分析 + 共鸣分析 + 人物规则 + **质量标准唯一权威** |
-| [references/quality-checklist.md](references/quality-checklist.md) | 评估**源文**质量时：短篇拆书的质量自检清单（评估对象的好坏，不是评估拆文报告本身） |
-| [references/anti-ai-writing.md](references/anti-ai-writing.md) | 「拆文报告 AI 腔自检」：扫描**拆文报告本身**的 AI 腔（不是源文滤镜） |
-| [references/banned-words.md](references/banned-words.md) | 「拆文报告 AI 腔自检」：拆文报告禁用词速查 |
+| [references/source-story-quality.md](references/source-story-quality.md) | 评估**源文**质量时：短篇拆书的质量自检清单（评估对象的好坏，不是评估拆文报告本身） |
+| [references/analysis-report-style.md](references/analysis-report-style.md) | 「拆文报告表达自检」：检查**报告本身**的证据链、高风险套话与推测边界（不是源文滤镜） |
 
 ### 按需加载（拆解对应题材 / 维度时作为对照标尺）
 
@@ -249,26 +248,27 @@ Stage 6 内容写完后，**不**立刻 append `6` 到 `stages_completed[]`。�
 |------|----------|
 | [references/deconstruction-examples.md](references/deconstruction-examples.md) | 校准拆文方法时：3 个完整案例作为参照 |
 | [references/zhihu-style.md](references/zhihu-style.md) | 拆解知乎盐言故事时作为平台特性对照 |
-| [references/genre-catalog.md](references/genre-catalog.md) | 拆解特定题材时：加载对应题材的「短篇视角」章节作为标准模式 |
-| [references/hooks-chapter.md](references/hooks-chapter.md) | 拆解章节钩子设计时作为钩子类型对照 |
-| [references/hooks-suspense.md](references/hooks-suspense.md) | 拆解悬念设计时作为悬念分类对照 |
-| [references/hooks-paragraph.md](references/hooks-paragraph.md) | 拆解段落钩子时作为 11 种段落级钩子对照 |
-| [references/character-basics.md](references/character-basics.md) | 拆解人物基础设定时作为人设要素对照 |
-| [references/character-design-methods.md](references/character-design-methods.md) | 拆解人物内在矛盾时作为三层标签反差对照（contradiction_axis 来源） |
-| [references/character-relations.md](references/character-relations.md) | 拆解人物关系网时作为关系类型对照 |
-| [references/genre-core-mechanics.md](references/genre-core-mechanics.md) | 拆解题材核心梗与循环机制时作为机制对照 |
-| [references/genre-readers.md](references/genre-readers.md) | 拆解读者心理与期待管理时作为读者画像对照 |
+| [references/analysis-short-genres.md](references/analysis-short-genres.md) | 拆解特定题材时：按短篇源文的识别锚点、读者承诺和结算归属判断主副类型 |
+| [references/analysis-short-hooks.md](references/analysis-short-hooks.md) | 拆解段落/小节边界、钩子链与候选付费断点时作为短篇源文观察标尺 |
+| [references/analysis-short-suspense.md](references/analysis-short-suspense.md) | 拆解主副问题、信息差、证据释放、阶段答案与回收时作为短篇源文观察标尺 |
+| [references/analysis-paragraph-hooks.md](references/analysis-paragraph-hooks.md) | 拆解段落钩子时作为 11 种段落级钩子对照 |
+| [references/analysis-character-basics.md](references/analysis-character-basics.md) | 拆解人物基础设定时作为人设要素对照 |
+| [references/analysis-character-design.md](references/analysis-character-design.md) | 拆解人物内在矛盾时作为三层标签反差对照（contradiction_axis 来源） |
+| [references/analysis-character-relations.md](references/analysis-character-relations.md) | 拆解人物关系网时作为关系类型对照 |
+| [references/analysis-short-mechanics.md](references/analysis-short-mechanics.md) | 拆解核心梗、有限复现、规则兑现、代价与主角代理权时作为观察标尺 |
+| [references/analysis-reader-profile.md](references/analysis-reader-profile.md) | 拆解读者心理与期待管理时作为读者画像对照 |
 
 ### 补充资料（拆 Stage 6「可复用结构」时按需对照）
 
-> **题材写作公式**：`references/genre-writing-formulas.md`（21 大题材公式作为
-> 「这篇是否合标」的对照标尺）
-> **通用写作技法**：`references/genre-writing-techniques.md`（情绪操控 / 感情线 /
+> **短篇结构模式**：`references/analysis-short-patterns.md`（比较源文实际功能链、偏离方式
+> 与失败条件；不按固定章位、百分比或线索数判“合标”）
+> **通用写作技法**：`references/analysis-writing-techniques.md`（情绪操控 / 感情线 /
 > 震惊场景 / 喜剧机制——拆 reusable_structures.fail_mode 时引用「感情线四阶段推进法」表「禁忌」列）
 > **市场数据**：`references/real-market-data.md`（跨平台写作差异对照表）
 
-所有 references 在 `story-short-analyze` 中都是**对照标尺**——用源文与文件描述的
-标准模式做对比，找出该篇用了哪种、做得多到位，**不是**按文件指引写新作品。
+所有 references 在 `story-short-analyze` 中都是**观察标尺**——先报告源文实际发生了什么，
+再说明它接近、偏离或改造了哪种模式；不是按文件指引写新作品，也不从相邻长篇 Skill
+加载题材、节奏或质量资料。
 
 ---
 

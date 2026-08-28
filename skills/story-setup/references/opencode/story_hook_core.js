@@ -711,7 +711,7 @@ function proseBlockReason(root, absolute) {
 }
 
 // 收尾标点集与深扫 oracle check-degeneration.js 的 findTruncation 对齐（[。！？!?…”"』」）)】]）：
-// 】 是章尾系统播报模板的收束符（agent-references/hooks-chapter.md 章尾实战模板一/四），ASCII "
+// 】 是章尾系统播报模板的收束符（agent-references/long-chapter-hooks.md 章尾实战模板一/四），ASCII "
 // 是 normalize-punctuation.js --quote-mode ascii 的合法收引号，两者都不该被判「疑似截断」。
 const TERMINAL = new Set(Array.from("。！？…”』」）)!?.~—】\""))
 const QUOTE_OPENERS = new Set(["「", "“", "‘", "『", '"'])

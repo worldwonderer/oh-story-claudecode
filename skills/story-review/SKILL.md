@@ -6,7 +6,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 ---
 # story-review：多视角对抗式审查
 
-> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 26` 不一致时（标记缺失、字段缺失/非整数、小于或大于 26）**照常按文件存在性检查并 spawn**，但只检查当前运行时的 canonical 目录；同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 26）` 并提示重新运行 `/story-setup` 后新开会话；大于 26 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
+> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 28` 不一致时（标记缺失、字段缺失/非整数、小于或大于 28）**照常按文件存在性检查并 spawn**，但只检查当前运行时的 canonical 目录；同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 28）` 并提示重新运行 `/story-setup` 后新开会话；大于 28 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
 
 你是审查协调器。你的职责是找出小说文本中的结构、角色、文字、设定问题，并给出可执行修改建议。
 
@@ -83,7 +83,7 @@ Rubric Source: file | embedded fallback
 
 | 用途 | 规范路径 |
 |---|---|
-| 通用质量清单 | `story-review/references/quality-checklist.md` |
+| 通用质量清单 | `story-review/references/review-quality.md` |
 | 通用内容评分 rubric | `story-review/references/quality-rubric.md` |
 | 去 AI 味方法 | `story-review/references/anti-ai-writing.md` |
 | 剧情循环/高潮公式 | `story-review/references/plot-core-methods.md` |
@@ -235,7 +235,7 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
   Rubric Source: file | embedded fallback
   相关文件路径：{设定/大纲/细纲文件路径}
   继承的开放项（分批审查必填，无则写「无」）：{从 追踪/伏笔.md 提取的、预计回收章 ≤ 本批末章的已埋未回收钩子，连同上一批未解决 findings 摘要}
-  可选补充参考：本 Skill 的 `story-review/references/quality-checklist.md`、`story-review/references/plot-core-methods.md`；若不可读，不影响审查。
+  可选补充参考：本 Skill 的 `story-review/references/review-quality.md`、`story-review/references/plot-core-methods.md`；若不可读，不影响审查。
   检查项：
   1. 这一章是否推进了故事主题？
   2. 大纲结构是否完整（钩子/爽点/悬念）？
@@ -298,7 +298,7 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
   审查基准包摘要：{Phase 1 形成的 rubric / fallback 摘要，必须内联}
   Rubric Source: file | embedded fallback
   AI 味 / 禁用词摘要：{从 anti-ai-writing、banned-words 或内置 fallback 提取，必须内联}
-  可选补充参考：本 Skill 的 `story-review/references/anti-ai-writing.md`、`story-review/references/banned-words.md`、`story-review/references/quality-checklist.md`；若不可读，不影响审查。
+  可选补充参考：本 Skill 的 `story-review/references/anti-ai-writing.md`、`story-review/references/banned-words.md`、`story-review/references/review-quality.md`；若不可读，不影响审查。
   检查项：
   1. 是否存在禁用词/套话/陈词滥调，或“像/好像/仿佛/如同”式比喻成片堆叠？
   2. 是否出现 AI 写作指纹、8 种 AI 写作模式（含模式 8 解释腔/上帝视角/安排感）或章末总结体？
@@ -330,7 +330,7 @@ full/lean 模式下，主会话必须把“审查基准包摘要”直接写进�
   继承的开放项（分批审查必填，无则写「无」）：{从 追踪/伏笔.md 提取的、预计回收章 ≤ 本批末章的已埋未回收伏笔，连同上一批未解决 findings 摘要}
   审查基准包摘要：{Phase 1 形成的 rubric / fallback 摘要，必须内联}
   Rubric Source: file | embedded fallback
-  可选补充参考：本 Skill 的 `story-review/references/quality-checklist.md`；若不可读，不影响事实冲突扫描。
+  可选补充参考：本 Skill 的 `story-review/references/review-quality.md`；若不可读，不影响事实冲突扫描。
   检查项：
   1. 角色属性是否前后一致？
   2. 世界规则是否被违反？

@@ -10,16 +10,28 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 **执行规则：短篇以情绪为目标，所有内容为情绪服务。**
 
+## 阶段 Reference Gate（强制，先读后写）
+
+任何创建或修改故事文件的动作之前，先判断当前 Phase，并完成该阶段的 reference gate。**只读本 SKILL.md 不算完成门禁。**
+
+Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完整读取（分块直到 EOF；`rg` 检索或局部摘读不算读完）：
+
+1. `references/writing-workflow.md`、`references/submission-craft.md`、`references/short-craft.md`、`references/short-reversal.md`
+2. 核心 10 题材再读取一个精确的 `references/genre-styles/{题材}.md`；冷门题材改读 `references/genre-writing-formulas.md`
+3. 有反派或真相揭露设计时再读 `references/villain-and-reveal.md`；不适用时在设计校验区写明原因
+
+任一必需路径不存在、不可读或题材尚未解析到唯一 reference 时，立即停止，报告准确路径/待定项，**不得创建或修改故事产物**。不要把“已读 references”的回执写进故事文件；要把选出的题材招式、反转计算等应用证据写进正常设计字段。Phase 3/4 的按需加载仍分别服从下文“写前准备”和精修检查，不得用早先读过代替当前任务完整回读。
+
 ---
 
 > Agent 只查当前端 canonical 目录（Claude `.claude/agents`、OpenCode `.opencode/agents`、Codex `.codex/agents` TOML、Antigravity `.agents/agents`），不借其他端文件误判。Claude/OpenCode 用 `subagent_type`，Codex 用 `agent_type`，Antigravity 用 `invoke_subagent` + `TypeName`；能力/文件缺失、unknown agent 或 ZCode 3.3.4 时报告 `Fallback: project custom agents unavailable -> solo` 并 solo/direct。
 >
-> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 26` 不一致时（标记缺失、字段缺失/非整数、小于或大于 26）**照常按文件存在性检查并 spawn**，同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 26）` 并提示重新运行 `/story-setup` 后新开会话；大于 26 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
+> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 28` 不一致时（标记缺失、字段缺失/非整数、小于或大于 28）**照常按文件存在性检查并 spawn**，同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 28）` 并提示重新运行 `/story-setup` 后新开会话；大于 28 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
 
 ## 执行规则
 
 1. **先定情绪，再定故事**。动笔前必须确定目标情绪（意难平/反转震撼/爽感释放/治愈温暖/细思极恐/共鸣感动），所有内容为这个情绪服务。
-2. **一个反转撑一篇**。所有铺垫为反转服务，所有情绪为反转蓄力。不多线、不铺世界观。
+2. **一个核心支点撑一篇**。反转型围绕一次主揭示蓄力；无反转型围绕报应兑现或甜度递进积累期待。不多线、不铺世界观。
 3. **每句话必须有用**。不推动剧情、不铺垫反转、不推高情绪的句子 → 删。
 4. **开头 3 句定生死，结尾定传播**。开头必须包含钩子，结尾必须有余韵。
 5. **默认第一人称**。短篇网文（盐言/七猫短篇等）绝大多数用第一人称，代入感最强。除非题材明确需要第三人称（如多视角悬疑），否则一律用「我」。
@@ -145,10 +157,10 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 ### 一句话梗概
 {主角 + 困境 + 反转 + 情绪落点}
 
-### 核心反转
-- 反转类型：{身份反转/视角反转/动机反转/时间线反转}
-- 反转内容：{一句话描述}
-- 铺垫线索：{至少 3 个铺垫点}
+### 核心支点
+- 类型：{身份/视角/动机/时间线/信息/认知反转，或无反转}
+- 核心兑现：{一句话描述主揭示；无反转时写报应或关系兑现}
+- 铺垫/期待：{关键铺垫点；无反转时写读者等待兑现的因果或关系节拍}
 
 ### 情绪设计
 - 开头情绪：{}（强度 {1-10}）
@@ -176,6 +188,29 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 5. 反转信息差验证（公式见 writing-workflow.md）
 6. 伏笔回查清单（标准见 writing-workflow.md）
 
+`设定.md` 必须包含以下机器可验收字段（内容本身也是后续写作依据，不是读文件回执）：
+
+```markdown
+## Phase 2 设计校验
+- 题材参考：`references/genre-styles/{题材}.md`（冷门题材写 `references/genre-writing-formulas.md`）
+- 核心招式：{招式一}；{招式二}[；{招式三}]
+- 反派设计：不适用（{原因}）
+- 反转类型：{身份/视角/动机/时间线/信息/认知/无反转}
+- 反转位置：第 {X} 节 ÷ 共 {Y} 节 = {Z}%
+- 付费点：第 {N} 节末
+```
+
+有反派时用 `villain-and-reveal.md` 的身份、动机、作恶方式、致命弱点、报应五字段替换“不适用”。`short-reversal.md` 判断确属无反转题材时，写 `反转类型：无反转` 和 `反转位置：不适用（{报应兑现/甜度递进等原因}）`，不要硬编节号。`小节大纲.md` 必须使用 `writing-workflow.md` 规定的固定 12 列 Markdown 表格，并在对应节末明确标出“付费点”。
+
+#### Phase 2 完成门禁
+
+两份文件生成后、向用户声明构思完成或进入 Phase 3 前，运行 `node scripts/check-phase2-contract.js --json {短篇目录}`：
+
+- exit 0：Phase 2 机械契约通过，才可进入下一阶段；这不替代故事质量判断
+- exit 1：只把 `repair_scope` 中的检查 ID、证据、期望、reference 路径和修复范围交给本轮 writer；只改失败字段，再运行同一命令
+- 最多做 2 轮定向 repair；仍失败则停止并报告剩余检查 ID，不得声称 Phase 2 已完成
+- exit 2、脚本缺失或不可执行：报告 verifier 不可用，不得用泛化“自检”替代后继续
+
 #### Agent 调用：character-designer
 
 设计任务完成后，如果项目已部署 character-designer agent（查找顺序见顶部），可 spawn `Agent(subagent_type: "character-designer", prompt: "项目目录：{dir}\n任务类型：角色设定\n查询参数：{人设速写+关系}")` 辅助角色设定和语言风格档案。如 agent 不可用，由主线程直接执行。
@@ -189,6 +224,8 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 **导入项目续写基线**：`设定.md` 存在「本书续写基线」时先读取，作为已写内容的内部连续性与既有写法约束；它不是对标摘要，不参与主/副对标排序，也不复制到 `对标/`。
 
 > 术语说明：Phase 3 按「段」划分叙事结构（开头段/铺垫段/升级段/反转段/结尾段），每段包含若干「小节」（数字编号的 beat）。「场景」指写作时的具体画面。
+
+**交付参数先锁定**：用户明确的字数范围优先，逐字取其最小值/最大值与节数；只给单一目标时用目标的 95%-105%；都未给时用 8000-20000 字和大纲节数。后文的默认字数不得覆盖用户范围。
 
 **写前准备**（每个场景写前执行 2 步，是核心方法的落地：确认情绪目标 → 召回技法模块）：
 - **步骤 1：记忆+召回**：① 本场景目标情绪词？② 借鉴哪个参考文件的哪个技法？③ 具体用在哪个段落？答不出 → 先回读参考再动笔。如有 `对标/` 或 `拆文库/` 结构化产出，按“对标上下文加载”规则检索与当前场景最相关的结构/情绪/反转/写作手法模块作为参考，并写入“拆文召回摘要”
@@ -220,9 +257,8 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 ⚠️ **硬约束：每节 ≥ 800 字 / 50-65 行**。
 题材例外：爽文、打脸、系统流等高信息密度题材可降至 ≥ 500 字/节（见 genre-writing-formulas.md 各题材速查表），但不得低于 500 字。
-写完每节后必须统计字数和行数。不足 800 字（高信息密度题材不足 500 字）的节不得跳过，必须补充更多子事件/对话来补足后再写下一节。整篇完成后总字数必须 ≥ 8000 字。
-**字数统计必须跨平台可执行：优先使用 Python 字符统计**：`for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done; "$PYBIN" -c "from pathlib import Path; print(len(Path('文件路径').read_text(encoding='utf-8')))"`。**不要直接调 `python3`**，Windows 上 `python3` 会落到 Microsoft Store 占位程序、以 exit 49 静默失败；上面的探测会按 `python3→python→py` 选出真正可用的解释器。Windows / DeepSeek / Claude Code 组合下不要让模型自行估算字数；`wc -m` 仅作为 macOS/Linux 备选，禁止使用 `wc -c`（字节数）。如果当前 agent/工具环境没有 Bash/Python 权限，必须明确声明“未完成机器字数验证”，并按行数速算作为临时估计，不得声称已通过字数硬验证。
-**⚠️ 字数不足 = 章节未完成。禁止在字数未达标时结束章节。必须继续展开场景直到达标。**
+写完每节后必须统计字数和行数。不足 800 字（高信息密度题材不足 500 字）的节不得跳过，必须补充既有情节点/对话后再写下一节。整篇以锁定的用户交付范围为准；未给范围时才使用 8000-20000 字默认值。
+**⚠️ 未进入锁定范围 = 正文未完成。禁止越界后结束；不足只扩已有情节点，超出只压重复解释，不借 repair 新增或删除关键剧情。**
 
 **节数守恒**：正文节数必须等于小节大纲规划节数。不得合并多节为一节。如果写作中发现某节不需要独立存在，应回到大纲阶段调整，而非在写作时偷减。
 
@@ -326,17 +362,13 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 ### Phase 3 完成门槛（进入 Phase 4 前必须通过）
 
-- [ ] 总字数 ≥ 8000（优先用 Python 字符统计验证，兼容 Windows 和中文字符计数）
+- [ ] 总字数进入锁定的用户范围；未指定时进入 8000-20000 默认范围
 - [ ] 每节 ≥ 800 字（爽文等高信息密度题材 ≥ 500 字，见 genre-writing-formulas.md）
 - [ ] 节数 = 小节大纲规划节数（不得合并/省略）
 - [ ] 身体部位同一词全文 ≤ 5 次
 - [ ] 「像/好像/仿佛/如同」不成片堆叠；超过 10 处需逐处复核功能，不机械全删
 - [ ] `node scripts/check-ai-patterns.js --check --fail-on=blocking 正文.md` 无 blocking 命中；其余提示先通读，确属问题再改
 - [ ] `node scripts/check-degeneration.js --check 正文.md` 无 blocking 退化命中（复读/截断/工程词泄漏）
-
-**中文文本统计注意事项**：
-- `wc -c` 统计的是字节数，禁止用于字数统计，也禁止模型估算字数
-- 行数统计使用 `wc -l` 是安全的
 
 **不通过 → 回退补足，不得进入精修。**
 
@@ -345,7 +377,9 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 ### Phase 4：精修打磨
 
 加载 `references/writing-workflow.md` 中的精修清单完成检查。
-重点：开头钩子、情绪曲线、反转铺垫、每句话价值、格式规范、AI 腔排查。文件模式先运行 `node scripts/check-ai-patterns.js --check --fail-on=blocking 正文.md`：blocking 先改正文并复扫；其他提示只作为读感风险，功能性写法标 `[需复核]`。再运行 `node scripts/normalize-punctuation.js 正文.md` 做标点兜底，并运行 `node scripts/check-degeneration.js --check 正文.md`；退化 blocking 要重新生成受影响段落，不靠润色。
+重点：开头钩子、情绪曲线、反转铺垫、每句话价值、格式规范、AI 腔。文件模式依次运行 `node scripts/check-ai-patterns.js --check --fail-on=blocking 正文.md`、`node scripts/check-outline-copy.js --outline 小节大纲.md 正文.md`、`node scripts/normalize-punctuation.js 正文.md`、`node scripts/check-degeneration.js --check 正文.md`。blocking 或确属细纲照搬先改正文再复扫；其他提示仅作读感复核，功能性写法可保留。
+
+上述修改全部落盘后，运行 `node scripts/check-delivery-contract.js --json --min-chars {MIN} --max-chars {MAX} --sections {N} {短篇目录}`。exit 0 才可交付；exit 1 只按 `repair_scope` 最小修复并重跑受影响的质量检查与本命令，最多 2 轮；仍失败则报告检查 ID 并停止。exit 2、脚本缺失或不可执行时不得声称交付契约通过。本 verifier 只验用户字数、节数与排版形状，不替代正文质量判断。
 
 #### Agent 调用：narrative-writer（去AI味）+ consistency-checker
 
@@ -373,7 +407,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 |---|---|---|
 | 有参考小说想对标 | story-short-analyze | `/story-short-analyze` → 输出存入 `拆文库/{书名}/` |
 | 写完，去 AI 味 | story-deslop | `/story-deslop` |
-| 想自检 | 本 skill 质量自检 | 用 Phase 4 自检流程 + `references/quality-checklist.md` 逐项核对 |
+| 想自检 | 本 skill 质量自检 | 用 Phase 4 自检流程 + `references/short-prose-quality.md` 逐项核对 |
 | 需要市场方向 | story-short-scan | `/story-short-scan` |
 | 设定太大，适合长篇 | story-long-write | `/story-long-write` |
 
@@ -395,15 +429,17 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 | [references/genre-writing-techniques.md](references/genre-writing-techniques.md) | 跨题材通用技法（震惊场景/三翻四震/感情线四阶段/喜剧flag） |
 | [references/emotional-methods.md](references/emotional-methods.md) | 设计情感时 |
 | [references/hooks-chapter.md](references/hooks-chapter.md) | 章节钩子设计 |
-| [references/hooks-suspense.md](references/hooks-suspense.md) | 悬念设计 |
+| [references/short-suspense.md](references/short-suspense.md) | 短篇悬念设计 |
 | [references/hooks-paragraph.md](references/hooks-paragraph.md) | 段落钩子技巧 |
 | [references/villain-and-reveal.md](references/villain-and-reveal.md) | Phase 2 设计反派时 |
-| [references/reversal-toolkit.md](references/reversal-toolkit.md) | 设计反转时 |
-| [references/quality-checklist.md](references/quality-checklist.md) | 精修检查时 |
+| [references/short-reversal.md](references/short-reversal.md) | 设计短篇反转时 |
+| [references/short-prose-quality.md](references/short-prose-quality.md) | 精修检查时 |
 | [references/banned-words.md](references/banned-words.md) | 禁用词表 |
 | [scripts/normalize-punctuation.js](scripts/normalize-punctuation.js) | Phase 4 文件模式确定性标点收尾 |
 | [scripts/check-ai-patterns.js](scripts/check-ai-patterns.js) | Phase 3 完成门槛与 Phase 4 复扫；报告高危 AI 句式、破折号、碎句号、长段落、微动作复读、套式反应细节、抽象总结、套词/比喻密度、解释链、系统公告腔、提纲感短段、低连接密度 |
 | [scripts/check-degeneration.js](scripts/check-degeneration.js) | Phase 3 完成门槛与 Phase 4 复扫；报告模型退化（复读/截断/工程词泄漏），blocking 需重新生成 |
+| [scripts/check-phase2-contract.js](scripts/check-phase2-contract.js) | Phase 2 产物确定性验收；返回具名失败与最小 repair_scope |
+| [scripts/check-delivery-contract.js](scripts/check-delivery-contract.js) | 最终交付确定性验收；按用户参数检查非空白字符、节数与小节格式 |
 | [references/dialogue-mastery.md](references/dialogue-mastery.md) | 写对话时 |
 | [references/output-contract.md](references/output-contract.md) | Phase 2 对标上下文加载时（理解 analyze 产出格式与消费规范） |
 
@@ -415,16 +451,16 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 |------|-----------------|----------------------|
 | 情绪外化（怎么写情绪） | **`references/short-craft.md` 第2节**（情绪直接写+后接具体反应、三段对照、改写四步——替代旧机械替换表） | 各 `genre-styles/` 包的「情绪烈度与模式」 |
 | 情绪设计（情感结构） | **`references/emotional-methods.md`**（情感三板斧 + 拉扯节奏 + 失败模式） | `references/genre-writing-techniques.md`（情绪操控核心法则 / 情绪三层次） |
-| 反转 | **`references/reversal-toolkit.md`**（反转类型 / 铺垫 / 有效性自检） | `references/villain-and-reveal.md`（真相揭露机制 / 反转有效性自检） |
-| 反派揭露 | **`references/villain-and-reveal.md`**（反派模板 / 揭露机制 / 报应设计） | `references/reversal-toolkit.md` |
+| 反转 | **`references/short-reversal.md`**（反转类型 / 铺垫 / 揭示位置 / 有效性自检） | `references/villain-and-reveal.md`（真相揭露机制 / 反转有效性自检） |
+| 反派揭露 | **`references/villain-and-reveal.md`**（反派模板 / 揭露机制 / 报应设计） | `references/short-reversal.md` |
 | 人物 | **各 `genre-styles/{题材}.md` 的「对话风格」「招式库」**（受害者-复仇者主角声线、白月光软刀、施害者道德绑架人设，corpus-grounded） | `references/villain-and-reveal.md`（反派/揭露）· `references/genre-writing-techniques.md`（三层标签反差 / 人设从缺点开始）· `references/dialogue-mastery.md`（声线差异） |
-| 钩子 | **`references/hooks-chapter.md`**（章节/开篇钩子类型） | `references/hooks-paragraph.md`（段落钩子）· `references/hooks-suspense.md`（悬念设计） |
+| 钩子 | **`references/hooks-chapter.md`**（章节/开篇钩子类型） | `references/hooks-paragraph.md`（段落钩子）· `references/short-suspense.md`（悬念设计） |
 | 女频写作 | **对应 `genre-styles/{题材}.md`**（追妻火葬场 / 总裁豪门 / 宅斗宫斗 / 甜宠 / 世情打脸的题材声线、虐爽比例、招式） | `references/genre-writing-techniques.md`（女频读者心理与写作技法 / 感情线四阶段推进法）· `references/emotional-methods.md`（情绪拉扯） |
 | 题材风格 | **`references/genre-styles/{题材}.md`**（核心 10 题材的腔调/开篇/钩子/情绪烈度/招式/收尾，corpus-grounded） | `references/genre-writing-formulas.md`（冷门题材结构骨架）· `references/genre-writing-techniques.md`（核心梗 / 卖点 / 通用技法） |
 | 开头 | **各 `genre-styles/{题材}.md` 的「开篇范式」**（关系锚 + 全弧剧透导语 + 火葬场预告，真实开篇范例）+ `short-craft.md` 第12节（开头事件密度） | `references/hooks-chapter.md`（开篇钩子类型）· `references/hooks-paragraph.md`（段钩密度） |
 | 格式与节奏 | **`references/short-format.md`**（短篇正文格式，两平台模板） | `references/short-craft.md`（情绪直接写+后接具体反应/三维度揉进/疏密）· `references/writing-workflow.md`（设计/精修工作流） |
 | 对话 | **`references/dialogue-mastery.md`**（对话技法主文件：差异化/潜台词/对话节奏） | `references/short-craft.md`（三类台词与对话权力博弈）· 各 `genre-styles/` 包的真实金句库 |
-| 去AI味 | **`references/short-deslop.md`**（短篇专属：只杀真·AI腔，不杀情绪烈度/审判句/火葬场预告） | `references/banned-words.md`（禁用词扫描）· `scripts/check-ai-patterns.js`（AI句式复扫）· `references/quality-checklist.md`（成稿检查） |
+| 去AI味 | **`references/short-deslop.md`**（短篇专属：只杀真·AI腔，不杀情绪烈度/审判句/火葬场预告） | `references/banned-words.md`（禁用词扫描）· `scripts/check-ai-patterns.js`（AI句式复扫）· `references/short-prose-quality.md`（成稿检查） |
 
 ---
 

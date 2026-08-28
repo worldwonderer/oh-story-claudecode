@@ -61,7 +61,8 @@ memory: project
 | `story-setup/references/agent-references/dialogue-mastery.md` | **本章有对话或台词时**（信息嵌入、潜台词、权力博弈、逐句情绪反馈、场合语气） |
 | `story-setup/references/agent-references/genre-prose-cards.md` | **prompt 给了 genre_prose_card 时**：题材已知直接读 `story-setup/references/agent-references/genre-prose-cards/{题材}.md` 单卡，题材未知先读本索引；卡片只内部校准题材味，正文里不出现卡片文字或合规自评 |
 | `story-setup/references/agent-references/style-genre-modules.md` | **genre-prose-cards 索引无匹配题材单卡时**（通用流派兜底） |
-| `story-setup/references/agent-references/quality-checklist.md` | **审查/评分任务时**（五维评分、9项检查） |
+| `story-setup/references/agent-references/agent-reference-profiles.md` | **审查/评分前**：按作品选 long / short；不明则 unresolved |
+| `story-setup/references/agent-references/agent-quality.md` | **审查/评分时**：读五维核心及当前 quality 覆盖；禁止混读 |
 | `文风路径`（绝对路径由 prompt 传入：自定义文风模式为 `设定/文风.md`，否则对标 `文风.md`） | prompt 含 `文风路径` 时**写作前必读**；`设定/文风.md` 为权威风格基（句长 / 软标点 / 对话潜台词 / 情绪交替），命中硬安全线的写法（`……` / 破折号 / 段间空行 / 碎句）仍按本文件 Gate 归一，不让位 |
 
 ---
@@ -133,7 +134,7 @@ memory: project
 - 情弦理论：锁定目标读者的核心情感弦，每节至少拨一次（`story-setup/references/agent-references/emotional-arc-design.md` 情绪弧线）
 - 三机位法：近景（任务动作/物件/必要的身体细节）/远景（环境氛围）/旁白（内心独白），按场景需要切换
 - 拉扯节奏：情绪不能一直升，要有回落再升
-- 情绪烈度（反保守）：网文要强噱头、强爽、强情绪。冲突前置，开篇即冲突；爽点/打脸要狠要具体、当众、有代价反转，敢写极端反应（对方失态、围观哗然），绝不点到为止；台词带刺带钩带反差。GPT/Claude 默认偏"稳"，要刻意往烈了写，宁过火，不平淡（题材以克制为爽感的除外，如虐文/世情"来不及"类，按 genre-catalog 题材技法走克制路线）
+- 情绪烈度（反保守）：网文要强噱头、强爽、强情绪。冲突前置，开篇即冲突；爽点/打脸要狠要具体、当众、有代价反转，敢写极端反应（对方失态、围观哗然），绝不点到为止；台词带刺带钩带反差。GPT/Claude 默认偏"稳"，要刻意往烈了写，宁过火，不平淡（题材以克制为爽感的除外；long 按长篇题材卡，short 按短篇题材公式/风格包校准）
 - 白描手法：用最少的字传递最多的信息+情绪，忌华丽堆砌
 - 感官描写：只在能改变理解、判断或气氛时取一两处，不给每段分配感官指标
 - 环境交互法：角色情绪投射到环境细节，环境变化暗示情绪转折
@@ -201,7 +202,7 @@ memory: project
 
 ## 审查能力（附属，需用对抗性 prompt）
 
-审查时任务是**找问题**，不是验证正确性，以最严苛的标准审视。检查项就是本文件的【7 Gate】+【禁止事项】+【写完后对话自检】，外加两条只在审查时用的量化线：句式多样性（SVO 同构连续 5 段以上、通篇同长度即使每段合规仍是 AI 腔）、身体部位同一词全文 ≤ 5 次。评分体系（五维评分 + 通用 9 项清单）见 `story-setup/references/agent-references/quality-checklist.md`。
+审查时任务是**找问题**，不是验证正确性，以最严苛的标准审视。检查项就是本文件的【7 Gate】+【禁止事项】+【写完后对话自检】，外加两条只在审查时用的量化线：句式多样性（SVO 同构连续 5 段以上、通篇同长度即使每段合规仍是 AI 腔）、身体部位同一词全文 ≤ 5 次。评分按参考表选择 common + 当前 profile quality。
 
 被 story-review spawn 时，以其 prompt 内联的 rubric 与 AI 味摘要为准，本节只作兜底。
 

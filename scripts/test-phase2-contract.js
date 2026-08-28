@@ -1,0 +1,226 @@
+#!/usr/bin/env node
+'use strict'
+
+const assert = require('assert')
+const fs = require('fs')
+const os = require('os')
+const path = require('path')
+const { spawnSync } = require('child_process')
+
+const repoRoot = path.resolve(__dirname, '..')
+const verifier = path.join(repoRoot, 'skills/story-short-write/scripts/check-phase2-contract.js')
+const skillFile = path.join(repoRoot, 'skills/story-short-write/SKILL.md')
+const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'phase2-contract-'))
+
+const headers = [
+  '结构段/五段功能', '主事件', '子事件×3-5', '情绪', '人物/关系变化', '因果/逻辑链',
+  '读者新获知什么', '结尾承接/钩子', '伏笔/物件', '动静', '对话密度', '目标字数',
+]
+
+function outlineRow(stage, index, hook) {
+  return [
+    stage,
+    `主角处理事件${index}`,
+    `主角发现线索${index}{发现}->对手阻拦行动${index}{冲突}->主角留下证据${index}{伏笔}`,
+    `疑惑→紧张${index}`,
+    `关系压力上升${index}`,
+    `发现异常${index} → 调查 → 受阻 → 决定继续`,
+    `读者获知线索${index}`,
+    hook,
+    `旧钥匙${index}`,
+    index % 2 ? '动' : '静',
+    index % 2 ? '高' : '中',
+    '1000',
+  ]
+}
+
+function validSettings(overrides = {}) {
+  const values = {
+    platform: '知乎盐选',
+    genre: 'references/genre-styles/悬疑.md',
+    moves: '日常违和切入；延迟剥洋葱；证物翻转',
+    villain: '反派设计：不适用（冲突来自主角对自我记忆的误判）',
+    reversalType: '信息反转',
+    reversal: '反转位置：第 6 节 ÷ 共 8 节 = 75%',
+    paywall: '付费点：第 4 节末',
+    target: '8000',
+    ...overrides,
+  }
+  return [
+    '# 设定',
+    '## 基本信息',
+    `- 目标平台：${values.platform}`,
+    `- 目标字数：${values.target} 字`,
+    '## Phase 2 设计校验',
+    `- 题材参考：\`${values.genre}\``,
+    `- 核心招式：${values.moves}`,
+    `- ${values.villain}`,
+    `- 反转类型：${values.reversalType}`,
+    `- ${values.reversal}`,
+    `- ${values.paywall}`,
+    '',
+  ].join('\n')
+}
+
+function validOutline({ includePaywall = true } = {}) {
+  const rows = [
+    outlineRow('开头', 1, '她决定去查监控'),
+    outlineRow('铺垫', 2, '她收到没有寄件人的照片'),
+    outlineRow('铺垫', 3, '照片背后写着她的旧名'),
+    outlineRow('升级', 4, includePaywall ? '门后传来自己的声音（付费点）' : '门后传来自己的声音'),
+    outlineRow('升级', 5, '旧照片上的人动了'),
+    outlineRow('反转', 6, '她发现记忆属于另一个人'),
+    outlineRow('反转', 7, '真正的主人敲响房门'),
+    outlineRow('结尾', 8, '她把钥匙留在门外'),
+  ]
+  return [
+    '# 小节大纲',
+    `| ${headers.join(' | ')} |`,
+    `| ${headers.map(() => '---').join(' | ')} |`,
+    ...rows.map((row) => `| ${row.join(' | ')} |`),
+    '',
+  ].join('\n')
+}
+
+function writeCase(name, settings, outline) {
+  const dir = path.join(tmpRoot, name)
+  fs.mkdirSync(dir, { recursive: true })
+  if (settings !== null) fs.writeFileSync(path.join(dir, '设定.md'), settings, 'utf8')
+  if (outline !== null) fs.writeFileSync(path.join(dir, '小节大纲.md'), outline, 'utf8')
+  return dir
+}
+
+function run(dir, extraArgs = []) {
+  const result = spawnSync(process.execPath, [verifier, '--json', ...extraArgs, dir], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  let report = null
+  if (result.stdout.trim()) report = JSON.parse(result.stdout)
+  return { ...result, report }
+}
+
+function failureIds(result) {
+  return result.report.failures.map((failure) => failure.id)
+}
+
+try {
+  const skillLines = fs.readFileSync(skillFile, 'utf8').split(/\r?\n/)
+  const gateLine = skillLines.findIndex((line) => line.includes('阶段 Reference Gate')) + 1
+  assert(gateLine > 0 && gateLine <= 20, `Reference Gate must stay in first screen, got line ${gateLine}`)
+  const skillText = skillLines.join('\n')
+  assert.match(skillText, /只读本 SKILL\.md 不算完成门禁/)
+  assert.match(skillText, /check-phase2-contract\.js --json/)
+  assert.match(skillText, /最多做 2 轮定向 repair/)
+
+  const good = run(writeCase('valid', validSettings(), validOutline()))
+  assert.strictEqual(good.status, 0, good.stdout + good.stderr)
+  assert.strictEqual(good.report.ok, true)
+  assert.deepStrictEqual(good.report.failures, [])
+
+  const explicitShortTarget = run(writeCase(
+    'explicit-short-target',
+    validSettings({ target: '6000' }),
+    validOutline().replaceAll('| 1000 |', '| 750 |')
+  ))
+  assert.strictEqual(explicitShortTarget.status, 0, explicitShortTarget.stdout + explicitShortTarget.stderr)
+
+  const missingSettings = run(writeCase('missing-settings', null, validOutline()))
+  assert.strictEqual(missingSettings.status, 1)
+  assert(failureIds(missingSettings).includes('phase2.settings-readable'))
+
+  const badGenre = run(writeCase(
+    'bad-genre-reference',
+    validSettings({ genre: 'references/genre-styles/不存在.md' }),
+    validOutline()
+  ))
+  assert.strictEqual(badGenre.status, 1)
+  assert.deepStrictEqual(failureIds(badGenre), ['phase2.genre-reference-declared'])
+  assert.match(badGenre.report.failures[0].evidence, /不存在\.md/)
+
+  const noReason = run(writeCase(
+    'villain-no-reason',
+    validSettings({ villain: '反派设计：不适用' }),
+    validOutline()
+  ))
+  assert.strictEqual(noReason.status, 1)
+  assert(failureIds(noReason).includes('phase2.villain-contract'))
+
+  const badReversal = run(writeCase(
+    'bad-reversal-math',
+    validSettings({ reversal: '反转位置：第 6 节 ÷ 共 8 节 = 60%' }),
+    validOutline()
+  ))
+  assert.strictEqual(badReversal.status, 1)
+  assert.deepStrictEqual(failureIds(badReversal), ['phase2.reversal-position'])
+
+  const earlyReversalIsDescriptive = run(writeCase(
+    'early-reversal-is-descriptive',
+    validSettings({ reversal: '反转位置：第 3 节 ÷ 共 8 节 = 37.5%' }),
+    validOutline()
+  ))
+  assert.strictEqual(earlyReversalIsDescriptive.status, 0, earlyReversalIsDescriptive.stdout)
+  assert.strictEqual(earlyReversalIsDescriptive.report.ok, true)
+
+  const noReversal = run(writeCase(
+    'no-reversal',
+    validSettings({
+      reversalType: '无反转',
+      reversal: '反转位置：不适用（采用报应兑现，不硬塞认知翻转）',
+    }),
+    validOutline()
+  ))
+  assert.strictEqual(noReversal.status, 0, noReversal.stdout)
+  assert.strictEqual(noReversal.report.ok, true)
+
+  const brokenOutline = validOutline().replace(
+    /\| 结尾 \| 主角处理事件8[^\n]+\| 1000 \|/,
+    (line) => line.replace(/\| 1000 \|$/, '|')
+  )
+  const badColumns = run(writeCase('bad-columns', validSettings(), brokenOutline))
+  assert.strictEqual(badColumns.status, 1)
+  assert(failureIds(badColumns).includes('phase2.outline-data-rows'))
+
+  const badTargetSum = run(writeCase(
+    'bad-target-sum',
+    validSettings(),
+    validOutline().replace('| 1000 |', '| 500 |')
+  ))
+  assert.strictEqual(badTargetSum.status, 1)
+  assert.deepStrictEqual(failureIds(badTargetSum), ['phase2.target-word-sum'])
+
+  // Targeted repair loop: only paywall fails; changing that exact hook makes the
+  // same artifacts pass without touching any already-valid field.
+  const repairDir = writeCase('targeted-repair', validSettings(), validOutline({ includePaywall: false }))
+  const beforeRepair = run(repairDir)
+  assert.strictEqual(beforeRepair.status, 1)
+  assert.deepStrictEqual(failureIds(beforeRepair), ['phase2.paywall-in-both'])
+  assert.strictEqual(beforeRepair.report.repair_scope.length, 1)
+  assert.match(beforeRepair.report.repair_scope[0].repair, /只在缺失的文件/)
+  const repairedOutline = fs.readFileSync(path.join(repairDir, '小节大纲.md'), 'utf8')
+    .replace('门后传来自己的声音 |', '门后传来自己的声音（付费点） |')
+  fs.writeFileSync(path.join(repairDir, '小节大纲.md'), repairedOutline, 'utf8')
+  const afterRepair = run(repairDir)
+  assert.strictEqual(afterRepair.status, 0, afterRepair.stdout + afterRepair.stderr)
+  assert.strictEqual(afterRepair.report.ok, true)
+
+  const mismatchedPaywall = run(writeCase(
+    'mismatched-paywall',
+    validSettings({ paywall: '付费点：第 3 节末' }),
+    validOutline()
+  ))
+  assert.strictEqual(mismatchedPaywall.status, 1)
+  assert.deepStrictEqual(failureIds(mismatchedPaywall), ['phase2.paywall-in-both'])
+  assert.match(mismatchedPaywall.report.failures[0].evidence, /声明第 3 节末；大纲标在第 4 节/)
+
+  const invalidInvocation = spawnSync(process.execPath, [verifier, '--unknown'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  assert.strictEqual(invalidInvocation.status, 2)
+  assert.match(invalidInvocation.stderr, /用法/)
+
+  process.stdout.write('phase2-contract: all tests passed\n')
+} finally {
+  fs.rmSync(tmpRoot, { recursive: true, force: true })
+}

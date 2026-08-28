@@ -32,22 +32,11 @@ steps: 30
 
 禁止只读裸文件名、禁止跳级、禁止跨 skill 读其他 skill 的 references。
 
+每次任务先读取 `story-setup/references/agent-references/agent-reference-profiles.md`，按调用参数或项目产物选择 `long` / `short`。只允许加载 `common + 当前 profile`；无法判定时返回 `Reference Profile: unresolved` 给父流程，不得把两套口径混合兜底。交付首行报告实际使用的 `Reference Profile`。
+
 ## 参考文件体系
 
-你拥有以下参考文件。**逐行独立判定，命中任一条件即必读**（非同时满足），不得因「手头材料已够」跳过；未命中的行不要预加载。
-| 参考文件 | 必读条件 |
-|---|---|
-| `story-setup/references/agent-references/hooks-chapter.md` | **写章首/章尾钩子时**（含三翻四震结构） |
-| `story-setup/references/agent-references/hooks-suspense.md` | **编排悬念体系或多线悬念周期时** |
-| `story-setup/references/agent-references/emotional-arc-design.md` | **设计情绪弧线、期待感管理或确定题材情绪策略时** |
-| `story-setup/references/agent-references/reversal-toolkit.md` | **设计反转、铺设误导或安排打脸节奏时** |
-| `story-setup/references/agent-references/outline-methods.md` | **建/补大纲或细纲时**（落笔前必读）：大纲创建法、结构分级、节点设计、细纲实操 |
-| `story-setup/references/agent-references/outline-rhythm.md` | **把控节奏或设计升级感时** |
-| `story-setup/references/agent-references/outline-conflict.md` | **设计矛盾、主线/支线或冲突结构时** |
-| `story-setup/references/agent-references/genre-catalog.md` | **做题材定位或需要题材框架速查时** |
-| `story-setup/references/agent-references/genre-core-mechanics.md` | **提炼核心梗、做微创新或设计金手指时** |
-| `story-setup/references/agent-references/opening-design.md` | **开新书、或设计前 3 章时** |
-| `story-setup/references/agent-references/quality-checklist.md` | **审查大纲质量或做黄金三章检查时** |
+`agent-reference-profiles.md` 是唯一资料清单和读取条件来源。逐行独立判定该文件中 `Common + 当前 profile` 的表格，命中任一条件即读取；未命中的文件不要预加载。Agent 文件中不再复制一份 inventory，避免路由漂移。
 
 ---
 
@@ -59,7 +48,7 @@ steps: 30
 - 微创新五手法：在已有题材框架上做差异化
 - 对标分析：从对标书中提取可借鉴的结构模式
 - **对标书清单**：题材定位输出必须含 `主对标书` 字段 + 完整 `对标书列表`（每本含 `书名`、`引用强度: 主/辅/参考`、`题材类型`、`相关性: 同题材/弱相关`、`用途`）。`主对标书` 最多 1 本，决定 story-long-write 日更默认调用哪本的文风；副对标 / 参考对标不限制数量，按相关性排序进入列表，后续 cross-book-recall 按阶段预算裁剪条目而不是限制书目数。**没有外部对标书时（story-import 重建的本书拆文不算对标）省略整个对标登记段**，不得用当前作品补位。有外部对标时缺失主对标字段会触发 story-long-write 用字典序第一本（该兜底已排除当前作品）并提示用户补字段；缺失 `对标书列表` 时按书名/目录名 Unicode 字典序稳定排序并提示补 registry。
-- **执行时读取** `story-setup/references/agent-references/genre-catalog.md`（题材框架速查）+ `story-setup/references/agent-references/genre-core-mechanics.md`（核心梗三代论、微创新五手法、金手指骨相分类）
+- **执行时按 profile 读取**当前题材框架与核心机制文件：long 使用 `long-genre-catalog.md` + `long-genre-mechanics.md`；short 使用 `short-genre-formulas.md`，不得互相兜底。
 
 ### 世界观设定
 - 背景设定：时代、地理、历史、社会结构
@@ -138,14 +127,14 @@ steps: 30
 - 期待感核心模型：建立 -- 维持 -- 打破 -- 重建的循环
 - 三翻四震结构：连续翻转的节奏控制
 - 悬念构建检查清单：基础/冲击力/公平性/节奏
-- **执行时读取** `story-setup/references/agent-references/hooks-chapter.md`（章首/章尾钩子技法、实战模板）+ `story-setup/references/agent-references/hooks-suspense.md`（悬念构建、拉期待手法）
+- **执行时按 profile 读取**对应的 chapter hooks 与 suspense 文件：long 使用 `long-chapter-hooks.md` + `long-suspense.md`；short 使用 `short-chapter-hooks.md`，按需叠加 `short-paragraph-hooks.md` + `short-suspense.md`。
 
 ### 反转设计
 - 7种反转类型：身份/视角/动机/时间线/信息/认知/无反转（与拆文 _meta.json.reversal_type 一致）
 - 嵌套反转：双层/三层嵌套的铺设方法
 - 误导技巧：选择性叙述/情绪引导/假线索/刻板印象利用/信息分层
 - 反转自检清单：合理性(3+暗示)/冲击力/公平性(可猜到)/节奏(快速揭示)
-- **执行时读取** `story-setup/references/agent-references/reversal-toolkit.md`（完整反转工具箱、打脸深层节奏、虚晃一枪反转法）
+- **执行时按 profile 读取** `long-reversal.md` 或 `short-reversal.md`；禁止同时加载。
 
 ### 情绪弧线设计
 - 六种弧线速查：V形/倒V形/W形/递进/延迟满足/急转
@@ -167,7 +156,7 @@ steps: 30
   - 新增角色是否有主线戏份？
   - 支线是否喧宾夺主（连续超过 3 章无主线推进需预警）？
   - 新增设定是否必要（是否在推进主线）？
-- **执行审查时读取** `story-setup/references/agent-references/quality-checklist.md`（五维评分、黄金三章检查、通用质量检查）
+- **执行审查时读取** `agent-quality.md` + 当前 profile 的 `long-quality.md` 或 `short-quality.md`；禁止用另一 profile 的阈值否定方案。
 
 ---
 

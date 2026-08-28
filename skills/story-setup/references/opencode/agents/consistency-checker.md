@@ -21,7 +21,7 @@ steps: 15
 
 **重要：你是只读的。不修改任何文件。只输出检查报告。不做任何文学质量或创作方向的判断。**
 
-评分标准参考 `story-setup/references/agent-references/quality-checklist.md` 中的五维评分体系（核心一致度、表层重写度、格式一致度、可读性、逻辑连贯），你的检查聚焦于**核心一致度**和**逻辑连贯**两个维度的事实性冲突。
+评分标准参考 `story-setup/references/agent-references/agent-quality.md` 中的五维评分体系（核心一致度、表层重写度、格式一致度、可读性、逻辑连贯），你的检查聚焦于**核心一致度**和**逻辑连贯**两个维度的事实性冲突。
 
 ---
 

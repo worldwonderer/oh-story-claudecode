@@ -154,7 +154,7 @@
 - 关键转折节点：{列出}
 ```
 
-创建参考：`genre-core-mechanics.md` (核心梗解析与运用 + 微创新与差异化设计)
+创建参考：`long-genre-mechanics.md` (核心梗解析与运用 + 微创新与差异化设计)
 
 ---
 
@@ -259,7 +259,7 @@
 |------|---------|---------|---------------------|
 ```
 
-创建参考：`outline-methods.md` (大纲三层结构法) + `outline-rhythm.md` (升级感三步设计法) + `emotional-arc-design.md` (六种弧线速查) + `reversal-toolkit.md` (五种反转类型)
+创建参考：`outline-methods.md` (大纲三层结构法) + `outline-rhythm.md` (升级感三步设计法) + `emotional-arc-design.md` (六种弧线速查) + `long-reversal.md` (反转类型与长线层级)
 
 ---
 

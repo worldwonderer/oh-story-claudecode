@@ -5,12 +5,12 @@
 ---
 
 **本文件职责**（其他内容去哪看）：
-- 本文件只管「贯穿道具的三次出现编排规则」，不管「羁绊铺设」（羁绊功能见 emotional-methods.md）
+- 本文件只管「贯穿道具的三次出现编排规则」；情绪功能按任务 profile 读取 long-emotional-methods.md 或 short-emotional-methods.md
 - 对话相关（含权力博弈的规则/模式/示例/操作指令）一律见 dialogue-mastery.md，本文件不重复
 - 本文件只管「开头事件密度指令」，不管「开头设计」（开头设计见 opening-design.md）
-- genre-writing-formulas.md 的「线索物贯穿法」提供简版规则；本文件的「贯穿道具系统」提供可执行设计模板
+- 长篇题材声线走 genre-prose-cards.md，短篇结构走 short-genre-formulas.md；本文件的「贯穿道具系统」提供可执行设计模板
 - 本文件第 8 节「场景写法（三维度揉进）」是 Phase 3 的写作方法，format-and-structure.md 的「小节结构」是结构规范
-- 本文件「贯穿道具系统」只规定物件的三次出现编排时机和意义翻转规则；物件的初始情感含义设计（选什么物件、承载什么羁绊）由 emotional-methods.md 负责（信物型物件与羁绊铺设功能重叠，但视角不同）
+- 本文件「贯穿道具系统」只规定物件的跨场景编排和意义翻转；初始情感含义由当前 long/short profile 的情绪方法负责
 
 ---
 

@@ -251,6 +251,6 @@ with tempfile.TemporaryDirectory(prefix="python-store-stub-") as tmp:
         check=False,
     )
     assert wrapper.returncode == 0, wrapper.stderr + wrapper.stdout
-    assert "Shared File Consistency Check" in wrapper.stdout
+    assert "Shared File Governance Check" in wrapper.stdout
 
 print("OK: shared asset manifest detects drift and syncs atomically")

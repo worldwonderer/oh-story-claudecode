@@ -12,7 +12,10 @@
 | `static-check.sh` + `static-check.py` | 结构化验证 frontmatter、Markdown 路径/锚点、Agent 引用、references 可达性；除基础组件 `browser-cdp` 外禁止跨 Skill 文件引用 | CI |
 | `skill-numbering.py check` | 工作流 Step/Phase/Stage 编号策略、引用绑定、SKILL.md 裸编号/子步骤小数守卫 | CI；改工作流结构后 |
 | `check-current-skill-contracts.sh` + `.py` + `current-contract.json` | 从结构化 manifest 校验当前版本、Phase、schema、主产物与细纲契约；保留 legacy/path 守卫并拦截缺主产物后的静默替代 | CI |
-| `check-shared-files.sh` | 调 `sync-shared-assets.py check` 验 runtime 副本，再验 62 组共享 reference 字节一致 | CI |
+| `check-shared-files.sh` | 调两个显式 manifest 验 runtime/reference 副本，拦截未声明 exact/near-copy，并检查 setup profile 契约与消费可达性 | CI |
+| `check-reference-similarity.py` | 对跨 Skill Markdown 做行级 Jaccard/containment 近似扫描；高相似派生关系必须在 `shared-references.json` 的 `derived_groups` 说明来源与分化原因 | CI（由 check-shared-files 调用） |
+| `check-agent-reference-consumers.py` | 从 story-setup Agent 模板做引用可达性遍历，同时验证唯一 profile 清单、long/short 所有权与 story-architect 不维护第二份 inventory | CI（由 check-shared-files 调用） |
+| `check-short-analysis-scope.py` | 保证 story-short-analyze 只路由短篇源文观察标尺，拦截旧混合手册、长篇结构口令和推荐百分比回流 | CI（由 check-shared-files 调用） |
 | `check-scan-runtime-policy.sh` | scraper 输出文件名依赖本地日期 helper；CDP 探测/Windows 监听解析的源码策略 | CI；这些依赖方向无法由隔离 helper 测试证明 |
 | `check-story-setup-deployment.sh` | story-setup 部署/运行时回归（慢，>2min） | CI |
 | `check-doc-budget.sh` + `doc-budget.json` | 热路径 SKILL/references/agent 模板的去空白字数预算与路径合计上限；超了要么删等量旧文本，要么显式调高 budget | CI；增删热路径正文后 |
@@ -32,6 +35,9 @@
 | 脚本 | 测什么 | 何时跑 |
 |---|---|---|
 | `test-ai-patterns.sh` | 确定性 AI 句式检测器 `check-ai-patterns.js` 回归 | CI |
+| `test-phase2-contract.js` | 短篇 Phase 2 首屏门禁、结构化产物验收、具名失败与定向 repair 回归 | Linux / Windows / macOS CI |
+| `test-delivery-contract.js` | 短篇最终字数、节数、标记与空行交付契约回归 | Linux / Windows / macOS CI |
+| `test-reference-gates.js` | 长短篇 Reference Gate 的首屏位置、完整读取语义与关键路由静态回归 | Linux / Windows / macOS CI |
 | `test-degeneration.sh` | 模型退化检测器 `check-degeneration.js` 回归 | CI |
 | `test-prose-net-parity.sh` | 正文兜底「轻量确定性网」Claude/OpenCode/Codex/ZCode parity | CI（调 check-hook-regex-sync） |
 | `test-prose-backstop-hook.sh` | `check-prose-after-write.sh` 回归 | CI |
@@ -44,6 +50,7 @@
 | `test-static-check.py` | 真 frontmatter block、精确路径/锚点、跨 Skill 引用、fence、死 reference、Agent 与章节链接 fixture | CI |
 | `test-current-skill-contracts.py` | current-contract manifest 类型/固定值与主产物 fail-fast 语义 fixture | CI |
 | `test-shared-assets.py` | 共享资产 manifest 的 drift、sync、路径越界、basename 单一 owner 与未登记重复检测 | CI |
+| `test-shared-references.py` | reference manifest 的别名、目录组、drift/sync、未登记副本与 Agent 消费链回归 | CI |
 | `test-normalize-punctuation.js` | 标点归一化的只读检查、frontmatter/fence、CRLF、引号模式与幂等性 | CI |
 | `test-scan-runtime.js` | CDP argv 边界/报错/JSON 契约与 7 个 scraper 无副作用 import | CI |
 | `test-scan-runtime-policy.py` | 变异验证 scan/browser 静态策略不会被无关或死代码关键词骗过 | CI；改 `check-scan-runtime-policy.sh` 后 |
@@ -69,6 +76,7 @@
 | `skills/story-setup/scripts/merge-antigravity-hooks.py` | 原子替换 `.agents/hooks.json` 的 `oh-story` named group，保留所有用户 groups | story-setup 部署时 + merge 回归 |
 | `skills/story-setup/scripts/deploy-antigravity-skills.py` | 把 13 个 oh-story Skills 物化为项目 `.agents/skills` 真实目录；只替换已知名、保留用户 Skill，symlink 需显式迁移且不穿透写目标 | story-setup 部署时 + materialization 回归 |
 | `shared-assets.json` + `sync-shared-assets.py` | 为必须随 skill 独立部署的重复 runtime 脚本指定唯一源和目标 | 改共享 runtime 后跑 `sync`；CI 跑 `check` |
+| `shared-references.json` + `shared-references.py` | 为自包含 Skill 的重复 reference 指定 canonical source、语义别名 target 与完整目录镜像；`derived_groups` 登记仍需独立演化的近似派生文件 | 改共享 reference 后跑 `sync`；CI 跑 `check` |
 
 > 改了 `skills/story-setup/references/templates/agents/*.md` 或 `CLAUDE.md.tmpl`，必须重跑这两个生成脚本并提交结果，否则适配层 CI 红。详见 [CONTRIBUTING.md](../CONTRIBUTING.md)「OpenCode 模板同步」「Codex 适配维护」。
 

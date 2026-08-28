@@ -37,7 +37,7 @@
 
 `追踪/伏笔.md`、`追踪/时间线/`、`追踪/逐章记录/` 默认不整份读取。续写状态卡没有某个旧信息时，才按「旧信息查找步骤」定点查询。
 
-**按需加载创作公式**：当写作中需要引用创作公式约束时（如期待感公式、爽点公式、信息差公式），加载 `references/genre-writing-formulas.md`。默认不加载，避免无条件加载 1500+ 行文件浪费 token。
+**按需加载**：需要期待感、爽点或信息差约束时，加载 `references/plot-emotion-system.md`、`references/plot-core-methods.md` 或当前 `references/genre-prose-cards/` 题材卡。默认不全量加载。
 
 ### 续写状态卡与追踪事务
 

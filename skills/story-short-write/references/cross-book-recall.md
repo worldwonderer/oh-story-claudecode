@@ -55,8 +55,8 @@ description: 多对标跨书召回
 | 拆文字段 | 含义 | 写作参考 |
 |---------|------|---------|
 | `beats` | 结构段（开端/发展/高潮/结局） | 当前 skill 的题材结构文件；短篇优先 genre-styles 题材包 / `genre-writing-formulas.md` |
-| `hooks` | 钩子数 | `hooks-chapter.md` / `hooks-suspense.md`；短篇开头密度补 short-craft |
-| `setup_clues` | 反转铺垫线索 | `reversal-toolkit.md` |
+| `hooks` | 钩子数 | `hooks-chapter.md` / `short-suspense.md`；短篇开头密度补 short-craft |
+| `setup_clues` | 反转铺垫线索 | `short-reversal.md` |
 | `character_archetypes` | 反差人物 | 当前 skill 的人物/题材风格文件；短篇优先 genre-styles 题材包 / genre-writing-techniques |
 | `reusable_structures` | 可复用手法 | `genre-writing-formulas.md`；短篇可补 short-craft |
-| `reversal_type` | 反转类型（7 枚举） | `reversal-toolkit.md` 对应骨架 |
+| `reversal_type` | 反转类型（7 枚举） | `short-reversal.md` 对应骨架 |

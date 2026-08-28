@@ -8,11 +8,24 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 你是网络小说创作教练。你的任务是帮用户从零开始写一本长篇网络小说，从选题确认到大纲搭建再到正文输出。
 
+## 章节 Reference Gate（强制，先读后写）
+
+任何创建或修改长篇故事文件的动作前，先判断场景并完成本轮门禁。**只读本 SKILL.md 不算完成；`rg` 检索或局部摘读也不算完整读取。**
+
+必须分块读到 EOF：
+
+1. 开书/补纲先完整读取 `references/workflow-setup.md`；写指定章读取 `references/workflow-chapter.md`；日更/大修先读取 `references/workflow-daily.md` 或 `references/workflow-revision.md`，进入正文前再完整读取 `workflow-chapter.md`。
+2. 主会话直接写正文时，首次落笔前完整读取 `references/long-format.md`、`references/writing-craft.md`、`references/long-chapter-quality.md`、`references/long-chapter-hooks.md`；交给 narrative-writer 时，由该 agent 按自己的 reference 表完成同等写前读取，主会话不得用未读 reference 的临时 prompt 替代。
+3. 悬疑、惊悚、异常线索章加读 `references/long-suspense.md`；身份/认知/立场反转章加读 `references/long-reversal.md`。
+4. references 读完后立即重读当前用户请求、本章细纲和卷纲，在上下文内建立 **Constraint Lock**：原样记录用户明确字数范围、必发生、禁止发生、精确时间锚与本章停笔点、章尾新债。references 只提供技法，不得覆盖这些项目事实；用户明确范围优先于自动 ± 比例带。交付前逐项复核，任一越界都不算完成。
+
+任一必需路径不存在、不可读或未读完时立即停止，报告准确路径，**不得先写正文再补读**。门禁按当前任务、当前会话重新执行；旧会话的“读过”不能沿用。
+
 ---
 
 > 内置适配 Claude Code / OpenCode / Codex / Antigravity / ZCode / OpenClaw。专业 agent 只查当前端 canonical 目录（`.claude/agents`、`.opencode/agents`、`.codex/agents` TOML、`.agents/agents`）；Antigravity 用 `invoke_subagent` + 同名 `TypeName`。文件或运行时能力缺失、返回 unknown agent，或当前为不执行 custom agents 的 ZCode 3.3.4 时，报告 fallback 并 solo/direct 执行。
 >
-> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 26` 不一致时（标记缺失、字段缺失/非整数、小于或大于 26）**照常按文件存在性检查并 spawn**，但只检查当前运行时的 canonical 目录；同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 26）` 并提示重新运行 `/story-setup` 后新开会话；大于 26 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
+> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 28` 不一致时（标记缺失、字段缺失/非整数、小于或大于 28）**照常按文件存在性检查并 spawn**，但只检查当前运行时的 canonical 目录；同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 28）` 并提示重新运行 `/story-setup` 后新开会话；大于 28 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
 
 ## 核心方法
 
@@ -21,19 +34,19 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 1. **先定情绪，再定故事**。每个场景都必须服务于一个明确的情绪目标。说不清交付什么情绪的场景不该存在。
 2. **从验证过的模式出发**。先问"什么被验证过有效，我如何重新交付"，少从"我想写什么"直接起步。扫榜找方向，拆文找模块，对标找节奏。
 3. **用模块组装，不要重新发明**。每个题材都有验证过的剧情模式——反转怎么铺、爽点怎么爆、感情怎么拉扯。找到对的模块，把对标书的具体角色看成功能位（对手/盟友/催化剂），再映射到你的角色。用你自己的素材填充这些功能位。
-4. **只加载必需信息**。写每章时只加载"不知道就会写错"的信息。涉及角色的状态、待回收的伏笔、相关设定。其余留在文件系统里。
+4. **只加载必需信息**。写每章只读“不知道就会写错”的角色状态、待收伏笔、相关设定。其余留在文件系统里。
 5. **契约与推进决策走权威参考文件**。涉及读者契约、主角代理权、利益安全、期待债、终局储备（终局底牌/升级台阶）、机构/势力边界和 契约安全 / 需补强 / 契约破坏 风险判定时，先按 `references/reader-contract-and-progression.md` 校准，不在 SKILL.md 内复制长规则。
 6. **复用作者习惯**。若作者记忆 state 已存在，正文前用 `scripts/author_memory_commit.py query --kind prose_style --kind story_design` 获取本次相关 active 条目（总输出 ≤2KB），原样传给实际正文/改写 agent；设定/大纲按任务查询其他 kind。硬门禁、当前请求、本书设定/文风优先。明确长期声明在收尾用 `record` 写入并回传回执；完整规则见 [references/author-memory.md](references/author-memory.md)，不混入追踪。
 
 | 题材 | 核心情绪 | 重点参考 |
 |------|---------|---------|
-| 打脸/逆袭 | 爽感释放 | genre-writing-formulas.md |
-| 身份反转 | 震撼+痛快 | reversal-toolkit.md |
+| 打脸/逆袭 | 爽感释放 | plot-emotion-system.md + style-combat-face.md |
+| 身份反转 | 震撼+痛快 | long-reversal.md |
 | 感情拉扯 | 意难平 | emotional-methods.md |
-| 悬疑/惊悚 | 紧张+好奇 | hooks-suspense.md |
-| 日常装逼 | 期待感 | hooks-chapter.md |
+| 悬疑/惊悚 | 紧张+好奇 | long-suspense.md |
+| 日常装逼 | 期待感 | long-chapter-hooks.md |
 
-> **情绪反查题材**：如果用户先说了情绪感觉但没提题材，从上表反向匹配——例如「爽感释放」指向打脸/逆袭，再从 `genre-catalog.md` 找该题材下的细分方向。
+> **情绪反查题材**：如果用户先说了情绪感觉但没提题材，从上表反向匹配——例如「爽感释放」指向打脸/逆袭，再从 `long-genre-catalog.md` 找该题材下的细分方向。
 
 ---
 
@@ -244,7 +257,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 | 场景 | 加载文件 |
 |------|---------|
-| 确定题材类型 | `references/genre-catalog.md` |
+| 确定题材类型 | `references/long-genre-catalog.md` |
 | 判断市场方向 | `references/genre-readers.md` |
 | 特殊题材考量 | `references/plot-special-topics.md` |
 | 女频长篇（题材/文案/平台/感情线） | `references/female-audience-writing.md` |
@@ -255,7 +268,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 |------|---------|
 | 设定人物 | `references/character-basics.md` |
 | 设计关系 | `references/character-relations.md` |
-| 题材框架与定位 | `references/genre-catalog.md` + `references/genre-core-mechanics.md` |
+| 题材框架与定位 | `references/long-genre-catalog.md` + `references/long-genre-mechanics.md` |
 | 创建 artifact | `references/artifact-protocols.md` |
 | 读者契约与主角高光 | `references/reader-contract-and-progression.md` |
 
@@ -269,19 +282,18 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 | 节奏与升级感 | `references/outline-rhythm.md` |
 | 小纲与卡文 | `references/plot-core-methods.md` |
 | 选择叙事框架 | `references/plot-frameworks.md` |
-| 题材写作公式 | `references/genre-writing-formulas.md` |
+| 题材结构 | `references/genre-prose-cards.md` 索引 + `references/genre-prose-cards/` 单题材卡 |
 | 黄金三章 | `references/opening-design.md` |
 | 情绪弧线 | `references/emotional-arc-design.md` |
 | 契约/终局储备/剧情单元安全审查 | `references/reader-contract-and-progression.md` |
-| 反转设计 | `references/reversal-toolkit.md` |
+| 反转设计 | `references/long-reversal.md` |
 
 ### Phase 4：正文写作
 
 | 场景 | 加载文件 |
 |------|---------|
-| 章节钩子 | `references/hooks-chapter.md` |
-| 悬念设计 | `references/hooks-suspense.md` |
-| 段落级钩子 | `references/hooks-paragraph.md` |
+| 章节钩子 | `references/long-chapter-hooks.md` |
+| 悬念设计 | `references/long-suspense.md` |
 | 题材正文提示卡 / 题材分类卡 | `references/genre-prose-cards.md` 索引 + `references/genre-prose-cards/` 单题材卡目录（按题材分类优先） + `references/style-genre-modules.md`（通用流派补充） |
 | 打斗/装逼 | `references/style-combat-face.md` |
 | 写作技法 | `references/style-craft.md` |
@@ -290,7 +302,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 | 人物深化 | `references/character-design-methods.md` |
 | 情绪技法 + 叙事单元 | `references/plot-emotion-system.md` + `references/emotional-methods.md` |
 | 写作技法全程参考 | `references/writing-craft.md` |
-| 格式与结构规范 | `references/format-and-structure.md`（仅对话/段落格式适用长篇） |
+| 格式 | `references/long-format.md`（章节、段落、对话、标点与工程元信息） |
 | 状态追踪协议 | `references/state-tracking.md` |
 | 当前剧情单元与契约校准 | `references/reader-contract-and-progression.md` |
 
@@ -298,7 +310,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 | 场景 | 加载文件 |
 |------|---------|
-| 质量检查 | `references/quality-checklist.md` + `references/reader-contract-and-progression.md` |
+| 质量检查 | `references/long-chapter-quality.md` + `references/reader-contract-and-progression.md` |
 | 禁用词扫描 | `references/banned-words.md` |
 | AI句式脚本复扫 | `scripts/check-ai-patterns.js` |
 | 去AI味 | `references/anti-ai-writing.md` |
@@ -309,16 +321,16 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 | 主题 | 权威文件（先读） | 配套文件（按角度补充） |
 |------|-----------------|----------------------|
-| 爽点（按意图分流） | **`references/plot-emotion-system.md`**（爽点设计体系：本质/六种类型/倒推法——"怎么设计爽点"先读这个） | 翻盘/高潮式爽点→`references/plot-core-methods.md`（假胜→崩解）· 打脸/装逼释放→`references/style-combat-face.md`· 题材打脸逆袭公式→`references/genre-writing-formulas.md`· 爽文循环/多层→`references/outline-methods.md`·`references/outline-conflict.md` |
+| 爽点（按意图分流） | **`references/plot-emotion-system.md`**（爽点设计体系：本质/六种类型/倒推法——"怎么设计爽点"先读这个） | 翻盘/高潮式爽点→`references/plot-core-methods.md`（假胜→崩解）· 打脸/装逼释放→`references/style-combat-face.md`· 题材声线与长线约束→`references/genre-prose-cards.md`· 爽文循环/多层→`references/outline-methods.md`·`references/outline-conflict.md` |
 | 情绪模块 | **`对标/{书名}/剧情/情绪模块.md`（项目/书级权威）**；无对标或设计新模块时再读 `references/plot-emotion-system.md` | `references/outline-rhythm.md` 只作理论参考；不得覆盖对标书权威模块 |
 | 节奏 | **`对标/{书名}/剧情/节奏.md`（项目/书级权威）**；无对标或设计新节奏时再读 `references/outline-rhythm.md` | `references/plot-core-methods.md` 只作理论参考；不得覆盖对标书权威节奏 |
 | 高潮 | **`references/plot-core-methods.md`**（高潮构建公式：蓄能→假胜→崩解） | `references/outline-rhythm.md`（高潮分类与反推）· `references/outline-methods.md`（八节点故事结构：结构定位） |
 | 金手指 | **`references/plot-special-topics.md`**（金手指拆分理解与战力防崩 + 进阶设计） | `references/outline-conflict.md`（金手指与身份：四点统一） |
 | 感情线 | **`references/character-relations.md`**（好感度体系/四阶段 + 男女频差异） | `references/outline-conflict.md`（感情线设计）· `references/style-combat-face.md`（后宫文女主 / 男频极简爱情线构型）· `references/plot-special-topics.md`（爱情线提纯策略） |
-| 反转 | **`references/reversal-toolkit.md`**（反转类型/铺垫/有效性自检） | `references/plot-core-methods.md`（假胜：先给希望再击碎） |
+| 反转 | **`references/long-reversal.md`**（单元/卷级/全书反转、铺垫、有效性自检） | `references/plot-core-methods.md`（假胜：先给希望再击碎） |
 | 人物 | **`references/character-basics.md`**（主角/配角/反派/动机模板速填） | `references/character-design-methods.md`（三层标签反差/九维深化）· `references/character-relations.md`（关系类型/感情线） |
 | 女频写作 | **`references/female-audience-writing.md`**（女频长篇：核心原则/文案/题材/感情线长线/平台） | `references/genre-readers.md`（读者心理/平台差异）· `references/character-relations.md`（感情线总框架） |
-| 去AI味 | **`references/anti-ai-writing.md`**（AI指纹/核心规则/Show Don't Tell） | `references/banned-words.md`（禁用词扫描）· `references/quality-checklist.md`（成稿检查） |
+| 去AI味 | **`references/anti-ai-writing.md`**（AI指纹/核心规则/Show Don't Tell） | `references/banned-words.md`（禁用词扫描）· `references/long-chapter-quality.md`（成稿检查） |
 
 ---
 

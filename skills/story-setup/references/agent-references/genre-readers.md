@@ -2,7 +2,7 @@
 
 > **用途**：读者心理需求、题材生命力规律、跨网站适配、平台差异、书名/简介技法、代入感管理。选题和定位时对照使用。
 > **语气**：指令式——每个规律都要转化为选题、定位、书名、文案或开篇的可执行约束。
-> **配合**：题材结构骨架见 genre-writing-formulas.md，核心梗设计见 genre-core-mechanics.md。
+> **配合**：长篇结构与声线见 `long-genre-catalog.md`、`long-genre-mechanics.md` 与 `genre-prose-cards.md`；短篇结构见 `short-genre-formulas.md`。
 
 ---
 
