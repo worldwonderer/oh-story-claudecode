@@ -116,6 +116,7 @@ bash scripts/test-ai-patterns.sh
 node scripts/test-phase2-contract.js
 node scripts/test-delivery-contract.js
 node scripts/check-reference-gates.js
+node scripts/test-outline-contract.js
 bash scripts/test-degeneration.sh
 bash scripts/test-prose-backstop-hook.sh
 bash scripts/test-prose-net-parity.sh

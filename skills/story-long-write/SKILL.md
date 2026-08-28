@@ -287,6 +287,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 | 情绪弧线 | `references/emotional-arc-design.md` |
 | 契约/终局储备/剧情单元安全审查 | `references/reader-contract-and-progression.md` |
 | 反转设计 | `references/long-reversal.md` |
+| 细纲结构验收 | `scripts/check-outline-contract.js`（新建/补建后跑，只判字段与表结构） |
 
 ### Phase 4：正文写作
 

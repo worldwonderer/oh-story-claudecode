@@ -38,6 +38,7 @@
 | `test-phase2-contract.js` | 短篇 Phase 2 首屏门禁、结构化产物验收、具名失败与定向 repair 回归 | Linux / Windows / macOS CI |
 | `test-delivery-contract.js` | 短篇最终字数、节数、标记与空行交付契约回归 | Linux / Windows / macOS CI |
 | `check-reference-gates.js` | 长短篇 Reference Gate 的首屏位置、完整读取语义与关键路由静态守卫（gate 是提示词，无运行时入口可断言） | Linux / Windows / macOS CI |
+| `test-outline-contract.js` | 长篇细纲结构验收：字段、小节、五段式、四列情节点表与字数口径的正负例回归 | Linux / Windows / macOS CI |
 | `test-degeneration.sh` | 模型退化检测器 `check-degeneration.js` 回归 | CI |
 | `test-prose-net-parity.sh` | 正文兜底「轻量确定性网」Claude/OpenCode/Codex/ZCode parity | CI（调 check-hook-regex-sync） |
 | `test-prose-backstop-hook.sh` | `check-prose-after-write.sh` 回归 | CI |

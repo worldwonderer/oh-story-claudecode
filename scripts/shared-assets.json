@@ -94,6 +94,13 @@
         "skills/story-setup/references/opencode/story_hook_core.js",
         "skills/story-setup/references/zcode/hooks/story_hook_core.js"
       ]
+    },
+    {
+      "name": "outline-contract-verifier",
+      "source": "skills/story-long-write/scripts/check-outline-contract.js",
+      "targets": [
+        "skills/story-import/scripts/check-outline-contract.js"
+      ]
     }
   ]
 }
