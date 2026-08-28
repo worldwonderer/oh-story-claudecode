@@ -125,6 +125,36 @@ try {
   ))
   assert.strictEqual(explicitShortTarget.status, 0, explicitShortTarget.stdout + explicitShortTarget.stderr)
 
+  // 用户给的是字数区间时，大纲合计落在区间内即通过。
+  const rangeTarget = run(writeCase(
+    'range-target',
+    validSettings({ target: '6000-8000 字' }),
+    validOutline().replaceAll('| 1000 |', '| 900 |')
+  ))
+  assert.strictEqual(rangeTarget.status, 0, rangeTarget.stdout + rangeTarget.stderr)
+  assert.strictEqual(rangeTarget.report.ok, true)
+
+  const rangeTargetOutside = run(writeCase(
+    'range-target-outside',
+    validSettings({ target: '6000-8000 字' }),
+    validOutline().replaceAll('| 1000 |', '| 500 |')
+  ))
+  assert.strictEqual(rangeTargetOutside.status, 1)
+  assert.deepStrictEqual(failureIds(rangeTargetOutside), ['phase2.target-word-sum'])
+  assert.match(rangeTargetOutside.report.failures[0].evidence, /6000-8000/)
+
+  // 未填写的模板占位符不算完成设计。
+  const placeholders = run(writeCase(
+    'unfilled-placeholders',
+    validSettings({
+      moves: '{招式一}；{招式二}；{招式三}',
+      reversalType: '{身份/视角/动机/时间线/信息/认知/无反转}',
+    }),
+    validOutline()
+  ))
+  assert.strictEqual(placeholders.status, 1)
+  assert(failureIds(placeholders).includes('phase2.no-template-placeholders'))
+
   const missingSettings = run(writeCase('missing-settings', null, validOutline()))
   assert.strictEqual(missingSettings.status, 1)
   assert(failureIds(missingSettings).includes('phase2.settings-readable'))
@@ -137,6 +167,23 @@ try {
   assert.strictEqual(badGenre.status, 1)
   assert.deepStrictEqual(failureIds(badGenre), ['phase2.genre-reference-declared'])
   assert.match(badGenre.report.failures[0].evidence, /不存在\.md/)
+
+  // 招式说明里的顿号/逗号属于招式内部描述，只有分号才是招式分隔符。
+  const movesWithInnerPunctuation = run(writeCase(
+    'moves-with-inner-punctuation',
+    validSettings({ moves: '白月光触发链（旧物、旧地、旧称呼三连触发）；信物翻转，从定情物变成证据；火葬场预告' }),
+    validOutline()
+  ))
+  assert.strictEqual(movesWithInnerPunctuation.status, 0, movesWithInnerPunctuation.stdout + movesWithInnerPunctuation.stderr)
+  assert.strictEqual(movesWithInnerPunctuation.report.ok, true)
+
+  const tooFewMoves = run(writeCase(
+    'too-few-moves',
+    validSettings({ moves: '只有一个招式' }),
+    validOutline()
+  ))
+  assert.strictEqual(tooFewMoves.status, 1)
+  assert.deepStrictEqual(failureIds(tooFewMoves), ['phase2.genre-moves-declared'])
 
   const noReason = run(writeCase(
     'villain-no-reason',

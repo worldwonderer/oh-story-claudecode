@@ -76,6 +76,11 @@ try {
   assert.strictEqual(blankLines.status, 1)
   assert(failureIds(blankLines).includes('delivery.blank-lines'))
 
+  // 文件末尾的空行只是落盘习惯，不算段间空行。
+  const trailingBlank = run(writeCase('trailing-blank', `${body()}\n\n`))
+  assert.strictEqual(trailingBlank.status, 0, trailingBlank.stdout + trailingBlank.stderr)
+  assert.strictEqual(trailingBlank.report.ok, true)
+
   const missing = run(writeCase('missing', null))
   assert.strictEqual(missing.status, 1)
   assert.deepStrictEqual(failureIds(missing), ['delivery.body-readable'])

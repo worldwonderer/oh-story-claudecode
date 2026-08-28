@@ -1,14 +1,15 @@
 # Agent 参考资料 Profile 契约
 
-> 本文件是 story-setup Agent reference 路由的唯一资料清单。Agent 自身只描述任务能力，不复制文件清单。每次任务选择 `long` 或 `short` 后，只能加载 `Common + 当前 profile`；表外文件即使存在也不读取。
+> 本文件是 story-architect 的唯一资料清单。story-architect 自身只描述任务能力，不复制文件清单。每次任务选择 `long` 或 `short` 后，只能加载 `Common + 当前 profile`；表外文件即使存在也不读取。其他 agent 按各自模板的参考表读取，只用本文件的 long / short 选择规则和质量覆盖表。
 
 ## 选择规则
 
 1. 参数明确写“长篇 / 连载 / 章纲 / 日更”时选择 `long`。
 2. 明确写“短篇 / 单篇 / 小节大纲 / 盐言 / 小程序短故事”时选择 `short`。
 3. 参数未写明时，用项目产物判定：`大纲/细纲_第XXX章.md`、`追踪/` 属于 long；`小节大纲.md`、单文件 `正文.md` 属于 short。
-4. 仍无法判定时返回 `Reference Profile: unresolved`，不得同时加载两套资料兜底。
-5. 输出开头标记 `Reference Profile: long|short`；审查任务按被审查作品选择。
+4. 新建项目尚无产物时按调用方判定：story-long-write 的题材定位、核心设定、大纲任务为 `long`；story-short-write 的构思任务为 `short`。
+5. 仍无法判定时返回 `Reference Profile: unresolved`，不得同时加载两套资料兜底。
+6. 输出开头标记 `Reference Profile: long|short`；审查任务按被审查作品选择。
 
 ## Common
 

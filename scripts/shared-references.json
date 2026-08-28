@@ -263,6 +263,14 @@
       ]
     },
     {
+      "name": "cross-book-recall-profile",
+      "reason": "Long and short recall tables route to their own skill's structure, hook and reversal references; only the routing rows differ.",
+      "members": [
+        "skills/story-long-write/references/cross-book-recall.md",
+        "skills/story-short-write/references/cross-book-recall.md"
+      ]
+    },
+    {
       "name": "analysis-writing-techniques",
       "reason": "Analysis technique rubric derives from the short-writing technique catalog.",
       "members": [

@@ -79,7 +79,7 @@ function verify(projectDir, contract) {
       : '只压缩重复解释、复述和无功能过场，不删关键证据或结算。'
   ))
 
-  const lines = bodyRead.text.replace(/\r\n?/g, '\n').split('\n')
+  const lines = bodyRead.text.replace(/\r\n?/g, '\n').replace(/\n+$/, '\n').split('\n')
   const markers = lines
     .map((line, index) => ({ line: index + 1, marker: markerFor(line), text: line.trim() }))
     .filter((entry) => entry.marker)

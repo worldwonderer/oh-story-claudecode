@@ -113,6 +113,9 @@ node scripts/test-scan-runtime.js
 bash scripts/check-scan-runtime-policy.sh
 python3 scripts/test-scan-runtime-policy.py
 bash scripts/test-ai-patterns.sh
+node scripts/test-phase2-contract.js
+node scripts/test-delivery-contract.js
+node scripts/check-reference-gates.js
 bash scripts/test-degeneration.sh
 bash scripts/test-prose-backstop-hook.sh
 bash scripts/test-prose-net-parity.sh

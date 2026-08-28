@@ -55,7 +55,7 @@ jobs:
         run: |
           node scripts/test-phase2-contract.js
           node scripts/test-delivery-contract.js
-          node scripts/test-reference-gates.js
+          node scripts/check-reference-gates.js
       - name: Degeneration detector regression
         run: bash scripts/test-degeneration.sh
       - name: Prose backstop hook regression
@@ -135,7 +135,7 @@ jobs:
         run: |
           node scripts/test-phase2-contract.js
           node scripts/test-delivery-contract.js
-          node scripts/test-reference-gates.js
+          node scripts/check-reference-gates.js
       - name: Degeneration detector regression
         shell: bash
         run: bash scripts/test-degeneration.sh
@@ -216,7 +216,7 @@ jobs:
         run: |
           node scripts/test-phase2-contract.js
           node scripts/test-delivery-contract.js
-          node scripts/test-reference-gates.js
+          node scripts/check-reference-gates.js
       - name: Degeneration detector regression
         run: bash scripts/test-degeneration.sh
       - name: Prose backstop hook regression

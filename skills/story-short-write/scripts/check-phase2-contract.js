@@ -125,7 +125,7 @@ function verify(projectDir) {
 
   const movesMatch = settings.match(/核心招式\s*[：:]\s*([^\n]+)/)
   const moves = movesMatch
-    ? movesMatch[1].split(/[；;、，,]/).map((item) => item.trim()).filter(Boolean)
+    ? movesMatch[1].split(/[；;]|\s\/\s/).map((item) => item.trim()).filter(Boolean)
     : []
   checks.push(makeCheck(
     'phase2.genre-moves-declared',
@@ -149,6 +149,21 @@ function verify(projectDir) {
     '无反派时写“反派设计：不适用（原因）”；有反派时填写身份、动机、作恶方式、致命弱点、报应',
     ['references/villain-and-reveal.md'],
     '只补反派缺失字段；若确无反派，改为带原因的不适用声明。'
+  ))
+
+  const placeholderFields = ['题材参考', '核心招式', '反派设计', '反转类型', '反转位置', '付费点', '目标平台', '目标字数']
+  const placeholderLines = settings.split(/\r?\n/)
+    .map((line, index) => ({ line: index + 1, text: line }))
+    .filter((entry) => placeholderFields.some((field) => entry.text.includes(`${field}：`) || entry.text.includes(`${field}:`)))
+    .filter((entry) => /\{[^}]*\}/.test(entry.text))
+  checks.push(makeCheck(
+    'phase2.no-template-placeholders',
+    placeholderLines.length === 0,
+    '设定.md',
+    placeholderLines.length ? `仍是模板占位符的行：${placeholderLines.map((entry) => entry.line).join('、')}` : '契约字段没有未填写的 {} 占位符',
+    'Phase 2 契约字段写实际设计内容，不保留 {} 模板占位符',
+    ['references/writing-workflow.md'],
+    '只把报告行的占位符替换成本篇的实际设计，不重写其他字段。'
   ))
 
   const lines = outline.split(/\r?\n/)
@@ -219,8 +234,12 @@ function verify(projectDir) {
     '只修报告行的子事件单元格，不重写其他列或其他节。'
   ))
 
-  const targetMatch = settings.match(/目标字数\s*[：:]\s*(?:约\s*)?([\d,，]+)\s*字?/)
-  const statedTarget = targetMatch ? Number(targetMatch[1].replace(/[,，]/g, '')) : null
+  const targetMatch = settings.match(/目标字数\s*[：:]\s*(?:约\s*)?([\d,，]+)\s*(?:字)?\s*(?:[-–—~～]|到|至)\s*([\d,，]+)\s*字?/) ||
+    settings.match(/目标字数\s*[：:]\s*(?:约\s*)?([\d,，]+)\s*字?/)
+  const toNumber = (value) => Number(String(value).replace(/[,，]/g, ''))
+  const targetLow = targetMatch ? toNumber(targetMatch[1]) : null
+  const targetHigh = targetMatch && targetMatch[2] !== undefined ? toNumber(targetMatch[2]) : targetLow
+  const statedTarget = targetLow
   const rowTargets = subeventRows.map((row) => {
     const match = row.cells[11].match(/([\d,，]+)/)
     return match ? Number(match[1].replace(/[,，]/g, '')) : null
@@ -228,15 +247,18 @@ function verify(projectDir) {
   const targetSum = rowTargets.every((value) => Number.isFinite(value))
     ? rowTargets.reduce((sum, value) => sum + value, 0)
     : null
-  const targetOk = statedTarget !== null && statedTarget >= 1000 && statedTarget <= 200000 &&
-    subeventRows.length === rows.length && targetSum !== null &&
-    Math.abs(targetSum - statedTarget) <= statedTarget * 0.05
+  const isRange = targetHigh !== null && targetHigh !== targetLow
+  const targetOk = statedTarget !== null && statedTarget >= 1000 && targetHigh <= 200000 &&
+    targetHigh >= targetLow && subeventRows.length === rows.length && targetSum !== null &&
+    (isRange
+      ? targetSum >= targetLow && targetSum <= targetHigh
+      : Math.abs(targetSum - statedTarget) <= statedTarget * 0.05)
   checks.push(makeCheck(
     'phase2.target-word-sum',
     targetOk,
     '设定.md、小节大纲.md',
-    `设定目标：${statedTarget === null ? '未识别' : statedTarget}；大纲合计：${targetSum === null ? '有非数字目标字数' : targetSum}`,
-    '设定.md 的目标字数为 1000-200000 的正整数（用户明确目标优先，未指定时默认 8000-20000）；大纲每行目标字数可解析，合计与设定误差不超过 5%',
+    `设定目标：${statedTarget === null ? '未识别' : (isRange ? `${targetLow}-${targetHigh}` : statedTarget)}；大纲合计：${targetSum === null ? '有非数字目标字数' : targetSum}`,
+    '设定.md 的目标字数为 1000-200000 的正整数或区间（用户明确范围优先，未指定时默认 8000-20000）；大纲每行目标字数可解析，写区间时合计落在区间内，写单值时误差不超过 5%',
     ['references/writing-workflow.md', 'references/submission-craft.md'],
     '只修目标字数字段或各节“目标字数”单元格，使合计匹配；不要用增删剧情绕过数字错误。'
   ))

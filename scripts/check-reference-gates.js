@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+/**
+ * check-reference-gates.js — static guard for the two Reference Gates.
+ *
+ * The gates are prompt text executed by a model, so there is no runtime entry
+ * point to call and no return value to assert. This guard therefore pins the
+ * source policy only: the gate stays on the first screen and keeps naming every
+ * reference it routes. Gate adherence itself is measured by real writing runs,
+ * not here; do not read a pass as evidence that a model obeyed the gate.
+ */
+
 'use strict'
 
 const assert = require('assert')
@@ -36,4 +46,4 @@ assert.match(short, /只读本 SKILL\.md 不算完成门禁/)
 assert.match(short, /任一必需路径不存在、不可读/)
 assert.match(short, /分块直到 EOF；`rg` 检索或局部摘读不算读完/)
 
-process.stdout.write('reference-gates: all tests passed\n')
+process.stdout.write('reference-gates: source policy holds\n')

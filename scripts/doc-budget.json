@@ -54,6 +54,41 @@
       "path": "skills/story-long-write/references/banned-words.md",
       "budget": 4000,
       "why": "禁用词扫描每章读。+200：登记指尖轻叩、指节泛白、喉结滚动、声音放轻等成片反应簇及删除测试，不把单个身体词设为禁词"
+    },
+    {
+      "path": "skills/story-long-write/references/long-format.md",
+      "budget": 1100,
+      "why": "长篇 Reference Gate 把它列为主会话直接写正文前的无条件完整读取项，属热路径；预算按当前用量留余量"
+    },
+    {
+      "path": "skills/story-long-write/references/long-chapter-quality.md",
+      "budget": 3800,
+      "why": "同上，写前必读；质量清单每章都进上下文"
+    },
+    {
+      "path": "skills/story-long-write/references/long-chapter-hooks.md",
+      "budget": 3400,
+      "why": "同上，写前必读；章首章尾钩子每章都用"
+    },
+    {
+      "path": "skills/story-short-write/references/writing-workflow.md",
+      "budget": 4200,
+      "why": "短篇 Phase 2 Reference Gate 的无条件完整读取项"
+    },
+    {
+      "path": "skills/story-short-write/references/submission-craft.md",
+      "budget": 1850,
+      "why": "同上，Phase 2 定平台基调必读"
+    },
+    {
+      "path": "skills/story-short-write/references/short-craft.md",
+      "budget": 5000,
+      "why": "同上，Phase 2 与 Phase 3 通用底座"
+    },
+    {
+      "path": "skills/story-short-write/references/short-reversal.md",
+      "budget": 6250,
+      "why": "同上，Phase 2 反转信息差验证必读"
     }
   ],
   "paths": [
