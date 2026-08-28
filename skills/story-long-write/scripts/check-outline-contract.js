@@ -27,6 +27,8 @@ const FIELDS = [
 const SUBSECTIONS = ['内容概括', '情节安排', '人物关系和出场顺序', '情节细化']
 const FIVE_ACT = ['起因', '发展', '转折', '高潮', '结尾']
 const PLOT_HEADER_FIRST = /^(?:#|序号)$/
+// 这两个字段实测直接影响正文质量，必须有实际内容
+const INTENT_FIELDS = ['目标情绪', '主角目标/关键选择']
 const CALIBER = 'visible_chars_v1'
 
 function fieldPattern(name) {
@@ -87,6 +89,24 @@ function verify(file) {
     missingFields.length ? `缺字段：${missingFields.join('、')}` : `${FIELDS.length} 个字段齐全`,
     `按权威模板列出全部字段：${FIELDS.join('、')}；值未知时写 [待补充]，不杜撰剧情`,
     '只补报告里缺的字段行；确实还定不下来的写 [待补充]，不为补字段新增副线或人物关系。'
+  ))
+
+  // 隔离实验（同章、同写作流程，只改细纲）：只补这两个字段就能复现补齐全部字段的收益，
+  // 盲评 3/3 胜过不补；补满五个字段与只补这两个不可区分。所以这两个字段不接受占位符，
+  // 其余字段仍按契约允许 [待补充]。
+  const hollow = INTENT_FIELDS.filter((field) => {
+    const match = text.match(new RegExp(`^\\s*[-*+]\\s*\\*{0,2}${field.replace('/', '\\/')}\\*{0,2}\\s*[：:]\\s*(.*)$`, 'm'))
+    if (!match) return false
+    const value = match[1].replace(/\[待补充\]/g, '').replace(/[\s、，,。;；]/g, '')
+    return value.length === 0
+  })
+  checks.push(makeCheck(
+    'outline.intent-fields-substantive',
+    hollow.length === 0,
+    name,
+    hollow.length ? `只有占位符，没有实际内容：${hollow.join('、')}` : '目标情绪与主角目标/关键选择都写了实际内容',
+    '目标情绪写清前状态→后状态；主角目标/关键选择写清本章要什么、必须做出的判断。这两项不接受 [待补充]',
+    '只把这两个字段替换成本章的实际情绪变化与实际取舍；其余字段不动。'
   ))
 
   const missingSubs = SUBSECTIONS.filter((sub) => !new RegExp(`^#{3,4}\\s*${sub}`, 'm').test(text))

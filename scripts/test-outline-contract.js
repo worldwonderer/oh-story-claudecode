@@ -104,6 +104,27 @@ try {
   const bold = run(writeCase('bold-halfwidth', boldHalfWidth))
   assert.strictEqual(bold.status, 0, bold.stdout + bold.stderr)
 
+  // 目标情绪 / 主角目标·关键选择 实测直接影响正文，不接受占位符……
+  const hollowIntent = run(writeCase('hollow-intent', outline({
+    fieldValues: { 目标情绪: '[待补充]' },
+  })))
+  assert.strictEqual(hollowIntent.status, 1)
+  assert(failureIds(hollowIntent).includes('outline.intent-fields-substantive'))
+  assert.match(hollowIntent.report.failures.find((f) => f.id === 'outline.intent-fields-substantive').evidence, /目标情绪/)
+
+  const hollowGoal = run(writeCase('hollow-goal', outline({
+    fieldValues: { '主角目标/关键选择': '[待补充]' },
+  })))
+  assert.strictEqual(hollowGoal.status, 1)
+  assert(failureIds(hollowGoal).includes('outline.intent-fields-substantive'))
+
+  // ……但其余字段仍按契约允许 [待补充]，不能因此判失败。
+  const hollowOther = run(writeCase('hollow-other', outline({
+    fieldValues: { 契约风险: '[待补充]', 章节定位: '[待补充]' },
+  })))
+  assert.strictEqual(hollowOther.status, 0, hollowOther.stdout + hollowOther.stderr)
+  assert.strictEqual(hollowOther.report.ok, true)
+
   const dropped = run(writeCase('missing-field', outline({ dropField: '目标情绪' })))
   assert.strictEqual(dropped.status, 1)
   assert.deepStrictEqual(failureIds(dropped), ['outline.required-fields'])
