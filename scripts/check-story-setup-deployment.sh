@@ -194,6 +194,13 @@ assert_file "$SKILL_DIR/references/zcode/config.json.patch"
 assert_file "$SKILL_DIR/references/zcode/hooks/hooks.json"
 assert_file "$SKILL_DIR/references/zcode/hooks/story_zcode_hook.js"
 assert_file "$SKILL_DIR/references/zcode/hooks/story_hook_core.js"
+assert_file "$SKILL_DIR/references/antigravity/rules/oh-story.md"
+assert_file "$SKILL_DIR/references/antigravity/hooks/hooks.json"
+assert_file "$SKILL_DIR/references/antigravity/hooks/story_antigravity_hook.js"
+assert_file "$SKILL_DIR/references/antigravity/hooks/story_hook_core.js"
+assert_file "$SKILL_DIR/scripts/generate-antigravity-agents.mjs"
+assert_file "$SKILL_DIR/scripts/deploy-antigravity-skills.py"
+assert_file "$SKILL_DIR/scripts/merge-antigravity-hooks.py"
 # OpenCode shares the same prose-guard core (byte-identity guarded by check-opencode-adapter.sh);
 # it deploys alongside plugin.ts as .opencode/plugins/lib/story_hook_core.js (lib/ subdir so it
 # escapes OpenCode's single-level .opencode/plugins/*.js plugin auto-discovery).
@@ -732,7 +739,7 @@ for ref_dir in "$SKILL_DIR"/references/*/; do
   esac
 done
 ref_dir_count="$(find "$SKILL_DIR/references" -maxdepth 1 -mindepth 1 -type d | wc -l | tr -d ' ')"
-[ "$ref_dir_count" -eq 8 ] || fail "story-setup references/ now has $ref_dir_count subdirs (expected 8); update the Phase 1 self-check list and this assertion"
+[ "$ref_dir_count" -eq 9 ] || fail "story-setup references/ now has $ref_dir_count subdirs (expected 9); update the Phase 1 self-check list and this assertion"
 assert_grep '剧情/情绪模块\.md.*missing_primary_contract|missing_primary_contract.*剧情/情绪模块\.md' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must require the current emotion-module artifact"
 assert_grep '剧情/节奏\.md.*missing_primary_contract|missing_primary_contract.*剧情/节奏\.md' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must require the current rhythm artifact"
 assert_no_grep 'legacy_deconstruction|contract_version.*legacy|pre-v12' "$SKILL_DIR/references/templates/agents/story-explorer.md" "story-explorer must not keep legacy benchmark branches"

@@ -83,6 +83,8 @@ PR 自动运行 `.github/workflows/cross-platform.yml`。static-check job 跑以
 - `scripts/check-openclaw-skills.sh` — OpenClaw 单行 frontmatter、`metadata.openclaw` 与可选真实 CLI 发现检查
 - `scripts/check-codex-adapter.sh` — Codex repo skills symlink、custom-agent TOML、hook 生成确定性与 launcher 契约
 - `scripts/test-codex-hooks.sh` — Codex hooks 合成事件测试
+- `scripts/check-antigravity-adapter.sh` — Antigravity 项目 Skills 物化、Markdown agents、Always-On Rule、named-group Hooks 与合并/行为回归
+- `node scripts/test-antigravity-hooks.mjs` — Antigravity 官方 Hook I/O、artifact 桥接和 Stop 单次续跑测试
 - `scripts/check-zcode-adapter.sh` — ZCode plugin/marketplace、13 Skills/Commands、受支持 Hook 事件与部署锚点检查
 - `scripts/test-zcode-hooks.sh` — ZCode 严格 JSON Hook 契约、正文守卫、连续性与跨平台 Node runner 测试
 - `python3 scripts/test-storyctl.py` — `visible_chars_v1` 计数、双层区间、结构化 CLI 与 demo 同口径证据的运行时行为回归
@@ -189,7 +191,7 @@ fork → branch → commit → PR → review → merge
 
 ## OpenCode 模板同步
 
-本项目同时支持 Claude Code、OpenCode、Codex、ZCode、OpenClaw 和 Reasonix（Phase 1）。OpenCode 的 agent 模板和项目指令模板由 `scripts/sync-opencode.py` 从 Claude Code 模板自动生成。
+本项目同时支持 Claude Code、Google Antigravity、OpenCode、Codex、ZCode、OpenClaw 和 Reasonix（Phase 1）。OpenCode 的 agent 模板和项目指令模板由 `scripts/sync-opencode.py` 从 Claude Code 模板自动生成。
 
 ### 何时需要同步
 
@@ -238,7 +240,7 @@ PR 中如果修改了 Claude Code 模板文件，CI 会自动检测 opencode 模
 
 - **agent-references** 部署到 `skills/story-setup/references/agent-references/`（非隐藏），而非 `.opencode/skills/`
 - **agent 文件** 双份部署：`.opencode/agents/`（opencode 系统使用）+ `agents/`（Glob 可见副本）
-- **subagent 检测**：所有 spawn agent 的 skill（story-review、story-long-write、story-deslop、story-import、story-long-analyze、story-short-write）需按 `.claude/agents/` → `.opencode/agents/` → `.codex/agents/` 顺序检查；ZCode 3.3.4 与 OpenClaw Phase 1 不部署项目 agents，走 solo/direct fallback。
+- **subagent 检测**：所有 spawn agent 的 skill（story-review、story-long-write、story-deslop、story-import、story-long-analyze、story-short-write）只检查当前运行时的 canonical 目录：Claude `.claude/agents/`、OpenCode `.opencode/agents/`、Codex `.codex/agents/`、Antigravity `.agents/agents/`；不得因其他端文件存在而误判。ZCode 3.3.4 与 OpenClaw Phase 1 不部署项目 agents，走 solo/direct fallback。
 
 **插件输出不可见**：opencode 插件的 `output.extra.system` 已移除（真实 API 中不存在此字段）。系统提示注入改用 `experimental.session.compacting` 的 `output.context` 传递写作上下文。
 
@@ -278,6 +280,27 @@ OPENCLAW_REAL_CHECK=1 bash scripts/check-openclaw-skills.sh  # 本机安装 open
 - **hooks 暂缓**：写正文前大纲守卫、commit 提醒、session-start/compact 注入未迁移为 OpenClaw hook/plugin；OpenClaw 下只作为 skill 流程软约束。
 - **package 暂缓**：OpenClaw 可识别 workspace/personal/managed skill roots；现阶段不发布 OpenClaw 原生 plugin package。
 
+## Google Antigravity 适配维护
+
+Antigravity 2.0 与 `agy` CLI 共用 `.agents/` workspace customization，但发版前仍建议分别实机 smoke test。支持面全部由 `story-setup` 部署到写作项目，部署器不写 `~/.gemini/`：
+
+- 13 个 Skills 物化到真实 `.agents/skills/{name}/`。`deploy-antigravity-skills.py` 只替换已知名称、保留用户 Skills；现有 symlink 默认 fail-closed，只有用户明确同意才迁移，且不得沿链接写到目标目录。
+- 7 个 custom subagents 由 Claude Markdown 真源在部署时生成到 `.agents/agents/agent-name/agent.md`（`agent-name` 替换为实际名称）。工具名必须来自官方清单，调用用 `invoke_subagent` + 同名 `TypeName`；生成器只替换 7 个已知定义并保留其他用户 agent。
+- Always-On Rule 固定为 `.agents/rules/oh-story.md`，文件必须小于 12,000 字符。它负责 skill 路由和 compact 后重新读取 `追踪/上下文.md`；不要假设 Antigravity 有 Claude 的 PreCompact/PostCompact。
+- `.agents/hooks.json` 是顶层 named-group mapping。合并器只替换 `oh-story` group，保留所有用户 groups。当前注册 `PreToolUse`、`PostToolUse`、`PreInvocation`、`Stop`：PreToolUse 必须输出 `decision`，PostToolUse 必须精确输出 `{}`；写后 findings 存到本会话 `artifactDirectoryPath`，下一次 PreInvocation 注入，Stop 最多强制 continue 一次。
+- `.agents/hooks/` 只管理 `story_antigravity_hook.js` 与共享 `story_hook_core.js`；后者由 `scripts/shared-assets.json` 锁字节一致，不手改副本。Hook 依赖 PATH 中的 Node。
+
+检查步骤：
+
+```bash
+bash scripts/check-antigravity-adapter.sh
+python3 scripts/test-antigravity-skills-deploy.py
+python3 scripts/test-antigravity-hook-merge.py
+node scripts/test-antigravity-hooks.mjs
+```
+
+若本机装有当前 Antigravity 2.0 / `agy`，再在临时写作项目运行一次 `story-setup`，新开 conversation，用 `/skills`、`/agents`、`/hooks` 验发现，并分别验证 IDE 与交互式 CLI。`agy 1.1.22 -p` 的 headless 进程会在静默鉴权前先扫描 workspace，鉴权后不重载 custom agents/hooks；实测会出现 `subagent not found` 或把普通模型输出写进 `~/.gemini/antigravity-cli/scratch/`，因此当前不作为支持入口或 smoke 手段。测试后检查并清理意外 scratch 产物。自动化不读写用户 global customization，也不替代这个实机步骤。
+
 ## ZCode 适配维护
 
 ZCode 采用「原生 plugin + `story-setup` workspace 部署」双入口：
@@ -296,7 +319,7 @@ bash scripts/test-zcode-hooks.sh
 bash scripts/test-prose-net-parity.sh
 ```
 
-更新正文轻量确定性网时，必须同步 Claude、OpenCode、Codex、ZCode 四端，并让 parity 测试通过。
+更新正文轻量确定性网时，必须同步 Claude、OpenCode、Codex、Antigravity、ZCode 五端，并让 shared-assets / parity / Antigravity hook 测试通过。
 
 ## Reasonix 适配维护
 

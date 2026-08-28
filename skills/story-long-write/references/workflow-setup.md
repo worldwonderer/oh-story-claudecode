@@ -109,7 +109,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 
 #### Agent 调用：story-architect + character-designer
 
-核心设定阶段，如果项目已部署对应 agent（优先检查 `.claude/agents/` 下的 `story-architect.md` 和 `character-designer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），可 spawn 以下 agent 辅助：
+核心设定阶段，当前端已部署对应 agent 时可 spawn；Antigravity 按 SKILL.md 用 `invoke_subagent` + 同名 `TypeName`：
 - `Agent(subagent_type: "story-architect", prompt: "项目目录：{dir}\n任务类型：核心设定\n查询参数：世界观构建+核心冲突设计")` — 辅助世界观和核心冲突设计；spawn prompt 必须原样附带 Phase 1 的「story-architect 契约摘要」（升级台阶检查约束力量体系设计）
 - `Agent(subagent_type: "character-designer", prompt: "项目目录：{dir}\n任务类型：角色设定\n查询参数：{主角设定信息}")` — 辅助角色设定和语言风格档案
 
@@ -272,7 +272,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 大纲完成后，创建以下 artifact（加载 [references/artifact-protocols.md](artifact-protocols.md) 中对应模板）：
 - **大纲/大纲.md**：全书卷级鸟瞰（卷名+字数+章数+核心事件+状态变化，一段式汇总）
 - **大纲/卷纲_第X卷.md**：每卷的剧情单元+情绪弧线（含章节定位）+人物弧线+伏笔+反转+对标结构坐标（参考 outline-methods.md「大纲三层结构法」 + outline-structure-theory.md「章节定位与张弛 / 对标节奏迁移」 + emotional-arc-design.md「六种弧线速查」 + reversal-toolkit.md「反转类型」）
-- **追踪事务初始状态**：按 `references/tracking-transaction.md` 构造第 0 章初始化 JSON，执行 `scripts/tracking_commit.py init`，生成检查点、续写状态卡（固定 7 栏）、空的伏笔/时间线视图与目录；核心角色动态快照可在第一次正文事务中创建
+- **追踪事务初始状态**：按 `references/tracking-transaction.md` 构造第 0 章初始化 JSON，执行 `scripts/tracking_commit.py init`，生成检查点、续写状态卡（固定 7 栏）、空的伏笔/时间线视图与目录；紧接着运行 `check`，通过后删除初始化事务 JSON；核心角色动态快照可在第一次正文事务中创建
 
 前 3 章细纲额外加载 [references/opening-design.md](opening-design.md)（黄金三章法则+六大标准）。
 
@@ -280,7 +280,7 @@ story-architect 属于高层级结构设计 agent。轻量题材定位优先由�
 
 大纲搭建阶段优先由主会话产出卷纲+首批细纲；只有结构复杂、反转链多或主会话方案不稳时，才调用 story-architect agent。
 
-若已部署 story-architect agent（优先检查 `.claude/agents/story-architect.md`），可让它辅助：
+当前端已部署 story-architect 时可让它辅助；Antigravity 调用规则同上：
 - 任务：卷级结构、首批细纲、钩子/反转/情绪弧线。
 - 章节定位：每章标高压/推进/修炼试错/关系回收/低压生活/信息整理；低压章可弱爽点，但仍要有往下看的理由。
 - 目标字数：只填写章级 `字数目标` 与 `visible_chars_v1` 口径；情节点不分配精确字数，也不让模型心算容量。

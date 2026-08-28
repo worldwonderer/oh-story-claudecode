@@ -4,6 +4,8 @@
 
 项目文件结构、产物映射表、缺失文件处理、对标分析权威优先级在 `SKILL.md` Phase 4 开头，本文件不重复（SKILL.md 恒在上下文里）。
 
+本文件提到的 agent 都只检查当前端 canonical 目录；Antigravity 使用 `.agents/agents/agent-name/agent.md`（`agent-name` 为目标 agent 名）和 `invoke_subagent` + 同名 `TypeName`，其余端使用各自 Agent 工具。
+
 ---
 
 ## 单章写作流程
@@ -11,7 +13,7 @@
 当用户准备写某一章时：
 
 1. **检查细纲**：读取 `大纲/细纲_第{N}章.md`，并从对应 `大纲/卷纲_第X卷.md` 读取当前剧情单元（单元ID/位置、卷契约、本卷主推线/战果、终局底牌边界、风险等级）。如果不存在或缺少当前章节蓝图的必需字段，**必须先补建细纲再写正文**，不允许跳过细纲直接写作。补建时参考卷纲中本章对应的事件规划和上下文，补齐阶段位置、结构公式、禁止提前释放、内容概括、情节安排、人物关系/出场顺序、情节细化、结尾设定；无法从已有证据判断的字段写 `[待补充]`，不杜撰副线或关系。
-2. **读取上下文**（按需选择；缺失时遵循各项及SKILL.md Phase 4 的「缺失文件处理」，仅明确标为可选的非主产物跳过。可选快捷路径：如果项目已部署 story-explorer agent（优先检查 `.claude/agents/story-explorer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），可 spawn `Agent(subagent_type: "story-explorer", prompt: "项目目录：{dir}\n查询类型：context_load\n查询参数：准备写第 {N} 章\n追踪状态：last_committed_chapter={check 的值}，state_revision={check 的值}")` 一次获取上下文）：
+2. **读取上下文**（按需选择；缺失时遵循各项及SKILL.md Phase 4 的「缺失文件处理」，仅明确标为可选的非主产物跳过。可选快捷路径：对应 agent 已部署时 spawn story-explorer 一次获取上下文。Prompt：`项目目录：{dir}\n查询类型：context_load\n查询参数：准备写第 {N} 章\n追踪状态：last_committed_chapter={check 的值}，state_revision={check 的值}`）：
    - (1) `正文/第{N-1}章_*.md` — 上一章正文
    - (2) `大纲/细纲_第{N}章.md` — 本章细纲（含钩子设计）
    - (2a) `大纲/卷纲_第X卷.md` — 当前剧情单元、卷契约与终局储备（主推线/战果、终局底牌边界）
@@ -38,7 +40,7 @@
      - (f) **结构化模块召回**：从对标的结构化子目录（角色/剧情/设定）中按本章情节检索相关模块；若与 `剧情/情绪模块.md` / `剧情/节奏.md` 冲突，权威文件优先，记录 `conflict`
      - (g) 输出"主对标召回摘要 + 副对标召回摘要 + selected_emotion_module + rhythm_reference + genre_prose_card + 文风召回指令 + 原文锚点片段引用"，作为 narrative-writer 的输入。**多对标书时**参 `references/cross-book-recall.md`：主对标提供文风、原文锚点与 selected_emotion_module / rhythm_reference；副对标/参考对标按阶段预算提供结构化摘要，不限制登记书目，不读取副书 `文风.md` / 原文，超过预算时裁条目不裁书目记录。
      - **快捷路径**：项目已部署 story-explorer agent 时，可一次性召回文风/模块材料。
-       - 检查顺序：`.claude/agents/story-explorer.md` → `.opencode/agents/` → `.codex/agents/`。
+       - 按本文件顶部规则确认 story-explorer 已部署。
        - 查询类型：`benchmark_style_load`；传入项目目录、章节号、目标基调/字数和爽点类型。
        - 需要返回：`style_profile_path`、`style_profile_summary`、`selected_emotion_module`、`rhythm_reference`、来源路径、匹配章节、锚点片段、`gaps`。
        - `gaps.missing_primary_contract` 为 true 时先按 `repair_action` 修复，不进入正文生成。
@@ -52,7 +54,7 @@
 	     - 检查任务卡点：本章如果有“办事被卡住”，它必须卡出信息、关系、代价、选择或伏笔变化；没有就不强补。
 	     - 契约风险检查：按 `references/reader-contract-and-progression.md` 判定 契约安全 / 需补强 / 契约破坏；若高光/收益被配角、机构或偶然性拿走且没有可见交换，先修纲再写。
      - 例：「快节奏打脸——账单暴露→逼问→反证→公开代价；读者等了三章，这章必须一拳到位。」
-4. **资料研究**（按需）：如果写作中遇到需要查证的外部事实（历史年代、地理方位、职业细节等），如果项目已部署 story-researcher agent（优先检查 `.claude/agents/` 下的 `story-researcher.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），spawn `story-researcher` agent 搜索并输出到 `参考资料/` 目录。如 agent 不可用，由主线程直接执行。研究完成后再继续写作。
+4. **资料研究**（按需）：遇到需查证的外部事实且 story-researcher 已部署时，spawn 搜索并输出到 `参考资料/`；不可用则主线程直接执行。研究完成后再继续写作。
 5. **标题预检**：写正文前从细纲读取章名；如与既有章节同名或明显重复，先按本章核心事件改名，并同步细纲标题与正文文件名。
 6. **写作与唯一 checkpoint**：将批准情节点按叙事顺序分成连续两组，同一 session 先写前组临时 segment，再且只运行一次 `{PYTHON} {skill 根}/scripts/storyctl.py wordcount checkpoint --file {前组临时文件} --target {字数目标} --chapter {N}`。把 `actual`、`remaining_user_range` 和后组原始情节点交回 writer，并明确：
    - 只完成剩余情节点，不得为字数新增独立事件、人物决定、关系变化、揭示或支线。
@@ -60,7 +62,7 @@
    两段完成后一次组装最终正文；不做逐点配额、字数 retry、完整重写或落盘后扩写。
    - **正文元信息隔离**：`章节：第{N}章`、`上一章：正文/第{N-1}章_*.md`、`匹配第K章`、`细纲文件` 等只用于定位材料。标题行以外的正文不得出现 `第[一二三四五六七八九十百千万两0-9]+章|上一章|上章|前一章|本章|这一章|前文|后文|伏笔|细纲|读者` 这类写作工程词。需要承接前文时，改成角色能感知的事件锚点或相对时间，例如“比第一章那三秒开火更疼”必须写成“比那三秒开火更疼”。例外：角色在故事世界内真实阅读/讨论“第X章”文本，或真实身为作者/读者并谈论读者身份时，可保留相应词。
 7. **正文执行**：
-   - 先检查 narrative-writer agent：`.claude/agents/narrative-writer.md` → `.opencode/agents/` → `.codex/agents/`。
+   - 按本文件顶部规则确认 narrative-writer 已部署。
    - 如可用，spawn `Agent(subagent_type: "narrative-writer", prompt: ...)`，prompt 只传本章必需材料：
      - 项目目录、章节、细纲文件、上一章、输出路径。
      - 写前准备输出：本节速记、情绪目标、涉及角色、参考技法。
@@ -84,7 +86,7 @@
 	11. **禁用词扫描**：先过**最毒句式速查**（实测最易漏，命中即改）：①「不是A，(而)是B」全家族——含「没有X，没有Y(，只是Z)」排比否定、「是B，不是A」反序、「他没X，也没有Y。他只是Z」先抑后扬，；②声线反差「声音不大/不高…却…」；③「，带着……」万能状语；④预告/总结收尾「没人知道…」「(这)才刚刚开始/开头」「正朝着…压过去」「即将拉开序幕」「这一刻…」；⑤叙述里短词加引号强调（他是被请来"把关"的）。再复核 detector 的 `formulaic-parallelism` advisory：跨段「不是A。/也不是B。/只是C。」、`至于X不X，怎么X`、同动词 `不V A，不V B` 即使写在台词里也不能跳过，确属人物当场的功能性表达才保留。然后对照 `references/banned-words.md` 全表：一级词（高频AI腔）命中即替换；二级词（低频/语境相关）高频出现时替换，偶发可参考 `references/anti-ai-writing.md` 定性裁定
 12. **更新追踪**：最终 `chapter check` 后取最新 `state_revision`，按 workflow-daily 构造不含 `wordcount` 的逐章 JSON。长度在用户带内执行 `storyctl.py chapter commit`；用户接受当前自然长度则执行 `storyctl.py chapter accept-current-length`。两条命令都在提交前重新读取正文和目标、重新计数、重跑 blocking quality，并把简短字数记录与追踪事务一起原子提交。写入失败保留原事务重跑；校验失败重构事务。派生视图损坏按 tracking 文档用 revision 修复，禁止手改。本章首次引入复用角色/势力时，仍按 workflow-setup Phase 3 补建静态档案。
 13. **中途快照**（长篇写作安全网）：每连续写完 3 章，在继续前执行以下快照操作：
-   - 执行 `scripts/tracking_commit.py check`，确认 `_tracking-state.json` 有效、逐章记录连续且未超限、所有派生视图一致、续写状态卡恰好 7 栏且 ≤12288 字节
+   - 执行 `scripts/tracking_commit.py check`，确认 `_tracking-state.json` 有效、逐章记录连续且未超限、所有派生视图一致、续写状态卡恰好 7 栏且 ≤12288 字节；通过后删除本章逐章事务 JSON 与临时 segment，失败时保留事务 JSON 供原样重跑
    - 用 `ls -la 正文/` 确认最近 3 个章节文件已成功写入磁盘且大小正常（>100 bytes）
    - 如果发现文件缺失或大小异常，立即重新写入
    - 快照完成后可继续写作
@@ -130,14 +132,14 @@ advisory 只提示可疑处，先看脚本给出的例外；故事内系统/界�
 
 ### Agent 调用：consistency-checker
 
-质量检查阶段，如果项目已部署 consistency-checker agent（优先检查 `.claude/agents/consistency-checker.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），spawn `Agent(subagent_type: "consistency-checker", prompt: "项目目录：{dir}\n检查范围：{本次写作的章节}\n检查类型：事实冲突+伏笔断线+角色属性不一致")` 执行一致性检查，获取 S1-S4 分级报告。如 agent 不可用，由主线程参照 quality-checklist.md 直接检查。
+质量检查阶段，consistency-checker 已部署时 spawn 执行一致性检查，获取 S1-S4 报告。Prompt：`项目目录：{dir}\n检查范围：{本次写作的章节}\n检查类型：事实冲突+伏笔断线+角色属性不一致`。不可用则主线程参照 quality-checklist.md 直接检查。
 
 ### Agent 调用：narrative-writer（去AI味审查）
 
-质量检查阶段，如果项目已部署 narrative-writer agent（优先检查 `.claude/agents/` 下的 `narrative-writer.md` 是否存在；不存在时再检查 `.opencode/agents/`，再不存在时检查 `.codex/agents/`），可 spawn `Agent(subagent_type: "narrative-writer", prompt: "项目目录：{dir}\n任务描述：审查+去AI味\n检查范围：{本次写作的章节}\n作者偏好：{本章 query 命中的 prose_style/story_design 项}\n删除优先：每条 AI 味项先判能否删除——删后不丢伏笔/钩子/角色/情节/必要信息的直接删，会丢才润色（删除受比例上限与字数下限约束，跌破下限改降AI重写）\n检查项按你自己的 7 Gate、禁止事项与写完后对话自检全量执行，其中否定翻转句式和台词里的工整否定清单不因脚本豁免台词而跳过")` 执行文字质量审查和去AI味检查。如 agent 不可用，由主线程直接执行，检查项对照 `references/anti-ai-writing.md` 与 `references/banned-words.md`。
+质量检查阶段，narrative-writer 已部署时可 spawn 文字质量与去AI味检查。Prompt：`项目目录：{dir}\n任务描述：审查+去AI味\n检查范围：{本次写作的章节}\n作者偏好：{本章 query 命中的 prose_style/story_design 项}\n删除优先：每条 AI 味项先判能否删除——删后不丢伏笔/钩子/角色/情节/必要信息的直接删，会丢才润色（删除受比例上限与字数下限约束，跌破下限改降AI重写）\n检查项按你自己的 7 Gate、禁止事项与写完后对话自检全量执行，其中否定翻转句式和台词里的工整否定清单不因脚本豁免台词而跳过`。不可用则主线程按 `references/anti-ai-writing.md` 与 `references/banned-words.md` 执行。
 
 检查后若正文修订改变了连续性事实，必须构造 `mode=revision` 的同章追踪事务并执行 `scripts/tracking_commit.py commit`：
 - 伏笔变化用 `foreshadow_changes` 更新同一 ID 的当前行，不追加重复历史；
 - 时间线变化写入 `timeline_events`，由 `_tracking-state.json` 统一派生 `作者真相.md` 与 `读者已知.md`，不得把作者秘密泄露到读者视图；
 - 核心角色状态变化同时提交该角色截至当前章的完整快照；
-- 事务失败后保留原事务 JSON，修正写入环境并重跑同一 `commit`；成功后执行 `check`，确认 state 与全部派生视图一致再继续写作。
+- 事务失败后保留原事务 JSON，修正写入环境并重跑同一 `commit`；成功后执行 `check`，确认 state 与全部派生视图一致，删除该临时事务 JSON 后再继续写作。

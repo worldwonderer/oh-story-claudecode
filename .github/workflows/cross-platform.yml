@@ -71,6 +71,8 @@ jobs:
         run: bash scripts/check-claude-adapter.sh
       - name: Check Codex adapter
         run: bash scripts/check-codex-adapter.sh
+      - name: Check Antigravity adapter
+        run: bash scripts/check-antigravity-adapter.sh
       - name: Check OpenCode adapter
         run: bash scripts/check-opencode-adapter.sh
       - name: Check OpenClaw skill compatibility
@@ -158,6 +160,8 @@ jobs:
       - name: Test ZCode hook adapter
         shell: bash
         run: bash scripts/test-zcode-hooks.sh
+      - name: Test Antigravity hook adapter
+        run: node scripts/test-antigravity-hooks.mjs
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
         with:
@@ -226,6 +230,8 @@ jobs:
         run: bash scripts/test-codex-hooks.sh
       - name: Test ZCode hook adapter
         run: bash scripts/test-zcode-hooks.sh
+      - name: Test Antigravity hook adapter
+        run: node scripts/test-antigravity-hooks.mjs
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
         with:
