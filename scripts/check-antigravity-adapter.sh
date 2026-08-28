@@ -118,6 +118,30 @@ assert 'never claim that web fallback ran' in researcher
 assert '### 第四步：WebSearch/webReader（兜底）' not in researcher
 assert 'CDP 不可用时交回父会话' in researcher
 assert 'WebSearch/webReader 作为兜底' not in researcher
+narrative = (root / 'narrative-writer/agent.md').read_text(encoding='utf-8')
+assert '\nmodel: pro\n' in narrative
+PY
+
+node "$GENERATOR" --dest "$TMP_DIR/flash-agents" --narrative-model flash >/dev/null
+python3 - "$TMP_DIR/flash-agents" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+models = {}
+for agent in root.glob('*/agent.md'):
+    front = agent.read_text(encoding='utf-8').split('---\n', 2)[1]
+    models[agent.parent.name] = re.search(r'^model:\s*(\S+)$', front, re.M).group(1)
+assert models['narrative-writer'] == 'flash'
+assert models['chapter-extractor'] == 'flash'
+assert models['consistency-checker'] == 'flash'
+assert models['story-explorer'] == 'flash'
+assert all(model == 'pro' for name, model in models.items()
+           if name not in {
+               'narrative-writer', 'chapter-extractor',
+               'consistency-checker', 'story-explorer',
+           })
 PY
 
 mkdir -p "$TMP_DIR/safe-dest"
@@ -127,6 +151,15 @@ if node "$GENERATOR" --source "$TMP_DIR/empty-source" --dest "$TMP_DIR/safe-dest
   fail "generator must reject an empty source directory"
 fi
 assert_file "$TMP_DIR/safe-dest/sentinel.md"
+grep -qx 'keep' "$TMP_DIR/safe-dest/sentinel.md" \
+  || fail "empty-source validation must not modify the destination"
+
+if node "$GENERATOR" --dest "$TMP_DIR/safe-dest" --narrative-model gemini-3.7-flash >/dev/null 2>&1; then
+  fail "generator must reject an unsupported narrative model"
+fi
+assert_file "$TMP_DIR/safe-dest/sentinel.md"
+grep -qx 'keep' "$TMP_DIR/safe-dest/sentinel.md" \
+  || fail "model validation must not modify the destination"
 
 python3 scripts/test-antigravity-hook-merge.py
 python3 scripts/test-antigravity-skills-deploy.py
@@ -138,5 +171,11 @@ grep -q 'agents_version: 26' skills/story-setup/SKILL.md \
   || fail "story-setup deployment contract is not v26"
 grep -q 'Antigravity 部署算法' skills/story-setup/SKILL.md \
   || fail "story-setup lacks Antigravity deployment algorithm"
+grep -q 'antigravity_prose_model' skills/story-setup/SKILL.md \
+  || fail "story-setup does not persist the Antigravity prose model choice"
+grep -q -- '--narrative-model "{antigravity_prose_model}"' skills/story-setup/SKILL.md \
+  || fail "story-setup does not pass the persisted prose model to the generator"
+grep -q '只有用户明确选择 Flash' skills/story-setup/SKILL.md \
+  || fail "story-setup lacks explicit consent for Antigravity Flash prose"
 
 echo "Antigravity adapter checks passed."

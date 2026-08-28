@@ -54,6 +54,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 
 ## v26 当前契约
 
+- Antigravity 部署就绪后会一次性询问是否让 `narrative-writer` 使用 Flash 档；只有明确同意才写 `model: flash`，默认仍为 Pro。选择持久化为 `.story-deployed` 的 `antigravity_prose_model`，普通重新部署沿用，用户明确要求更改时才重问。Flash 的具体模型版本由 Antigravity 运行时解析，当前实测为 Gemini 3.7 Flash，不承诺永久锁定版本。
 - 新增 Google Antigravity 2.0 项目部署：13 个 skill 真实复制到 `.agents/skills/`，7 个 Claude agent 真源确定性转换为 `.agents/agents/agent-name/agent.md`（`agent-name` 为实际名称），并安装 `.agents/rules/oh-story.md` Always-On Rule。
 - Antigravity Workspace Hooks 只使用官方 `PreToolUse`、`PostToolUse`、`PreInvocation`、`Stop` 事件；写前门禁直接返回 allow/deny，PostToolUse 按协议只返回 `{}`，写后正文 findings 通过 session artifact 交给下一次 PreInvocation，Stop 最多续跑一次。
 - `.agents/hooks.json` 按顶层 `oh-story` 管理组原子合并，不覆盖用户其他 hook groups；部署不写 `~/.gemini/`，也不依赖全局 skill 或 symlink 发现。已有 `.agents/skills` symlink 必须先明确确认才迁移为真实目录，helper 从不沿 symlink 写入其目标。
@@ -111,7 +112,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 ## 升级步骤
 
 1. 在项目根目录重新运行 story-setup。
-2. 确认 `.story-deployed` 写入 `agents_version: 26` 与 `setup_skill_version: 1.2.8`。
+2. 确认 `.story-deployed` 写入 `agents_version: 26` 与 `setup_skill_version: 1.2.8`；Antigravity 目标另有 `antigravity_prose_model: flash|pro`。
 3. 确认目标 CLI 的 agents、hooks/rules 和 reference bundle 都通过安装验证。
 4. 新开会话，使 custom agents 与 hooks 按当前文件重新注册。
 5. **长篇在写项目必做**：检查每本书的 `追踪/_tracking-state.json` 是否存在。不存在就是旧追踪结构，按下方「追踪模型迁移」重建，否则写下一章会被拦。

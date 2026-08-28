@@ -65,7 +65,7 @@
 | `sync-opencode.py` | 从 Claude agent 模板 + `CLAUDE.md.tmpl` 生成 `opencode/agents/` 与 `AGENTS.md.tmpl`；`--check` 只读验同步 | 改 agent 模板后手动跑；sync CI + 被 check-opencode-adapter 调 |
 | `generate-codex-agents.py` | 从 Claude agent 模板生成 Codex `.toml` agents | 改 agent 模板后手动跑；被 check-codex-adapter 调验确定性 |
 | `generate-codex-hooks.py` | 从 6 个 event 清单生成 `hooks.json`，POSIX/Windows 共用 launcher 负责解释器探测 | 改 Codex hook 注册后；被 check-codex-adapter 调验确定性 |
-| `skills/story-setup/scripts/generate-antigravity-agents.mjs` | 从 Claude agent 真源生成 Antigravity `.agents/agents/agent-name/agent.md`（`agent-name` 为实际名称），转换官方工具名、模型档、reference root 与调用术语 | story-setup 部署时 + 被 check-antigravity-adapter 调验 |
+| `skills/story-setup/scripts/generate-antigravity-agents.mjs` | 从 Claude agent 真源生成 Antigravity `.agents/agents/agent-name/agent.md`（`agent-name` 为实际名称），转换官方工具名、模型档、reference root 与调用术语；`--narrative-model flash|pro` 可只覆盖正文 agent，默认 Pro | story-setup 部署时 + 被 check-antigravity-adapter 调验 |
 | `skills/story-setup/scripts/merge-antigravity-hooks.py` | 原子替换 `.agents/hooks.json` 的 `oh-story` named group，保留所有用户 groups | story-setup 部署时 + merge 回归 |
 | `skills/story-setup/scripts/deploy-antigravity-skills.py` | 把 13 个 oh-story Skills 物化为项目 `.agents/skills` 真实目录；只替换已知名、保留用户 Skill，symlink 需显式迁移且不穿透写目标 | story-setup 部署时 + materialization 回归 |
 | `shared-assets.json` + `sync-shared-assets.py` | 为必须随 skill 独立部署的重复 runtime 脚本指定唯一源和目标 | 改共享 runtime 后跑 `sync`；CI 跑 `check` |

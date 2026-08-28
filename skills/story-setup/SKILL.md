@@ -23,6 +23,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
    - `agents_version: 26` → 使用 AskUserQuestion 确认是否重新部署；提示里写明重新部署只用**当前本地 skill 包**刷新项目文件，要拿 skill 本身的新版本得先更新 oh-story-claudecode（`npx skills add` 或 marketplace），再回来重跑
    - `agents_version` 大于 `26` → 当前 story-setup 比项目部署旧；停止以避免降级覆盖，提示先更新 oh-story-claudecode，不写任何部署文件
    - 同时读 `target_cli` 字段。**已部署项目以 sentinel 里的值为准**：非空时（逗号分隔的多端组合原样保留）跳过下面第 5-12 步的环境探测与选择，直接按这些端重新部署。只有字段缺失或为空，才回落到探测。用户明确要求增删目标端时，用 AskUserQuestion 在现有值基础上改，改完的值写回 sentinel。
+   - 同时读可选的 `antigravity_prose_model` 字段。只有 `flash` / `pro` 是合法值；合法值在普通重新部署时原样保留，不重复询问。字段缺失或非法且本次 `target_cli` 含 `antigravity` 时，按「部署 Antigravity Agents」的一次性选择处理。用户明确要求更改 Antigravity 正文模型策略时，忽略旧值并重新询问。
 2. 检查是否有书名目录（包含 `追踪/` 子目录的目录，或用户自定义结构）
    - 有 → 识别为长篇项目，显示当前项目信息
    - 无 → 识别为新项目或短篇项目
@@ -90,7 +91,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 | `skills/story-setup/references/templates/settings-hooks.json` | `.claude/settings.local.json` | user+managed | replace managed registrations by stable hook identity | hook JSON valid；旧 matcher 注册已迁移、当前模板命令各一份、用户 hook 保留 |
 | `skills/story-setup/scripts/merge-claude-settings.py` | 部署时执行，不复制到项目 | story-setup helper | execute | 替换已知 story hook 注册、保留用户 hooks/顶层字段，v24→v25 迁移与重复执行幂等 |
 | `skills/story-setup/scripts/copy-path-safety.py` | 每个递归复制步骤前执行，不复制到项目专用目录 | story-setup helper | execute | JSON 仅 `copy_allowed: true` 时允许复制；symlink 同对象 no-op；target 位于 source 内时停止 |
-| generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir` |
+| generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir`；Antigravity 目标另含 `antigravity_prose_model` |
 | `skills/story-setup/references/opencode/AGENTS.md.tmpl` | `AGENTS.md` | user+managed | marker/section merge | contains story skill routing sections | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/agents/` | `.opencode/agents/` | story-setup managed | replace | 7 agent files exist（replace 前按「配置 OpenCode Agent 模型」中的「保留已有模型配置」缓存现有 `model:`，避免覆盖用户已配模型） | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/plugin.ts` | `.opencode/plugins/story-hooks.ts` | story-setup managed | replace | TypeScript plugin file exists | target_cli 含 opencode |
@@ -183,7 +184,8 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 #### 部署 Antigravity Agents（target_cli 含 antigravity 时）
 
 - 先确认 `node` 在 PATH；Antigravity agent 生成与项目 hooks 都依赖 Node。缺失时停止 Antigravity 这一目标的部署，不留下半成品，并提示安装 Node 后重跑。
-- 执行 `node "{story-setup skill目录}/scripts/generate-antigravity-agents.mjs" --source "{story-setup skill目录}/references/templates/agents" --dest "{项目}/.agents/agents"`。生成器先渲染全部 7 个 agent，再原子替换这 7 个已知 `.agents/agents/agent-name/agent.md` 定义（`agent-name` 为实际名称），并清理旧版同名扁平 `.md`；保留其他用户 agent，任一源 frontmatter 异常时不得留下半更新目录，也不得沿 managed agent symlink 写出项目外。
+- Node 与 Antigravity 项目 customization 都已就绪后，决定 `antigravity_prose_model`：若 Phase 1 读到合法旧值且用户未要求更改，直接沿用；否则用 AskUserQuestion **只询问一次**：“Antigravity 可用 Flash 档时，是否让 `narrative-writer` 用它写正文？”选项为“使用 Flash 档（推荐）——当前实测路由为 Gemini 3.7 Flash，通常更快，且只影响正文 agent；具体版本由 Antigravity 在运行时解析”和“保持 Pro 档——维持现有默认”。只有用户明确选择 Flash 才记为 `flash`；拒绝、跳过或无法取得明确选择都记为 `pro`。不得声称能锁死 Gemini 3.7 Flash，也不得把此选择扩散到其他 agent。
+- 执行 `node "{story-setup skill目录}/scripts/generate-antigravity-agents.mjs" --source "{story-setup skill目录}/references/templates/agents" --dest "{项目}/.agents/agents" --narrative-model "{antigravity_prose_model}"`。生成器先渲染全部 7 个 agent，再原子替换这 7 个已知 `.agents/agents/agent-name/agent.md` 定义（`agent-name` 为实际名称），并清理旧版同名扁平 `.md`；保留其他用户 agent，任一源 frontmatter 或模型参数异常时不得留下半更新目录，也不得沿 managed agent symlink 写出项目外。省略参数时仍默认 `pro`，保证直接调用 helper 的旧行为不变。
 - 校验 7 个 `.md`：`name` 与文件名一致；`mainAgent: false`、`subagent: true`；模型只使用 `flash` / `pro`；工具只来自 Antigravity 官方名称 `view_file`、`find_by_name`、`grep_search`、`write_to_file`、`replace_file_content`、`multi_replace_file_content`、`run_command`；不得残留 Claude 的 `Read/Glob/Grep/Write/Edit/Bash` 工具名或 `.claude/skills/` reference 前缀。
 - 只读 agent（`chapter-extractor`、`consistency-checker`、`story-explorer`）不得包含写文件或命令工具；其他 agent 按 Claude 真源的能力边界映射。
 - Antigravity 通过 `invoke_subagent` 的 `TypeName` 调用这些 agent。部署后新开 Antigravity conversation，再用 `story-review` 验证 full/lean；运行时无法解析某个 custom agent 时按 skill 的 solo/direct fallback 执行。
@@ -310,12 +312,12 @@ Antigravity 2.0 使用项目 `.agents/` customization 根。部署 Skills、Alwa
 
 1. 找到当前 skill 包的 13 个已知 skill 目录（`browser-cdp` 与 `story*`），调用 `deploy-antigravity-skills.py --source "{当前 skill 包根}" --dest "{项目}/.agents/skills"` 原子物化。helper 只替换 13 个已知名称、保留用户其他 skills，并在源目标同一 realpath 时 no-op。目标必须是**真实目录**，不要新建顶层 `.agents/skills → ../skills` symlink：Antigravity 2.0 项目部署以真实目录作为受支持路径。
    - 若已有 `.agents/skills` 是 symlink，helper 必须先停止且不沿链接写入。用 AskUserQuestion 说明：迁移会把链接当前可见的所有 skills 复制到新的项目内真实目录、只更新 13 个 oh-story 名称、保留链接目标原样，但会把 symlink 本身替换成目录；这可能形成较大的 git diff。只有用户明确同意后才加 `--migrate-symlink` 重跑，拒绝则停止 Antigravity 部署并报告未获得完整支持。这个确认不得被“多端部署”或已有 Codex symlink 跳过。
-2. 按上方「部署 Antigravity Agents」运行生成器，原子更新 `.agents/agents/` 中 7 个已知 `.agents/agents/agent-name/agent.md` 定义（`agent-name` 为实际名称）并保留其他用户 agent；不从用户 home 搬运 agent。
+2. 按上方「部署 Antigravity Agents」完成一次性模型选择并运行生成器，原子更新 `.agents/agents/` 中 7 个已知 `.agents/agents/agent-name/agent.md` 定义（`agent-name` 为实际名称）并保留其他用户 agent；不从用户 home 搬运 agent。Flash 选择只把 `narrative-writer` 写为 `model: flash`，其他 agent 仍按真源映射；若运行时无法调用该 custom subagent，调用方按既有 solo/direct fallback 继续并报告，不把失败伪装成 Flash 成功。
 3. 复制 `references/antigravity/rules/oh-story.md` 到 `.agents/rules/oh-story.md`，验证 `trigger: always_on` 且文件小于 Antigravity 12,000 字符上限。该 rule 承担 skill 路由、写作硬约束与 compact 后恢复；Antigravity IDE 不以根 `AGENTS.md` 作为 workspace rule，所以不要用 AGENTS 模板代替。
 4. 复制 `references/antigravity/hooks/story_antigravity_hook.js` 与同目录 `story_hook_core.js` 到 `.agents/hooks/`，验证 `node --check`。hook 命令以 `.agents/`（`hooks.json` 所在目录）为工作目录，必须使用 `hooks/story_antigravity_hook.js`，不得写成 `.agents/hooks/...`。共享 core 必须与 Claude/OpenCode/ZCode 源字节一致。
 5. 合并 `references/antigravity/hooks/hooks.json` 到 `.agents/hooks.json`：按跨平台规则探测 Python 3，调用 `merge-antigravity-hooks.py {项目}/.agents/hooks.json {skill目录}/references/antigravity/hooks/hooks.json`。helper 只替换顶层 `oh-story` named group，保留其他用户 hook groups；写后复跑并比较字节确认幂等。禁止把 Claude/Codex 的外层 `{ "hooks": ... }` schema 写入 Antigravity。
 6. 校验事件边界：只注册 `PreToolUse`、`PostToolUse`、`PreInvocation`、`Stop`。PreToolUse 必须为每次调用输出 `decision`；PostToolUse 必须只输出 `{}`，正文 findings 经 session `artifactDirectoryPath` 暂存并由下一次 PreInvocation 注入；若模型准备直接结束，Stop 最多强制继续一次，避免无限循环。Antigravity 外部 hooks 没有 SessionStart/PreCompact/PostCompact，首次上下文由 `invocationNum=0` 的 PreInvocation 注入，compact 后由 Always-On Rule 强制读取 `追踪/上下文.md`。
-7. `.story-deployed` 的 `target_cli` 写 `antigravity` 或多端组合，`references_dir` 写 `.agents/skills/story-setup/references/agent-references`。安装报告提示新开 conversation 使 Skills/Rules/Agents/Hooks 重新扫描；同时明确 Node 是 hook 运行时依赖。
+7. `.story-deployed` 的 `target_cli` 写 `antigravity` 或多端组合，`references_dir` 写 `.agents/skills/story-setup/references/agent-references`，`antigravity_prose_model` 写本次已明确得到的 `flash` 或 `pro`；这使普通重新部署不重复提问。安装报告提示新开 conversation 使 Skills/Rules/Agents/Hooks 重新扫描；同时明确 Node 是 hook 运行时依赖。
 
 Antigravity IDE 与交互式 `agy` 共用这套 workspace `.agents/` 产物，但仍需分别实机 smoke test。不要依赖 `npx skills add -g` 当前把全局 skill 写到哪个 `~/.gemini/*` 目录；`story-setup` 的支持承诺只覆盖上述项目内真实目录部署。
 
@@ -377,6 +379,7 @@ Reasonix（DeepSeek-Reasonix CLI）当前只部署 skills 与 `AGENTS.md`，不�
   target_cli: claude-code（或 opencode、codex、antigravity、zcode、openclaw、reasonix、generic，或其任意组合）
   resolver_strategy: project-local-skill-reference
   references_dir: .claude/skills/story-setup/references/agent-references（Codex 写 .codex/skills/...；Antigravity 写 .agents/skills/...；ZCode 写 .zcode/skills/...；OpenClaw / Reasonix / generic 写 skills/...；多端用逗号分隔）
+  antigravity_prose_model: flash（仅 target_cli 含 antigravity 时写；值为 flash 或 pro）
   ```
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
 - target_cli 含 claude-code 时，同时创建一次性标记文件 `.claude/.agents-pending-restart`（空文件即可）。session-start.sh 在下一个会话启动时据此确认 agents 已随新会话注册，并自动删除该标记——用来向用户确认「重启已生效」。ZCode 不创建该标记，因为它不部署项目 agents。
@@ -396,7 +399,7 @@ Reasonix（DeepSeek-Reasonix CLI）当前只部署 skills 与 `AGENTS.md`，不�
    - 检查 `.claude/skills/story-setup/references/agent-references/` 下 reference 文件完整
    - 检查所有 `story-setup/references/agent-references/<file>.md` 都能解析到 deployed bundle
 5. 验证部署标记：
-   - 检查 `.story-deployed` 是否存在且包含时间戳、`agents_version: 26`、`setup_skill_version: 1.2.8`、`target_cli`、`resolver_strategy`、`references_dir`
+   - 检查 `.story-deployed` 是否存在且包含时间戳、`agents_version: 26`、`setup_skill_version: 1.2.8`、`target_cli`、`resolver_strategy`、`references_dir`；target_cli 含 antigravity 时还须有合法的 `antigravity_prose_model: flash|pro`
 6. 输出安装报告：
    - 列出所有已部署的文件
    - 列出需要注意的事项（如已有配置已合并）
@@ -445,10 +448,11 @@ Reasonix（DeepSeek-Reasonix CLI）当前只部署 skills 与 `AGENTS.md`，不�
 9. 验证 Antigravity 部署（仅当 target_cli 含 antigravity 时）：
     - 检查 `.agents/skills/` 下 13 个 story skills 为真实目录且 `SKILL.md` 可读；`.agents/skills/story-setup/references/agent-references/` 完整
     - 检查 `.agents/agents/` 下 7 个 Markdown agent 可解析，名称、模型档、官方工具白名单、只读边界与 `.agents/skills/` reference 前缀正确
+    - 对照 sentinel 校验 narrative-writer 定义：`antigravity_prose_model: flash` 时必须是 `model: flash`，`pro` 时必须是 `model: pro`；其他 agent 不受该选择影响
     - 检查 `.agents/rules/oh-story.md` 为 `trigger: always_on` 且未超过 12,000 字符
     - 检查 `.agents/hooks.json` 有效、顶层 `oh-story` group 恰有 PreToolUse/PostToolUse/PreInvocation/Stop，用户 hook groups 保留；检查 `.agents/hooks/story_antigravity_hook.js` 与 `story_hook_core.js` 语法有效
     - 用 fixture 验证：PreToolUse 缺纲/追踪时 deny、普通写入 allow、commit advisory；PostToolUse stdout 恒为 `{}` 且把正文 findings 写进 session artifact；下一次 PreInvocation 注入 findings；Stop 对未处理 findings 最多 continue 一次；干净正文清除 pending state
-    - 安装报告必须提示：新开 Antigravity conversation 刷新 customization；Hooks 依赖 PATH 中的 `node`；外部 hook API 没有 PreCompact/PostCompact，compact 恢复由 Always-On Rule 读取 `追踪/上下文.md`；IDE 与交互式 `agy` 仍建议分别实机 smoke test；`agy 1.1.22 -p` 每次 headless 启动都可能在静默鉴权前扫描 workspace，鉴权后不重载 custom agents/hooks，因此当前不在支持面内，可能报 `subagent not found` 或回退写入 `~/.gemini/antigravity-cli/scratch/`；命令行写作从项目目录进入交互式 `agy`，确认 `/skills`、`/agents`、`/hooks` 已发现 oh-story 后再发任务，测试后检查 scratch 无意外小说产物
+    - 安装报告必须显示“Antigravity 正文模型：Flash 档”或“Antigravity 正文模型：Pro 档”，并说明只影响 `narrative-writer`；Flash 档的具体模型由 Antigravity 运行时解析（当前实测 Gemini 3.7 Flash），不可承诺固定版本。另提示：新开 Antigravity conversation 刷新 customization；Hooks 依赖 PATH 中的 `node`；外部 hook API 没有 PreCompact/PostCompact，compact 恢复由 Always-On Rule 读取 `追踪/上下文.md`；IDE 与交互式 `agy` 仍建议分别实机 smoke test；`agy 1.1.22 -p` 每次 headless 启动都可能在静默鉴权前扫描 workspace，鉴权后不重载 custom agents/hooks，因此当前不在支持面内，可能报 `subagent not found` 或回退写入 `~/.gemini/antigravity-cli/scratch/`；命令行写作从项目目录进入交互式 `agy`，确认 `/skills`、`/agents`、`/hooks` 已发现 oh-story 后再发任务，测试后检查 scratch 无意外小说产物
 10. 验证 ZCode 部署（仅当 target_cli 含 zcode 时）：
     - 检查根 `AGENTS.md` 含 ZCode `$story-*` 路由、大纲守卫和 solo/direct fallback
     - 检查 `.zcode/skills/` 下 13 个 Skills 与 `.zcode/commands/` 下 13 个 Commands，验证 frontmatter 和命名

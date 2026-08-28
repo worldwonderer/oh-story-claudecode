@@ -286,6 +286,7 @@ Antigravity 2.0 与 `agy` CLI 共用 `.agents/` workspace customization，但发
 
 - 13 个 Skills 物化到真实 `.agents/skills/{name}/`。`deploy-antigravity-skills.py` 只替换已知名称、保留用户 Skills；现有 symlink 默认 fail-closed，只有用户明确同意才迁移，且不得沿链接写到目标目录。
 - 7 个 custom subagents 由 Claude Markdown 真源在部署时生成到 `.agents/agents/agent-name/agent.md`（`agent-name` 替换为实际名称）。工具名必须来自官方清单，调用用 `invoke_subagent` + 同名 `TypeName`；生成器只替换 7 个已知定义并保留其他用户 agent。
+- `generate-antigravity-agents.mjs --narrative-model flash|pro` 只覆盖 `narrative-writer` 的模型档，省略参数默认 `pro`。story-setup 仅在 Antigravity 就绪且 sentinel 没有合法旧值时询问一次，并将选择持久化为 `antigravity_prose_model`；普通重部署不得重复询问或影响其他 agent。官方契约只保证 `flash` / `pro` 档，不要在生成产物中写死具体 Gemini 版本。
 - Always-On Rule 固定为 `.agents/rules/oh-story.md`，文件必须小于 12,000 字符。它负责 skill 路由和 compact 后重新读取 `追踪/上下文.md`；不要假设 Antigravity 有 Claude 的 PreCompact/PostCompact。
 - `.agents/hooks.json` 是顶层 named-group mapping。合并器只替换 `oh-story` group，保留所有用户 groups。当前注册 `PreToolUse`、`PostToolUse`、`PreInvocation`、`Stop`：PreToolUse 必须输出 `decision`，PostToolUse 必须精确输出 `{}`；写后 findings 存到本会话 `artifactDirectoryPath`，下一次 PreInvocation 注入，Stop 最多强制 continue 一次。
 - `.agents/hooks/` 只管理 `story_antigravity_hook.js` 与共享 `story_hook_core.js`；后者由 `scripts/shared-assets.json` 锁字节一致，不手改副本。Hook 依赖 PATH 中的 Node。

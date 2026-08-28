@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url"
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_SOURCE = path.resolve(SCRIPT_DIR, "../references/templates/agents")
 const DEFAULT_DEST = path.resolve(SCRIPT_DIR, "../references/antigravity/agents")
+const NARRATIVE_MODELS = new Set(["flash", "pro"])
 
 const TOOL_MAP = new Map([
   ["Read", ["view_file"]],
@@ -29,13 +30,19 @@ function fail(message) {
 }
 
 function parseArgs(argv) {
-  const result = { source: DEFAULT_SOURCE, dest: DEFAULT_DEST }
+  const result = { source: DEFAULT_SOURCE, dest: DEFAULT_DEST, narrativeModel: "pro" }
   for (let index = 0; index < argv.length; index++) {
     const token = argv[index]
     if (token === "--source" || token === "--dest") {
       const value = argv[++index]
       if (!value) fail(`${token} requires a path`)
       result[token.slice(2)] = path.resolve(value)
+    } else if (token === "--narrative-model") {
+      const value = String(argv[++index] || "").toLowerCase()
+      if (!NARRATIVE_MODELS.has(value)) {
+        fail("--narrative-model must be flash or pro")
+      }
+      result.narrativeModel = value
     } else {
       fail(`unknown argument: ${token}`)
     }
@@ -122,7 +129,7 @@ function adaptBody(body, name, tools) {
     researchNote
 }
 
-function renderAgent(sourceFile) {
+function renderAgent(sourceFile, narrativeModel) {
   const text = fs.readFileSync(sourceFile, "utf8")
   const { data, body } = parseFrontmatter(text, sourceFile)
   const name = data.name || path.basename(sourceFile, ".md")
@@ -134,7 +141,9 @@ function renderAgent(sourceFile) {
   const tools = [...new Set(sourceTools.flatMap((tool) => TOOL_MAP.get(tool) || []))]
   if (!tools.length) fail(`${sourceFile}: no supported Antigravity tools mapped`)
   const sourceModel = String(data.model || "").toLowerCase()
-  const model = sourceModel === "haiku" ? "flash" : "pro"
+  const model = name === "narrative-writer"
+    ? narrativeModel
+    : (sourceModel === "haiku" ? "flash" : "pro")
   const sourceSkills = parseInlineList(data.skills)
   const description = name === "story-researcher"
     ? String(data.description).replace("WebSearch/webReader 作为兜底", "CDP 不可用时返回缺口，由父会话联网检索")
@@ -215,13 +224,13 @@ function publish(rendered, destination) {
 }
 
 function main() {
-  const { source, dest } = parseArgs(process.argv.slice(2))
+  const { source, dest, narrativeModel } = parseArgs(process.argv.slice(2))
   if (!fs.existsSync(source) || !fs.statSync(source).isDirectory()) fail(`source directory missing: ${source}`)
   const sources = fs.readdirSync(source).filter((name) => name.endsWith(".md")).sort()
   if (!sources.length) fail(`source directory contains no Markdown agents: ${source}`)
   const rendered = new Map(sources.map((filename) => [
     path.join(path.basename(filename, ".md"), "agent.md"),
-    renderAgent(path.join(source, filename)),
+    renderAgent(path.join(source, filename), narrativeModel),
   ]))
   publish(rendered, dest)
   process.stdout.write(`Generated ${rendered.size} Antigravity agents in ${dest}\n`)
