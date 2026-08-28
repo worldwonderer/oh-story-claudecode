@@ -12,6 +12,29 @@ compare 链接；小节名使用 Keep a Changelog 的六个英文类别（`Added
 
 ## [Unreleased]
 
+## [0.7.8] - 2026-08-28
+
+> **补丁号不传达这一点，故在此明说**：本版把长短篇的参考资料按消费者拆分改名，并给长篇写正文、短篇构思与交付加了会阻断的门禁，见 Changed。已部署项目必须重新运行 `/story-setup` 并新开会话，否则拿到的仍是旧 agent 与旧文件名。
+
+### Added
+
+- 新增 Google Antigravity 项目部署（#377）：13 个 Skills、7 个 custom agent、Always-On Rule 与 workspace Hooks 写入项目 `.agents/`；部署器不读写 `~/.gemini/`，`.agents/hooks.json` 只替换 `oh-story` 管理组并保留用户组。
+- 新增跨 Skill 参考治理清单（#379）：`scripts/shared-references.json` 显式登记 canonical source、Skill 自包含副本、目录镜像与允许独立演化的派生关系；配套四道守卫检查未登记的精确副本、近似副本、Agent 消费可达性和短篇拆文的职责边界。
+- 新增短篇 Phase 2 与交付的确定性验收（#379）：`check-phase2-contract.js` 检查设定与小节大纲的契约字段、12 列表格、子事件功能标签、字数合计、反转位置与付费点；`check-delivery-contract.js` 按用户给的字数范围、节数与排版形态验收成稿。失败返回具名检查 ID 与最小修复范围，最多两轮定向修复。
+
+### Changed
+
+- 长篇、短篇与短篇拆文的参考资料按消费者拆开并改名（#379）：悬念、反转、质量、题材与格式资料分成 `long-*`、`short-*`、`analysis-*` 三套，story-architect 按 `agent-reference-profiles.md` 选 profile，只加载 Common 加当前 profile，不再互相兜底。
+  *升级*：自定义流程里引用旧文件名（`genre-catalog.md`、`reversal-toolkit.md`、`hooks-suspense.md`、`quality-checklist.md` 等）的地方要改成新名字。重新部署会替换整份 `agent-references` bundle。
+- 长篇写正文与短篇构思前新增会阻断的 Reference Gate（#379）：当前阶段要求的 reference 必须分块读到 EOF，`rg` 检索或局部摘读不算读完；必需路径缺失或不可读时停止并报告路径，不允许先写正文再补读。
+- 短篇总字数以用户给的范围为准（#379）：原先无条件的「总字数 ≥ 8000」不再覆盖用户明确范围；未给范围时才用 8000-20000 默认值。
+- 情绪落地不再默认翻译成身体微动作（#376）：情绪优先落到选择、台词、策略、物件与实际后果，允许准确直写；三维度与动静节奏从逐段配额改为按需信息。新增 advisory `stock-reaction-tic`，只在同章聚集时提示做删除测试，不禁功能性身体描写。
+- 发布 `agents_version: 28` 与 `setup_skill_version: 1.2.10`。
+
+### Fixed
+
+- 章节大纲以 UTF-8 BOM 开头时 `chapter check` 能正确识别「字数目标」，不再直接退出（#375）。
+
 ## [0.7.7] - 2026-08-26
 
 > 补丁号不传达这一点：本版收紧了长篇章节完成条件。缺少合法「字数目标」不再回退到 3000；欠字不会自动添加独立剧情，超字只允许一次不新增语义的净删压缩；发现新增承诺、关系变化、支线或后续义务等独立故事内容时会阻止自动提交，改由用户决定接受、修改目标/细纲、返修或放弃。
@@ -951,5 +974,6 @@ npx skills add zenstory-ai/oh-story-claudecode -y -g
 - 初始版本：长篇/短篇写作、拆文、扫榜、去 AI 味、浏览器操控
 - 用 52000+ 本真实数据增强知识库
 
-[Unreleased]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.7...HEAD
+[Unreleased]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.8...HEAD
+[0.7.8]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.7...v0.7.8
 [0.7.7]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.6...v0.7.7

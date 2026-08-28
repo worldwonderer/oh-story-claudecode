@@ -18,11 +18,11 @@
 
 > **Antigravity 支持预览**：`story-setup` 可把 13 个 Skills、7 个 custom agents、Always-On Rule 和 workspace Hooks 完整部署到项目 `.agents/`。部署器不修改 `~/.gemini/`，不依赖全局目录或 symlink；`.agents/hooks.json` 只替换顶层 `oh-story` 管理组并保留用户组。本契约沿用 `agents_version: 28`，部署后需新开 Antigravity conversation；IDE 与交互式 `agy` 建议分别试用。
 
+> **v0.7.8 — 参考拆分与门禁**：长短篇参考资料按消费者拆开改名，写正文与短篇构思前新增会阻断的 Reference Gate，短篇 Phase 2 与交付各加一个确定性 verifier；短篇总字数以用户给的范围为准。升级后需重跑 `/story-setup`、新开会话；本版 `agents_version` 为 28。[完整变更](CHANGELOG.md#078---2026-08-28)
+>
 > **v0.7.7 — 记忆与收口**：长篇正文改用唯一机器字数口径，欠字不自动加戏，超字最多压缩一次；新增跨会话作者记忆、Codex 内置 ImageGen，并修复 story-setup 递归复制。缺少合法「字数目标」现在会停止，不再回退到 3000。升级后需重跑 `/story-setup`、新开会话；本版 `agents_version` 为 26。[完整变更](CHANGELOG.md#077---2026-08-26)
 >
 > **v0.7.6 — 正文校准**：正文 Agent 可以执行机器字数与句长验证，细纲可自由编排但不得漏点；新增细纲照搬检测与复沓锚句，Claude Code 的 Bash 写入也进入大纲/追踪守卫。升级后需重跑 `/story-setup`、新开会话；本版 `agents_version` 为 25。[完整变更](CHANGELOG.md#v076)
->
-> **v0.7.5 — 追踪守卫**：Claude Code 写正文前补齐追踪检查点门，长篇日更按需加载开书资料，并放宽对普通对话标签的误判。旧追踪项目需先按升级指南通过 `/story-import` 迁移；随后重跑 `/story-setup`、新开会话。本版 `agents_version` 为 24。[完整变更](CHANGELOG.md#v075)
 >
 > 更早版本变更见 [CHANGELOG.md](CHANGELOG.md)。
 

@@ -20,11 +20,11 @@ Built around four pillars: reverse-engineering hits · plot modularization · la
 
 > **Antigravity support preview:** `story-setup` can deploy all 13 Skills, 7 custom agents, an Always-On Rule, and workspace Hooks into the project's `.agents/` tree. The deployer does not modify `~/.gemini/`, depend on global directories, or require symlink discovery. In `.agents/hooks.json`, it replaces only the top-level `oh-story` group and preserves user groups. This contract keeps `agents_version: 28`; open a fresh Antigravity conversation after deployment and smoke-test the IDE and interactive `agy` separately.
 
+> **v0.7.8 — 参考拆分与门禁**: long-form and short-form references are split per consumer and renamed; a blocking Reference Gate now runs before prose writing and short-story design, and Phase 2 plus final delivery each gain a deterministic verifier. Short-story length now follows the range the user gave. Rerun `/story-setup` and start a new session; `agents_version` is 28. [Full changes](CHANGELOG.md#078---2026-08-28)
+>
 > **v0.7.7 — 记忆与收口**: long-form prose now uses one machine-enforced length metric; under-length chapters are not padded with new plot, and over-length chapters get at most one compression pass. This release also adds cross-session author memory and Codex built-in ImageGen, and fixes recursive story-setup copies. **The patch number does not convey this tightening**: a missing or invalid word target now stops instead of falling back to 3,000. Update the pack, rerun `/story-setup`, and start a new session; `agents_version` is 26. [Full changes](CHANGELOG.md#077---2026-08-26)
 >
 > **v0.7.6 — 正文校准**: prose agents can execute machine word-count and sentence-length checks; outline points may be rearranged but cannot be omitted. Outline-copy detection and verbatim anchors were added, and Bash-based prose writes on Claude Code now pass through outline/tracking guards. Rerun `/story-setup` and start a new session; `agents_version` is 25. [Full changes](CHANGELOG.md#v076)
->
-> **v0.7.5 — 追踪守卫**: Claude Code gains the tracking checkpoint before prose writes, long-form daily writing loads book-opening material only on demand, and ordinary dialogue tags are no longer over-flagged. Projects on the retired tracking layout must migrate through `/story-import`, then rerun `/story-setup` and start a new session. `agents_version` is 24. [Full changes](CHANGELOG.md#v075)
 >
 > For earlier versions, see [CHANGELOG.md](CHANGELOG.md).
 
