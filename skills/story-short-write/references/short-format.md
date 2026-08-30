@@ -109,6 +109,28 @@ for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done
 "$PYBIN" -c "from pathlib import Path; print(len(Path('正文.md').read_text(encoding='utf-8')))"
 ```
 
+各节分布（按小节标记切开，逐节报非空白字符数）：
+
+```bash
+"$PYBIN" -c "
+import re
+from pathlib import Path
+pat = re.compile(r'###\s*\d+\.|###\s*第[一二三四五六七八九十百千万两〇零0-9]+章|\d+\.')
+cur, buf, out = None, [], []
+for line in Path('正文.md').read_text(encoding='utf-8').splitlines():
+    if pat.fullmatch(line.strip()):
+        out.append((cur, buf)); cur, buf = line.strip(), []
+    else:
+        buf.append(line)
+out.append((cur, buf))
+for name, body in out:
+    if name is not None:
+        print(name, len(''.join(''.join(body).split())))
+"
+```
+
+分布只用来定位异常节：某节明显短于相邻节时，回大纲核对该节批准的情节点、动作和后果是否已经写完；写完就保留，不为拉齐长度补戏。
+
 不要直接调 `python3`：Windows 上它会落到 Microsoft Store 占位程序并以 exit 49 静默失败，上面的探测按 `python3→python→py` 选出真正可用的解释器。`wc -m` 只作 macOS / Linux 备选，禁止 `wc -c`（那是字节数）。全文交付口径以 `scripts/check-delivery-contract.js` 的非空白字符为准。没有 Bash / Python 权限时必须声明“未完成机器字数验证”，按行数速算作临时估计，不得声称已通过硬验证。
 
 ---

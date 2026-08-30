@@ -12,24 +12,33 @@ const verifier = path.join(repoRoot, 'skills/story-short-write/scripts/check-pha
 const skillFile = path.join(repoRoot, 'skills/story-short-write/SKILL.md')
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'phase2-contract-'))
 
+// 现行列名。新建项目必须用这一组，check-phase2-contract.js 的 currentHeader 分支。
 const headers = [
-  '结构段/五段功能', '主事件', '子事件×3-5', '情绪', '人物/关系变化', '因果/逻辑链',
-  '读者新获知什么', '结尾承接/钩子', '伏笔/物件', '动静', '对话密度', '目标字数',
+  '结构段/五段功能', '主事件', '情节推进', '情绪', '人物/关系变化', '因果/逻辑链',
+  '读者新获知什么', '结尾承接/钩子', '伏笔/物件', '场景形态', '对白作用', '目标字数',
 ]
 
-function outlineRow(stage, index, hook) {
+// v0.7.8 及更早的项目落盘的旧列名；改名后仍须被接受（legacyHeader 分支）。
+const legacyHeaders = headers.map(
+  (name, index) => ({ 2: '子事件×3-5', 9: '动静', 10: '对话密度' }[index] || name)
+)
+
+const threeUnitProgression = (index) =>
+  `主角发现线索${index}{发现}->对手阻拦行动${index}{冲突}->主角留下证据${index}{伏笔}`
+
+function outlineRow(stage, index, hook, { legacy = false, progression = threeUnitProgression } = {}) {
   return [
     stage,
     `主角处理事件${index}`,
-    `主角发现线索${index}{发现}->对手阻拦行动${index}{冲突}->主角留下证据${index}{伏笔}`,
+    progression(index),
     `疑惑→紧张${index}`,
     `关系压力上升${index}`,
     `发现异常${index} → 调查 → 受阻 → 决定继续`,
     `读者获知线索${index}`,
     hook,
     `旧钥匙${index}`,
-    index % 2 ? '动' : '静',
-    index % 2 ? '高' : '中',
+    legacy ? (index % 2 ? '动' : '静') : (index % 2 ? '行动' : '证据核验'),
+    legacy ? (index % 2 ? '高' : '中') : (index % 2 ? '推动策略' : '无对白，由物件推进'),
     '1000',
   ]
 }
@@ -62,21 +71,21 @@ function validSettings(overrides = {}) {
   ].join('\n')
 }
 
-function validOutline({ includePaywall = true } = {}) {
+function validOutline({ includePaywall = true, headerRow = headers, ...rowOpts } = {}) {
   const rows = [
-    outlineRow('开头', 1, '她决定去查监控'),
-    outlineRow('铺垫', 2, '她收到没有寄件人的照片'),
-    outlineRow('铺垫', 3, '照片背后写着她的旧名'),
-    outlineRow('升级', 4, includePaywall ? '门后传来自己的声音（付费点）' : '门后传来自己的声音'),
-    outlineRow('升级', 5, '旧照片上的人动了'),
-    outlineRow('反转', 6, '她发现记忆属于另一个人'),
-    outlineRow('反转', 7, '真正的主人敲响房门'),
-    outlineRow('结尾', 8, '她把钥匙留在门外'),
+    outlineRow('开头', 1, '她决定去查监控', rowOpts),
+    outlineRow('铺垫', 2, '她收到没有寄件人的照片', rowOpts),
+    outlineRow('铺垫', 3, '照片背后写着她的旧名', rowOpts),
+    outlineRow('升级', 4, includePaywall ? '门后传来自己的声音（付费点）' : '门后传来自己的声音', rowOpts),
+    outlineRow('升级', 5, '旧照片上的人动了', rowOpts),
+    outlineRow('反转', 6, '她发现记忆属于另一个人', rowOpts),
+    outlineRow('反转', 7, '真正的主人敲响房门', rowOpts),
+    outlineRow('结尾', 8, '她把钥匙留在门外', rowOpts),
   ]
   return [
     '# 小节大纲',
-    `| ${headers.join(' | ')} |`,
-    `| ${headers.map(() => '---').join(' | ')} |`,
+    `| ${headerRow.join(' | ')} |`,
+    `| ${headerRow.map(() => '---').join(' | ')} |`,
     ...rows.map((row) => `| ${row.join(' | ')} |`),
     '',
   ].join('\n')
@@ -117,6 +126,54 @@ try {
   assert.strictEqual(good.status, 0, good.stdout + good.stderr)
   assert.strictEqual(good.report.ok, true)
   assert.deepStrictEqual(good.report.failures, [])
+
+  // 旧项目落盘的三个旧列名必须继续通过（legacyHeader 兼容分支）。
+  const legacyHeaderOutline = run(writeCase(
+    'legacy-headers',
+    validSettings(),
+    validOutline({ headerRow: legacyHeaders, legacy: true })
+  ))
+  assert.strictEqual(legacyHeaderOutline.status, 0, legacyHeaderOutline.stdout + legacyHeaderOutline.stderr)
+  assert.strictEqual(legacyHeaderOutline.report.ok, true)
+  assert.match(
+    legacyHeaderOutline.report.checks.find((check) => check.id === 'phase2.outline-12-columns').evidence,
+    /兼容旧项目/
+  )
+
+  // 新旧列名混搭不是有效表头，currentHeader 和 legacyHeader 都不该接受。
+  const mixedHeaderOutline = run(writeCase(
+    'mixed-headers',
+    validSettings(),
+    validOutline({ headerRow: headers.map((name, index) => (index === 2 ? '子事件×3-5' : name)) })
+  ))
+  assert.strictEqual(mixedHeaderOutline.status, 1)
+  assert(failureIds(mixedHeaderOutline).includes('phase2.outline-12-columns'))
+
+  // 去掉「3-5 个子事件」配额后，每节只有一个真实推进也应通过。
+  const singleUnit = run(writeCase(
+    'single-progression-unit',
+    validSettings(),
+    validOutline({ progression: (index) => `主角当场亮出证据${index}{发现}` })
+  ))
+  assert.strictEqual(singleUnit.status, 0, singleUnit.stdout + singleUnit.stderr)
+  assert.strictEqual(singleUnit.report.ok, true)
+
+  // 「不设数量下限」不等于允许留空或漏功能标签。
+  const emptyProgression = run(writeCase(
+    'empty-progression',
+    validSettings(),
+    validOutline({ progression: () => '' })
+  ))
+  assert.strictEqual(emptyProgression.status, 1)
+  assert(failureIds(emptyProgression).includes('phase2.outline-subevents'))
+
+  const untaggedProgression = run(writeCase(
+    'untagged-progression',
+    validSettings(),
+    validOutline({ progression: (index) => `主角当场亮出证据${index}` })
+  ))
+  assert.strictEqual(untaggedProgression.status, 1)
+  assert(failureIds(untaggedProgression).includes('phase2.outline-subevents'))
 
   const explicitShortTarget = run(writeCase(
     'explicit-short-target',

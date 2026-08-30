@@ -111,7 +111,7 @@ Stage 6 内容写完后、`stages_completed[6]` append 前，跑三道检查：
 | `structure_counts.reversal_type` | 在枚举内（含「无反转」）| 阻断 |
 | `genre_detected` | 非空 | 阻断 |
 
-> 情节节点数（15-60 个，按字数分档）走 `情节节点.md` 自己的密度校验（见 material-decomposition.md），不在本表。`beats` 是结构段数，不是情节节点数。
+> 情节节点数不设阈值，按 `情节节点.md` 的语义变化边界提取（见 material-decomposition.md），不在本表。`beats` 是结构段数，不是情节节点数。
 
 ### Step 3：`story-short-analyze` BLOCK 项扫描
 
