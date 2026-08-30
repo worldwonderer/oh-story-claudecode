@@ -79,6 +79,19 @@ def strings(value):
             yield from strings(item)
 
 rendered = "\n".join(strings(data))
+
+# Codex CLI >= 0.151.0 renders skills as short `rN/<skill>/SKILL.md` paths plus a
+# "Skill roots" alias table. Expand the aliases back to absolute paths so the
+# assertions below stay version-agnostic; older CLIs emit absolute paths and no
+# table, in which case this is a no-op.
+skill_roots = re.findall(r"^- `(r\d+)` = `([^`]+)`", rendered, re.MULTILINE)
+for alias, root in sorted(skill_roots, key=lambda item: -len(item[0])):
+    rendered = re.sub(
+        r"(?<![0-9A-Za-z_])" + re.escape(alias) + "/",
+        str(Path(root).resolve()).replace("\\", "\\\\") + "/",
+        rendered,
+    )
+
 expected = {
     path.parent.name: str(path.resolve())
     for path in (repo_root / "skills").glob("*/SKILL.md")
