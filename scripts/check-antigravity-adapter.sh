@@ -9,6 +9,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 cd "$REPO_ROOT"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+CURRENT_AGENTS_VERSION="$(node -e 'process.stdout.write(String(require(process.argv[1]).agents_version))' "$SCRIPT_DIR/current-contract.json")"
 assert_file() { [ -f "$1" ] || fail "required file missing: $1"; }
 
 ROOT="skills/story-setup/references/antigravity"
@@ -134,8 +135,8 @@ node scripts/test-antigravity-hooks.mjs
 
 grep -q 'target_cli = antigravity' skills/story-setup/SKILL.md \
   || fail "story-setup does not detect Antigravity"
-grep -q 'agents_version: 28' skills/story-setup/SKILL.md \
-  || fail "story-setup deployment contract is not v28"
+grep -q "agents_version: $CURRENT_AGENTS_VERSION" skills/story-setup/SKILL.md \
+  || fail "story-setup deployment contract is not v$CURRENT_AGENTS_VERSION"
 grep -q 'Antigravity 部署算法' skills/story-setup/SKILL.md \
   || fail "story-setup lacks Antigravity deployment algorithm"
 
