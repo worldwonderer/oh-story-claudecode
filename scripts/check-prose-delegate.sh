@@ -79,8 +79,8 @@ grep -q 'cwd: project' "$CODE" \
 # 长度纪律：实测把超长率从 +46%~+82% 压到 +13%~+44%，删掉等于每章多付一次压缩。
 grep -q '长度纪律' "$HELPER" \
   || fail "draft mode must keep the length discipline block"
-grep -q '目标字数是\*\*上限型硬约束\*\*' "$HELPER" \
-  || fail "length discipline must state the target is an upper bound"
+grep -q '目标字数是\*\*要瞄准的数\*\*' "$HELPER" \
+  || fail "length discipline must state the target is a number to hit"
 
 # 禁自查那段是必需品，不是修辞：删掉它外包必失败（headless 下 command 被自动拒绝，
 # 委派方遇拒整个 run 放弃）。
