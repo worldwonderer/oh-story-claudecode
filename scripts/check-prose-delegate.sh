@@ -59,6 +59,15 @@ grep -q 'm\.character_files' "$CODE" \
   || fail "delegate prompt must carry character sheet paths; the delegate sees none of the host context"
 grep -q 'm\.setting_files' "$CODE" \
   || fail "delegate prompt must carry setting sheet paths"
+# 作品类型的写作规范（短篇默认第一人称等）不在通用写手模板里；不传就静默写错，闸门抓不到。
+grep -q 'm\.skill_references' "$CODE" \
+  || fail "delegate prompt must carry the skill's own writing conventions"
+grep -q '最高优先级' "$HELPER" \
+  || fail "skill references must outrank the generic reference table"
+grep -q 'skill_references' skills/story-short-write/references/prose-delegate.md \
+  || fail "short-form delegation must require skill_references"
+grep -q '第一人称' skills/story-short-write/references/prose-delegate.md \
+  || fail "short-form delegation must record the first-person default it once broke"
 grep -q '深度限知\|锁死主视角' "$HELPER" \
   || fail "draft mode must keep the limited-POV constraint"
 

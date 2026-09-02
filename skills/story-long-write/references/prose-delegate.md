@@ -10,6 +10,8 @@
 
 字段同 workflow-chapter 步骤 7 的 prompt 清单：`chapter`、`outline_file`、`style_file`、`prev_chapter`、`target_chars`、`emotion`、`characters`、`stage_position`、`structure_formula`、`releasable`、`forbidden_early`、`benchmark_recall`、`selected_emotion_module`、`rhythm_reference`、`genre_prose_card`、`author_preferences`、`format_constraints`、`benchmark_path`（主对标/拆文目录）。
 
+**必须给 `skill_references`**：写手 agent 模板是长篇/短篇通用的，作品类型自己的写作规范不在它的参考表里。长篇至少传 `references/long-format.md` 与 `references/long-chapter-hooks.md`；短篇的教训是不传就写错叙述人称（见 story-short-write 的同名文件）。
+
 **跨 CLI 委派另外必须给三组路径**：`character_files`（出场角色档案）、`setting_files`（本章涉及的设定）、`tracking_file`（续写状态卡）。委派方看不到宿主会话的任何上下文——角色性别、身份、口吻这些在主会话里是「已经知道」的，对它全是空白。实测同一本书两次调用把主角分别写成男性和女性，就是因为材料里没给。
 
 ```
