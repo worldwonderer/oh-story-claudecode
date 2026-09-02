@@ -193,8 +193,10 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 只在用户明确说「正文换个模型写 / 正文交给 Gemini」这类要求时才走这一节。**没有这个要求就完全跳过：不询问、不预检、不在安装报告里提。** 这是可选增强，绝大多数用户不需要，默认路径不得因它多一步。
 
-- 先跑预检：`node "{story-long-write skill目录}/scripts/delegate-prose.js" --preflight`。退出码 `1`=`MISSING_CLI`（`agy` 不在 PATH），`2`=`AUTH_OR_NETWORK`（装了但未登录或断网），`0`=可用。
-  - 非 0 时**保持 `prose_delegate: none`**，按退出码给出可区分的说明：缺 CLI 就说明需要安装 `agy` 并登录 Google 账号（**不需要装 Antigravity IDE**）；鉴权/网络失败就提示先在交互式 `agy` 里完成一次登录再重试。不要写任何外包相关的 sentinel 字段，也不要因此中断其他目标端的部署。
+- 先跑预检，两步，**不要引用写作 skill 的脚本**（skill 之间保持自包含；那个 helper 是写作 skill 的内部实现）：
+  1. `command -v agy` —— 不在 PATH 就是 `MISSING_CLI`。
+  2. 在则跑 `agy models`（约 5-8 秒联网）——非零或超时就是 `AUTH_OR_NETWORK`。**给它设上限**（20 秒左右），卡住的 CLI 不能把部署拖住。
+  - 任一步失败时**保持 `prose_delegate: none`**，按退出码给出可区分的说明：缺 CLI 就说明需要安装 `agy` 并登录 Google 账号（**不需要装 Antigravity IDE**）；鉴权/网络失败就提示先在交互式 `agy` 里完成一次登录再重试。不要写任何外包相关的 sentinel 字段，也不要因此中断其他目标端的部署。
 - 预检通过后用 AskUserQuestion 确认，说清代价再写：只有正文写作一步外包，细纲/追踪/质量闸门全留在当前 CLI；实测 3000 字草稿约 128 秒，比本地慢；委派方只读，正文由宿主落盘。用户确认才写 `prose_delegate: agy` 与 `prose_delegate_model`。
 - `prose_delegate_model` 写**具体模型 ID**（默认 `gemini-3.7-flash-high`），不写 `flash` / `pro` 这类档位名——外部 CLI 的档位名不保证稳定路由，而 `agy models` 给出的是可钉死的 ID。用户想换模型时从 `agy models` 的输出里选。
 - 写完后不做实机整章验证：那要几分钟并消耗用户配额，部署阶段只保证「能调通」，真实产出留给第一次写作。
