@@ -83,6 +83,8 @@ jobs:
         run: bash scripts/check-antigravity-adapter.sh
       - name: Prose delegate contract
         run: bash scripts/check-prose-delegate.sh
+      - name: story-doctor contract
+        run: bash scripts/check-story-doctor.sh
       - name: Check OpenCode adapter
         run: bash scripts/check-opencode-adapter.sh
       - name: Check OpenClaw skill compatibility

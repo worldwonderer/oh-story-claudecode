@@ -20,6 +20,7 @@ KNOWN_SKILLS = (
     "story",
     "story-cover",
     "story-deslop",
+    "story-doctor",
     "story-import",
     "story-long-analyze",
     "story-long-scan",

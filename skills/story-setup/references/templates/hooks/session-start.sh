@@ -95,7 +95,7 @@ if sentinel_exists "$ROOT/.story-deployed"; then
   PROSE_DELEGATE=$(read_sentinel_field prose_delegate "$ROOT/.story-deployed")
   if [ "$PROSE_DELEGATE" = "agy" ] && ! command -v agy >/dev/null 2>&1; then
     OUTPUT+="[WARN] .story-deployed 开启了正文外包（prose_delegate: agy），但 PATH 里找不到 agy。${NL}"
-    OUTPUT+="  写作不受影响：正文会自动回落到本地写手。要恢复外包就装好 agy 并登录，或重跑 /story-setup 关掉外包。${NL}${NL}"
+    OUTPUT+="  写作不受影响：正文会自动回落到本地写手。跑 /story-doctor 看完整状态；要恢复外包就装好 agy 并登录，或重跑 /story-setup 关掉外包。${NL}${NL}"
     HAS_CONTENT=true
   fi
 
