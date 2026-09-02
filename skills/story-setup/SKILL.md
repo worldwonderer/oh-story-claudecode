@@ -410,7 +410,7 @@ Reasonix（DeepSeek-Reasonix CLI）当前只部署 skills 与 `AGENTS.md`，不�
    - 检查所有 `story-setup/references/agent-references/<file>.md` 都能解析到 deployed bundle
 5. 验证部署标记：
    - 检查 `.story-deployed` 是否存在且包含时间戳、`agents_version: 29`、`setup_skill_version: 1.2.10`、`target_cli`、`resolver_strategy`、`references_dir`；写了 `prose_delegate: agy` 时还须有合法的 `prose_delegate_model`
-6. 运行一次体检：按跨平台规则探测 Python 3 后执行 `"$PYBIN" "{story-doctor skill目录}/scripts/story_doctor.py" --project {项目根}`，把结果并进安装报告。**这是让用户在开写之前就知道自己会拿到什么的唯一时机**——agent 能不能 spawn、Node 在不在、追踪结构完不完整，等写到一半才发现就晚了。体检失败不回滚部署，如实报告即可；`error` 要给出下一步，`warning` 要说清降级后果（例如 agent 缺失会回落 solo）。
+6. 运行一次体检：调用 **story-doctor skill**（按名字调用，不要直接引用它的脚本路径——脚本位置是那个 skill 的内部实现），把结果并进安装报告。**这是让用户在开写之前就知道自己会拿到什么的唯一时机**——agent 能不能 spawn、Node 在不在、追踪结构完不完整，等写到一半才发现就晚了。体检失败不回滚部署，如实报告即可；`error` 要给出下一步，`warning` 要说清降级后果（例如 agent 缺失会回落 solo）。
 7. 输出安装报告：
    - 列出所有已部署的文件
    - 附上体检结论；有 `error` 时把「先修再开写」放在报告最前面
