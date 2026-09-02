@@ -111,6 +111,33 @@ set -e
 [ ! -e "$dry/.claude/skills/story-review/SKILL.md" ] \
   || fail "--dry-run must not write anything"
 
+# doctor 平时就是从项目内那份部署里跑起来的，此时「源」等于「目标」，缺的东西在源里
+# 同样缺——不能声称能自动修，也不能把这说成「包坏了」。必须给出可行的出路。
+selfrepair="$tmp/selfrepair"
+mkdir -p "$selfrepair/.claude/skills"
+cp -R skills/. "$selfrepair/.claude/skills/"
+printf 'agents_version: 29\ntarget_cli: claude-code\nreferences_dir: .claude/skills/story-setup/references/agent-references\n' \
+  > "$selfrepair/.story-deployed"
+rm -rf "$selfrepair/.claude/skills/story-review"
+python3 - "$selfrepair" <<'PY2'
+import json, subprocess, sys
+proj = sys.argv[1]
+doctor = proj + "/.claude/skills/story-doctor/scripts/story_doctor.py"
+out = subprocess.run([sys.executable, doctor, "--project", proj, "--json", "--fix"],
+                     stdout=subprocess.PIPE, encoding="utf-8").stdout
+data = json.loads(out)
+hits = [f for f in data["findings"] if f["checkId"] == "deploy/skills-complete"]
+if not hits:
+    raise SystemExit("FAIL: a missing skill must still be reported when source == destination")
+for f in hits:
+    if f["fixTier"] == "auto":
+        raise SystemExit("FAIL: doctor cannot claim auto-repair when it is its own broken source")
+    if "--package" not in f["fixHint"] and "story-setup" not in f["fixHint"]:
+        raise SystemExit("FAIL: the fix hint must offer a workable route out")
+if data["fixed"]:
+    raise SystemExit("FAIL: nothing can be repaired when source == destination, got " + str(data["fixed"]))
+PY2
+
 # 用户状态的发现必须标成 refuse，不能哪天被改成 auto。
 python3 - "$DOCTOR" "$proj" <<'PY'
 import json, subprocess, sys

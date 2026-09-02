@@ -109,6 +109,14 @@ def read_sentinel(path):
     return fields
 
 
+def same_tree(a, b):
+    """两个路径是否指向同一棵树（含符号链接归一）。"""
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return False
+
+
 def package_root(explicit):
     """skill 包根：优先显式传入，否则从本脚本位置上溯三级（skills/story-doctor/scripts）。"""
     if explicit:
@@ -157,7 +165,7 @@ def check_deployment(project, pkg, findings):
         check_skills(project, pkg, target, skills_root, findings)
         if agents_root:
             check_agents(project, target, agents_root, findings)
-    check_references(project, fields, findings)
+    check_references(project, pkg, fields, findings)
     check_helpers(pkg, findings)
     return fields
 
@@ -201,11 +209,20 @@ def check_skills(project, pkg, target, rel_root, findings):
     missing = [n for n in KNOWN_SKILLS if not (root / n / "SKILL.md").is_file()]
     if not missing:
         return
-    # skill 目录属于「story-setup 管理，可替换」，且源在 skill 包里，可以直接重铺。
+    message = "{}：缺 {} 个 skill —— {}".format(target, len(missing), "、".join(missing))
+    # doctor 通常就是从项目内那份部署里跑起来的，此时包根等于部署根——「源」和「目标」
+    # 是同一棵树，缺的东西在源里同样缺，自己修不了自己。这不是包坏了，是需要真正的源包。
+    if same_tree(pkg / "skills", root):
+        findings.append(Finding(
+            "deploy/skills-complete", "error", message,
+            "doctor 正从项目内副本运行，它和损坏的是同一份，无法自建修复源。"
+            "重跑 /story-setup（它知道源 skill 包在哪），或用 --package 指向源包后重试。",
+            "prompt", str(root)))
+        return
+    # skill 目录属于「story-setup 管理，可替换」，源在 skill 包里，可以直接重铺。
     repairable = all((pkg / "skills" / n / "SKILL.md").is_file() for n in missing)
     findings.append(Finding(
-        "deploy/skills-complete", "error",
-        "{}：缺 {} 个 skill —— {}".format(target, len(missing), "、".join(missing)),
+        "deploy/skills-complete", "error", message,
         "从当前 skill 包重铺这些目录。" if repairable
         else "skill 包本身也缺这些源，先重装 oh-story-claudecode。",
         "auto" if repairable else "refuse", str(root)))
@@ -234,7 +251,7 @@ def check_agents(project, target, rel_root, findings):
             "重跑 /story-setup 重新生成 agent 定义。", "prompt", str(root)))
 
 
-def check_references(project, fields, findings):
+def check_references(project, pkg, fields, findings):
     raw = fields.get("references_dir", "")
     dirs = [d.strip() for d in raw.split(",") if d.strip()]
     if not dirs:
@@ -243,17 +260,22 @@ def check_references(project, fields, findings):
             "sentinel 缺 references_dir，无法确认 agent 参考资料是否完整。",
             "重跑 /story-setup 写回 references_dir。", "prompt", ""))
         return
+    src = pkg / "skills" / "story-setup" / "references" / "agent-references"
     for rel in dirs:
         root = project / rel
-        if not root.is_dir():
+        if root.is_dir() and any(root.glob("*.md")):
+            continue
+        message = ("参考资料目录不存在：{}；agent 落笔前的必读文件全部读不到。".format(rel)
+                   if not root.is_dir() else "参考资料目录是空的：{}".format(rel))
+        # 同上：从项目内副本跑起来时，源就是目标，修不了自己。
+        if same_tree(src, root):
             findings.append(Finding(
-                "deploy/references-bundle", "error",
-                "参考资料目录不存在：{}；agent 落笔前的必读文件全部读不到。".format(rel),
-                "从当前 skill 包重铺参考资料包。", "auto", str(root)))
-        elif not any(root.glob("*.md")):
+                "deploy/references-bundle", "error", message,
+                "doctor 正从项目内副本运行，无法自建修复源。重跑 /story-setup，"
+                "或用 --package 指向源包后重试。", "prompt", str(root)))
+        else:
             findings.append(Finding(
-                "deploy/references-bundle", "error",
-                "参考资料目录是空的：{}".format(rel),
+                "deploy/references-bundle", "error", message,
                 "从当前 skill 包重铺参考资料包。", "auto", str(root)))
 
 

@@ -37,7 +37,9 @@ for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done
 | `--fix --dry-run` | 只列出会修什么，一个字节都不写。**不确定时先跑这个给用户看** |
 | `--check-delegate` | 额外跑联网的外包鉴权检查（约 5-20 秒），默认不跑 |
 | `--only <id>` / `--skip <id>` | 按 checkId 过滤 |
-| `--package <路径>` | 显式指定 skill 包根；默认从脚本位置推断 |
+| `--package <路径>` | 显式指定源 skill 包根；默认从脚本位置推断 |
+
+**关于 `--package`**：doctor 平时是从项目内那份部署（`.claude/skills/story-doctor/`）跑起来的，此时推断出的包根就是项目自己——「修复源」和「待修目标」是同一棵树。缺的 skill 在源里同样缺，**`--fix` 修不了自己**。脚本会识别这种情况，把它报成需确认而不是谎称能自动修，并指出两条出路：重跑 `/story-setup`（它知道源包在哪），或 `--package` 指向源包。**不要把这种情况说成「skill 包损坏」**——包没坏，只是手上这份不能当源。
 
 退出码：`0` 全绿 · `1` 有 warning · `2` 有 error · `3` 用法错误。
 
