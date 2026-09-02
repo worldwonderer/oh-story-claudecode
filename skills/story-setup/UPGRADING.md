@@ -21,7 +21,7 @@
 
 部署清单的 Source 相对 skill 包、Target 相对项目根，两个基准目录在 skills-only 端会重合；经 `.agents/skills → ../skills` 等 symlink 加载时，路径文字不同也可能指向同一目录。部署器会先按 realpath / samefile 语义拒绝同对象与「目标位于源目录内」的递归复制，再删掉已有的 `agent-references/agent-references/`（可能多层）或 `skills/story-setup/skills/` 残留。
 
-OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` 里，重跑时执行的就是项目里那份，自动清理到不了：先手动删掉上述目录。要让项目里的 skill 文本本身更新，还需要更新 oh-story-claudecode 后，用新包覆盖项目 `skills/` 下这 13 个目录。
+OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` 里，重跑时执行的就是项目里那份，自动清理到不了：先手动删掉上述目录。要让项目里的 skill 文本本身更新，还需要更新 oh-story-claudecode 后，用新包覆盖项目 `skills/` 下这 14 个目录。
 
 ## 文件所有权
 
@@ -32,9 +32,9 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 - `.claude/agents/` — 所有 agent 定义
 - `.claude/rules/` — 所有 path-scoped 规则
 - `.claude/skills/story-setup/references/agent-references/` — Agent 参考资料副本
-- `.agents/skills/{13 known skills}/`、`.agents/agents/agent-name/agent.md`（7 个已知 `agent-name`）、`.agents/rules/oh-story.md`、`.agents/hooks/{story_antigravity_hook.js,story_hook_core.js}` — Antigravity 项目内真实 Skills、生成 Agents、Always-On Rule 与 Hook runtime；同目录其他用户 Skills/Agents 保留
-- `skills/{13 known skills}/` — OpenClaw / Reasonix / generic 的项目 skill 副本，仅覆盖 oh-story 已知名称
-- `.zcode/skills/{13 known skills}/`、`.zcode/commands/{13 known commands}.md` — 仅覆盖 oh-story 已知名称
+- `.agents/skills/{14 known skills}/`、`.agents/agents/agent-name/agent.md`（7 个已知 `agent-name`）、`.agents/rules/oh-story.md`、`.agents/hooks/{story_antigravity_hook.js,story_hook_core.js}` — Antigravity 项目内真实 Skills、生成 Agents、Always-On Rule 与 Hook runtime；同目录其他用户 Skills/Agents 保留
+- `skills/{14 known skills}/` — OpenClaw / Reasonix / generic 的项目 skill 副本，仅覆盖 oh-story 已知名称
+- `.zcode/skills/{14 known skills}/`、`.zcode/commands/{14 known commands}.md` — 仅覆盖 oh-story 已知名称
 - `.zcode/hooks/story_zcode_hook.js` — ZCode 专用 Hook runner
 
 ### 用户与 story-setup 共同维护，只合并管理块
@@ -82,7 +82,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 
 ## v26 历史契约
 
-- 新增 Google Antigravity 2.0 项目部署：13 个 skill 真实复制到 `.agents/skills/`，7 个 Claude agent 真源确定性转换为 `.agents/agents/agent-name/agent.md`（`agent-name` 为实际名称），并安装 `.agents/rules/oh-story.md` Always-On Rule。
+- 新增 Google Antigravity 2.0 项目部署：14 个 skill 真实复制到 `.agents/skills/`，7 个 Claude agent 真源确定性转换为 `.agents/agents/agent-name/agent.md`（`agent-name` 为实际名称），并安装 `.agents/rules/oh-story.md` Always-On Rule。
 - Antigravity Workspace Hooks 只使用官方 `PreToolUse`、`PostToolUse`、`PreInvocation`、`Stop` 事件；写前门禁直接返回 allow/deny，PostToolUse 按协议只返回 `{}`，写后正文 findings 通过 session artifact 交给下一次 PreInvocation，Stop 最多续跑一次。
 - `.agents/hooks.json` 按顶层 `oh-story` 管理组原子合并，不覆盖用户其他 hook groups；部署不写 `~/.gemini/`，也不依赖全局 skill 或 symlink 发现。已有 `.agents/skills` symlink 必须先明确确认才迁移为真实目录，helper 从不沿 symlink 写入其目标。
 - Antigravity custom agent 通过 `invoke_subagent` + 同名 `TypeName` 调用；运行时无该能力时按既有 solo/direct 规则降级。外部 Hook API 没有 PreCompact/PostCompact，压缩后上下文恢复由 Always-On Rule 强制读取 `追踪/上下文.md`。
