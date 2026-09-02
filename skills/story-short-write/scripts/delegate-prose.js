@@ -26,6 +26,15 @@
  * 4. 失败一律显式。预检失败、调用失败、产出不合格各有独立退出码，调用方据此决定
  *    静默回落还是报错；任何情况下都不得把失败伪装成委派成功。
  *
+ * 5. prompt 走 stdin，不走命令行参数。写手模板加本章材料实测 15,521 字符，在 Windows
+ *    CreateProcess 的 32,767 上限之下但只剩两倍余量，一旦中间经过 cmd.exe（8,191）
+ *    立刻超限。改用 --input-format stream-json 从 stdin 送，长度限制整类消失。
+ *
+ * 6. compress 模式是**净删**，不是重写。第一版沿用了 draft 的「写出完整正文」，
+ *    实测压缩版 84 段里只有 1 段与原文逐字相同、感叹号从 10 涨到 21——那是重写，
+ *    直接违反 workflow-chapter 对 compress-once 的「一次净删，零新语义改动」契约。
+ *    所以两个模式的执行段必须分开写，不要再合并。
+ *
  * 用法：
  *   node delegate-prose.js --preflight [--model <id>]
  *   node delegate-prose.js --project <项目根> --materials <materials.json> --out <正文路径> [选项]
@@ -51,6 +60,23 @@ const { spawnSync } = require('child_process')
 const CLI = 'agy'
 const DEFAULT_MODEL = 'gemini-3.7-flash-high'
 const DEFAULT_TIMEOUT = '25m'
+
+// Windows 上 Node 不经 shell 时不会自己补 PATHEXT，`agy.cmd` / `agy.exe` 会直接 ENOENT。
+// 自己扫一遍 PATH × PATHEXT，既能找到 shim，又不用开 shell（开 shell 会把参数拼回
+// 命令行，重新踩上 cmd.exe 的 8,191 上限）。
+function resolveCli() {
+  if (process.platform !== 'win32') return CLI
+  const exts = (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
+  for (const dir of (process.env.PATH || '').split(path.delimiter).filter(Boolean)) {
+    for (const ext of exts) {
+      const candidate = path.join(dir, CLI + ext)
+      try {
+        if (fs.statSync(candidate).isFile()) return candidate
+      } catch (err) { /* 该候选不存在，继续 */ }
+    }
+  }
+  return CLI
+}
 
 const EXIT = { OK: 0, MISSING_CLI: 1, AUTH_OR_NETWORK: 2, INVOCATION: 3, BAD_OUTPUT: 4, USAGE: 5 }
 
@@ -94,7 +120,7 @@ function parseArgs(argv) {
 function preflight() {
   // 直接 spawn，不经 shell：ENOENT 就是没装，装了但非零就是鉴权或网络。
   // 走 shell 会触发 Node 的 DEP0190，也多一个进程。
-  const models = spawnSync(CLI, ['models'], { encoding: 'utf8' })
+  const models = spawnSync(resolveCli(), ['models'], { encoding: 'utf8' })
   if (models.error && models.error.code === 'ENOENT') {
     return { ok: false, code: EXIT.MISSING_CLI, reason: 'MISSING_CLI' }
   }
@@ -129,6 +155,12 @@ function buildTask(m, mode) {
   body += line('上一章', m.prev_chapter)
   body += line('当前正文（待压缩）', m.current_prose_file)
   body += line('主对标/拆文路径', m.benchmark_path)
+  // 跨 CLI 委派看不到宿主会话的任何上下文：角色性别、身份、口吻这些在宿主那边是
+  // 「已经知道」的东西，对委派方全是空白。实测同一本书两次调用把主角分别写成男性
+  // 和女性——不是模型不稳，是材料里根本没给。出场角色的档案路径必须显式传。
+  body += line('角色档案（出场角色，写作前必读）', m.character_files)
+  body += line('设定档案（本章涉及的世界观/机构/规则）', m.setting_files)
+  body += line('追踪状态（续写状态卡）', m.tracking_file)
 
   body += `\n**写前给定**\n`
   body += line('目标情绪', m.emotion)
@@ -145,23 +177,44 @@ function buildTask(m, mode) {
   body += line('作者偏好', m.author_preferences)
   body += line('格式硬约束', m.format_constraints)
 
-  body += `
+  const shared = `
+**工具限制（重要）**
+本次只允许只读工具（view_file / find_by_name / grep_search）。**禁止使用 run_command 或任何命令行工具。**
+字数统计、句长核对、禁用词与细纲照搬复扫全部由宿主会话在你返回后用确定性脚本执行。
+你不要自查，也**不要因为无法自查而放弃、缩短或截断产出**。
+
+不要写任何文件。按 JSON schema 返回：prose=完整正文文本，visible_chars=你的估算值，refs_read=实际读过的文件路径数组。
+`
+
+  const draftRules = `
 **边界**
 - 只展开细纲已有事件、人物、冲突与结尾钩子，不自造新主线、新角色、新反转，不提前写后续章剧情。
 - 细纲是「要发生什么」的契约、不是正文的形状：可打散重排、把相邻情节点缝进同一个连续动作，不要一条一段平推，不把细纲措辞原样搬进叙述。
 - 标题行以外不得出现「本章 / 上一章 / 前文 / 后文 / 伏笔 / 细纲 / 读者」这类写作工程词。
-
-**工具限制（重要）**
-本次只允许只读工具（view_file / find_by_name / grep_search）。**禁止使用 run_command 或任何命令行工具。**
-字数统计、句长核对、禁用词与细纲照搬复扫全部由宿主会话在你返回后用确定性脚本执行。
-你不要自查，也**不要因为无法自查而放弃、缩短或截断产出**——按目标字数凭经验估算即可。
+- 叙述锁死主视角角色此刻的感知：只写她/他此刻看到、听到、身体感到、脑中闪过的。不写主视角无从得知的因果、动机或他人内心，也不补全背景。需要交代来龙去脉时，改成角色当场能看见的证据或能想到的推断。
 
 **执行**
-1. 按你的参考文件体系表逐行独立判定，命中即用只读工具读取该参考文件。
+1. 按你的参考文件体系表逐行独立判定，命中即用只读工具读取该参考文件；角色档案与设定档案一并读，人物性别、身份与口吻以档案为准，不要自行设定。
 2. 写出完整正文（含标题行）。
-3. 不要写任何文件。按 JSON schema 返回：prose=完整正文文本，visible_chars=你的估算值，refs_read=实际读过的文件路径数组。
 `
-  return head + body
+
+  // 压缩是净删。第一版把它和 draft 合成一段，实测出来的是整篇重写（84 段只剩 1 段
+  // 逐字相同），违反 compress-once 契约，所以这里必须写成「以原文为底、只做删除」。
+  const compressRules = `
+**这一步是净删，不是重写。**
+- 以 \`当前正文（待压缩）\` 的文本为底本，**逐段保留原句**，只做删除。
+- 允许：整句删除、整段删除、删掉从句或修饰成分后把剩余部分接成通顺的句子。
+- 禁止：换词、改写句式、调整语序、合并改写、补写过渡、新增任何原文没有的内容。除删除造成的最小接续外，保留下来的文字必须与原文逐字相同。
+- 禁止改动：已批准的情节点、结尾钩子、人物、对话内容、标题行。对话优先整句保留或整句删除，不要改台词措辞。
+- 优先删：重复信息、可推断的解释性叙述、与本章目标无关的环境铺陈、同义反复的心理描写。
+
+**执行**
+1. 用只读工具通读 \`当前正文（待压缩）\`。
+2. 按上面的优先级选出要删的整句/整段，删够目标字数。
+3. 返回删除后的完整正文。它应当读起来像原文被裁短，而不是被重写过。
+`
+
+  return head + body + (mode === 'compress' ? compressRules : draftRules) + shared
 }
 
 function readJson(file, what) {
@@ -210,15 +263,20 @@ function main() {
   const schemaFile = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'delegate-prose-')), 'schema.json')
   fs.writeFileSync(schemaFile, JSON.stringify(SCHEMA))
 
+  // prompt 走 stdin 的 NDJSON，不做命令行参数：见文件头第 5 条。
   const startedAt = Date.now()
-  const run = spawnSync(CLI, [
+  const run = spawnSync(resolveCli(), [
     '--add-dir', project,
     '--model', opts.model,
     '--print-timeout', opts.timeout,
-    '--output-format', 'json',
+    '--input-format', 'stream-json',
+    '--output-format', 'stream-json',
     '--json-schema', schemaFile,
-    `-p=${prompt}`,
-  ], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  ], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    input: JSON.stringify({ event: 'user', message: { role: 'user', content: prompt } }) + '\n',
+  })
   const wallSeconds = Math.round((Date.now() - startedAt) / 1000)
 
   try { fs.rmSync(path.dirname(schemaFile), { recursive: true, force: true }) } catch (err) { /* 清理失败不影响结果 */ }
@@ -227,11 +285,24 @@ function main() {
     die(EXIT.INVOCATION, `${CLI} exited ${run.status} after ${wallSeconds}s: ${String(run.stderr || '').trim().slice(0, 400)}`)
   }
 
-  let envelope
-  try {
-    envelope = JSON.parse(String(run.stdout || ''))
-  } catch (err) {
-    die(EXIT.BAD_OUTPUT, `${CLI} did not return parseable JSON after ${wallSeconds}s`)
+  // stream-json 输出是 NDJSON：init / 若干中间事件 / result。只取最后一个 result。
+  let envelope = null
+  for (const raw of String(run.stdout || '').split('\n')) {
+    const trimmed = raw.trim()
+    if (!trimmed) continue
+    let parsed
+    try {
+      parsed = JSON.parse(trimmed)
+    } catch (err) {
+      continue
+    }
+    if (parsed && parsed.event === 'result' && parsed.result) envelope = parsed.result
+  }
+  if (!envelope) {
+    die(EXIT.BAD_OUTPUT, `${CLI} produced no result event after ${wallSeconds}s`)
+  }
+  if (envelope.error) {
+    die(EXIT.INVOCATION, `${CLI} reported: ${String(envelope.error).slice(0, 400)}`)
   }
   if (envelope.status && envelope.status !== 'SUCCESS') {
     die(EXIT.INVOCATION, `${CLI} reported status ${envelope.status} after ${wallSeconds}s`)

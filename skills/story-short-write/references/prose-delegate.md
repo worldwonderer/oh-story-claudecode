@@ -6,7 +6,9 @@
 
 ## 调用
 
-每批（2-3 节）正文写成一次调用，材料 JSON 至少含 `chapter`（用批次号）、`outline_file`（小节大纲）、`style_file`、`target_chars`、`emotion`、`characters`、`format_constraints`，并把「已写小节摘要」放进 `benchmark_recall`：
+每批（2-3 节）正文写成一次调用，材料 JSON 至少含 `chapter`（用批次号）、`outline_file`（小节大纲）、`style_file`、`target_chars`、`emotion`、`characters`、`format_constraints`，并把「已写小节摘要」放进 `benchmark_recall`。
+
+**另外必须给 `character_files` / `setting_files`**：委派方看不到主会话上下文，角色性别、身份、口吻不给就会自己编，且批与批之间可能不一致。
 
 ```
 node "{skill 根}/scripts/delegate-prose.js" \
@@ -31,3 +33,7 @@ node "{skill 根}/scripts/delegate-prose.js" \
 ## 外包不豁免任何检查
 
 格式重排、去AI味 7 Gate、禁用词、字数与交付契约照常在主会话执行。委派方自报字数不采信（实测自估 3052、实际 4925），以主会话重数为准。
+
+## 平台
+
+prompt 走 stdin，不占命令行长度；helper 按 `PATHEXT` 解析 Windows 上的 `agy` shim。`agy` 自身的 Windows 可用性未经实测——不可用时预检返回 `MISSING_CLI`，外包保持关闭，写作不受影响。

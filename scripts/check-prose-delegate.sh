@@ -35,6 +35,33 @@ grep -q -- '--json-schema' "$CODE" \
 grep -q -- '--add-dir' "$CODE" \
   || fail "delegate must mount the project with --add-dir"
 
+# prompt 必须走 stdin。写手模板加材料实测 15,521 字符：CreateProcess 上限 32,767 只剩
+# 两倍余量，经 cmd.exe（8,191）直接超限。退回 -p= 就是把 Windows 重新写坏。
+grep -q -- "--input-format', 'stream-json'" "$CODE" \
+  || fail "delegate must deliver the prompt over stdin (--input-format stream-json)"
+if grep -q -- '`-p=' "$CODE"; then
+  fail "delegate must not pass the prompt as a command-line argument; Windows arg limits break it"
+fi
+grep -q 'PATHEXT' "$CODE" \
+  || fail "delegate must resolve the CLI through PATHEXT so Windows shims are found"
+
+# compress 是净删不是重写：合并两个模式的执行段会退化成整篇重写（实测 84 段只剩
+# 1 段逐字相同），违反 workflow-chapter 的 compress-once 契约。
+grep -q '这一步是净删，不是重写' "$HELPER" \
+  || fail "compress mode must instruct a net deletion, not a rewrite"
+grep -q '保留下来的文字必须与原文逐字相同' "$HELPER" \
+  || fail "compress mode must require surviving text to stay verbatim"
+grep -q "mode === 'compress' ? compressRules : draftRules" "$CODE" \
+  || fail "draft and compress must keep separate execution sections"
+
+# 跨 CLI 委派看不到宿主上下文，角色/设定档案路径必须显式进 prompt。
+grep -q 'm\.character_files' "$CODE" \
+  || fail "delegate prompt must carry character sheet paths; the delegate sees none of the host context"
+grep -q 'm\.setting_files' "$CODE" \
+  || fail "delegate prompt must carry setting sheet paths"
+grep -q '深度限知\|锁死主视角' "$HELPER" \
+  || fail "draft mode must keep the limited-POV constraint"
+
 # 禁自查那段是必需品，不是修辞：删掉它外包必失败（headless 下 command 被自动拒绝，
 # 委派方遇拒整个 run 放弃）。
 grep -q '禁止使用 run_command' "$HELPER" \
