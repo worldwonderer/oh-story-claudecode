@@ -18,6 +18,13 @@
       ]
     },
     {
+      "name": "prose-delegate",
+      "source": "skills/story-long-write/scripts/delegate-prose.js",
+      "targets": [
+        "skills/story-short-write/scripts/delegate-prose.js"
+      ]
+    },
+    {
       "name": "prose-degeneration-detector",
       "source": "skills/story-deslop/scripts/check-degeneration.js",
       "targets": [

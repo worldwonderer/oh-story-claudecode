@@ -253,6 +253,7 @@ Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完
 - 只有用户明确要求子代理、主会话上下文不足，或需要隔离试写时，才检查 narrative-writer agent（查找顺序见顶部）。
 - 如可用，spawn `Agent(subagent_type: "narrative-writer", prompt: ...)`，只传项目目录、输出文件、情绪目标、题材风格包、小节大纲、角色、主/副对标召回摘要、作者偏好 query 中的文风/故事设计项、格式硬约束和写作硬约束。
 - 不把本 skill 整段规则塞进 prompt；细节以已加载的 `short-format.md`、题材包和 `short-craft.md` 为准。
+- **正文外包（默认关闭）**：读 `.story-deployed` 的 `prose_delegate`；缺失 / 空 / `none` 就跳过本条。为 `agy` 时改按 `references/prose-delegate.md` 执行，格式重排与全部检查照旧。
 - 无论谁写，写入 `正文.md` 前都按同一格式规范重排，保证主会话与子代理输出一致。
 
 ⚠️ **硬约束只作用于整篇交付范围，不设统一逐节最低字数或行数**。
