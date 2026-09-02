@@ -118,6 +118,29 @@ case "$order_out" in
   *) fail "materials must be validated before preflight; got: $order_out" ;;
 esac
 
+# 外部 CLI 卡住时必须有硬上限。没有 timeout 的 spawnSync 会无限期阻塞，
+# 一个默认关闭的可选功能就能把整场写作卡死（实测未加时 20 秒仍无返回）。
+grep -q 'PREFLIGHT_TIMEOUT_MS' "$CODE" \
+  || fail "preflight must bound how long a hung CLI can block writing"
+grep -q 'timeout: PREFLIGHT_TIMEOUT_MS' "$CODE" \
+  || fail "preflight spawn must actually pass its timeout"
+grep -q 'timeout: durationMs' "$CODE" \
+  || fail "the delegate run must bound itself above the CLI's own --print-timeout"
+
+# 卡住的 CLI 必须在上限内回落，而不是挂住。用一个永不返回的桩验证。
+hang_dir="$(mktemp -d)"
+printf '#!/bin/sh\nsleep 600\n' > "$hang_dir/agy"
+chmod +x "$hang_dir/agy"
+set +e
+hang_start=$(date +%s)
+env PATH="$hang_dir:$node_dir:/usr/bin:/bin" node "$HELPER" --preflight >/dev/null 2>&1
+hang_rc=$?
+hang_elapsed=$(( $(date +%s) - hang_start ))
+set -e
+rm -rf "$hang_dir"
+[ "$hang_rc" -eq 2 ] || fail "a hung CLI must fall back as AUTH_OR_NETWORK, got $hang_rc"
+[ "$hang_elapsed" -le 40 ] || fail "a hung CLI blocked preflight for ${hang_elapsed}s; it must be bounded"
+
 # 用法错误必须在任何外部调用之前挡住。
 set +e
 env PATH="$node_dir:/usr/bin:/bin" node "$HELPER" --mode bogus --preflight >/dev/null 2>&1

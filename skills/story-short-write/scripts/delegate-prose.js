@@ -60,6 +60,12 @@ const { spawnSync } = require('child_process')
 const CLI = 'agy'
 const DEFAULT_MODEL = 'gemini-3.7-flash-high'
 const DEFAULT_TIMEOUT = '25m'
+// 预检必须有硬上限。外部 CLI 卡住（网络挂、进程僵死、等待输入）时，没有 timeout 的
+// spawnSync 会无限期阻塞——那就是一个默认关闭的可选功能把整场写作卡死。实测未加时
+// 20 秒仍无返回；加上后卡住的情形走这个上限并按 AUTH_OR_NETWORK 回落。
+const PREFLIGHT_TIMEOUT_MS = 20000
+// 正式调用的兜底：CLI 自己的 --print-timeout 之上再留一分钟，防它连自己的超时都不守。
+const RUN_TIMEOUT_MARGIN_MS = 60000
 
 // Windows 上 Node 不经 shell 时不会自己补 PATHEXT，`agy.cmd` / `agy.exe` 会直接 ENOENT。
 // 自己扫一遍 PATH × PATHEXT，既能找到 shim，又不用开 shell（开 shell 会把参数拼回
@@ -120,10 +126,11 @@ function parseArgs(argv) {
 function preflight() {
   // 直接 spawn，不经 shell：ENOENT 就是没装，装了但非零就是鉴权或网络。
   // 走 shell 会触发 Node 的 DEP0190，也多一个进程。
-  const models = spawnSync(resolveCli(), ['models'], { encoding: 'utf8' })
+  const models = spawnSync(resolveCli(), ['models'], { encoding: 'utf8', timeout: PREFLIGHT_TIMEOUT_MS })
   if (models.error && models.error.code === 'ENOENT') {
     return { ok: false, code: EXIT.MISSING_CLI, reason: 'MISSING_CLI' }
   }
+  // 超时被杀与鉴权失败对调用方是同一件事：这台机器现在用不了外包，回落就是了。
   if (models.error || models.status !== 0) {
     return { ok: false, code: EXIT.AUTH_OR_NETWORK, reason: 'AUTH_OR_NETWORK' }
   }
@@ -230,6 +237,14 @@ function buildTask(m, mode) {
   return head + body + (mode === 'compress' ? compressRules : draftRules) + shared
 }
 
+/** 把 30s / 25m / 1h 解析成毫秒；解析不了按默认 25m 算。 */
+function durationMs(text) {
+  const m = /^(\d+)\s*([smh])$/.exec(String(text || '').trim())
+  if (!m) return 25 * 60 * 1000
+  const n = Number(m[1])
+  return m[2] === 's' ? n * 1000 : m[2] === 'm' ? n * 60000 : n * 3600000
+}
+
 function readJson(file, what) {
   let raw
   try {
@@ -272,7 +287,16 @@ function main() {
   const prompt = instructions + buildTask(materials, opts.mode)
 
   const check = preflight()
-  if (!check.ok) die(check.code, `preflight failed: ${check.reason}`)
+  if (!check.ok) {
+    // 回落指令要跟着错误一起走。调用方是个模型，它读到的可能只有这几行 stderr；
+    // 只说「失败」它有可能当成硬错误停下来，把用户的写作一起卡住。
+    const why = check.reason === 'MISSING_CLI'
+      ? `${CLI} 不在 PATH 中（外包未安装）`
+      : `${CLI} 无法取得模型列表（未登录或网络不可用）`
+    die(check.code, `${why}。\n`
+      + '本次不外包：请立即按本地 narrative-writer 流程照常写这一章，不要中断写作、不要向用户报错停下。\n'
+      + '收尾报告里提一句本章未走外包及原因即可。')
+  }
 
   const schemaFile = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'delegate-prose-')), 'schema.json')
   fs.writeFileSync(schemaFile, JSON.stringify(SCHEMA))
@@ -294,6 +318,7 @@ function main() {
     // 宿主从项目外调用时（比如 skill 目录），材料里的相对路径就会解析到别处，委派方
     // 得靠 find_by_name 兜回来，既慢又不确定。
     cwd: project,
+    timeout: durationMs(opts.timeout) + RUN_TIMEOUT_MARGIN_MS,
   })
   const wallSeconds = Math.round((Date.now() - startedAt) / 1000)
 
