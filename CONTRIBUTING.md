@@ -305,6 +305,7 @@ Antigravity 2.0 与 `agy` CLI 共用 `.agents/` workspace customization，但发
 - **prompt 走 stdin，不走命令行参数。** 写手模板加材料实测 15,521 字符：Windows `CreateProcess` 上限 32,767 只剩两倍余量，经 `cmd.exe`（8,191）直接超限。退回 `-p=` 就是把 Windows 写坏，`check-prose-delegate.sh` 会拦。
 - **compress 与 draft 的执行段必须分开。** 合并会退化成整篇重写：实测压缩版 84 段只剩 1 段与原文逐字相同、感叹号从 10 涨到 21，违反 workflow-chapter 的「一次净删，零新语义改动」。
 - **材料必须带 `character_files` / `setting_files`。** 跨 CLI 委派看不到宿主的任何上下文；不给角色档案时实测同一本书两次调用把主角分别写成男性和女性。
+- **draft 段的「长度纪律」不要删。** 委派方默认严重超长（实测 +46%~+82%）；加上「目标字数是上限、超出靠减铺陈不靠删情节点」后降到 +13%~+44%，情节点覆盖反而更满。删掉它等于每章多付一次压缩。
 - 外包不豁免任何既有闸门。任何「因为外包所以跳过检查」的改动都不接受。
 
 - Always-On Rule 固定为 `.agents/rules/oh-story.md`，文件必须小于 12,000 字符。它负责 skill 路由和 compact 后重新读取 `追踪/上下文.md`；不要假设 Antigravity 有 Claude 的 PreCompact/PostCompact。

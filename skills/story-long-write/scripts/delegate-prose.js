@@ -193,9 +193,15 @@ function buildTask(m, mode) {
 - 标题行以外不得出现「本章 / 上一章 / 前文 / 后文 / 伏笔 / 细纲 / 读者」这类写作工程词。
 - 叙述锁死主视角角色此刻的感知：只写她/他此刻看到、听到、身体感到、脑中闪过的。不写主视角无从得知的因果、动机或他人内心，也不补全背景。需要交代来龙去脉时，改成角色当场能看见的证据或能想到的推断。
 
+**长度纪律**
+目标字数是**上限型硬约束**，不是下限。宁可略短，不要超出。
+- 落笔前先按目标字数把细纲情节点分配好篇幅，超出的部分靠**减少铺陈**解决，不要靠删情节点。
+- 环境描写、器物细节、旁观者反应各自只保留最有功能的一处；同一信息不要在叙述和台词里各说一遍。
+- 写到目标字数就收束进结尾钩子，不要因为"还没写透"继续展开。
+
 **执行**
 1. 按你的参考文件体系表逐行独立判定，命中即用只读工具读取该参考文件；角色档案与设定档案一并读，人物性别、身份与口吻以档案为准，不要自行设定。
-2. 写出完整正文（含标题行）。
+2. 写出完整正文（含标题行），长度守住上面的纪律。
 `
 
   // 压缩是净删。第一版把它和 draft 合成一段，实测出来的是整篇重写（84 段只剩 1 段
@@ -248,9 +254,7 @@ function main() {
     die(EXIT.USAGE, `--project is not a directory: ${project}`)
   }
 
-  const check = preflight()
-  if (!check.ok) die(check.code, `preflight failed: ${check.reason}`)
-
+  // 纯输入校验放在预检之前：材料写错时不该先烧掉一次联网预检（实测 5-8 秒）。
   const materials = readJson(path.resolve(opts.materials), '--materials')
   let instructions = ''
   if (opts.instructions) {
@@ -259,6 +263,9 @@ function main() {
     instructions = stripFrontmatter(fs.readFileSync(file, 'utf8')).trim() + '\n\n---\n'
   }
   const prompt = instructions + buildTask(materials, opts.mode)
+
+  const check = preflight()
+  if (!check.ok) die(check.code, `preflight failed: ${check.reason}`)
 
   const schemaFile = path.join(fs.mkdtempSync(path.join(require('os').tmpdir(), 'delegate-prose-')), 'schema.json')
   fs.writeFileSync(schemaFile, JSON.stringify(SCHEMA))
@@ -276,13 +283,26 @@ function main() {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     input: JSON.stringify({ event: 'user', message: { role: 'user', content: prompt } }) + '\n',
+    // 必须显式指定 cwd：--add-dir 只是把目录挂进 workspace，CLI 的工作目录仍继承调用方。
+    // 宿主从项目外调用时（比如 skill 目录），材料里的相对路径就会解析到别处，委派方
+    // 得靠 find_by_name 兜回来，既慢又不确定。
+    cwd: project,
   })
   const wallSeconds = Math.round((Date.now() - startedAt) / 1000)
 
   try { fs.rmSync(path.dirname(schemaFile), { recursive: true, force: true }) } catch (err) { /* 清理失败不影响结果 */ }
 
   if (run.status !== 0) {
-    die(EXIT.INVOCATION, `${CLI} exited ${run.status} after ${wallSeconds}s: ${String(run.stderr || '').trim().slice(0, 400)}`)
+    // 超时时 CLI 只给 exit 1、stderr 空，光看退出码分不清是超时还是别的失败。
+    // 把两边的输出都带上，并在接近 --print-timeout 时点名超时，方便调用方给用户交代。
+    // stdout 是 NDJSON，整段吐出来全是 init 噪声；只挑 error 字段。
+    const errors = String(run.stdout || '').split('\n')
+      .map((l) => { try { return JSON.parse(l.trim()) } catch (err) { return null } })
+      .filter((e) => e && (e.error || (e.result && e.result.error)))
+      .map((e) => e.error || e.result.error)
+    const detail = [String(run.stderr || '').trim(), ...errors].filter(Boolean).join(' | ').slice(0, 400)
+    const hint = detail || `no diagnostic output (likely hit --print-timeout ${opts.timeout})`
+    die(EXIT.INVOCATION, `${CLI} exited ${run.status} after ${wallSeconds}s: ${hint}`)
   }
 
   // stream-json 输出是 NDJSON：init / 若干中间事件 / result。只取最后一个 result。

@@ -8,7 +8,7 @@
 
 把本章材料写成 JSON，然后：
 
-字段同 workflow-chapter 步骤 7 的 prompt 清单：`chapter`、`outline_file`、`style_file`、`prev_chapter`、`target_chars`、`emotion`、`characters`、`stage_position`、`structure_formula`、`releasable`、`forbidden_early`、`benchmark_recall`、`selected_emotion_module`、`rhythm_reference`、`genre_prose_card`、`author_preferences`、`format_constraints`。
+字段同 workflow-chapter 步骤 7 的 prompt 清单：`chapter`、`outline_file`、`style_file`、`prev_chapter`、`target_chars`、`emotion`、`characters`、`stage_position`、`structure_formula`、`releasable`、`forbidden_early`、`benchmark_recall`、`selected_emotion_module`、`rhythm_reference`、`genre_prose_card`、`author_preferences`、`format_constraints`、`benchmark_path`（主对标/拆文目录）。
 
 **跨 CLI 委派另外必须给三组路径**：`character_files`（出场角色档案）、`setting_files`（本章涉及的设定）、`tracking_file`（续写状态卡）。委派方看不到宿主会话的任何上下文——角色性别、身份、口吻这些在主会话里是「已经知道」的，对它全是空白。实测同一本书两次调用把主角分别写成男性和女性，就是因为材料里没给。
 
@@ -38,7 +38,7 @@ node "{skill 根}/scripts/delegate-prose.js" \
 
 委派方自报的 `visible_chars` 不可信——实测自估 3052、实际 4925。一律以 `storyctl.py chapter check` 的口径为准。
 
-**外包草稿超长是常态而非异常**（实测目标 3000 出到 4925），步骤 8 的 `over → compress-once` 必然被走到，不要当成错误处理。压缩这一步同样交给委派方：
+**外包草稿仍会超长**，步骤 8 的 `over → compress-once` 是常规路径不是错误。helper 的 draft 段带「长度纪律」（目标字数为上限、超出靠减铺陈而非删情节点），实测把超长率从 +46%~+82% 压到 +13%~+44%，且情节点覆盖与闸门都没退步——但没有压到带内，压缩这一步同样交给委派方：
 
 ```
 node "{skill 根}/scripts/delegate-prose.js" --mode compress \

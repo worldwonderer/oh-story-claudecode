@@ -62,6 +62,17 @@ grep -q 'm\.setting_files' "$CODE" \
 grep -q '深度限知\|锁死主视角' "$HELPER" \
   || fail "draft mode must keep the limited-POV constraint"
 
+# --add-dir 只把目录挂进 workspace；CLI 的 cwd 仍继承调用方。不钉 cwd 的话，宿主从
+# 项目外调用时材料里的相对路径会解析到别处，委派方只能靠 find_by_name 兜回来。
+grep -q 'cwd: project' "$CODE" \
+  || fail "delegate must pin the child process cwd to the project"
+
+# 长度纪律：实测把超长率从 +46%~+82% 压到 +13%~+44%，删掉等于每章多付一次压缩。
+grep -q '长度纪律' "$HELPER" \
+  || fail "draft mode must keep the length discipline block"
+grep -q '目标字数是\*\*上限型硬约束\*\*' "$HELPER" \
+  || fail "length discipline must state the target is an upper bound"
+
 # 禁自查那段是必需品，不是修辞：删掉它外包必失败（headless 下 command 被自动拒绝，
 # 委派方遇拒整个 run 放弃）。
 grep -q '禁止使用 run_command' "$HELPER" \
@@ -82,6 +93,21 @@ rc=$?
 set -e
 [ "$rc" -eq 1 ] || fail "preflight without agy must exit 1, got $rc"
 [ "$out" = "MISSING_CLI" ] || fail "preflight without agy must print MISSING_CLI, got: $out"
+
+# 纯输入校验必须排在预检之前：材料写错时不该先烧掉一次联网预检（实测 5-8 秒）。
+# 用没有 agy 的 PATH 跑一个坏材料，报出来的必须是材料错误而不是 MISSING_CLI。
+bad_materials="$(mktemp)"
+printf 'not json' > "$bad_materials"
+set +e
+order_out="$(env PATH="$node_dir:/usr/bin:/bin" node "$HELPER" --project . --materials "$bad_materials" --out /dev/null 2>&1)"
+order_rc=$?
+set -e
+rm -f "$bad_materials"
+[ "$order_rc" -eq 5 ] || fail "malformed materials must exit 5 before preflight, got $order_rc"
+case "$order_out" in
+  *"not valid JSON"*) ;;
+  *) fail "materials must be validated before preflight; got: $order_out" ;;
+esac
 
 # 用法错误必须在任何外部调用之前挡住。
 set +e
