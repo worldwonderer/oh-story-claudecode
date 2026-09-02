@@ -22,6 +22,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
    - `agents_version` 缺失、非整数或小于 `29` → 标记为待更新，继续执行当前部署
    - `agents_version: 29` → 使用 AskUserQuestion 确认是否重新部署；提示里写明重新部署只用**当前本地 skill 包**刷新项目文件，要拿 skill 本身的新版本得先更新 oh-story-claudecode（`npx skills add` 或 marketplace），再回来重跑
    - `agents_version` 大于 `29` → 当前 story-setup 比项目部署旧；停止以避免降级覆盖，提示先更新 oh-story-claudecode，不写任何部署文件
+   - 同时读可选的 `prose_delegate` / `prose_delegate_model` 字段。合法值为 `none`（默认）或 `agy`；字段缺失、为空或非法一律按 `none` 处理，**不询问、不预检、不提示**——用户没开的可选功能不该在部署里占一步。只有用户明确要求「正文换模型写」时，才按下方「配置正文外包」处理。
    - 同时读 `target_cli` 字段。**已部署项目以 sentinel 里的值为准**：非空时（逗号分隔的多端组合原样保留）跳过下面第 5-12 步的环境探测与选择，直接按这些端重新部署。只有字段缺失或为空，才回落到探测。用户明确要求增删目标端时，用 AskUserQuestion 在现有值基础上改，改完的值写回 sentinel。
 2. 检查是否有书名目录（包含 `追踪/` 子目录的目录，或用户自定义结构）
    - 有 → 识别为长篇项目，显示当前项目信息
@@ -90,7 +91,7 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 | `skills/story-setup/references/templates/settings-hooks.json` | `.claude/settings.local.json` | user+managed | replace managed registrations by stable hook identity | hook JSON valid；旧 matcher 注册已迁移、当前模板命令各一份、用户 hook 保留 |
 | `skills/story-setup/scripts/merge-claude-settings.py` | 部署时执行，不复制到项目 | story-setup helper | execute | 替换已知 story hook 注册、保留用户 hooks/顶层字段，v24→v25 迁移与重复执行幂等 |
 | `skills/story-setup/scripts/copy-path-safety.py` | 每个递归复制步骤前执行，不复制到项目专用目录 | story-setup helper | execute | JSON 仅 `copy_allowed: true` 时允许复制；symlink 同对象 no-op；target 位于 source 内时停止 |
-| generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir` |
+| generated sentinel | `.story-deployed` | story-setup managed | replace | contains `agents_version`, `setup_skill_version`, `target_cli`, `resolver_strategy`, `references_dir`；开启正文外包时另含 `prose_delegate`、`prose_delegate_model` |
 | `skills/story-setup/references/opencode/AGENTS.md.tmpl` | `AGENTS.md` | user+managed | marker/section merge | contains story skill routing sections | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/agents/` | `.opencode/agents/` | story-setup managed | replace | 7 agent files exist（replace 前按「配置 OpenCode Agent 模型」中的「保留已有模型配置」缓存现有 `model:`，避免覆盖用户已配模型） | target_cli 含 opencode |
 | `skills/story-setup/references/opencode/plugin.ts` | `.opencode/plugins/story-hooks.ts` | story-setup managed | replace | TypeScript plugin file exists | target_cli 含 opencode |
@@ -187,6 +188,18 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 - 校验 7 个 `.md`：`name` 与文件名一致；`mainAgent: false`、`subagent: true`；模型只使用 `flash` / `pro`；工具只来自 Antigravity 官方名称 `view_file`、`find_by_name`、`grep_search`、`write_to_file`、`replace_file_content`、`multi_replace_file_content`、`run_command`；不得残留 Claude 的 `Read/Glob/Grep/Write/Edit/Bash` 工具名或 `.claude/skills/` reference 前缀。
 - 只读 agent（`chapter-extractor`、`consistency-checker`、`story-explorer`）不得包含写文件或命令工具；其他 agent 按 Claude 真源的能力边界映射。
 - Antigravity 通过 `invoke_subagent` 的 `TypeName` 调用这些 agent。部署后新开 Antigravity conversation，再用 `story-review` 验证 full/lean；运行时无法解析某个 custom agent 时按 skill 的 solo/direct fallback 执行。
+
+#### 配置正文外包（可选，默认关闭，只在用户明确要求时执行）
+
+只在用户明确说「正文换个模型写 / 正文交给 Gemini」这类要求时才走这一节。**没有这个要求就完全跳过：不询问、不预检、不在安装报告里提。** 这是可选增强，绝大多数用户不需要，默认路径不得因它多一步。
+
+- 先跑预检，两步，**不要引用写作 skill 的脚本**（skill 之间保持自包含；那个 helper 是写作 skill 的内部实现）：
+  1. `command -v agy` —— 不在 PATH 就是 `MISSING_CLI`。
+  2. 在则跑 `agy models`（约 5-8 秒联网）——非零或超时就是 `AUTH_OR_NETWORK`。**给它设上限**（20 秒左右），卡住的 CLI 不能把部署拖住。
+  - 任一步失败时**保持 `prose_delegate: none`**，按退出码给出可区分的说明：缺 CLI 就说明需要安装 `agy` 并登录 Google 账号（**不需要装 Antigravity IDE**）；鉴权/网络失败就提示先在交互式 `agy` 里完成一次登录再重试。不要写任何外包相关的 sentinel 字段，也不要因此中断其他目标端的部署。
+- 预检通过后用 AskUserQuestion 确认，说清代价再写：只有正文写作一步外包，细纲/追踪/质量闸门全留在当前 CLI；实测 3000 字草稿约 128 秒，比本地慢；委派方只读，正文由宿主落盘。用户确认才写 `prose_delegate: agy` 与 `prose_delegate_model`。
+- `prose_delegate_model` 写**具体模型 ID**（默认 `gemini-3.7-flash-high`），不写 `flash` / `pro` 这类档位名——外部 CLI 的档位名不保证稳定路由，而 `agy models` 给出的是可钉死的 ID。用户想换模型时从 `agy models` 的输出里选。
+- 写完后不做实机整章验证：那要几分钟并消耗用户配额，部署阶段只保证「能调通」，真实产出留给第一次写作。
 
 #### 配置 OpenCode Agent 模型
 
@@ -377,6 +390,8 @@ Reasonix（DeepSeek-Reasonix CLI）当前只部署 skills 与 `AGENTS.md`，不�
   target_cli: claude-code（或 opencode、codex、antigravity、zcode、openclaw、reasonix、generic，或其任意组合）
   resolver_strategy: project-local-skill-reference
   references_dir: .claude/skills/story-setup/references/agent-references（Codex 写 .codex/skills/...；Antigravity 写 .agents/skills/...；ZCode 写 .zcode/skills/...；OpenClaw / Reasonix / generic 写 skills/...；多端用逗号分隔）
+  prose_delegate: none（可选；none 或 agy。仅用户显式开启正文外包时写 agy）
+  prose_delegate_model: gemini-3.7-flash-high（可选；prose_delegate 为 agy 时写具体模型 ID，不写档位名）
   ```
 - 此文件供 session-start.sh 和写作 skill 检测部署状态，避免重复提示
 - target_cli 含 claude-code 时，同时创建一次性标记文件 `.claude/.agents-pending-restart`（空文件即可）。session-start.sh 在下一个会话启动时据此确认 agents 已随新会话注册，并自动删除该标记——用来向用户确认「重启已生效」。ZCode 不创建该标记，因为它不部署项目 agents。
@@ -396,7 +411,7 @@ Reasonix（DeepSeek-Reasonix CLI）当前只部署 skills 与 `AGENTS.md`，不�
    - 检查 `.claude/skills/story-setup/references/agent-references/` 下 reference 文件完整
    - 检查所有 `story-setup/references/agent-references/<file>.md` 都能解析到 deployed bundle
 5. 验证部署标记：
-   - 检查 `.story-deployed` 是否存在且包含时间戳、`agents_version: 29`、`setup_skill_version: 1.2.10`、`target_cli`、`resolver_strategy`、`references_dir`
+   - 检查 `.story-deployed` 是否存在且包含时间戳、`agents_version: 29`、`setup_skill_version: 1.2.10`、`target_cli`、`resolver_strategy`、`references_dir`；写了 `prose_delegate: agy` 时还须有合法的 `prose_delegate_model`
 6. 输出安装报告：
    - 列出所有已部署的文件
    - 列出需要注意的事项（如已有配置已合并）

@@ -294,6 +294,21 @@ Antigravity 2.0 与 `agy` CLI 共用 `.agents/` workspace customization，但发
 
 - 13 个 Skills 物化到真实 `.agents/skills/{name}/`。`deploy-antigravity-skills.py` 只替换已知名称、保留用户 Skills；现有 symlink 默认 fail-closed，只有用户明确同意才迁移，且不得沿链接写到目标目录。
 - 7 个 custom subagents 由 Claude Markdown 真源在部署时生成到 `.agents/agents/agent-name/agent.md`（`agent-name` 替换为实际名称）。工具名必须来自官方清单，调用用 `invoke_subagent` + 同名 `TypeName`；生成器只替换 7 个已知定义并保留其他用户 agent。
+
+### 正文外包（prose delegation）
+
+- `delegate-prose.js` 是**唯一**的外包入口，源在 `skills/story-long-write/scripts/`，经 `shared-assets.json` 的 `prose-delegate` 组字节同步到短篇，不手改副本。
+- 委派方**必须保持只读**：正文经 `--json-schema` 结构化返回、由宿主落盘。不要为了省事改成让它自己写文件——那需要 `--dangerously-skip-permissions`（会在挂载了项目目录的会话里自动批准一切工具，含任意命令执行）或写用户全局 `~/.gemini/settings.json`，两条都越界。
+- prompt 里禁用 `run_command` 那段不是可选修辞：headless 下 command 权限会被自动拒绝，而委派方遇拒是**整个 run 放弃**（实测 13 秒零产出），不是降级继续。删掉这段等于让外包必失败。
+- `prose_delegate_model` 只接受具体模型 ID（`agy models` 的输出），不接受 `flash` / `pro` 这类档位名——档位名不保证稳定路由到某个版本。
+- 委派方自报的 `visible_chars` 不可信（实测自估 3052、实际 4925），一律以脚本自己的口径和 `storyctl.py chapter check` 为准；超长走既有 `compress-once`，这是常态路径不是异常。
+- **prompt 走 stdin，不走命令行参数。** 写手模板加材料实测 15,521 字符：Windows `CreateProcess` 上限 32,767 只剩两倍余量，经 `cmd.exe`（8,191）直接超限。退回 `-p=` 就是把 Windows 写坏，`check-prose-delegate.sh` 会拦。
+- **compress 与 draft 的执行段必须分开。** 合并会退化成整篇重写：实测压缩版 84 段只剩 1 段与原文逐字相同、感叹号从 10 涨到 21，违反 workflow-chapter 的「一次净删，零新语义改动」。
+- **材料必须带 `character_files` / `setting_files`。** 跨 CLI 委派看不到宿主的任何上下文；不给角色档案时实测同一本书两次调用把主角分别写成男性和女性。
+- **draft 段的「长度纪律」不要删。** 委派方不带它时严重超长（实测 +46%~+82%）。口径要保持中性——写成「上限、宁可略短」会让短篇反向掉到 −21%；现在是「瞄准目标」加一条偏短时把已有情节点演成场景的回补路径。
+- **材料必须带 `skill_references`。** 写手 agent 模板是长短篇通用的，作品类型的写作规范在各自 skill 的 references 里，委派方看不到宿主加载的 skill。实测短篇不传就写成第三人称，而 story-short-write 明文规定默认第一人称——这是外包最容易静默写错、且闸门抓不到的一类。
+- 外包不豁免任何既有闸门。任何「因为外包所以跳过检查」的改动都不接受。
+
 - Always-On Rule 固定为 `.agents/rules/oh-story.md`，文件必须小于 12,000 字符。它负责 skill 路由和 compact 后重新读取 `追踪/上下文.md`；不要假设 Antigravity 有 Claude 的 PreCompact/PostCompact。
 - `.agents/hooks.json` 是顶层 named-group mapping。合并器只替换 `oh-story` group，保留所有用户 groups。当前注册 `PreToolUse`、`PostToolUse`、`PreInvocation`、`Stop`：PreToolUse 必须输出 `decision`，PostToolUse 必须精确输出 `{}`；写后 findings 存到本会话 `artifactDirectoryPath`，下一次 PreInvocation 注入，Stop 最多强制 continue 一次。
 - `.agents/hooks/` 只管理 `story_antigravity_hook.js` 与共享 `story_hook_core.js`；后者由 `scripts/shared-assets.json` 锁字节一致，不手改副本。Hook 依赖 PATH 中的 Node。

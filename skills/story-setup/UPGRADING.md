@@ -54,6 +54,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 
 ## v29 当前契约
 
+- 新增可选的正文外包：`.story-deployed` 的 `prose_delegate: agy` + `prose_delegate_model: <具体模型 ID>` 开启后，只有正文写作那一步由 `delegate-prose.js` 交给外部 `agy` CLI，细纲、追踪、去AI味与字数闸门全部留在宿主 CLI。**默认 `none`，不开启则完全不检测、不提示。** 委派方只读、正文由宿主落盘，因此不需要 `--dangerously-skip-permissions`，也不写用户全局 `~/.gemini/`。预检失败或调用失败一律回落到本地写手，不中断写作，也不得伪装成外包成功。
 - narrative-writer 模板去掉逐段配额：「展开子事件」改为「展开推进单元」，删除「详写的子事件合计 ≥100-150 字」；情弦理论不再要求「每节至少拨一次」，任务、推理、手艺或等待链可连续展开。三端（Claude / OpenCode / Codex）产物同步。
 - 短篇 reference bundle 改按场景功能判断篇幅与节奏：`short-genre-formulas.md` 去掉钩子密度的固定节距、「爽文章节 500-800 字/节」和「打脸密度每 3-5 节一次」；`short-emotional-methods.md` 去掉固定节距的情绪转向与打脸节拍；`short-suspense.md` 不再给每类小节设最低悬念等级；`short-reversal.md` 甜宠线不再要求每节一个甜点。
 - `format-and-structure.md` 的小节结构不再设统一最低字数与「8-15 节 / 总字数 ÷ 1000」推算；小节长度与数量服从叙事职责，整篇由用户交付范围约束。

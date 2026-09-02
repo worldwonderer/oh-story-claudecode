@@ -88,6 +88,17 @@ if sentinel_exists "$ROOT/.story-deployed"; then
     fi
   done
 
+  # 正文外包就绪性：只做瞬时检查（PATH 里有没有 agy），不碰网络。鉴权是否有效要跑
+  # `agy models`（实测 5-8 秒联网），放这里等于每次开会话都付，违背本 hook「无信息时
+  # 完全静默」的原则——那一步留给 story-doctor 按需跑。
+  # 这里提前报，是为了不让用户写到一半才发现外包不可用。
+  PROSE_DELEGATE=$(read_sentinel_field prose_delegate "$ROOT/.story-deployed")
+  if [ "$PROSE_DELEGATE" = "agy" ] && ! command -v agy >/dev/null 2>&1; then
+    OUTPUT+="[WARN] .story-deployed 开启了正文外包（prose_delegate: agy），但 PATH 里找不到 agy。${NL}"
+    OUTPUT+="  写作不受影响：正文会自动回落到本地写手。要恢复外包就装好 agy 并登录，或重跑 /story-setup 关掉外包。${NL}${NL}"
+    HAS_CONTENT=true
+  fi
+
   # 多端部署时 references_dir 是逗号分隔的多条路径，逐条查；整串当一个路径查会必然查不到，
   # 每次开会话都误报「参考资料包缺失」。
   REFERENCES_DIR=$(read_sentinel_field references_dir "$ROOT/.story-deployed")
