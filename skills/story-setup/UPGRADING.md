@@ -56,6 +56,7 @@ OpenClaw / Reasonix / generic 三条路径的 skill 副本在项目 `skills/` �
 
 - 正文退化检测只豁免成对引号内的角色台词；引号外的模型拒绝语照常报告。Claude、Codex、OpenCode、Antigravity、ZCode 口径一致。
 - Agent 生成权限从有效能力推导，禁止的工具不因角色改名而重新开放。
+- Antigravity 四个 Hook 命令改用无引号的相对脚本路径，避免 Windows 宿主把引号作为文件名字符传给 Node。重跑 setup 会替换 `oh-story` 管理组并保留其他用户 Hooks；不要删除整个 `.agents/hooks.json`。
 
 重新部署后需**新开会话**，custom agent 与 hooks 才会重新注册。
 
