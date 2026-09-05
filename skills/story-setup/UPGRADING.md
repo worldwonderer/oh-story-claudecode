@@ -7,6 +7,64 @@
 
 `.story-deployed` 缺失任一字段，或 `agents_version` 缺失 / 非整数 / 小于 `29`，都视为待更新部署。直接重新运行 `/story-setup`（Codex 用 `$story-setup`，Antigravity 用 `/skills` 或自然语言点名）；不在运行时逐级兼容历史模板。如项目 `agents_version` 大于 `29`，说明本地 story-setup 比项目旧：先更新 oh-story-claudecode，不得用 v29 降级覆盖。历史版本改动见仓库根目录 `CHANGELOG.md`。
 
+## 插件打包身份迁移（v0.7.9 同版本修复）
+
+本节只处理 Claude Code / ZCode marketplace 的旧安装记录，不要求删除作者项目、小说正文或 story-setup 部署物；卸载前先备份需要保留的插件持久化数据。13 个 Skills 没有删除；`npx skills add zenstory-ai/oh-story-claudecode` 路径也不受影响。由于修复前后版本都为 `0.7.9`，旧记录不会被此修复自动治愈，也不能保证客户端在下一个发布版本前自动更新，须显式迁移。
+
+### Claude Code
+
+1. 先在受影响的写作项目目录中列出已安装插件，按记录中的 `id` 与 `scope` 核对实际旧身份；`project` / `local` 记录属于各自项目，多个项目须分别核对：
+
+   ```bash
+   claude plugin list --json
+   ```
+
+   只处理列表中确实存在、marketplace 为 `oh-story-skills` 的以下旧 ID：
+
+   ```text
+   browser-cdp@oh-story-skills
+   story@oh-story-skills
+   story-cover@oh-story-skills
+   story-deslop@oh-story-skills
+   story-import@oh-story-skills
+   story-long-analyze@oh-story-skills
+   story-long-scan@oh-story-skills
+   story-long-write@oh-story-skills
+   story-review@oh-story-skills
+   story-setup@oh-story-skills
+   story-short-analyze@oh-story-skills
+   story-short-scan@oh-story-skills
+   story-short-write@oh-story-skills
+   ```
+
+2. **刷新 catalog 前**，逐个卸载实际存在的旧 ID，并使用列表中原有的 `user`、`project` 或 `local` scope。示例只演示一个 user-scope 记录，不要写成全量清理脚本：
+
+   ```bash
+   claude plugin uninstall story@oh-story-skills --scope user --keep-data
+   ```
+
+   `--keep-data` 保留该旧插件身份的数据，但不会把它迁移到新的 `oh-story` 身份。不要卸载其他 marketplace 的插件，不要删除作者项目或持久化创作数据。同一旧 ID 若出现在多个 scope，每个 scope 分别执行。
+
+3. 所有实际旧身份卸载完后，刷新已有 catalog；若本机尚未添加该 catalog，则添加仓库：
+
+   ```bash
+   claude plugin marketplace update oh-story-skills
+   # 仅在 catalog 尚不存在时：
+   claude plugin marketplace add https://github.com/zenstory-ai/oh-story-claudecode
+   ```
+
+4. 在原 scope 安装统一 bundle；多个 scope 分别安装：
+
+   ```bash
+   claude plugin install oh-story@oh-story-skills --scope user
+   ```
+
+5. 新开 Claude Code 会话，使用 `/oh-story:story-setup` 或 `/oh-story:story dashboard`。本次跨运行时修复采用显式迁移；不依赖可选的自动 rename。命令与 manifest 格式见 [Claude Code 插件参考](https://code.claude.com/docs/en/plugins-reference)。
+
+### ZCode
+
+先备份需要保留的受影响插件数据，再使用 Plugin Management 支持的 UI 操作：定向卸载旧版显示的受影响条目，刷新 marketplace；必要时移除后重新添加本仓库，再只安装一个 `oh-story`。核对界面中原有的市场名：不同导入路径可能显示 `oh-story-skills` 或 `oh-story-zcode`，保留其中一个，不要为迁移重复注册/安装另一份。不要手改未公开的 ZCode 缓存 JSON，也不要清空无关插件、作者项目或持久化数据。若 UI 定向卸载后故障记录仍持续，保留备份并附 ZCode 版本与界面现象向官方支持报告；不要用删除全部缓存代替修复。格式与支持面见 [ZCode 插件文档](https://zcode.z.ai/en/docs/plugin)。
+
 ## 升级策略
 
 | 策略 | 适用场景 | 行为 |
