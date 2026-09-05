@@ -31,6 +31,11 @@ jobs:
         run: python3 scripts/test-current-skill-contracts.py
       - name: Check hot-path doc budget
         run: bash scripts/check-doc-budget.sh
+      - name: Budget and agent permission behavior regression
+        run: |
+          python3 scripts/test-doc-budget.py
+          python3 scripts/test-agent-permissions.py
+          python3 scripts/test-deslop-eval.py
       - name: Check hook-regex sync
         run: bash scripts/check-hook-regex-sync.sh
       - name: Check shared-file consistency

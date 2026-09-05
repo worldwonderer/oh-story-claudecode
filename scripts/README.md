@@ -14,7 +14,7 @@
 | `check-current-skill-contracts.sh` + `.py` + `current-contract.json` | 从结构化 manifest 校验当前版本、Phase、schema、主产物与细纲契约；保留 legacy/path 守卫并拦截缺主产物后的静默替代 | CI |
 | `check-shared-files.sh` | 调两个显式 manifest 验 runtime/reference 副本，拦截未声明 exact/near-copy，并检查 setup profile 契约与消费可达性 | CI |
 | `check-reference-similarity.py` | 对跨 Skill Markdown 做行级 Jaccard/containment 近似扫描；高相似派生关系必须在 `shared-references.json` 的 `derived_groups` 说明来源与分化原因 | CI（由 check-shared-files 调用） |
-| `check-agent-reference-consumers.py` | 从 story-setup Agent 模板做引用可达性遍历，同时验证唯一 profile 清单、long/short 所有权与 story-architect 不维护第二份 inventory | CI（由 check-shared-files 调用） |
+| `check-agent-reference-consumers.py` | 检查 Agent 模板的已部署资料引用全前缀并报告文件/行号，遍历引用可达性，验证唯一 profile 清单、long/short 所有权与 story-architect 不维护第二份 inventory；不证明实际读取行为 | CI（由 check-shared-files 调用） |
 | `check-short-analysis-scope.py` | 保证 story-short-analyze 只路由短篇源文观察标尺，拦截旧混合手册、长篇结构口令和推荐百分比回流 | CI（由 check-shared-files 调用） |
 | `check-scan-runtime-policy.sh` | scraper 输出文件名依赖本地日期 helper；CDP 探测/Windows 监听解析的源码策略 | CI；这些依赖方向无法由隔离 helper 测试证明 |
 | `check-story-setup-deployment.sh` | story-setup 部署/运行时回归（慢，>2min） | CI |
@@ -35,7 +35,7 @@
 | 脚本 | 测什么 | 何时跑 |
 |---|---|---|
 | `test-ai-patterns.sh` | 确定性 AI 句式检测器 `check-ai-patterns.js` 回归 | CI |
-| `test-phase2-contract.js` | 短篇 Phase 2 首屏门禁、结构化产物验收、具名失败与定向 repair 回归 | Linux / Windows / macOS CI |
+| `test-phase2-contract.js` | 短篇 Phase 2 verifier 行为回归：设计字段、12 列大纲、字数区间、具名失败与 repair_scope | Linux / Windows / macOS CI |
 | `test-delivery-contract.js` | 短篇最终字数、节数、标记与空行交付契约回归 | Linux / Windows / macOS CI |
 | `check-reference-gates.js` | 长短篇 Reference Gate 的首屏位置、完整读取语义与关键路由静态守卫（gate 是提示词，无运行时入口可断言） | Linux / Windows / macOS CI |
 | `test-outline-contract.js` | 长篇细纲结构验收：字段、小节、五段式、四列情节点表与字数口径的正负例回归 | Linux / Windows / macOS CI |
@@ -58,7 +58,7 @@
 | `test-opencode-plugin.mjs` | 直接执行 OpenCode TypeScript plugin，验大纲守卫、Bash 绕过、写后检查与 compact 恢复 | 被 `check-opencode-adapter.sh` 调用 |
 | `test-codex-cli-e2e.sh` | 隔离 HOME 后用真实 Codex CLI 检查 repo 13 个 skill 的发现结果 | CLI compatibility CI；需已安装 `codex` |
 | `test-zcode-hooks.sh` | ZCode 严格 JSON Hook、正文守卫与连续性回归 | CI |
-| `test-antigravity-hooks.mjs` | Antigravity Hook I/O、正文守卫、PostToolUse artifact 桥接、PreInvocation 注入与 Stop 单次续跑 | CI（Linux/Windows/macOS） |
+| `test-antigravity-hooks.mjs` | Antigravity 实际注册命令的 shell/字面 argv 兼容性（空格与中文项目路径）、Hook I/O、正文守卫、artifact 桥接与 Stop 单次续跑 | CI（Linux/Windows/macOS） |
 | `test-antigravity-hook-merge.py` | `.agents/hooks.json` 顶层 `oh-story` 管理组替换、用户组保留与幂等回归 | 被 `check-antigravity-adapter.sh` 调用 |
 | `test-antigravity-skills-deploy.py` | Antigravity 13 个已知 Skill 原子物化、未知 Skill 保留、symlink fail-closed/显式迁移与防穿透写回归 | 被 `check-antigravity-adapter.sh` 调用 |
 | `test-charcount-portable.sh` | 跨平台字符统计命令在三平台 + Windows 的正确性 | CI（调 check-python-invocation） |
@@ -102,3 +102,10 @@ bash scripts/test-skill-numbering.sh              # 隔离 fixture 回归
 - `Step N.M` / `Phase N.M` / `Stage N.M`、直接 `skills/*/SKILL.md` 中的裸小数标题及 bullet 小数子步骤由 `check` 报错，但不做猜测式自动修改。
 - `references/` 手册本身的 `3.1` 章节/列表编号不属于工作流标签，不检查、不改写。如果管道 ID 需要插入中间阶段，使用语义名称或 `Stage 2A`，不用小数。
 - 可在命令末尾传文件或目录做局部审计，例如 `... audit skills/story-cover/SKILL.md`；合入前仍须跑默认全量 `check`。
+
+## 写作与适配回归工具
+
+- `python3 scripts/test-agent-permissions.py`：通过真实生成器验证改名角色的权限、拒绝优先级及现有七个 agent 的生成结果。
+- `python3 scripts/test-doc-budget.py`：通过临时文档工程验证路径求和、超限和缺失文件失败。
+- `python3 scripts/test-deslop-eval.py`：离线验证评测工程隔离与结果留存，不调用模型。
+- `python3 scripts/run-deslop-eval.py --source-root {规则仓库} --output {新结果目录}`：显式运行真实 Codex 去味评测，每个输入默认两次；需要本机已有鉴权，默认不进入 CI。不指定模型，使用当前 CLI 默认并记录 CLI 版本及执行证据。样例为仓库自写虚构片段；基线和候选须使用不同结果目录和同一 CLI 环境。`completed` 要求 CLI 成功结束、无失败事件且正文和报告均非空；`changed` 仅记录正文是否变化，无需修改也可完成。质量结论还需随机编号盲评，不能由退出码、改动量或扫描命中数代替。
