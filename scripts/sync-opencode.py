@@ -110,10 +110,15 @@ def convert_claude_to_opencode(fm: dict, body: str) -> dict:
 
     tools = _parse_list(fm.get("tools", ""))
     disallowed = _parse_list(fm.get("disallowedTools", ""))
+    denied_tools = set(disallowed)
+    effective_tools = set(tools) - denied_tools
 
     perm = {}
-    if any(t in tools for t in ("Read", "Glob", "Grep")):
+    read_like = {"Read", "Glob", "Grep"}
+    if effective_tools & read_like:
         perm["read"] = "allow"
+    elif denied_tools & read_like:
+        perm["read"] = "deny"
     has_write = any(t in tools for t in ("Write", "Edit"))
     has_edit_disallowed = any(t in disallowed for t in ("Write", "Edit"))
     creation_only = (

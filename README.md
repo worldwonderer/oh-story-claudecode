@@ -16,7 +16,14 @@
 
 围绕四条线展开：爆款逆向 · 剧情模块化重组 · 上下文状态分层管理 · 人机协同。
 
-> **Antigravity 支持预览**：`story-setup` 可把 13 个 Skills、7 个 custom agents、Always-On Rule 和 workspace Hooks 完整部署到项目 `.agents/`。部署器不修改 `~/.gemini/`，不依赖全局目录或 symlink；`.agents/hooks.json` 只替换顶层 `oh-story` 管理组并保留用户组。本契约沿用 `agents_version: 28`，部署后需新开 Antigravity conversation；IDE 与交互式 `agy` 建议分别试用。
+当前源码的部署契约为 `agents_version: 29`。升级后重跑 `/story-setup`；多 Agent 配置需新开会话才生效。已发布版本的契约号见下方版本摘要。
+
+<details>
+<summary>Antigravity 支持预览</summary>
+
+`story-setup` 可把 13 个 Skills、7 个 custom agents、Always-On Rule 和 workspace Hooks 完整部署到项目 `.agents/`。部署器不修改 `~/.gemini/`，不依赖全局目录或 symlink；`.agents/hooks.json` 只替换顶层 `oh-story` 管理组并保留用户组。IDE 与交互式 `agy` 建议分别试用。
+
+</details>
 
 > **v0.7.8 — 参考拆分与门禁**：长短篇参考资料按消费者拆开改名，写正文与短篇构思前新增会阻断的 Reference Gate，短篇 Phase 2 与交付各加一个确定性 verifier；短篇总字数以用户给的范围为准。升级后需重跑 `/story-setup`、新开会话；本版 `agents_version` 为 28。[完整变更](CHANGELOG.md#078---2026-08-28)
 >

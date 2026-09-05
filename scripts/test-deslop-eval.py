@@ -15,6 +15,131 @@ EVAL = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(EVAL)
 
 class EvalTests(unittest.TestCase):
+    def test_completion_requires_turn_and_nonempty_body_and_report(self):
+        scenarios = [
+            ('unchanged', '原文。', '无需改动，已检测。', 'turn.completed', True, None),
+            ('missing-report', '改文。', None, 'turn.completed', False, 'missing-output'),
+            ('empty-report', '改文。', ' \n', 'turn.completed', False, 'empty-output'),
+            ('empty-body', '\n', '完成报告。', 'turn.completed', False, 'empty-output'),
+            ('no-turn', '改文。', '完成报告。', None, False, 'incomplete-turn'),
+            ('failed-turn', '改文。', '部分报告。', 'turn.failed', False, 'failed-turn'),
+        ]
+        for name, body, prose_report, event, completed, error in scenarios:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                source = root / 'skills/story-deslop'
+                source.mkdir(parents=True)
+                (source / 'SKILL.md').write_text('fixture policy')
+                case = root / 'input.md'
+                case.write_text('原文。')
+
+                def cli(command, timeout):
+                    work = Path(command[command.index('-C') + 1])
+                    (work / '正文.md').write_text(body)
+                    if prose_report is not None:
+                        (work / '报告.md').write_text(prose_report)
+                    stdout = json.dumps({'type': event}) if event else ''
+                    return subprocess.CompletedProcess(command, 0, stdout, '')
+
+                with patch.object(EVAL, 'run_cli', side_effect=cli):
+                    result = EVAL.run_case(root, case, root / 'output', name, 30)
+                self.assertEqual(result['completed'], completed)
+                self.assertEqual(result.get('error'), error)
+                report = json.loads((root / 'output' / name / 'run.json').read_text())
+                self.assertEqual(report['completed'], completed)
+                self.assertEqual(report['changed'], body != '原文。')
+                if error:
+                    self.assertIn('stdout_tail', report)
+
+    def test_main_separates_change_from_completion(self):
+        for report_present, expected_code in ((True, 0), (False, 1)):
+            with self.subTest(report_present=report_present), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                skill = root / 'skills/story-deslop'
+                skill.mkdir(parents=True)
+                (skill / 'SKILL.md').write_text('fixture policy')
+                cases = root / 'tests/fixtures/deslop-eval'
+                cases.mkdir(parents=True)
+                (cases / 'natural.md').write_text('原文。')
+
+                def cli(command, timeout):
+                    work = Path(command[command.index('-C') + 1])
+                    if report_present:
+                        (work / '报告.md').write_text('原文自然，无需修改。')
+                    else:
+                        (work / '正文.md').write_text('已改正文但遗漏报告。')
+                    return subprocess.CompletedProcess(command, 0, '{"type":"turn.completed"}', '')
+
+                argv = ['run-deslop-eval.py', '--source-root', str(root), '--output', str(root / 'output'),
+                        '--jobs', '1', '--replicates', '1']
+                with (
+                    patch.object(EVAL, 'ROOT', root), patch.object(sys, 'argv', argv),
+                    patch.object(EVAL, 'run_cli', side_effect=cli),
+                    patch.object(EVAL.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'test-cli', '')),
+                ):
+                    self.assertEqual(EVAL.main(), expected_code)
+
+    def test_corrupt_output_is_preserved_as_structured_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'skills/story-deslop'
+            source.mkdir(parents=True)
+            (source / 'SKILL.md').write_text('fixture policy')
+            case = root / 'input.md'
+            case.write_text('原文。')
+
+            def cli(command, timeout):
+                work = Path(command[command.index('-C') + 1])
+                (work / '报告.md').write_bytes(b'\xff\xfe')
+                return subprocess.CompletedProcess(command, 0, '{"type":"turn.completed"}', '')
+
+            with patch.object(EVAL, 'run_cli', side_effect=cli):
+                result = EVAL.run_case(root, case, root / 'output', 'corrupt', 30)
+            report = json.loads((root / 'output/corrupt/run.json').read_text())
+            self.assertFalse(result['completed'])
+            self.assertEqual(result['error'], 'invalid-output')
+            self.assertEqual(report['invalid_outputs'], ['报告.md'])
+            self.assertEqual((root / 'output/corrupt/报告.md').read_bytes(), b'\xff\xfe')
+            self.assertIn('stdout_tail', report)
+
+    def test_complete_artifacts_do_not_override_cli_or_event_failure(self):
+        for name, code, event in (('exit', 7, None), ('error-event', 0, 'error'),
+                                  ('failed-event', 0, 'turn.failed')):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                source = root / 'skills/story-deslop'
+                source.mkdir(parents=True)
+                (source / 'SKILL.md').write_text('fixture policy')
+                case = root / 'input.md'
+                case.write_text('原文。')
+
+                def cli(command, timeout):
+                    work = Path(command[command.index('-C') + 1])
+                    (work / '正文.md').write_text('改文。')
+                    (work / '报告.md').write_text('非空报告。')
+                    stdout = '{"type":"turn.completed"}\n'
+                    if event:
+                        stdout += json.dumps({'type': event})
+                    return subprocess.CompletedProcess(command, code, stdout, '')
+
+                with patch.object(EVAL, 'run_cli', side_effect=cli):
+                    result = EVAL.run_case(root, case, root / 'output', name, 30)
+                self.assertFalse(result['completed'])
+                self.assertTrue(result['changed'])
+                self.assertEqual(result['exit_code'], code)
+                if event:
+                    self.assertEqual(result['error'], 'failed-turn')
+
+    def test_malformed_events_do_not_hide_completion_or_failure(self):
+        events = ['null', '[]', '1', '"text"', '{"type":"item.completed","item":null}',
+                  '{"type":"item.completed","item":[]}', 'not json',
+                  '{"type":"turn.completed","usage":{"input_tokens":10}}',
+                  '{"type":"turn.failed","message":"failure"}']
+        self.assertEqual(EVAL.event_evidence('\n'.join(events)), [
+            {'type': 'turn.completed', 'usage': {'input_tokens': 10}},
+            {'type': 'turn.failed', 'message': 'failure'},
+        ])
+
     def test_cli_success_and_timeout(self):
         result = EVAL.run_cli([sys.executable, '-c', 'print("fixture")'], 10)
         self.assertEqual(result.returncode, 0)

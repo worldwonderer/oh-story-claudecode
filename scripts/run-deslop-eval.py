@@ -17,6 +17,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_NAMES = ('正文.md', '报告.md', 'final.txt')
+REQUIRED_ARTIFACTS = ('正文.md', '报告.md')
 # Failure evidence retains only the last 16 Ki characters, enough for the final
 # CLI diagnostic without allowing an unbounded JSON artifact.
 STDOUT_TAIL_CHARS = 16_384
@@ -35,8 +36,11 @@ def event_evidence(stdout):
             event = json.loads(line)
         except ValueError:
             continue
+        if not isinstance(event, dict):
+            continue
         item = event.get('item', {})
-        if event.get('type') == 'item.completed' and item.get('type') == 'command_execution':
+        if (event.get('type') == 'item.completed' and isinstance(item, dict)
+                and item.get('type') == 'command_execution'):
             events.append({'command': item.get('command'), 'exit_code': item.get('exit_code')})
         elif event.get('type') in ('turn.completed', 'turn.failed', 'error'):
             events.append(event)
@@ -133,14 +137,41 @@ def run_case(source, case, dest, run_id, timeout):
         else:
             meta['output_sha256'] = None
             meta['changed'] = False
-            meta['missing_outputs'] = ['正文.md']
+
+        missing = [name for name in REQUIRED_ARTIFACTS if name not in meta['artifacts']]
+        empty = []
+        invalid = []
+        for name in REQUIRED_ARTIFACTS:
+            if name not in meta['artifacts']:
+                continue
+            try:
+                if not (target / name).read_text(encoding='utf-8').strip():
+                    empty.append(name)
+            except UnicodeDecodeError:
+                invalid.append(name)
+        if missing:
+            meta['missing_outputs'] = missing
             meta.setdefault('error', 'missing-output')
+        if empty:
+            meta['empty_outputs'] = empty
+            meta.setdefault('error', 'empty-output')
+        if invalid:
+            meta['invalid_outputs'] = invalid
+            meta.setdefault('error', 'invalid-output')
+        event_types = {event['type'] for event in meta['commands'] if 'type' in event}
+        if event_types & {'turn.failed', 'error'}:
+            meta.setdefault('error', 'failed-turn')
+        elif 'turn.completed' not in event_types:
+            meta.setdefault('error', 'incomplete-turn')
+        # A no-op can be the correct edit. Execution completeness is not a quality verdict.
+        meta['completed'] = meta['exit_code'] == 0 and 'error' not in meta
         if meta['exit_code'] != 0 or 'error' in meta:
             meta['stdout_tail'] = bounded_stdout_tail(stdout, work)
 
         serialized = json.dumps(meta, ensure_ascii=False, indent=2)
         (target / 'run.json').write_text(serialized.replace(str(work), '{workspace}')+'\n')
-        summary = {'run': run_id, 'exit_code': meta['exit_code'], 'changed': meta['changed']}
+        summary = {'run': run_id, 'exit_code': meta['exit_code'],
+                   'completed': meta['completed'], 'changed': meta['changed']}
         if 'error' in meta:
             summary['error'] = meta['error']
         return summary
@@ -175,7 +206,7 @@ def main():
             futures = [pool.submit(run_case, source, case, args.output, ident, args.timeout) for case, ident in tasks]
             results = [future.result() for future in futures]
     print(json.dumps(results, ensure_ascii=False, indent=2))
-    return int(any(row.get('exit_code') != 0 or not row.get('changed') for row in results))
+    return int(any(not row['completed'] for row in results))
 
 if __name__ == '__main__':
     raise SystemExit(main())

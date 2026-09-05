@@ -19,6 +19,7 @@ from typing import Any
 
 
 IGNORED_DIRS = frozenset({".git", ".omc", "__pycache__", "node_modules", ".venv"})
+MARKDOWN_SUFFIXES = frozenset({".md", ".mdx"})
 
 
 class ManifestError(ValueError):
@@ -76,7 +77,9 @@ def string_list(raw: object, field: str) -> list[str]:
     return raw
 
 
-def load_groups(root: Path, manifest_path: Path) -> list[Group]:
+def load_groups(
+    root: Path, manifest_path: Path, *, runtime_manifest: bool = False
+) -> list[Group]:
     try:
         data: Any = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -159,6 +162,20 @@ def load_groups(root: Path, manifest_path: Path) -> list[Group]:
     if not groups:
         raise ManifestError("manifest must declare at least one reference group")
 
+    for group in groups:
+        for managed_path in group.paths:
+            is_markdown = managed_path.suffix.lower() in MARKDOWN_SUFFIXES
+            if runtime_manifest and is_markdown:
+                raise ManifestError(
+                    f"{group.name}: runtime manifest cannot manage Markdown path "
+                    f"{managed_path.relative_to(root)}"
+                )
+            if not runtime_manifest and not is_markdown:
+                raise ManifestError(
+                    f"{group.name}: reference manifest may manage only Markdown paths; "
+                    f"got {managed_path.relative_to(root)}"
+                )
+
     source_owners: dict[Path, str] = {}
     target_owners: dict[Path, str] = {}
     for group in groups:
@@ -197,7 +214,7 @@ def validate_cross_manifest_ownership(
         for group in groups
         for managed_path in group.paths
     }
-    runtime_groups = load_groups(root, runtime_manifest)
+    runtime_groups = load_groups(root, runtime_manifest, runtime_manifest=True)
     runtime_owners = {
         managed_path: group.name
         for group in runtime_groups

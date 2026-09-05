@@ -32,8 +32,13 @@
     },
     {
       "path": "skills/story-short-write/SKILL.md",
-      "budget": 18400,
-      "why": "短篇任一场景都无条件加载。+100：移除把三维度和身体反应当逐段配额的旧指令，并明确功能性身体细节边界。+1500：6+6 首屏/尾部对照与缺引用 5+5 实验显示，Reference Gate 必须在首屏并 fail-closed；补 Phase 2 确定性 verifier、具名失败和最多两轮定向 repair，避免只读 SKILL.md 即写作。在原预算内替换冲突的手工字数说明：真实写作 A/B 暴露 6000-8000 用户范围与无条件 ≥8000 互相冲突；现明确用户范围优先，并加入最终 delivery verifier 与定向修复闭环"
+      "budget": 16500,
+      "why": "短篇任一场景都无条件加载。+100：移除把三维度和身体反应当逐段配额的旧指令，并明确功能性身体细节边界。+1500：6+6 首屏/尾部对照与缺引用 5+5 实验显示，Reference Gate 必须在首屏并 fail-closed；补 Phase 2 确定性 verifier、具名失败和最多两轮定向 repair，避免只读 SKILL.md 即写作。在原预算内替换冲突的手工字数说明：真实写作 A/B 暴露 6000-8000 用户范围与无条件 ≥8000 互相冲突；现明确用户范围优先，并加入最终 delivery verifier 与定向修复闭环。构思专属步骤迁入 workflow-design，保留共享对标加载与全部正文规则；收紧入口预算锁住无条件加载节省，Phase 2 合计仍计入迁出文件。"
+    },
+    {
+      "path": "skills/story-short-write/references/workflow-design.md",
+      "budget": 2350,
+      "why": "短篇 Phase 2 首屏门禁必读；原入口构思/设计/验收原文迁出，非新增技法，Phase 3/4 不预加载。"
     },
     {
       "path": "skills/story-setup/references/templates/agents/narrative-writer.md",
@@ -202,37 +207,42 @@
         "skills/story-long-write/references/long-format.md",
         "skills/story-long-write/references/writing-craft.md",
         "skills/story-long-write/references/long-chapter-quality.md",
-        "skills/story-long-write/references/long-chapter-hooks.md"
+        "skills/story-long-write/references/long-chapter-hooks.md",
+        "skills/story-long-write/references/anti-ai-writing.md",
+        "skills/story-long-write/references/banned-words.md",
+        "skills/story-long-write/references/reader-contract-and-progression.md",
+        "skills/story-long-write/references/state-tracking.md"
       ],
       "branches": [
         {
           "label": "基础",
-          "budget": 43580,
+          "budget": 67080,
           "files": []
         },
         {
           "label": "悬疑",
-          "budget": 49250,
+          "budget": 72750,
           "files": [
             "skills/story-long-write/references/long-suspense.md"
           ]
         },
         {
           "label": "反转",
-          "budget": 49420,
+          "budget": 72920,
           "files": [
             "skills/story-long-write/references/long-reversal.md"
           ]
         },
         {
           "label": "悬疑+反转",
-          "budget": 55090,
+          "budget": 78590,
           "files": [
             "skills/story-long-write/references/long-suspense.md",
             "skills/story-long-write/references/long-reversal.md"
           ]
         }
-      ]
+      ],
+      "why": "补计 workflow-chapter 已有 direct/solo 必读（状态速记、契约校准、Phase 5 fallback）；未新增 prompt/读取，也不放松后续文本增长上限"
     },
     {
       "label": "长篇日更 direct/solo",
@@ -243,42 +253,48 @@
         "skills/story-long-write/references/long-format.md",
         "skills/story-long-write/references/writing-craft.md",
         "skills/story-long-write/references/long-chapter-quality.md",
-        "skills/story-long-write/references/long-chapter-hooks.md"
+        "skills/story-long-write/references/long-chapter-hooks.md",
+        "skills/story-long-write/references/anti-ai-writing.md",
+        "skills/story-long-write/references/banned-words.md",
+        "skills/story-long-write/references/reader-contract-and-progression.md",
+        "skills/story-long-write/references/state-tracking.md"
       ],
       "branches": [
         {
           "label": "基础",
-          "budget": 55050,
+          "budget": 78550,
           "files": []
         },
         {
           "label": "悬疑",
-          "budget": 60720,
+          "budget": 84220,
           "files": [
             "skills/story-long-write/references/long-suspense.md"
           ]
         },
         {
           "label": "反转",
-          "budget": 60890,
+          "budget": 84390,
           "files": [
             "skills/story-long-write/references/long-reversal.md"
           ]
         },
         {
           "label": "悬疑+反转",
-          "budget": 66560,
+          "budget": 90060,
           "files": [
             "skills/story-long-write/references/long-suspense.md",
             "skills/story-long-write/references/long-reversal.md"
           ]
         }
-      ]
+      ],
+      "why": "补计 workflow-chapter 已有 direct/solo 必读（状态速记、契约校准、Phase 5 fallback）；未新增 prompt/读取，也不放松后续文本增长上限"
     },
     {
       "label": "短篇 Phase 2",
       "files": [
         "skills/story-short-write/SKILL.md",
+        "skills/story-short-write/references/workflow-design.md",
         "skills/story-short-write/references/writing-workflow.md",
         "skills/story-short-write/references/submission-craft.md",
         "skills/story-short-write/references/short-craft.md",
@@ -461,27 +477,31 @@
         "skills/story-long-write/references/writing-craft.md",
         "skills/story-long-write/references/long-chapter-quality.md",
         "skills/story-long-write/references/long-chapter-hooks.md",
-        "skills/story-long-write/references/workflow-revision.md"
+        "skills/story-long-write/references/workflow-revision.md",
+        "skills/story-long-write/references/anti-ai-writing.md",
+        "skills/story-long-write/references/banned-words.md",
+        "skills/story-long-write/references/reader-contract-and-progression.md",
+        "skills/story-long-write/references/state-tracking.md"
       ],
       "branches": [
         {
           "label": "基础",
           "files": [],
-          "budget": 46570
+          "budget": 70070
         },
         {
           "label": "悬疑",
           "files": [
             "skills/story-long-write/references/long-suspense.md"
           ],
-          "budget": 52240
+          "budget": 75740
         },
         {
           "label": "反转",
           "files": [
             "skills/story-long-write/references/long-reversal.md"
           ],
-          "budget": 52410
+          "budget": 75910
         },
         {
           "label": "悬疑+反转",
@@ -489,9 +509,10 @@
             "skills/story-long-write/references/long-suspense.md",
             "skills/story-long-write/references/long-reversal.md"
           ],
-          "budget": 58080
+          "budget": 81580
         }
-      ]
+      ],
+      "why": "补计 workflow-chapter 已有 direct/solo 必读（状态速记、契约校准、Phase 5 fallback）；未新增 prompt/读取，也不放松后续文本增长上限"
     },
     {
       "label": "长篇开书并写首章主会话直接写正文",
@@ -502,27 +523,31 @@
         "skills/story-long-write/references/writing-craft.md",
         "skills/story-long-write/references/long-chapter-quality.md",
         "skills/story-long-write/references/long-chapter-hooks.md",
-        "skills/story-long-write/references/workflow-setup.md"
+        "skills/story-long-write/references/workflow-setup.md",
+        "skills/story-long-write/references/anti-ai-writing.md",
+        "skills/story-long-write/references/banned-words.md",
+        "skills/story-long-write/references/reader-contract-and-progression.md",
+        "skills/story-long-write/references/state-tracking.md"
       ],
       "branches": [
         {
           "label": "基础",
           "files": [],
-          "budget": 56060
+          "budget": 79560
         },
         {
           "label": "悬疑",
           "files": [
             "skills/story-long-write/references/long-suspense.md"
           ],
-          "budget": 61730
+          "budget": 85230
         },
         {
           "label": "反转",
           "files": [
             "skills/story-long-write/references/long-reversal.md"
           ],
-          "budget": 61900
+          "budget": 85400
         },
         {
           "label": "悬疑+反转",
@@ -530,9 +555,10 @@
             "skills/story-long-write/references/long-suspense.md",
             "skills/story-long-write/references/long-reversal.md"
           ],
-          "budget": 67570
+          "budget": 91070
         }
-      ]
+      ],
+      "why": "补计 workflow-chapter 已有 direct/solo 必读（状态速记、契约校准、Phase 5 fallback）；未新增 prompt/读取，也不放松后续文本增长上限"
     }
   ]
 }

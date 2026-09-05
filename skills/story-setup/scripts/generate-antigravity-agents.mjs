@@ -131,7 +131,9 @@ function renderAgent(sourceFile) {
   }
   if (!data.description) fail(`${sourceFile}: missing description`)
   const sourceTools = parseInlineList(data.tools)
-  const tools = [...new Set(sourceTools.flatMap((tool) => TOOL_MAP.get(tool) || []))]
+  const deniedTools = new Set(parseInlineList(data.disallowedTools))
+  const effectiveSourceTools = sourceTools.filter((tool) => !deniedTools.has(tool))
+  const tools = [...new Set(effectiveSourceTools.flatMap((tool) => TOOL_MAP.get(tool) || []))]
   if (!tools.length) fail(`${sourceFile}: no supported Antigravity tools mapped`)
   const sourceModel = String(data.model || "").toLowerCase()
   const model = sourceModel === "haiku" ? "flash" : "pro"

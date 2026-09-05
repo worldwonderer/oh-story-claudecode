@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Behavior tests for capability-derived Codex and OpenCode agent permissions."""
+"""Behavior tests for capability-derived multi-CLI agent permissions."""
 
 from __future__ import annotations
 
@@ -14,6 +14,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CODEX_GENERATOR = REPO_ROOT / "scripts/generate-codex-agents.py"
 OPENCODE_GENERATOR = REPO_ROOT / "scripts/sync-opencode.py"
+ANTIGRAVITY_GENERATOR = (
+    REPO_ROOT / "skills/story-setup/scripts/generate-antigravity-agents.mjs"
+)
 TEMPLATES = REPO_ROOT / "skills/story-setup/references/templates"
 CODEX_BASELINE = REPO_ROOT / "skills/story-setup/references/codex/agents"
 OPENCODE_BASELINE = REPO_ROOT / "skills/story-setup/references/opencode"
@@ -74,6 +77,21 @@ def opencode_permissions(path: Path) -> dict[str, str]:
         if in_permissions:
             break
     return permissions
+
+
+def antigravity_tools(path: Path) -> list[str]:
+    tools: list[str] = []
+    in_tools = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line == "tools:":
+            in_tools = True
+            continue
+        if in_tools and line.startswith("  - "):
+            tools.append(line.removeprefix("  - "))
+            continue
+        if in_tools:
+            break
+    return tools
 
 
 def prepare_opencode_root(root: Path, source_agents: Path) -> Path:
@@ -148,6 +166,19 @@ def test_permissions_follow_capabilities_not_names() -> None:
             ["Read"],
             ["Write", "Edit", "Bash"],
         )
+        write_agent(source, "read-denied", ["Read"], ["Read"])
+        write_agent(
+            source,
+            "all-read-like-denied",
+            ["Read", "Glob", "Grep"],
+            ["Read", "Glob", "Grep"],
+        )
+        write_agent(
+            source,
+            "mixed-read-like",
+            ["Read", "Glob", "Grep"],
+            ["Read", "Grep"],
+        )
 
         codex_dest = root / "codex"
         result = run(
@@ -189,6 +220,51 @@ def test_permissions_follow_capabilities_not_names() -> None:
             "edit": "deny",
             "bash": "deny",
         }
+        assert permissions["read-denied"] == {"read": "deny"}
+        assert permissions["all-read-like-denied"] == {"read": "deny"}
+        assert permissions["mixed-read-like"] == {"read": "allow"}
+
+        antigravity_source = root / "antigravity-sources"
+        write_agent(
+            antigravity_source,
+            "denied-write-edit-bash",
+            ["Read", "Write", "Edit", "Bash"],
+            ["Write", "Edit", "Bash"],
+        )
+        write_agent(
+            antigravity_source,
+            "denied-read",
+            ["Read", "Bash"],
+            ["Read"],
+        )
+        write_agent(
+            antigravity_source,
+            "denied-some-read-like",
+            ["Read", "Glob", "Grep"],
+            ["Read", "Grep"],
+        )
+        antigravity_dest = root / "antigravity"
+        result = subprocess.run(
+            [
+                "node",
+                str(ANTIGRAVITY_GENERATOR),
+                "--source",
+                str(antigravity_source),
+                "--dest",
+                str(antigravity_dest),
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        antigravity = {
+            path.parent.name: antigravity_tools(path)
+            for path in antigravity_dest.glob("*/agent.md")
+        }
+        assert antigravity["denied-write-edit-bash"] == ["view_file"]
+        assert antigravity["denied-read"] == ["run_command"]
+        assert antigravity["denied-some-read-like"] == ["find_by_name"]
 
 
 def main() -> int:
