@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-09-04 -->
+<!-- Last synced with README.md: 2026-09-05 -->
 
 **English** | [中文](README.md)
 
@@ -18,7 +18,7 @@ Professional authors follow a three-step method:
 
 Built around four pillars: reverse-engineering hits · plot modularization · layered state management · human-AI collaboration.
 
-The current source tree uses deployment contract `agents_version: 29`. Rerun `/story-setup` after upgrading; multi-agent configuration takes effect in a new session. Contracts for published versions are listed in the release summaries below.
+The current source tree uses deployment contract `agents_version: 30`. Rerun `/story-setup` after upgrading; multi-agent configuration takes effect in a new session. Contracts for published versions are listed in the release summaries below.
 
 <details>
 <summary>Antigravity support preview</summary>
@@ -27,11 +27,11 @@ The current source tree uses deployment contract `agents_version: 29`. Rerun `/s
 
 </details>
 
+> **v0.7.9 — 短篇按场景功能校准**: short-form drops per-section word floors, the 3-5 sub-event rule, dialogue ratios, and fixed hook intervals in favour of a single readable test — does this scene change risk, information, relationships, resources, a decision, an action, or the reader's understanding? The teaser is now the first scene of the prose, and chapter 1 continues from its consequences rather than replaying it. Adds a structural verifier for chapter outlines; the outline's target-emotion and protagonist-choice fields no longer accept placeholders. Rerun `/story-setup` and start a new session; `agents_version` is 29. [Full changes](CHANGELOG.md#079---2026-08-30)
+>
 > **v0.7.8 — 参考拆分与门禁**: long-form and short-form references are split per consumer and renamed; a blocking Reference Gate now runs before prose writing and short-story design, and Phase 2 plus final delivery each gain a deterministic verifier. Short-story length now follows the range the user gave. Rerun `/story-setup` and start a new session; `agents_version` is 28. [Full changes](CHANGELOG.md#078---2026-08-28)
 >
 > **v0.7.7 — 记忆与收口**: long-form prose now uses one machine-enforced length metric; under-length chapters are not padded with new plot, and over-length chapters get at most one compression pass. This release also adds cross-session author memory and Codex built-in ImageGen, and fixes recursive story-setup copies. **The patch number does not convey this tightening**: a missing or invalid word target now stops instead of falling back to 3,000. Update the pack, rerun `/story-setup`, and start a new session; `agents_version` is 26. [Full changes](CHANGELOG.md#077---2026-08-26)
->
-> **v0.7.6 — 正文校准**: prose agents can execute machine word-count and sentence-length checks; outline points may be rearranged but cannot be omitted. Outline-copy detection and verbatim anchors were added, and Bash-based prose writes on Claude Code now pass through outline/tracking guards. Rerun `/story-setup` and start a new session; `agents_version` is 25. [Full changes](CHANGELOG.md#v076)
 >
 > For earlier versions, see [CHANGELOG.md](CHANGELOG.md).
 

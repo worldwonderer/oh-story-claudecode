@@ -22,12 +22,12 @@
 
 ## 段落：两套平台模板
 
-短篇正文形态按平台分两套。**不设统一的「每段 ≤ 3 句」或每节 1500 字上限**，不把小节切成等长提纲。每节下限按 SKILL.md 的题材规则验收。先认平台底色，再按 `short-craft.md` 的疏密原则分配字数。
+短篇正文形态按平台分两套。**不设统一的「每段 ≤ 3 句」「800-1500 字 / 节」硬线**，那是长篇迁移过来的产物，会把短篇切成一样长的提纲。先认平台底色，再按 `short-craft.md` 的疏密原则分配字数。
 
 ### 黑岩：一句一段，留白快读
 
 - 一句一段为主，靠频繁断行制造下坠和停顿感；段与段之间仍只有一个换行符。
-- 节奏密，每节体量小，节尾必留钩。
+- 节奏偏密、小节体量通常较小；节尾可用未完成动作、新信息、局部兑现或明确下一步承接，不强制每节另造悬钩。
 - 单句成段是常态，不要为了「凑够字数」把句子焊回长段。
 
 模板示意：
@@ -109,6 +109,28 @@ for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done
 "$PYBIN" -c "from pathlib import Path; print(len(Path('正文.md').read_text(encoding='utf-8')))"
 ```
 
+各节分布（按小节标记切开，逐节报非空白字符数）：
+
+```bash
+"$PYBIN" -c "
+import re
+from pathlib import Path
+pat = re.compile(r'###\s*\d+\.|###\s*第[一二三四五六七八九十百千万两〇零0-9]+章|\d+\.')
+cur, buf, out = None, [], []
+for line in Path('正文.md').read_text(encoding='utf-8').splitlines():
+    if pat.fullmatch(line.strip()):
+        out.append((cur, buf)); cur, buf = line.strip(), []
+    else:
+        buf.append(line)
+out.append((cur, buf))
+for name, body in out:
+    if name is not None:
+        print(name, len(''.join(''.join(body).split())))
+"
+```
+
+分布只用来定位异常节：某节明显短于相邻节时，回大纲核对该节批准的情节点、动作和后果是否已经写完；写完就保留，不为拉齐长度补戏。
+
 不要直接调 `python3`：Windows 上它会落到 Microsoft Store 占位程序并以 exit 49 静默失败，上面的探测按 `python3→python→py` 选出真正可用的解释器。`wc -m` 只作 macOS / Linux 备选，禁止 `wc -c`（那是字节数）。全文交付口径以 `scripts/check-delivery-contract.js` 的非空白字符为准。没有 Bash / Python 权限时必须声明“未完成机器字数验证”，按行数速算作临时估计，不得声称已通过硬验证。
 
 ---
@@ -157,7 +179,7 @@ for PYBIN in python3 python py; do "$PYBIN" -c "" 2>/dev/null && break; done
 | 知乎盐言 | `1.`（纯数字） | `「」` | 短段 + 叙述交织 | 导语需单独标注 |
 | 番茄 | `###第N章` | `""` | 短段为底色，允许叙述交织对话 | 首段需有吸引力 |
 | 红果 | `###1.` | `""` | 短段为底色 | 无 |
-| 黑岩 | `###1.` | `""` | 一句一段，多换行留白 | 节尾必留钩 |
+| 黑岩 | `###1.` | `""` | 一句一段，多换行留白 | 节尾按职责承接，不另造悬钩 |
 
 用户未指定平台时，默认短篇通用格式：`###1.` + `""` + 番茄系短段底色。
 

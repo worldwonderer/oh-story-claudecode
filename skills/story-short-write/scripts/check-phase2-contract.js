@@ -19,17 +19,23 @@ const path = require('path')
 const OUTLINE_HEADERS = [
   '结构段/五段功能',
   '主事件',
-  '子事件×3-5',
+  '情节推进',
   '情绪',
   '人物/关系变化',
   '因果/逻辑链',
   '读者新获知什么',
   '结尾承接/钩子',
   '伏笔/物件',
-  '动静',
-  '对话密度',
+  '场景形态',
+  '对白作用',
   '目标字数',
 ]
+
+const LEGACY_OUTLINE_HEADERS = new Map([
+  [2, '子事件×3-5'],
+  [9, '动静'],
+  [10, '对话密度'],
+])
 
 const FUNCTION_TAG = /\{(?:对话|冲突|伏笔|回忆|发现|递进)\}/
 
@@ -177,13 +183,18 @@ function verify(projectDir) {
       break
     }
   }
-  const headerOk = Boolean(headerCells) && headerCells.length === OUTLINE_HEADERS.length &&
+  const currentHeader = Boolean(headerCells) && headerCells.length === OUTLINE_HEADERS.length &&
     headerCells.every((cell, index) => cell === OUTLINE_HEADERS[index])
+  const legacyHeader = Boolean(headerCells) && headerCells.length === OUTLINE_HEADERS.length &&
+    headerCells.every((cell, index) => cell === (LEGACY_OUTLINE_HEADERS.get(index) || OUTLINE_HEADERS[index]))
+  const headerOk = currentHeader || legacyHeader
   checks.push(makeCheck(
     'phase2.outline-12-columns',
     headerOk,
     '小节大纲.md',
-    headerCells ? `表头 ${headerCells.length} 列：${headerCells.join(' | ')}` : '未找到以“结构段/五段功能”开头的 Markdown 表格',
+    headerCells
+      ? `表头 ${headerCells.length} 列：${headerCells.join(' | ')}${legacyHeader ? '（兼容旧项目；新建项目使用现行列名）' : ''}`
+      : '未找到以“结构段/五段功能”开头的 Markdown 表格',
     `使用固定 12 列表头：${OUTLINE_HEADERS.join(' | ')}`,
     ['references/writing-workflow.md'],
     '只修表头和错位单元格，不改动各节已经成立的剧情内容。'
@@ -212,26 +223,26 @@ function verify(projectDir) {
     '只补缺失节或修复报告行的列错位。'
   ))
 
-  const subeventFailures = []
-  const subeventRows = rows.filter((item) => item.cells.length === OUTLINE_HEADERS.length)
-  for (const row of subeventRows) {
-    const subevents = row.cells[2].split(/\s*(?:->|→)\s*/).filter(Boolean)
-    if (subevents.length < 3 || subevents.length > 5 || subevents.some((item) => !FUNCTION_TAG.test(item))) {
-      subeventFailures.push(row.line)
+  const progressionFailures = []
+  const progressionRows = rows.filter((item) => item.cells.length === OUTLINE_HEADERS.length)
+  for (const row of progressionRows) {
+    const progression = row.cells[2].split(/\s*(?:->|→)\s*/).filter(Boolean)
+    if (progression.length < 1 || progression.some((item) => !FUNCTION_TAG.test(item))) {
+      progressionFailures.push(row.line)
     }
   }
   checks.push(makeCheck(
     'phase2.outline-subevents',
-    rows.length > 0 && subeventFailures.length === 0,
+    rows.length > 0 && progressionFailures.length === 0,
     '小节大纲.md',
-    subeventFailures.length
-      ? `子事件数量或标签错误行：${subeventFailures.join('、')}`
-      : (subeventRows.length === rows.length
-          ? `所有 ${rows.length} 节均有 3-5 个带功能标签的子事件`
-          : `已检查 ${subeventRows.length}/${rows.length} 行；其余行由 phase2.outline-data-rows 报告列错位`),
-    '每节 3-5 个以 -> 连接的子事件，每个含 {对话/冲突/伏笔/回忆/发现/递进} 标签之一',
+    progressionFailures.length
+      ? `情节推进为空或功能标签错误行：${progressionFailures.join('、')}`
+      : (progressionRows.length === rows.length
+          ? `所有 ${rows.length} 节均有至少一个带功能标签的真实推进`
+          : `已检查 ${progressionRows.length}/${rows.length} 行；其余行由 phase2.outline-data-rows 报告列错位`),
+    '每节至少一个真实推进；有先后关系时以 -> 连接，每个含 {对话/冲突/伏笔/回忆/发现/递进} 标签之一，不设固定数量',
     ['references/writing-workflow.md', 'references/short-craft.md'],
-    '只修报告行的子事件单元格，不重写其他列或其他节。'
+    '只修报告行的“情节推进”单元格，不重写其他列或其他节；不要为数量补事件。'
   ))
 
   const targetMatch = settings.match(/目标字数\s*[：:]\s*(?:约\s*)?([\d,，]+)\s*(?:字)?\s*(?:[-–—~～]|到|至)\s*([\d,，]+)\s*字?/) ||
@@ -240,7 +251,7 @@ function verify(projectDir) {
   const targetLow = targetMatch ? toNumber(targetMatch[1]) : null
   const targetHigh = targetMatch && targetMatch[2] !== undefined ? toNumber(targetMatch[2]) : targetLow
   const statedTarget = targetLow
-  const rowTargets = subeventRows.map((row) => {
+  const rowTargets = progressionRows.map((row) => {
     const match = row.cells[11].match(/([\d,，]+)/)
     return match ? Number(match[1].replace(/[,，]/g, '')) : null
   })
@@ -249,7 +260,7 @@ function verify(projectDir) {
     : null
   const isRange = targetHigh !== null && targetHigh !== targetLow
   const targetOk = statedTarget !== null && statedTarget >= 1000 && targetHigh <= 200000 &&
-    targetHigh >= targetLow && subeventRows.length === rows.length && targetSum !== null &&
+    targetHigh >= targetLow && progressionRows.length === rows.length && targetSum !== null &&
     (isRange
       ? targetSum >= targetLow && targetSum <= targetHigh
       : Math.abs(targetSum - statedTarget) <= statedTarget * 0.05)

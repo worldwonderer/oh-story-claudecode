@@ -12,6 +12,26 @@ compare 链接；小节名使用 Keep a Changelog 的六个英文类别（`Added
 
 ## [Unreleased]
 
+## [0.7.9] - 2026-08-30
+
+> 本版改了 narrative-writer 模板与短篇 reference bundle，`agents_version` 升到 29。升级后必须在写作项目根重新运行 `/story-setup` 并新开会话，否则拿到的仍是旧 agent 与旧参考文件。
+
+### Added
+
+- 新增细纲结构验收 `check-outline-contract.js`（#382）：新建 / 补建细纲落盘后运行 `node scripts/check-outline-contract.js --json --project {书目录} --chapter {N}`，只判必需字段、四个小节、五段式、四列情节点表和字数目标口径是否在场，不判内容好坏。失败返回具名检查 ID 与最小 `repair_scope`，最多两轮定向补齐；既有项目的旧细纲不因此阻断写正文。
+
+### Changed
+
+- 短篇改按场景功能分配篇幅与节奏（#384）：移除逐节最低字数（含题材速查表的「爽文章节 500-800 字/节」）、每节 3-5 个子事件、对白占比与话轮数、固定冲突间隔、固定钩子节距、固定高潮位置和题材包「每节必有」等机械配额，改用可阅文验证的标准——本场是否改变风险、信息、关系、资源、决定、行动或读者理解。任务、证据、手艺、等待、空间压力和无对白场景均可成立。整篇长度仍由用户交付范围与 `check-delivery-contract.js` 约束。
+  *升级*：Phase 2 小节大纲三列改名为 `情节推进` / `场景形态` / `对白作用`。旧表头继续兼容，新建项目按新列名；旧项目不需要改表。
+- 导语作为正文第一场（#384）：宅斗宫斗、民俗怪谈、沙雕脑洞的第 1 章从导语最后一拍的后果、选择或新行动继续，不重新搭景、不重说关键台词、不重演同一事件。
+- 细纲的 `目标情绪` 与 `主角目标/关键选择` 不再接受 `[待补充]`（#383）：隔离实验显示只补这两个字段就能复现补齐全部字段的正文收益，补满其余字段与只补这两个不可区分。其余字段未知时仍写 `[待补充]`。
+- 短篇拆文的节奏与对白指标改为描述性（#384）：情节节点不再按全文字数分档设目标数量，情感曲线不再要求每节至少一个节点，对话占比与条数只作同题材、同平台样本的观察数据，不设跨题材通过阈值；判断回到具体节点、状态变化和后果。
+
+### Fixed
+
+- 修 Codex CLI 0.151.0 下 `codex` E2E 误报仓库 skill 未被发现：0.151.0 起 `debug prompt-input` 改用 `Skill roots` 别名表加 `rN/<skill>/SKILL.md` 短路径渲染，测试只搜绝对路径。现在断言前先把别名展开回绝对路径；旧版 CLI 输出绝对路径且无该表，行为不变。
+
 ## [0.7.8] - 2026-08-28
 
 > 升级后必须在写作项目根重新运行 `/story-setup` 并新开会话，否则拿到的仍是旧 agent 与旧参考文件名。本版把长短篇的参考资料按消费者拆分改名，并给长篇写正文、短篇构思与交付加了会阻断的门禁（见 Changed），补丁号不代表可以无脑升级。
@@ -974,6 +994,7 @@ npx skills add zenstory-ai/oh-story-claudecode -y -g
 - 初始版本：长篇/短篇写作、拆文、扫榜、去 AI 味、浏览器操控
 - 用 52000+ 本真实数据增强知识库
 
-[Unreleased]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.8...HEAD
+[Unreleased]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.9...HEAD
+[0.7.9]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.8...v0.7.9
 [0.7.8]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.7...v0.7.8
 [0.7.7]: https://github.com/zenstory-ai/oh-story-claudecode/compare/v0.7.6...v0.7.7
