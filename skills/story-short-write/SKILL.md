@@ -8,8 +8,6 @@ metadata: {"openclaw":{"source":"https://github.com/zenstory-ai/oh-story-claudec
 
 你是短篇网文写作执行器。从构思到成稿，完成一篇完整的短篇小说。
 
-**执行规则：短篇以情绪为目标，所有内容为情绪服务。**
-
 ## 阶段 Reference Gate（强制，先读后写）
 
 任何创建或修改故事文件的动作之前，先判断当前 Phase，并完成该阶段的 reference gate。**只读本 SKILL.md 不算完成门禁。**
@@ -26,7 +24,7 @@ Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完
 
 > Agent 只查当前端 canonical 目录（Claude `.claude/agents`、OpenCode `.opencode/agents`、Codex `.codex/agents` TOML、Antigravity `.agents/agents`），不借其他端文件误判。Claude/OpenCode 用 `subagent_type`，Codex 用 `agent_type`，Antigravity 用 `invoke_subagent` + `TypeName`；能力/文件缺失、unknown agent 或 ZCode 3.3.4 时报告 `Fallback: project custom agents unavailable -> solo` 并 solo/direct。
 >
-> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 28` 不一致时（标记缺失、字段缺失/非整数、小于或大于 28）**照常按文件存在性检查并 spawn**，同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 28）` 并提示重新运行 `/story-setup` 后新开会话；大于 28 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
+> Spawn 版本提示（不阻断 spawn）：先读取项目根 `.story-deployed` 的 `agents_version`。与本版 `agents_version: 29` 不一致时（标记缺失、字段缺失/非整数、小于或大于 29）**照常按文件存在性检查并 spawn**，同时报告 `Notice: agents bundle 版本不匹配（项目 {N}，本版 29）` 并提示重新运行 `/story-setup` 后新开会话；大于 29 时额外提示先更新 oh-story-claudecode，不要用本地旧版 setup 降级覆盖。只有 agent 文件缺失、或运行时不暴露 custom agent 时才降级 solo/direct，报告 `Fallback: ... -> solo`。
 
 ## 执行规则
 
@@ -34,7 +32,7 @@ Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完
 2. **一个核心支点撑一篇**。反转型围绕一次主揭示蓄力；无反转型围绕报应兑现或甜度递进积累期待。不多线、不铺世界观。
 3. **每句话必须有用**。不推动剧情、不铺垫反转、不推高情绪的句子 → 删。
 4. **开头 3 句定生死，结尾定传播**。开头必须包含钩子，结尾必须有余韵。
-5. **默认第一人称**。短篇网文（盐言/七猫短篇等）绝大多数用第一人称，代入感最强。除非题材明确需要第三人称（如多视角悬疑），否则一律用「我」。
+5. **默认第一人称**。除非题材明确需要第三人称（如多视角悬疑），否则一律用「我」。
 
 ---
 
@@ -227,6 +225,8 @@ Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完
 
 **交付参数先锁定**：用户明确的字数范围优先，逐字取其最小值/最大值与节数；只给单一目标时用目标的 95%-105%；都未给时用 8000-20000 字和大纲节数。后文的默认字数不得覆盖用户范围。
 
+**写前参数验收**：给 Phase 4 的交付命令加 `--check-contract` 先运行，`FLOOR` 按下文题材规则选取。参数通过不算交付；冲突时停在写前，报告字数范围、节数与下限，请用户选择调整项，不代改用户约束。
+
 **写前准备**（每个场景写前执行 2 步，是核心方法的落地：确认情绪目标 → 召回技法模块）：
 - **步骤 1：记忆+召回**：① 本场景目标情绪词？② 借鉴哪个参考文件的哪个技法？③ 具体用在哪个段落？答不出 → 先回读参考再动笔。如有 `对标/` 或 `拆文库/` 结构化产出，按“对标上下文加载”规则检索与当前场景最相关的结构/情绪/反转/写作手法模块作为参考，并写入“拆文召回摘要”
   - **多对标书时**：参 `references/cross-book-recall.md`，副对标/参考对标按阶段预算进入"副对标召回摘要"；正文只传摘要，不传副书文风或原文
@@ -257,8 +257,7 @@ Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完
 
 ⚠️ **硬约束：每节 ≥ 800 字 / 50-65 行**。
 题材例外：爽文、打脸、系统流等高信息密度题材可降至 ≥ 500 字/节（见 genre-writing-formulas.md 各题材速查表），但不得低于 500 字。
-写完每节后必须按 `short-format.md`「字数统计」的跨平台命令统计字数和行数。不足 800 字（高信息密度题材不足 500 字）的节不得跳过，必须补充既有情节点/对话后再写下一节。整篇以锁定的用户交付范围为准；未给范围时才使用 8000-20000 字默认值。
-**⚠️ 未进入锁定范围 = 正文未完成。禁止越界后结束；不足只扩已有情节点，超出只压重复解释，不借 repair 新增或删除关键剧情。**
+写完每节按 `short-format.md`「字数统计」统计字数和行数；未达适用下限，只补既有情节点/对话后再写下一节。
 
 **节数守恒**：正文节数必须等于小节大纲规划节数。不得合并多节为一节。如果写作中发现某节不需要独立存在，应回到大纲阶段调整，而非在写作时偷减。
 
@@ -281,7 +280,7 @@ Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完
 
 每个小节按「场景信息揉进」写作（详见 short-craft.md 第 10 节）：发生是主干，感知和反应只在提供新信息时加入；用到的维度揉进同一镜头，子事件合计 ≥150 字。揉进不等于按维度分段——禁止"先写发生再补感知再补反应"的堆叠写法，也不要求三项齐全；同样不等于一段到底，按新动作/新物件/新信息/新对话断段。长度只是诊断，先判断是否完整戏剧单元；混入多个动作/信息才拆，完整推理、氛围或情绪链可以保留稍长段。
 
-**写完后对照 小节大纲.md 检查**：每个子事件的现场、因果和下一步是否读得懂？已经写入的感知/反应是否提供不同信息，而非凑格？本节情绪到位？伏笔/物件已植入？新增任务卡点是否卡出了情绪、证据或关系变化（删掉无损则压缩）？节长 <800 字 → 补充更多子事件/对话后再写下一节，不拿感官或身体动作注水。
+**写完后对照 小节大纲.md 检查**：每个子事件的现场、因果和下一步是否读得懂？已经写入的感知/反应是否提供不同信息，而非凑格？本节情绪到位？伏笔/物件已植入？新增任务卡点是否卡出了情绪、证据或关系变化（删掉无损则压缩）？节长低于适用下限 → 补充更多子事件/对话后再写下一节，不拿感官或身体动作注水。
 
 按以下结构分段写：
 
@@ -379,7 +378,7 @@ Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完
 加载 `references/writing-workflow.md` 中的精修清单完成检查。
 重点：开头钩子、情绪曲线、反转铺垫、每句话价值、格式规范、AI 腔。文件模式依次运行 `node scripts/check-ai-patterns.js --check --fail-on=blocking 正文.md`、`node scripts/check-outline-copy.js --outline 小节大纲.md 正文.md`、`node scripts/normalize-punctuation.js 正文.md`、`node scripts/check-degeneration.js --check 正文.md`。blocking 或确属细纲照搬先改正文再复扫；其他提示仅作读感复核，功能性写法可保留。
 
-上述修改全部落盘后，运行 `node scripts/check-delivery-contract.js --json --min-chars {MIN} --max-chars {MAX} --sections {N} {短篇目录}`。exit 0 才可交付；exit 1 只按 `repair_scope` 最小修复并重跑受影响的质量检查与本命令，最多 2 轮；仍失败则报告检查 ID 并停止。exit 2、脚本缺失或不可执行时不得声称交付契约通过。本 verifier 只验用户字数、节数与排版形状，不替代正文质量判断。
+上述修改全部落盘后，运行 `node scripts/check-delivery-contract.js --json --min-chars {MIN} --max-chars {MAX} --sections {N} --min-section-chars {FLOOR} {短篇目录}`。`FLOOR` 默认 800，仅上述高密度题材取 500。exit 0 才可交付；exit 1 只按 `repair_scope` 最小修复并重跑受影响的质量检查与本命令，最多 2 轮；仍失败则报告检查 ID 并停止。exit 2、脚本缺失或不可执行时不得声称交付契约通过。本 verifier 只验用户字数、节数与排版形状，不替代正文质量判断。
 
 #### Agent 调用：narrative-writer（去AI味）+ consistency-checker
 
@@ -415,7 +414,7 @@ Phase 2 必须在第一次写入 `设定.md` / `小节大纲.md` 前按顺序完
 
 ## 参考资料
 
-按需加载以下文件。写作时同时加载 ≤ 3 个：
+按当前阶段 Reference Gate 和写前准备加载必需文件，其余按需：
 
 | 文件 | 何时加载 |
 |------|----------|

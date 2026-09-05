@@ -186,12 +186,14 @@ run --outline "$TMP_DIR/o9.md" "$TMP_DIR/p9.md"
 expect_status 0
 [ -z "$OUTPUT" ] || fail "expected silent output on a clean chapter"
 
-# --- 10. 缺细纲：不可判定时静默退出 0，不得误报 ---
+# --- 10. 自动发现不到细纲：明确跳过但不阻断普通独立正文 ---
 CASE="missing-outline"
 printf '%s。\n' "$COPIED" >"$TMP_DIR/orphan.md"
 run "$TMP_DIR/orphan.md"
 expect_status 0
-[ -z "$OUTPUT" ] || fail "expected silence when no outline can be located"
+expect_contains "跳过"
+expect_contains "$TMP_DIR/orphan.md"
+expect_contains "未自动发现细纲"
 
 # --- 11. 收尾复扫按通配传多章：每章各自比对，不得把第二个正文当成细纲 ---
 CASE="multi-prose-batch"
@@ -217,4 +219,94 @@ run "$TMP_DIR/批/正文/第006章_天明.md" "$TMP_DIR/批/正文/第005章_雨
 expect_status 1
 expect_contains "第005章_雨夜.md"
 
-echo "PASS: check-outline-copy.js (12 cases)"
+# --- 13. 显式细纲不存在：不是「干净」，必须准确报错并退 2 ---
+CASE="explicit-missing-outline"
+run --outline "$TMP_DIR/不存在的细纲.md" "$TMP_DIR/p9.md"
+expect_status 2
+expect_contains "无法读取显式细纲"
+expect_contains "$TMP_DIR/不存在的细纲.md"
+expect_contains "不存在"
+
+# --- 14. 正文不存在：必须准确报出正文路径并退 2 ---
+CASE="missing-prose"
+run --outline "$TMP_DIR/o9.md" "$TMP_DIR/不存在的正文.md"
+expect_status 2
+expect_contains "无法读取正文"
+expect_contains "$TMP_DIR/不存在的正文.md"
+expect_contains "不存在"
+
+# --- 15. 参数错误：缺少 --outline 值、未知选项、没有正文都退 2 ---
+CASE="outline-option-without-value"
+run --outline
+expect_status 2
+expect_contains "--outline 缺少路径"
+
+CASE="unknown-option"
+run --unknown "$TMP_DIR/p9.md"
+expect_status 2
+expect_contains "未知选项: --unknown"
+
+CASE="no-prose"
+run --outline "$TMP_DIR/o9.md"
+expect_status 2
+expect_contains "缺少正文路径"
+
+# --- 16. 目录不是可读文本文件：跨平台稳定拒绝，不能依赖 EISDIR 文案 ---
+CASE="outline-is-directory"
+mkdir -p "$TMP_DIR/目录细纲"
+run --outline "$TMP_DIR/目录细纲" "$TMP_DIR/p9.md"
+expect_status 2
+expect_contains "无法读取显式细纲"
+expect_contains "$TMP_DIR/目录细纲"
+expect_contains "不是普通文件"
+
+CASE="prose-is-directory"
+mkdir -p "$TMP_DIR/目录正文"
+run --outline "$TMP_DIR/o9.md" "$TMP_DIR/目录正文"
+expect_status 2
+expect_contains "无法读取正文"
+expect_contains "$TMP_DIR/目录正文"
+expect_contains "不是普通文件"
+
+# --- 17. 非预期异常：顶层不得吞掉异常后伪装成成功 ---
+CASE="unexpected-exception"
+printf '%s。\n' "$COPIED" >"$TMP_DIR/explode.md"
+cat >"$TMP_DIR/throw-on-basename.js" <<'EOF'
+const path = require('path')
+const originalBasename = path.basename
+path.basename = function basename(file, ...args) {
+  if (originalBasename.call(this, file, ...args) === 'explode.md') throw new Error('synthetic unexpected failure')
+  return originalBasename.call(this, file, ...args)
+}
+EOF
+set +e
+OUTPUT="$(NODE_OPTIONS="--require=$TMP_DIR/throw-on-basename.js" node "$SCRIPT" "$TMP_DIR/explode.md" 2>&1)"
+STATUS=$?
+set -e
+expect_status 2
+expect_contains "细纲照搬检测异常"
+expect_contains "synthetic unexpected failure"
+
+# --- 21. 自动发现权限错误不能伪装成没有细纲 ---
+CASE="auto-outline-permission-error"
+cat >"$TMP_DIR/throw-on-readdir.js" <<'JS'
+const fs = require('fs')
+const original = fs.readdirSync
+fs.readdirSync = function (dir, ...args) {
+  if (String(dir).endsWith('大纲')) {
+    const error = new Error(`EACCES: cannot read ${dir}`)
+    error.code = 'EACCES'
+    throw error
+  }
+  return original.call(this, dir, ...args)
+}
+JS
+set +e
+OUTPUT="$(NODE_OPTIONS="--require=$TMP_DIR/throw-on-readdir.js" node "$SCRIPT" "$TMP_DIR/批/正文/第005章_雨夜.md" 2>&1)"
+STATUS=$?
+set -e
+expect_status 2
+expect_contains "EACCES"
+expect_contains "大纲"
+
+echo "PASS: check-outline-copy.js (21 cases)"

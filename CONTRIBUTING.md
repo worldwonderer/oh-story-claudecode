@@ -166,6 +166,7 @@ python3 scripts/skill-numbering.py check
 - runtime 脚本的唯一源/目标定义在 `scripts/shared-assets.json`；先改 `source`，再运行 `python3 scripts/sync-shared-assets.py sync`。
 - 同名 runtime 脚本只能属于一个 canonical group，且每个 target 必须保留 source basename；禁止用改名 target 绕过单一 owner。
 - reference 文档的 canonical source、部署副本与目录镜像显式定义在 `scripts/shared-references.json`；先改 source，再运行 `python3 scripts/shared-references.py sync`。reference target 可用语义别名，但必须在 manifest 逐路径登记。
+- `check-shared-files.sh` 同时验证两个 manifest 的管理路径不重叠；reference 文档只登记在 `shared-references.json`。
 - `shared-references.py check` 还会按内容哈希扫描未登记的跨 Skill 精确副本；目录镜像的 `files` 必须完整覆盖 source tree，新增文件不能绕过 manifest。
 - `check-reference-similarity.py` 会扫描跨 Skill 近似副本；仍需独立演化的历史派生文件必须在 `derived_groups` 登记成员与分化理由。新增副本必须选择“登记同步”或“形成真正独立内容”，不能靠改名绕过 owner。
 - `story-short-analyze` 的 `analysis-short-*` 是源文观察标尺，不是写作 playbook；禁止重新引入长篇节点、卷级循环、推荐结构百分比或“每章必备”口令。由 `check-short-analysis-scope.py` 守卫。
@@ -216,6 +217,8 @@ python3 scripts/sync-opencode.py --check  # 可选：只校验，不改文件
 bash scripts/check-opencode-adapter.sh
 bash scripts/test-opencode-cli-e2e.sh  # 可选：需要本机已安装 opencode
 ```
+
+权限语义以 Claude 真源的 `tools` / `disallowedTools` 为准：Codex 只读 sandbox 与 OpenCode 创建文件权限从有效能力推导，不按 agent 名字特判。平台工具映射和研究 fallback 保留各端实现。回归命令：`python3 scripts/test-agent-permissions.py`。
 
 脚本会：
 1. 将 `templates/agents/` 下的 Claude Code agent 转换为 opencode 格式，写入 `opencode/agents/`
@@ -369,3 +372,7 @@ bash scripts/test-codex-hooks.sh
 - **PreToolUse 不完整拦截**：Codex 官方说明当前 shell/edit 拦截不是完备安全边界；story hooks 只作为写作流程 guardrail，不能替代版本控制和人工审查。
 - **agent 文件格式**：Codex custom agents 是 `.codex/agents/{name}.toml`，必需 `name`、`description`、`developer_instructions`；只读 agent 使用 `sandbox_mode = "read-only"`。
 - **custom-agent 运行时注册**：`$story-setup` 写入 `.codex/agents/*.toml` 后，需要 trust 项目 `.codex/` 配置层并新开 Codex 会话。若当前 Codex 运行时仍返回 `unknown agent_type`（本地 `codex exec 0.141.0` 临时项目烟测可复现），skill 必须降级 solo/direct 并报告 fallback；自动化硬门槛是 TOML schema 与文件部署检查。
+
+## 本地实验产物
+
+模型实验的 prompt 快照、生成正文、评分和报告统一放在 `demo/*-eval/` 或已忽略的本地运行目录，不提交到 Git remote；不要使用 `git add -f` 绕过忽略规则。可复用的评测脚本与自写回归 fixtures 仍放在 `scripts/`、`tests/fixtures/` 并正常版本管理。已跟踪的实验目录应仅取消索引跟踪、保留本地文件；这不清除既有远端提交历史。

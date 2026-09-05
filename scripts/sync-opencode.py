@@ -116,12 +116,17 @@ def convert_claude_to_opencode(fm: dict, body: str) -> dict:
         perm["read"] = "allow"
     has_write = any(t in tools for t in ("Write", "Edit"))
     has_edit_disallowed = any(t in disallowed for t in ("Write", "Edit"))
+    creation_only = (
+        "Write" in tools
+        and "Write" not in disallowed
+        and "Edit" in disallowed
+    )
 
-    # deny priority: disallowedTools overrides Write/Edit in tools
-    # story-researcher is a known exception — opencode's edit permission controls
-    # both Write and Edit, cannot distinguish. story-researcher needs to create
-    # new files (research output), so set edit: allow
-    if name == "story-researcher":
+    # OpenCode's aggregate edit permission controls both file creation and edits.
+    # A canonical creation-only agent (effective Write + denied Edit) therefore
+    # needs edit: allow regardless of its name. All other explicit denials retain
+    # priority over allowed Write/Edit declarations.
+    if creation_only:
         perm["edit"] = "allow"
     elif has_edit_disallowed:
         perm["edit"] = "deny"

@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-READ_ONLY_AGENTS = {"chapter-extractor", "consistency-checker", "story-explorer"}
+MUTATING_TOOLS = frozenset({"Write", "Edit", "Bash"})
 NICKNAMES = {
     "chapter-extractor": ["Chapter Extractor", "Scene Splitter"],
     "character-designer": ["Character Designer", "Voice Crafter"],
@@ -75,6 +75,27 @@ def toml_list(values: list[str]) -> str:
     return "[" + ", ".join(repr(v).replace("'", '"') for v in values) + "]"
 
 
+def parse_tool_list(value: str) -> set[str]:
+    match = re.fullmatch(r"\[\s*(.*?)\s*\]", value)
+    if not match:
+        return set()
+    return {
+        item.strip().strip("'").strip('"')
+        for item in match.group(1).split(",")
+        if item.strip()
+    }
+
+
+def is_read_only(meta: dict[str, str]) -> bool:
+    """Derive filesystem confinement from effective canonical capabilities."""
+    declared = parse_tool_list(meta.get("tools", ""))
+    if not declared:
+        return False
+    denied = parse_tool_list(meta.get("disallowedTools", ""))
+    effective = declared - denied
+    return effective.isdisjoint(MUTATING_TOOLS)
+
+
 def adapt_body_for_codex(body: str, name: str) -> str:
     """Translate Claude/OpenCode caller terminology to Codex custom-agent wording."""
     adapted = body.replace("subagent_type", "agent_type")
@@ -119,7 +140,7 @@ def render_file(src: Path) -> tuple[str, str]:
         f"description = {toml_basic_string(description)}",
         f"nickname_candidates = {toml_list(NICKNAMES.get(name, [name]))}",
     ]
-    if name in READ_ONLY_AGENTS:
+    if is_read_only(meta):
         out.append('sandbox_mode = "read-only"')
     out.append(f"developer_instructions = {toml_basic_string(instructions)}")
     return f"{name}.toml", "\n".join(out) + "\n"
