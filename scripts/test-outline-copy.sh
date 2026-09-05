@@ -53,6 +53,12 @@ expect_contains() {
   esac
 }
 
+# Git Bash 会把传给 Node 的 /tmp/... 参数转换成 Windows 原生路径。
+# 按同一公共进程边界取得预期路径，不把 POSIX 拼写当作 CLI 输出契约。
+expect_path() {
+  expect_contains "$(node -p 'process.argv[1]' "$1")"
+}
+
 expect_missing() {
   case "$OUTPUT" in
   *"$1"*) fail "expected output NOT to contain: $1" ;;
@@ -192,7 +198,7 @@ printf '%s。\n' "$COPIED" >"$TMP_DIR/orphan.md"
 run "$TMP_DIR/orphan.md"
 expect_status 0
 expect_contains "跳过"
-expect_contains "$TMP_DIR/orphan.md"
+expect_path "$TMP_DIR/orphan.md"
 expect_contains "未自动发现细纲"
 
 # --- 11. 收尾复扫按通配传多章：每章各自比对，不得把第二个正文当成细纲 ---
@@ -224,7 +230,7 @@ CASE="explicit-missing-outline"
 run --outline "$TMP_DIR/不存在的细纲.md" "$TMP_DIR/p9.md"
 expect_status 2
 expect_contains "无法读取显式细纲"
-expect_contains "$TMP_DIR/不存在的细纲.md"
+expect_path "$TMP_DIR/不存在的细纲.md"
 expect_contains "不存在"
 
 # --- 14. 正文不存在：必须准确报出正文路径并退 2 ---
@@ -232,7 +238,7 @@ CASE="missing-prose"
 run --outline "$TMP_DIR/o9.md" "$TMP_DIR/不存在的正文.md"
 expect_status 2
 expect_contains "无法读取正文"
-expect_contains "$TMP_DIR/不存在的正文.md"
+expect_path "$TMP_DIR/不存在的正文.md"
 expect_contains "不存在"
 
 # --- 15. 参数错误：缺少 --outline 值、未知选项、没有正文都退 2 ---
@@ -257,7 +263,7 @@ mkdir -p "$TMP_DIR/目录细纲"
 run --outline "$TMP_DIR/目录细纲" "$TMP_DIR/p9.md"
 expect_status 2
 expect_contains "无法读取显式细纲"
-expect_contains "$TMP_DIR/目录细纲"
+expect_path "$TMP_DIR/目录细纲"
 expect_contains "不是普通文件"
 
 CASE="prose-is-directory"
@@ -265,7 +271,7 @@ mkdir -p "$TMP_DIR/目录正文"
 run --outline "$TMP_DIR/o9.md" "$TMP_DIR/目录正文"
 expect_status 2
 expect_contains "无法读取正文"
-expect_contains "$TMP_DIR/目录正文"
+expect_path "$TMP_DIR/目录正文"
 expect_contains "不是普通文件"
 
 # --- 17. 非预期异常：顶层不得吞掉异常后伪装成成功 ---
@@ -280,7 +286,7 @@ path.basename = function basename(file, ...args) {
 }
 EOF
 set +e
-OUTPUT="$(NODE_OPTIONS="--require=$TMP_DIR/throw-on-basename.js" node "$SCRIPT" "$TMP_DIR/explode.md" 2>&1)"
+OUTPUT="$(node --require "$TMP_DIR/throw-on-basename.js" "$SCRIPT" "$TMP_DIR/explode.md" 2>&1)"
 STATUS=$?
 set -e
 expect_status 2
@@ -302,7 +308,7 @@ fs.readdirSync = function (dir, ...args) {
 }
 JS
 set +e
-OUTPUT="$(NODE_OPTIONS="--require=$TMP_DIR/throw-on-readdir.js" node "$SCRIPT" "$TMP_DIR/批/正文/第005章_雨夜.md" 2>&1)"
+OUTPUT="$(node --require "$TMP_DIR/throw-on-readdir.js" "$SCRIPT" "$TMP_DIR/批/正文/第005章_雨夜.md" 2>&1)"
 STATUS=$?
 set -e
 expect_status 2
@@ -324,7 +330,7 @@ fs.readFileSync = function (file, ...args) {
 }
 JS
 set +e
-OUTPUT="$(NODE_OPTIONS="--require=$TMP_DIR/throw-on-outline-read.js" node "$SCRIPT" "$TMP_DIR/批/正文/第005章_雨夜.md" 2>&1)"
+OUTPUT="$(node --require "$TMP_DIR/throw-on-outline-read.js" "$SCRIPT" "$TMP_DIR/批/正文/第005章_雨夜.md" 2>&1)"
 STATUS=$?
 set -e
 expect_status 2
