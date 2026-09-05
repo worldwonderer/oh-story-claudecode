@@ -23,6 +23,7 @@ BODY_COMMAND_RE = re.compile(r"(?:执行|运行|跑) `([^`]+)`")
 # 委派给别人跑的不算本 agent 的 shell 步骤（「由父流程提示重新运行 X」「提示调用方在主会话跑 X」）。
 # 只在同一行出现委派主语时豁免，避免把「自己跑」写成委派句式蒙混过关。
 BODY_DELEGATION_RE = re.compile(r"(调用方|父流程|主会话|用户|由.{0,6}提示)")
+CAPABILITY_NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 
 
 def body_bash_commands(body: str) -> list[str]:
@@ -108,8 +109,12 @@ def convert_claude_to_opencode(fm: dict, body: str) -> dict:
 
     result["mode"] = "subagent"
 
-    tools = _parse_list(fm.get("tools", ""))
-    disallowed = _parse_list(fm.get("disallowedTools", ""))
+    tools = _parse_list(fm["tools"], "tools") if "tools" in fm else []
+    disallowed = (
+        _parse_list(fm["disallowedTools"], "disallowedTools")
+        if "disallowedTools" in fm
+        else []
+    )
     denied_tools = set(disallowed)
     effective_tools = set(tools) - denied_tools
 
@@ -166,13 +171,34 @@ def convert_claude_to_opencode(fm: dict, body: str) -> dict:
     return result
 
 
-def _parse_list(val: str) -> list[str]:
-    """Parse a YAML-like list like '[Read, Glob, Grep]'."""
-    match = re.search(r"\[(.*)\]", val)
+def _parse_list(val: str, field: str) -> list[str]:
+    """Parse the supported inline capability-list subset or reject it."""
+    if not val:
+        raise ValueError(
+            f"{field}: empty or block-style capability declarations are unsupported"
+        )
+    match = re.fullmatch(r"\[\s*(.*?)\s*\]", val)
     if not match:
+        raise ValueError(f"{field}: expected an inline list like [Read, Glob]")
+    inner = match.group(1)
+    if not inner.strip():
         return []
-    items = match.group(1).split(",")
-    return [item.strip().strip("'").strip('"') for item in items if item.strip()]
+    parsed: list[str] = []
+    for raw_item in inner.split(","):
+        item = raw_item.strip()
+        if not item:
+            raise ValueError(f"{field}: empty capability-list item")
+        if item[0] in {'"', "'"}:
+            quote = item[0]
+            if len(item) < 2 or item[-1] != quote or quote in item[1:-1]:
+                raise ValueError(f"{field}: malformed quoted capability {item!r}")
+            item = item[1:-1]
+        elif '"' in item or "'" in item:
+            raise ValueError(f"{field}: malformed quoted capability {item!r}")
+        if CAPABILITY_NAME_RE.fullmatch(item) is None:
+            raise ValueError(f"{field}: invalid capability name {item!r}")
+        parsed.append(item)
+    return parsed
 
 
 def format_frontmatter(fm: dict) -> str:

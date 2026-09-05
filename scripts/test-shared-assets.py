@@ -116,7 +116,7 @@ with tempfile.TemporaryDirectory(prefix="shared-assets-") as tmp:
         "escapes repository root",
     )
 
-    duplicate_target_groups = [
+    duplicate_target_groups: list[dict[str, object]] = [
         {"name": "one", "source": "src/tool.js", "targets": ["skills/one/scripts/tool.js"]},
         {"name": "two", "source": "src/other.js", "targets": ["skills/one/scripts/tool.js"]},
     ]
@@ -143,7 +143,7 @@ with tempfile.TemporaryDirectory(prefix="shared-assets-") as tmp:
         "duplicate managed target skills/one/scripts/tool.js repeated in repeated",
     )
 
-    copy_chain = [
+    copy_chain: list[dict[str, object]] = [
         {
             "name": "canonical",
             "source": "src/a/tool.js",

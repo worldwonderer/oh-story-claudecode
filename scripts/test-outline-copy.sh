@@ -309,4 +309,34 @@ expect_status 2
 expect_contains "EACCES"
 expect_contains "大纲"
 
-echo "PASS: check-outline-copy.js (21 cases)"
+# --- 22. 找到路径后读取失败仍然是输入错误，不得跳过 ---
+CASE="discovered-outline-read-error"
+cat >"$TMP_DIR/throw-on-outline-read.js" <<'JS'
+const fs = require('fs')
+const original = fs.readFileSync
+fs.readFileSync = function (file, ...args) {
+  if (String(file).endsWith('细纲_第005章.md')) {
+    const error = new Error(`EACCES: cannot read ${file}`)
+    error.code = 'EACCES'
+    throw error
+  }
+  return original.call(this, file, ...args)
+}
+JS
+set +e
+OUTPUT="$(NODE_OPTIONS="--require=$TMP_DIR/throw-on-outline-read.js" node "$SCRIPT" "$TMP_DIR/批/正文/第005章_雨夜.md" 2>&1)"
+STATUS=$?
+set -e
+expect_status 2
+expect_contains "EACCES"
+expect_contains "细纲_第005章.md"
+
+# --- 23. 自动发现的目标是目录同样拒绝 ---
+CASE="discovered-outline-is-directory"
+mkdir -p "$TMP_DIR/非文件细纲/小节大纲.md"
+printf '%s。\n' "$COPIED" >"$TMP_DIR/非文件细纲/正文.md"
+run "$TMP_DIR/非文件细纲/正文.md"
+expect_status 2
+expect_contains "不是普通文件"
+
+echo "PASS: check-outline-copy.js (23 cases)"

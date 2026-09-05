@@ -17,6 +17,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MUTATING_TOOLS = frozenset({"Write", "Edit", "Bash"})
+CAPABILITY_FIELDS = frozenset({"tools", "disallowedTools"})
+CAPABILITY_NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 NICKNAMES = {
     "chapter-extractor": ["Chapter Extractor", "Scene Splitter"],
     "character-designer": ["Character Designer", "Voice Crafter"],
@@ -60,7 +62,12 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
                 i += 1
             data[key] = "\n".join(block).strip()
             continue
-        data[key] = value.strip().strip('"').strip("'")
+        normalized = value.strip()
+        data[key] = (
+            normalized
+            if key in CAPABILITY_FIELDS
+            else normalized.strip('"').strip("'")
+        )
         i += 1
     return data, body
 
@@ -75,23 +82,48 @@ def toml_list(values: list[str]) -> str:
     return "[" + ", ".join(repr(v).replace("'", '"') for v in values) + "]"
 
 
-def parse_tool_list(value: str) -> set[str]:
+def parse_tool_list(value: str, field: str) -> set[str]:
+    """Parse the supported inline capability-list subset or reject it."""
+    if not value:
+        raise ValueError(
+            f"{field}: empty or block-style capability declarations are unsupported"
+        )
     match = re.fullmatch(r"\[\s*(.*?)\s*\]", value)
     if not match:
+        raise ValueError(f"{field}: expected an inline list like [Read, Glob]")
+    inner = match.group(1)
+    if not inner.strip():
         return set()
-    return {
-        item.strip().strip("'").strip('"')
-        for item in match.group(1).split(",")
-        if item.strip()
-    }
+    parsed: set[str] = set()
+    for raw_item in inner.split(","):
+        item = raw_item.strip()
+        if not item:
+            raise ValueError(f"{field}: empty capability-list item")
+        if item[0] in {'"', "'"}:
+            quote = item[0]
+            if len(item) < 2 or item[-1] != quote or quote in item[1:-1]:
+                raise ValueError(f"{field}: malformed quoted capability {item!r}")
+            item = item[1:-1]
+        elif '"' in item or "'" in item:
+            raise ValueError(f"{field}: malformed quoted capability {item!r}")
+        if CAPABILITY_NAME_RE.fullmatch(item) is None:
+            raise ValueError(f"{field}: invalid capability name {item!r}")
+        parsed.add(item)
+    return parsed
 
 
 def is_read_only(meta: dict[str, str]) -> bool:
     """Derive filesystem confinement from effective canonical capabilities."""
-    declared = parse_tool_list(meta.get("tools", ""))
+    declared = (
+        parse_tool_list(meta["tools"], "tools") if "tools" in meta else set()
+    )
+    denied = (
+        parse_tool_list(meta["disallowedTools"], "disallowedTools")
+        if "disallowedTools" in meta
+        else set()
+    )
     if not declared:
-        return False
-    denied = parse_tool_list(meta.get("disallowedTools", ""))
+        return MUTATING_TOOLS.issubset(denied)
     effective = declared - denied
     return effective.isdisjoint(MUTATING_TOOLS)
 

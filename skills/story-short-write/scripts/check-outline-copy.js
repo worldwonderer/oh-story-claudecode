@@ -31,8 +31,8 @@
  * 收尾复扫用 `正文/第XXX章_*.md` 这类通配传多章时，多出来的正文不能被当成细纲吞掉
  * ——那会让首个文件比错对象、其余文件根本不检，静默退 0 报「干净」。
  *
- * 退出码：0 = 干净或自动发现不到可用细纲而跳过；1 = 有重合待复核；
- * 2 = 参数错误、显式输入不可读或非预期异常。
+ * 退出码：0 = 干净或未自动发现细纲而跳过；1 = 有重合待复核；
+ * 2 = 参数错误、输入不可读（含已发现的细纲）或非预期异常。
  * 干净时静默；自动发现不到细纲时明确报告跳过，避免与「已检查且干净」混淆。
  */
 
@@ -196,14 +196,8 @@ function checkOne(proseFile, explicitOutline) {
   }
   const outlineResult = readTextFile(outlineFile)
   if (!outlineResult.ok) {
-    if (explicitOutline) {
-      reportInputError('显式细纲', outlineFile, outlineResult.reason)
-      return 2
-    }
-    process.stdout.write(
-      `细纲照搬检测：跳过 "${proseFile}"（自动发现的细纲 "${outlineFile}" 不可用：${outlineResult.reason}）。\n`
-    )
-    return 0
+    reportInputError(explicitOutline ? '显式细纲' : '自动发现的细纲', outlineFile, outlineResult.reason)
+    return 2
   }
   const outline = outlineResult.text
 

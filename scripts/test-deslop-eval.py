@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location('deslop_eval', Path(__file__).with_name('run-deslop-eval.py'))
+assert SPEC is not None and SPEC.loader is not None
 EVAL = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(EVAL)
 
