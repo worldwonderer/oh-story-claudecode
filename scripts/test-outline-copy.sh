@@ -217,4 +217,42 @@ run "$TMP_DIR/批/正文/第006章_天明.md" "$TMP_DIR/批/正文/第005章_雨
 expect_status 1
 expect_contains "第005章_雨夜.md"
 
-echo "PASS: check-outline-copy.js (12 cases)"
+# --- 13. 「实际完成情况」小节（标题形态）：回填的正文原句不判誊抄，小节外照常报 ---
+CASE="completion-record-heading"
+cat >"$TMP_DIR/o13.md" <<EOF
+#### 情节细化
+- 点1：主角冒雨守在门外。
+
+#### 实际完成情况
+${COPIED}。回填记录里的原句不应参与比对。
+EOF
+printf '%s。\n' "$COPIED" >"$TMP_DIR/p13.md"
+run --outline "$TMP_DIR/o13.md" "$TMP_DIR/p13.md"
+expect_status 0
+[ -z "$OUTPUT" ] || fail "expected silence: completion-record section must be excluded"
+
+cat >"$TMP_DIR/o13b.md" <<EOF
+#### 情节细化
+- 点1：${COPIED}。
+
+#### 实际完成情况
+写完了，无偏差。
+EOF
+run --outline "$TMP_DIR/o13b.md" "$TMP_DIR/p13.md"
+expect_status 1
+expect_contains "22 字「${COPIED}」"
+
+# --- 14. 「实际完成情况」字段块形态：终止于下一个行首字段，后续字段照常参与比对 ---
+CASE="completion-record-field"
+cat >"$TMP_DIR/o14.md" <<EOF
+#### 情节细化
+- 点1：主角冒雨守在门外。
+- 实际完成情况：${COPIED}。
+- 结尾设定：主角离开。
+EOF
+printf '%s。\n' "$COPIED" >"$TMP_DIR/p14.md"
+run --outline "$TMP_DIR/o14.md" "$TMP_DIR/p14.md"
+expect_status 0
+[ -z "$OUTPUT" ] || fail "expected silence: completion-record field block must be excluded"
+
+echo "PASS: check-outline-copy.js (14 cases)"
