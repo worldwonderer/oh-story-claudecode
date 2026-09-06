@@ -20,14 +20,13 @@ Markdown 只负责给作者和 Agent 阅读，工具不再反向解析 Markdown�
 ```text
 {PYTHON} {当前 skill 根}/scripts/tracking_commit.py init   --project {书项目根} --input {初始化事务.json}
 {PYTHON} {当前 skill 根}/scripts/tracking_commit.py check  --project {书项目根}
-{PYTHON} {story-long-write skill 根}/scripts/storyctl.py wordcount checkpoint --file {前半段临时文件} --target {目标} --chapter {N}
 {PYTHON} {story-long-write skill 根}/scripts/storyctl.py chapter check   --project {书项目根} --chapter {N}
 {PYTHON} {story-long-write skill 根}/scripts/storyctl.py chapter commit  --project {书项目根} --chapter {N} --input {逐章事务.json}
 {PYTHON} {story-long-write skill 根}/scripts/storyctl.py chapter accept-current-length --project {书项目根} --chapter {N} --input {逐章事务.json}
 ```
 
 - `init`：只在 `_tracking-state.json` 不存在时执行，绝不覆盖已初始化项目。
-- `wordcount checkpoint`：纯测量；返回当前实际字数、用户带与剩余用户区间，不写正文、不写 tracking、不做语义判断。每章最多调用一次。
+- `wordcount measure` / `wordcount checkpoint`：纯测量入口；不写正文、不写 tracking、不做语义判断。长篇正文流程一次写完整章，**不在章中调用测量**，长度由 `chapter check` 一次收口；这两个入口供导入、审查等其他场景使用。
 - `chapter check`：重新读取当前正文与细纲目标，返回确定性长度状态、现有 blocking quality、`state_revision` 和当前可执行动作，不保存 approval。`under` 不提供自动补写；`over` 额外返回一次净删型 `compress-once` 及进入内带/用户带所需的机器删除区间。
 - `chapter commit`：再次读取当前文件、重新计数并重跑 blocking quality；只接受用户带内章节，把简短字数记录与逐章事务一起原子提交。
 - `chapter accept-current-length`：只接受带外但 quality pass 的章节；接受动作发生时重新读取、重新计数并立即原子提交，不保存可陈旧的历史决议。
