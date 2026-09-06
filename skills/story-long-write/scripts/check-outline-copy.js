@@ -61,6 +61,25 @@ function hanOnly(s) {
  * 区块终止于行首无缩进的下一个字段（`- xxx`）或下一个小节标题，因此条目本身
  * 用 `1.` 编号、缩进 `-` 列表或纯文本都能正确提取，不必额外标记。
  */
+/**
+ * 挖掉细纲的「实际完成情况」部分再参与比对。
+ * 该部分是写完正文后回填的记录（story-outline 规则「与正文同步」），天然含正文原句，
+ * 不是誊抄来源；不挖会把正常回填整段误报成照搬。
+ * 两种落盘形态都覆盖：独立小节标题（到下一个任意级标题为止）、
+ * 字段块（与锚句同款终止规则：下一个行首字段或小节标题）。
+ */
+function stripCompletionRecord(outline) {
+  let s = outline.replace(
+    /(^|\n)#{1,6}[^\n]*实际完成情况[^\n]*(?:\n(?!#{1,6}\s)[^\n]*)*/g,
+    "$1"
+  )
+  s = s.replace(
+    /(^|\n)[-*+]\s*实际完成情况[^：:\n]*[：:][\s\S]*?(?=\n[-*+]\s|\n#{1,6}\s|$(?![\s\S]))/g,
+    "$1"
+  )
+  return s
+}
+
 function extractAnchors(outline) {
   const m = outline.match(/复沓锚句[^：:\n]*[：:]([\s\S]*?)(?=\n[-*+]\s|\n#{1,6}\s|$)/)
   if (!m) return []
@@ -164,7 +183,7 @@ function checkOne(proseFile, explicitOutline) {
 
   // 正文去掉标题行后比对
   const P = hanOnly(prose.replace(/^#.*$/gm, ''))
-  const O = hanOnly(outline)
+  const O = hanOnly(stripCompletionRecord(outline))
   if (P.length < MIN_RUN || O.length < MIN_RUN) return 0
 
   // 复沓锚句列出的原话允许逐字落地，命中后计入豁免、不判誊抄

@@ -22,7 +22,7 @@ const path = require('path')
 const FIELDS = [
   '核心事件', '字数目标', '字数口径', '阶段位置', '单元ID/位置', '目标情绪',
   '主角目标/关键选择', '章节定位', '本章结构公式', '章首钩子', '爽点',
-  '本章禁止提前释放', '契约风险',
+  '本章标价', '闭环状态', '本章禁止提前释放', '写手自由区', '契约风险',
 ]
 const SUBSECTIONS = ['内容概括', '情节安排', '人物关系和出场顺序', '情节细化']
 const FIVE_ACT = ['起因', '发展', '转折', '高潮', '结尾']
@@ -46,11 +46,11 @@ function readUtf8(file) {
   }
 }
 
-function makeCheck(id, ok, file, evidence, expected, repair) {
+function makeCheck(id, ok, file, evidence, expected, repair, severity = 'blocking') {
   return {
     id,
     ok,
-    severity: 'blocking',
+    severity,
     file,
     evidence,
     expected,
@@ -65,7 +65,78 @@ function parseTableRow(line) {
   return trimmed.slice(1, -1).split('|').map((cell) => cell.replace(/\*\*/g, '').replace(/`/g, '').trim())
 }
 
-function verify(file) {
+function resolveBookRoot(file, projectRoot) {
+  if (projectRoot) return path.resolve(projectRoot)
+  const parent = path.dirname(path.resolve(file))
+  if (path.basename(parent) === '大纲') return path.dirname(parent)
+  return null
+}
+
+function collectBasenames(root) {
+  // 一次性遍历书目录收集全部文件名，供裸文件名引用（如 `经济与用度.md`）解析。
+  const names = new Set()
+  const stack = [root]
+  while (stack.length) {
+    const dir = stack.pop()
+    let entries
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true })
+    } catch { continue }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name.startsWith('_旧追踪存档')) continue
+      if (entry.isDirectory()) stack.push(path.join(dir, entry.name))
+      else names.add(entry.name)
+    }
+  }
+  return names
+}
+
+// 细纲里凡用 `…` 引用项目内 .md 文件的，文件必须真实存在——
+// 「数字口径照 X.md」而 X 里查无此数是实测发生过的排纲事故（引用赌存在），
+// 文件级存在性是其中脚本可判定的部分；内容是否真有那组数仍归排纲时 grep 验证。
+const REF_DIR_PREFIX = /^(?:设定|大纲|追踪|正文|读者笔记|对标)\//
+
+function checkSettingRefs(text, name, file, projectRoot) {
+  const bookRoot = resolveBookRoot(file, projectRoot)
+  if (!bookRoot) {
+    return makeCheck('outline.setting-refs-exist', true, name, '未能定位书目录（细纲不在 大纲/ 下且未传 --project），跳过', '细纲引用的项目内文件真实存在', '无需修复。')
+  }
+  const refs = new Set()
+  const pattern = /`([^`\n]+?\.md)[^`\n]*`/g
+  let match
+  while ((match = pattern.exec(text)) !== null) {
+    const token = match[1].trim()
+    if (token.includes('{') || token.includes('}')) continue
+    if (token.includes('/')) {
+      if (REF_DIR_PREFIX.test(token)) refs.add(token)
+    } else {
+      refs.add(token)
+    }
+  }
+  if (!refs.size) {
+    return makeCheck('outline.setting-refs-exist', true, name, '细纲未引用项目内文件', '细纲引用的项目内文件真实存在', '无需修复。')
+  }
+  let basenames = null
+  const missing = []
+  for (const token of refs) {
+    if (token.includes('/')) {
+      if (!fs.existsSync(path.join(bookRoot, token))) missing.push(token)
+    } else {
+      if (basenames === null) basenames = collectBasenames(bookRoot)
+      if (!basenames.has(token)) missing.push(token)
+    }
+  }
+  return makeCheck(
+    'outline.setting-refs-exist',
+    missing.length === 0,
+    name,
+    missing.length ? `引用的文件不存在：${missing.join('、')}` : `${refs.size} 处项目内引用全部存在`,
+    '细纲引用的每个项目内 .md 文件都真实存在——不许把槽位指向查无实据的权威文件',
+    '修正引用路径；或按「创作自主权分级」先把缺的设定落档（B 级直接补、C 级进《供给单》提案），再在细纲引用。'
+  )
+}
+
+function verify(file, projectRoot = null) {
   const name = path.basename(file)
   const read = readUtf8(file)
   const checks = []
@@ -133,20 +204,76 @@ function verify(file) {
   let header = null
   for (const line of lines) {
     const cells = parseTableRow(line)
-    if (cells && cells.length === 4 && PLOT_HEADER_FIRST.test(cells[0])) {
+    // 四列是旧表（# / 情节点 / 功能标签 / 执行边界），五列是现行模板（中间多一列「分辨率」）。
+    // 两种都收：功能标签固定在第 3 列，执行边界一律取最后一列，旧细纲不因加列而失效。
+    if (cells && (cells.length === 4 || cells.length === 5) && PLOT_HEADER_FIRST.test(cells[0])) {
       header = cells
       break
     }
   }
-  const headerOk = Boolean(header) && header[2].includes('功能标签') && header[3].includes('执行边界')
+  const headerOk = Boolean(header)
+    && header[2].includes('功能标签')
+    && header[header.length - 1].includes('执行边界')
+    && (header.length === 4 || header[3].includes('分辨率'))
   checks.push(makeCheck(
     'outline.plotpoint-table',
     headerOk,
     name,
-    header ? `表头：${header.join(' | ')}` : '未找到 | # | 情节点 | 功能标签 | 执行边界 | 表头',
-    '情节细化使用四列表格：# / 情节点（谁做了什么） / 功能标签 / 执行边界',
-    '只把情节点序列改成四列表格，逐点补功能标签与执行边界；不增删情节点本身。'
+    header ? `表头：${header.join(' | ')}` : '未找到 | # | 情节点 | 功能标签 | [分辨率] | 执行边界 | 表头',
+    '情节细化使用五列表格：# / 情节点（谁做了什么） / 功能标签 / 分辨率 / 执行边界（四列旧表仍收，但新建细纲按五列模板走）',
+    '只把情节点序列改成五列表格，逐点补功能标签、分辨率与执行边界；不增删情节点本身。'
   ))
+
+  // 「放」半边：五列表的执行边界必须至少一个点解除限制（模板既有要求），
+  // 全是禁令的情节点表实测会把整章压成同一个温度（015 章十一个点全「不许」）。
+  if (headerOk && header.length === 5) {
+    const rows = []
+    for (const line of lines) {
+      const cells = parseTableRow(line)
+      if (cells && cells.length === 5 && /^\d+$/.test(cells[0])) rows.push(cells)
+    }
+    if (rows.length) {
+      const released = rows.filter((cells) => /放\s*[：:]/.test(cells[4]))
+      checks.push(makeCheck(
+        'outline.plotpoint-release',
+        released.length > 0,
+        name,
+        `${rows.length} 个情节点里 ${released.length} 个写了「放」`,
+        '执行边界写成「禁＋放」两半，每章至少一个点写了「放」——放行是解除限制，不是义务',
+        '给最该出彩的一两个点补「放」半边（谁可以出声、谁可以失态、允不允许当场标价），不改情节点本身。'
+      ))
+      if (released.length > 0 && rows.length >= 3 && released.length * 3 < rows.length) {
+        checks.push(makeCheck(
+          'outline.plotpoint-release-ratio',
+          false,
+          name,
+          `${rows.length} 个情节点里只有 ${released.length} 个写了「放」（不足三分之一）`,
+          '建议至少三分之一的情节点写「放」半边，避免整章只剩禁令',
+          '按人工判断酌情补「放」；本项不阻断。',
+          'advisory'
+        ))
+      }
+    }
+  }
+
+  // 章级「禁止提前释放」只写本章特有的三五条；条目过多多半是把卷级常任禁忌逐章复读了。
+  const releaseMatch = text.match(/^\s*[-*+]\s*\*{0,2}本章禁止提前释放\*{0,2}\s*[：:]\s*(.*)$/m)
+  if (releaseMatch) {
+    const items = releaseMatch[1].split(/[、；;，,\/]/).map((s) => s.trim()).filter(Boolean)
+    if (items.length > 5) {
+      checks.push(makeCheck(
+        'outline.release-brevity',
+        false,
+        name,
+        `本章禁止提前释放列了 ${items.length} 条`,
+        '章级只写本章特有的三五条；卷级常任禁忌写在卷纲「本卷禁碰的终局底牌」，不逐章复读',
+        '把与卷纲常任重复的条目删掉，只留本章特有；本项不阻断。',
+        'advisory'
+      ))
+    }
+  }
+
+  checks.push(checkSettingRefs(text, name, file, projectRoot))
 
   const targetMatch = text.match(/字数目标\s*[：:]\s*(?:约\s*)?([\d,，]+)/)
   const target = targetMatch ? Number(targetMatch[1].replace(/[,，]/g, '')) : null
@@ -164,7 +291,8 @@ function verify(file) {
 }
 
 function report(file, checks) {
-  const failures = checks.filter((check) => !check.ok)
+  const failures = checks.filter((check) => !check.ok && check.severity === 'blocking')
+  const advisories = checks.filter((check) => !check.ok && check.severity === 'advisory')
   return {
     schema_version: 1,
     verifier: 'story-long-write.outline-contract',
@@ -172,6 +300,7 @@ function report(file, checks) {
     ok: failures.length === 0,
     checks,
     failures,
+    advisories,
     repair_scope: failures.map((failure) => ({
       id: failure.id,
       file: failure.file,
@@ -200,13 +329,52 @@ function resolveChapter(project, chapter) {
   return { file: path.join(dir, hit) }
 }
 
+// --supply：批末验证《供给单》已落卷纲——定位单元卡块，确认其中有「供给自查」小节。
+function verifySupply(volumeFile, unitId) {
+  const read = readUtf8(volumeFile)
+  if (!read.ok) {
+    return { schema_version: 1, verifier: 'story-long-write.outline-supply', file: path.resolve(volumeFile), unit: unitId, ok: false, evidence: read.error || '卷纲文件为空' }
+  }
+  const lines = read.text.split(/\r?\n/)
+  let start = -1
+  for (let index = 0; index < lines.length; index++) {
+    if (lines[index].includes(`剧情单元 ${unitId}`) || new RegExp(`单元ID\\s*[：:]\\s*\\*{0,2}${unitId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(lines[index])) {
+      start = index
+      break
+    }
+  }
+  if (start === -1) {
+    return { schema_version: 1, verifier: 'story-long-write.outline-supply', file: path.resolve(volumeFile), unit: unitId, ok: false, evidence: `卷纲中未找到剧情单元 ${unitId}` }
+  }
+  let end = lines.length
+  for (let index = start + 1; index < lines.length; index++) {
+    if (/^#{2,3}\s/.test(lines[index]) && !/^####/.test(lines[index])) { end = index; break }
+  }
+  const block = lines.slice(start, end).join('\n')
+  const ok = block.includes('供给自查')
+  return {
+    schema_version: 1,
+    verifier: 'story-long-write.outline-supply',
+    file: path.resolve(volumeFile),
+    unit: unitId,
+    ok,
+    evidence: ok ? '单元卡含「供给自查」小节' : `剧情单元 ${unitId} 的卡内没有「供给自查」小节——每批出细纲前须产出《供给单》（含「无缺口」情形），见 workflow-setup.md「按剧情批出细纲」步骤 3`,
+  }
+}
+
 function parseArgs(argv) {
   const files = []
   let project = null
   let chapter = null
+  let supply = null
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index]
     if (arg === '--json') continue
+    if (arg === '--supply') {
+      if (index + 2 >= argv.length) return null
+      supply = { volumeFile: argv[++index], unitId: argv[++index] }
+      continue
+    }
     if (arg === '--project' || arg === '--chapter') {
       if (index + 1 >= argv.length || argv[index + 1].startsWith('--')) return null
       const value = argv[++index]
@@ -216,6 +384,10 @@ function parseArgs(argv) {
     }
     if (arg.startsWith('--')) return null
     files.push(arg)
+  }
+  if (supply) {
+    if (project || chapter || files.length) return null
+    return { supply }
   }
   if (project || chapter) {
     if (!project || !chapter || files.length || !/^\d+$/.test(chapter)) return null
@@ -228,8 +400,13 @@ function parseArgs(argv) {
 function main(argv) {
   const parsed = parseArgs(argv)
   if (!parsed) {
-    process.stderr.write('用法: node scripts/check-outline-contract.js --json <细纲路径...> | --json --project <书目录> --chapter N\n')
+    process.stderr.write('用法: node scripts/check-outline-contract.js --json <细纲路径...> | --json --project <书目录> --chapter N | --json --supply <卷纲路径> <单元ID>\n')
     return 2
+  }
+  if (parsed.supply) {
+    const supplyReport = verifySupply(parsed.supply.volumeFile, parsed.supply.unitId)
+    process.stdout.write(`${JSON.stringify(supplyReport, null, 2)}\n`)
+    return supplyReport.ok ? 0 : 1
   }
   let targets = parsed.files
   if (!targets) {
@@ -240,7 +417,7 @@ function main(argv) {
     }
     targets = [resolved.file]
   }
-  const reports = targets.map((file) => verify(file))
+  const reports = targets.map((file) => verify(file, parsed.project || null))
   const ok = reports.every((entry) => entry.ok)
   process.stdout.write(`${JSON.stringify(reports.length === 1 ? reports[0] : reports, null, 2)}\n`)
   return ok ? 0 : 1

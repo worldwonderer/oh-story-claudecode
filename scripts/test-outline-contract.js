@@ -23,7 +23,10 @@ const FIELDS = [
   ['本章结构公式', '接到邀约 + 上门 + 老兵开口 + 立下承诺'],
   ['章首钩子', '悬念前置 — 老人把铁盒推过来'],
   ['爽点', '无显性爽点，功能是把宏大叙事落到具体的人身上'],
+  ['本章标价', '铁盒＝老兵一辈子唯一没交出去的东西；尺子在点1立好（他连勋章都捐了）'],
+  ['闭环状态', '获得+使用，见效与估值扣住，第22章开奖'],
   ['本章禁止提前释放', '铁盒内容与终局表彰的关系'],
+  ['写手自由区', '老兵讲故事的细节、屋内陈设、对话内容由写手自定'],
   ['契约风险', '契约安全'],
 ]
 
@@ -32,10 +35,10 @@ function outline(overrides = {}) {
     .filter(([name]) => overrides.dropField !== name)
     .map(([name, value]) => `- ${name}：${overrides.fieldValues?.[name] ?? value}`)
   const table = overrides.plotTable ?? [
-    '| # | 情节点（谁做了什么） | 功能标签 | 执行边界 |',
-    '|---|---|---|---|',
-    '| 1 | 江晨接到邀约 | 铺垫 | 只给邀约，不提铁盒 |',
-    '| 2 | 老人推过铁盒 | 高潮 | 只讲当年，不评价当下 |',
+    '| # | 情节点（谁做了什么） | 功能标签 | 分辨率 | 执行边界 |',
+    '|---|---|---|---|---|',
+    '| 1 | 江晨接到邀约 | 铺垫 | 疏 | 禁：不提铁盒。放：无 |',
+    '| 2 | 老人推过铁盒 | 高潮 | 密 | 禁：不评价当下。放：允许老人当场说出这东西他留了几十年 |',
   ].join('\n')
   const acts = ['起因', '发展', '转折', '高潮', '结尾']
     .filter((act) => overrides.dropAct !== act)
@@ -150,6 +153,28 @@ try {
   assert.strictEqual(threeCol.status, 1)
   assert.deepStrictEqual(failureIds(threeCol), ['outline.plotpoint-table'])
 
+  // 加「分辨率」列之前的四列旧表仍然收——既有项目的细纲不因模板加列而失效。
+  const legacyFourCol = run(writeCase('plot-legacy-four-col', outline({
+    plotTable: [
+      '| # | 情节点（谁做了什么） | 功能标签 | 执行边界 |',
+      '|---|---|---|---|',
+      '| 1 | 江晨接到邀约 | 铺垫 | 只给邀约，不提铁盒 |',
+    ].join('\n'),
+  })))
+  assert.strictEqual(legacyFourCol.status, 0, legacyFourCol.stdout + legacyFourCol.stderr)
+  assert.strictEqual(legacyFourCol.report.ok, true)
+
+  // 五列但中间那列不是分辨率，判偏离——防止随便加一列就算数。
+  const wrongFifth = run(writeCase('plot-wrong-fifth', outline({
+    plotTable: [
+      '| # | 情节点（谁做了什么） | 功能标签 | 字数 | 执行边界 |',
+      '|---|---|---|---|---|',
+      '| 1 | 江晨接到邀约 | 铺垫 | 300 | 只给邀约 |',
+    ].join('\n'),
+  })))
+  assert.strictEqual(wrongFifth.status, 1)
+  assert.deepStrictEqual(failureIds(wrongFifth), ['outline.plotpoint-table'])
+
   const badTarget = run(writeCase('bad-target', outline({ fieldValues: { 字数目标: '很多字' } })))
   assert.strictEqual(badTarget.status, 1)
   assert(failureIds(badTarget).includes('outline.wordcount-target'))
@@ -157,6 +182,74 @@ try {
   const noCaliber = run(writeCase('no-caliber', outline({ fieldValues: { 字数口径: 'chars' } })))
   assert.strictEqual(noCaliber.status, 1)
   assert.deepStrictEqual(failureIds(noCaliber), ['outline.wordcount-target'])
+
+  // 五列表全是禁令（一个「放」都没有）必须被判出来——015 章的实测事故形态。
+  const allForbid = run(writeCase('plot-all-forbid', outline({
+    plotTable: [
+      '| # | 情节点（谁做了什么） | 功能标签 | 分辨率 | 执行边界 |',
+      '|---|---|---|---|---|',
+      '| 1 | 江晨接到邀约 | 铺垫 | 疏 | 禁：不提铁盒 |',
+      '| 2 | 老人推过铁盒 | 高潮 | 密 | 禁：不评价当下 |',
+    ].join('\n'),
+  })))
+  assert.strictEqual(allForbid.status, 1)
+  assert(failureIds(allForbid).includes('outline.plotpoint-release'))
+
+  // 有「放」但不足三分之一：blocking 通过，advisory 提示。
+  const lowRelease = run(writeCase('plot-low-release', outline({
+    plotTable: [
+      '| # | 情节点（谁做了什么） | 功能标签 | 分辨率 | 执行边界 |',
+      '|---|---|---|---|---|',
+      '| 1 | 江晨接到邀约 | 铺垫 | 疏 | 禁：不提铁盒。放：允许邻居搭话 |',
+      '| 2 | 老人推过铁盒 | 高潮 | 密 | 禁：不评价当下 |',
+      '| 3 | 江晨接过铁盒 | 高潮 | 中 | 禁：不开盒 |',
+      '| 4 | 告辞出门 | 余波 | 疏 | 禁：不回头 |',
+    ].join('\n'),
+  })))
+  assert.strictEqual(lowRelease.status, 0, lowRelease.stdout + lowRelease.stderr)
+  assert(lowRelease.report.advisories.map((a) => a.id).includes('outline.plotpoint-release-ratio'))
+
+  // 禁止提前释放条目超过五条：疑似复读卷级常任，advisory 不阻断。
+  const boilerplate = run(writeCase('release-boilerplate', outline({
+    fieldValues: { 本章禁止提前释放: '铁盒内容、终局表彰、幕后资助人、母亲身世、纪念馆改建、旧部队番号' },
+  })))
+  assert.strictEqual(boilerplate.status, 0, boilerplate.stdout + boilerplate.stderr)
+  assert(boilerplate.report.advisories.map((a) => a.id).includes('outline.release-brevity'))
+
+  // 细纲引用了不存在的设定文件必须被判出来——「数字照 X.md」而 X 查无实据的排纲事故。
+  const ghostRefBody = outline() + '\n#### 结尾设定和钩子\n- 结尾设定：数字口径照 `设定/世界观/经济与用度.md`，收束于关门\n'
+  const ghostRef = run(writeCase('ghost-ref', ghostRefBody))
+  assert.strictEqual(ghostRef.status, 1)
+  assert(failureIds(ghostRef).includes('outline.setting-refs-exist'))
+
+  // 同一引用在文件真实存在时必须通过（含裸文件名引用）。
+  const realRefProject = writeCase('real-ref', outline() + '\n#### 结尾设定和钩子\n- 结尾设定：数字口径照 `设定/世界观/经济与用度.md`、行市见 `经济与用度.md`\n')
+  fs.mkdirSync(path.join(realRefProject, '设定', '世界观'), { recursive: true })
+  fs.writeFileSync(path.join(realRefProject, '设定', '世界观', '经济与用度.md'), '# 经济与用度\n', 'utf8')
+  const realRef = run(realRefProject)
+  assert.strictEqual(realRef.status, 0, realRef.stdout + realRef.stderr)
+
+  // --supply：单元卡含「供给自查」小节通过，缺则失败。
+  const volumeDir = path.join(tmpRoot, 'supply-case', '大纲')
+  fs.mkdirSync(volumeDir, { recursive: true })
+  const volumeFile = path.join(volumeDir, '卷纲_第一卷.md')
+  fs.writeFileSync(volumeFile, [
+    '# 第一卷 卷纲',
+    '### 剧情单元 D1-02',
+    '- 单元ID：D1-02',
+    '- 章节范围：第 11-20 章',
+    '#### 供给自查',
+    '- 对手供给：贾雄手下（B 级，落 设定/角色/贾雄.md）',
+    '### 剧情单元 D1-03',
+    '- 单元ID：D1-03',
+    '- 章节范围：第 21-34 章',
+    '## 核心矛盾',
+  ].join('\n'), 'utf8')
+  const supplyOk = spawnSync(process.execPath, [verifier, '--json', '--supply', volumeFile, 'D1-02'], { cwd: repoRoot, encoding: 'utf8' })
+  assert.strictEqual(supplyOk.status, 0, supplyOk.stdout + supplyOk.stderr)
+  const supplyMissing = spawnSync(process.execPath, [verifier, '--json', '--supply', volumeFile, 'D1-03'], { cwd: repoRoot, encoding: 'utf8' })
+  assert.strictEqual(supplyMissing.status, 1)
+  assert.match(JSON.parse(supplyMissing.stdout).evidence, /供给自查/)
 
   const missingFile = run(writeCase('missing-file', null))
   assert.strictEqual(missingFile.status, 2)
